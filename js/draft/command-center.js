@@ -5594,7 +5594,11 @@
         // (the fullscreen post-draft modal renders this with inline=false even on
         // phone — it used the roomy desktop padding/row layout and wasted most of
         // a phone screen's width before this).
-        const compact = inline || bpBucket() === 'mobile';
+        const recapPhone = bpBucket() === 'mobile';
+        const compact = inline || recapPhone;
+        const [phonePickLimit, setPhonePickLimit] = React.useState(10);
+        const [phoneTeamLimit, setPhoneTeamLimit] = React.useState(6);
+        React.useEffect(() => { setPhonePickLimit(10); setPhoneTeamLimit(6); }, [recap?.draftId, recap?.id, userRosterId]);
         // Phone recap runs long (owner ask 2026-09-05: "takes up way too much
         // screen"). Every compact number below is a density pass only — no
         // section was cut, nothing collapsed; desktop is untouched.
@@ -5701,7 +5705,7 @@
                     const myPct = recap?.percentile ?? (totals.length ? Math.round(((totals.length - myRank) / Math.max(1, totals.length - 1)) * 100) : 0);
 
         return (
-                            <div style={{
+                            <div className={recapPhone ? 'la-mobile la-draft la-draft-recap' : undefined} style={{
                                 width: '100%', maxWidth: '1080px',
                                 ...(inline ? {} : { maxHeight: '92vh', overflowY: 'auto', overscrollBehavior: 'contain', boxShadow: '0 32px 96px rgba(0,0,0,0.8)' }),
                                 background: 'var(--k-0a0b0d, #0a0b0d)', border: (inline ? '1px' : '2px') + ' solid ' + wrAlpha(gradeColor, '55'),
@@ -5709,18 +5713,18 @@
                             }}>
                                 {/* Hero */}
                                 <div style={{ padding: compact ? '11px 13px' : '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: compact ? '3px' : '6px' }}>Draft Complete — Recap</div>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: compact ? '3px' : '6px' }}>Draft Complete — Recap</div>
                                     <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? '7px' : '24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '14px' : '0', textAlign: compact ? 'left' : 'center', flexShrink: 0 }}>
                                             <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '2.5rem' : '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
-                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
+                                            <div style={{ fontSize: (recapPhone) ? '14px' : '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.96rem', color: 'var(--white)', lineHeight: 1.5 }}>
+                                            <div style={{ fontSize: (recapPhone) ? '16px' : '0.96rem', color: 'var(--white)', lineHeight: 1.5 }}>
                                                 Total DHQ: <strong style={{ color: gradeColor }}>{grade.totalDHQ.toLocaleString()}</strong> across {myPicks.length} pick{myPicks.length === 1 ? '' : 's'}
                                             </div>
                                             {totals.length >= 3 && (
-                                                <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                                <div style={{ fontSize: (recapPhone) ? '16px' : '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
                                                     You finished <strong style={{ color: myRank <= 3 ? 'var(--k-2ecc71, #2ecc71)' : myRank <= totals.length / 2 ? 'var(--gold)' : 'var(--k-e74c3c, #e74c3c)' }}>#{myRank}</strong> of {totals.length} teams by draft DHQ ({myPct}th percentile)
                                                 </div>
                                             )}
@@ -5729,8 +5733,8 @@
                                             <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '7px 11px' : '12px 18px', borderRadius: 'var(--card-radius-lg, 14px)', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
                                                 <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.5rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
                                                 <div style={{ textAlign: compact ? 'left' : 'center' }}>
-                                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
-                                                    <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
+                                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
+                                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
                                                 </div>
                                             </div>
                                         )}
@@ -5738,8 +5742,8 @@
                                 </div>
 
                                 {/* P4 strategic readout */}
-                                <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '7px' : '10px' }}>Strategic Readout</div>
+                                <window.WR.MobileSection title="Strategic readout"><div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '7px' : '10px' }}>Strategic Readout</div>
                                     {/* best/reach/worst/alternative calls are grade reads → Pro */}
                                     {!recapPro ? (
                                         window.WrGatedMoreRow
@@ -5784,32 +5788,32 @@
                                         )}
                                     </div>
                                     )}
-                                </div>
+                                </div></window.WR.MobileSection>
 
                                 {/* Per-position breakdown */}
-                                <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Positional Breakdown</div>
+                                <window.WR.MobileSection title="Position breakdown"><div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Positional Breakdown</div>
                                     {recapPositions.length ? (
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                                             {recapPositions.map(s => {
                                                 const pos = s.pos;
                                                 const posCol = (window.App?.POS_COLORS || {})[pos] || 'var(--silver)';
                                                 return <div key={pos} style={{ padding: '10px 12px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)', borderLeft: '3px solid ' + posCol }}>
-                                                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: posCol, letterSpacing: '0.04em' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</div>
+                                                    <div style={{ fontSize: (recapPhone) ? '16px' : '0.82rem', fontWeight: 700, color: posCol, letterSpacing: '0.04em' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</div>
                                                     <div style={{ fontFamily: FONT_DISPL, fontSize: '1.2rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px' }}>{s.count}</div>
                                                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 }}>{s.dhq.toLocaleString()} DHQ</div>
                                                 </div>;
                                             })}
                                         </div>
-                                    ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No picks on record.</div>}
-                                </div>
+                                    ) : <div style={{ fontSize: (recapPhone) ? '14px' : '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No picks on record.</div>}
+                                </div></window.WR.MobileSection>
 
                                 {/* Pick-by-pick roster list */}
-                                <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Your Draft Class</div>
+                                <window.WR.MobileSection title="Your draft class" defaultOpen={true}><div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Your Draft Class</div>
                                     {(myPicks || []).length ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            {myPicks.map((pk, i) => {
+                                            {myPicks.slice(0, recapPhone ? phonePickLimit : undefined).map((pk, i) => {
                                                 const normalized = stateHelpers.normalizePickRecord ? stateHelpers.normalizePickRecord(pk) : pk;
                                                 const p = pk.player || {};
                                                 const pos = (normalized?.pos || p.position || pk.pos || '').toUpperCase();
@@ -5821,22 +5825,22 @@
                                                     onClick={() => openRecapPlayer(normalized?.pid || pk.pid)}
                                                     style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-1, rgba(255,255,255,0.02))', cursor: (normalized?.pid || pk.pid) ? 'pointer' : 'default' }}
                                                 >
-                                                    <span style={{ fontFamily: FONT_DISPL, fontSize: '0.72rem', color: 'var(--gold)', width: '48px' }}>
+                                                    <span style={{ fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '14px' : '0.72rem', color: 'var(--gold)', width: '48px' }}>
                                                         {pk.round && pk.pickInRound ? (pk.round + '.' + String(pk.pickInRound).padStart(2, '0')) : ('#' + (i + 1))}
                                                     </span>
                                                     <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + pk.pid + '.jpg'} alt="" onError={e => e.target.style.display = 'none'} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
-                                                    <span style={{ flex: 1, fontSize: '0.84rem', color: 'var(--white)', fontWeight: 600 }}>{normalized?.name || p.full_name || p.name || pk.name || pk.pid}</span>
-                                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: posCol, padding: '1px 6px', background: 'rgba(0,0,0,0.4)', borderRadius: '3px' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>
-                                                    <span style={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.82rem', color: dhqCol, minWidth: '56px', textAlign: 'right' }}>{dhq > 0 ? dhq.toLocaleString() : '—'}</span>
+                                                    <span style={{ flex: 1, fontSize: (recapPhone) ? '16px' : '0.84rem', color: 'var(--white)', fontWeight: 600 }}>{normalized?.name || p.full_name || p.name || pk.name || pk.pid}</span>
+                                                    <span style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', fontWeight: 700, color: posCol, padding: '1px 6px', background: 'rgba(0,0,0,0.4)', borderRadius: '3px' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>
+                                                    <span style={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: (recapPhone) ? '16px' : '0.82rem', color: dhqCol, minWidth: '56px', textAlign: 'right' }}>{dhq > 0 ? dhq.toLocaleString() : '—'}</span>
                                                 </div>;
                                             })}
                                         </div>
-                                    ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No picks made.</div>}
-                                </div>
+                                    ) : <div style={{ fontSize: (recapPhone) ? '14px' : '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No picks made.</div>}
+                                </div>{recapPhone && myPicks.length > phonePickLimit && <button className="la-show-more" onClick={() => setPhonePickLimit(n => n + 10)}>Show 10 more picks</button>}</window.WR.MobileSection>
 
                                 {/* Around the league — extremes + draft-day trade volume */}
-                                <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Around the League</div>
+                                <window.WR.MobileSection title="Around the league"><div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Around the League</div>
                                     {/* league best/reach/worst calls → Pro; raw trade volume below stays */}
                                     {recapPro && (
                                     <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(150px, 1fr))' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: compact ? '7px' : '10px' }}>
@@ -5878,13 +5882,13 @@
                                                     <span key={r} style={{ padding: '5px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{Number(r) > 0 ? 'R' + r : 'Other'}: <strong style={{ color: 'var(--white)' }}>{tradeVolume.byRound[r]}</strong></span>
                                                 ))}
                                             </div>
-                                        ) : <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6 }}>No pick trades during this draft.</div>}
+                                        ) : <div style={{ fontSize: (recapPhone) ? '14px' : '0.74rem', color: 'var(--silver)', opacity: 0.6 }}>No pick trades during this draft.</div>}
                                     </div>
-                                </div>
+                                </div></window.WR.MobileSection>
 
                                 {/* League-wide recap — where teams stand after the draft */}
-                                <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Where Teams Stand After the Draft</div>
+                                <window.WR.MobileSection title="Team results"><div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: (recapPhone) ? '14px' : '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Where Teams Stand After the Draft</div>
                                     {/* narrative storylines are reads → Pro */}
                                     {recapPro && leagueStorylines.length > 0 && (
                                         <div style={{ display: 'grid', gap: compact ? '4px' : '6px', marginBottom: compact ? '8px' : '12px' }}>
@@ -5895,7 +5899,7 @@
                                     )}
                                     {teamRecaps.length ? (
                                         <div style={{ display: 'grid', gap: compact ? '4px' : '6px' }}>
-                                            {teamRecaps.slice(0, 12).map(team => {
+                                            {teamRecaps.slice(0, recapPhone ? phoneTeamLimit : 12).map(team => {
                                                 const isUser = String(team.rosterId) === String(userRosterId);
                                                 const topPlayer = team.topPick || team.picks?.[0];
                                                 const gradeCol = team.grade?.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : team.grade?.startsWith('B') ? 'var(--gold)' : team.grade?.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
@@ -5916,20 +5920,20 @@
                                                     return (
                                                         <div key={team.rosterId || team.teamName} style={{ padding: '5px 8px', borderRadius: 'var(--card-radius-sm, 8px)', border: rowBorder, background: rowBg }}>
                                                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                                                                <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>#{team.rank}</span>
+                                                                <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: (recapPhone) ? '14px' : '0.72rem', fontWeight: 800, flexShrink: 0 }}>#{team.rank}</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => { if (onPinTeam) onPinTeam(team.rosterId); }}
                                                                     style={{ flex: 1, minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: 'var(--white)', textAlign: 'left', cursor: onPinTeam ? 'pointer' : 'default', fontFamily: FONT_UI }}
                                                                     title={onPinTeam ? 'Pin this team in opponent intel' : undefined}
                                                                 >
-                                                                    <div style={{ fontWeight: 800, fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    <div style={{ fontWeight: 800, fontSize: (recapPhone) ? '16px' : '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                         {team.teamName}
                                                                         {tierBadge}
                                                                     </div>
                                                                 </button>
-                                                                <span style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 900, flexShrink: 0 }}>{recapPro ? team.grade : '🔒'}</span>
-                                                                <span style={{ color: 'var(--silver)', fontSize: '0.66rem', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
+                                                                <span style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '16px' : '0.9rem', fontWeight: 900, flexShrink: 0 }}>{recapPro ? team.grade : '🔒'}</span>
+                                                                <span style={{ color: 'var(--silver)', fontSize: (recapPhone) ? '14px' : '0.66rem', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
                                                             </div>
                                                             <div style={{ marginTop: '1px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                                                 <span title={team.buildBasis} style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, whiteSpace: 'nowrap' }}>{team.buildLabel}</span>
@@ -5959,21 +5963,21 @@
                                                         border: rowBorder,
                                                         background: rowBg,
                                                     }}>
-                                                        <div style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800 }}>#{team.rank}</div>
+                                                        <div style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: (recapPhone) ? '14px' : '0.72rem', fontWeight: 800 }}>#{team.rank}</div>
                                                         <button
                                                             type="button"
                                                             onClick={() => { if (onPinTeam) onPinTeam(team.rosterId); }}
                                                             style={{ minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: 'var(--white)', textAlign: 'left', cursor: onPinTeam ? 'pointer' : 'default', fontFamily: FONT_UI }}
                                                             title={onPinTeam ? 'Pin this team in opponent intel' : undefined}
                                                         >
-                                                            <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            <div style={{ fontWeight: 800, fontSize: (recapPhone) ? '14px' : '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {team.teamName}
                                                                 {tierBadge}
                                                             </div>
                                                             <div title={team.buildBasis} style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
                                                         </button>
                                                         <div style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 900 }}>{recapPro ? team.grade : '🔒'}</div>
-                                                        <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontFamily: FONT_MONO, textAlign: 'right' }}>{fmtDhq(team.totalDHQ)} DHQ</div>
+                                                        <div style={{ color: 'var(--silver)', fontSize: (recapPhone) ? '14px' : '0.7rem', fontFamily: FONT_MONO, textAlign: 'right' }}>{fmtDhq(team.totalDHQ)} DHQ</div>
                                                         <button
                                                             type="button"
                                                             onClick={() => topPlayer?.pid && openRecapPlayer(topPlayer.pid)}
@@ -5989,13 +5993,13 @@
                                                 );
                                             })}
                                         </div>
-                                    ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No league picks available for recap.</div>}
-                                </div>
+                                    ) : <div style={{ fontSize: (recapPhone) ? '14px' : '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No league picks available for recap.</div>}
+                                </div>{recapPhone && teamRecaps.length > phoneTeamLimit && <button className="la-show-more" onClick={() => setPhoneTeamLimit(n => n + 6)}>Show more teams</button>}</window.WR.MobileSection>
 
                                 {/* Actions — wraps (rather than overflowing off-screen) and
                                     stacks full-width on phone so every button stays reachable. */}
                                 <div style={{ padding: compact ? '10px 13px 14px' : '18px 32px 24px', display: 'flex', flexWrap: 'wrap', gap: compact ? '7px' : '10px', justifyContent: compact ? 'stretch' : 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
+                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '16px' : '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
                                     {/* share/export text embeds the A–F grade + value calls → Pro
                                         (clean absence; save-to-archive above stays free) */}
                                     {recapPro && <button onClick={() => {
@@ -6006,7 +6010,7 @@
                                             if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.')).catch(e => alert('Copy failed: ' + e.message));
                                             else alert('Clipboard unavailable in this browser.');
                                         } catch (e) { alert('Copy failed: ' + e.message); }
-                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '16px' : '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
                                     {recapPro && <button onClick={() => {
                                         try {
                                             const text = stateHelpers.formatDraftShareReport
@@ -6017,8 +6021,8 @@
                                             const blob = new Blob([text], { type: 'text/markdown' });
                                             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'draft-recap-' + Date.now() + '.md'; a.click(); URL.revokeObjectURL(url);
                                         } catch (e) { alert('Export failed: ' + e.message); }
-                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
-                                    {onPrimary && <button onClick={onPrimary} style={{ flex: compact ? '1 1 100%' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '16px' : '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
+                                    {onPrimary && <button onClick={onPrimary} style={{ flex: compact ? '1 1 100%' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: (recapPhone) ? '16px' : '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
                                 </div>
                             </div>
         );
@@ -6305,7 +6309,9 @@
         // identical <1200 threshold semantics): give the rich 3-col layout to anything
         // >= 1200px, and below that a compact 2-col layout whose panel heights adapt
         // to the viewport (not fixed px).
-        const isCompact = window.WR.useViewport().width < 1200;
+        const gridViewport = window.WR.useViewport();
+        const isCompact = gridViewport.width < 1200;
+        const phoneShortGrid = viewport === 'mobile' && (gridViewport.height <= 520 || gridViewport.kbOpen);
         // Condensed "Split HUD" header replaces the strip + Alex Live Read + trade
         // window banner during a live draft only; other phases keep the full header.
         const isLiveDraftHud = state.mode === 'live-sync' && state.phase === 'drafting';
@@ -6819,7 +6825,7 @@
                     {React.createElement(window.DraftCC.LiveRoomPanel, { state })}
                 </div>}
                 {/* ── TOP ROW: Big Board / Roster Build / Opponent Intel ───── */}
-                <div style={{
+                <window.WR.MobileSection title="Players & roster"><div style={{
                     display: 'grid',
                     gridTemplateRows: isCompact ? undefined : 'minmax(0, 1fr)',
                     gridTemplateColumns: viewport === 'mobile' ? 'minmax(0, 1fr)' : isCompact ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1.5fr) minmax(300px, 0.72fr) minmax(320px, 0.82fr)',
@@ -6827,10 +6833,10 @@
                     height: isCompact ? 'auto' : 'clamp(520px, 58vh, 680px)',
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
-                    <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0, overflowY: viewport === 'mobile' ? 'auto' : undefined, overscrollBehavior: 'contain' }}>
+                    <div style={{ height: phoneShortGrid ? 'auto' : isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0, overflowY: viewport === 'mobile' ? 'auto' : undefined, overscrollBehavior: 'contain' }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state) && state.draftMechanic !== 'auction'} />
                     </div>
-                    <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0 }}>
+                    <div style={{ height: phoneShortGrid ? 'auto' : isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0 }}>
                         {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state, contained: true }) : <MyDraftRosterPanel state={state} />}
                     </div>
                     {!isCompact && (
@@ -6838,10 +6844,10 @@
                             <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
                         </div>
                     )}
-                </div>
+                </div></window.WR.MobileSection>
 
                 {/* ── BOTTOM ROW: Pick List / Alex Stream ───── */}
-                <div style={{
+                <window.WR.MobileSection title="Draft log & analysis"><div style={{
                     display: 'grid',
                     gridTemplateRows: isCompact ? undefined : 'minmax(0, 1fr)',
                     gridTemplateColumns: viewport === 'mobile' ? 'minmax(0, 1fr)' : isCompact
@@ -6877,7 +6883,7 @@
                                 : <AlexStreamPanel state={state} dispatch={dispatch} />}
                         </div>
                     </div>
-                </div>
+                </div></window.WR.MobileSection>
 
                 {/* Floating "Ask Alex" answer window — opened by action buttons (fixed-position) */}
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
@@ -7996,7 +8002,7 @@
             return Math.floor(s / 86400) + 'd';
         };
         const avatarEl = (label, color, bg) => (
-            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: '0.62rem', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
+            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: (bpBucket() === 'mobile') ? '14px' : '0.62rem', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
         );
         const initialsOf = s => String(s || '?').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
         const pickRowEl = pk => {
@@ -8013,19 +8019,19 @@
                     style={{ padding: '9px 11px', borderRadius: 10, cursor: pk.pid ? 'pointer' : 'default', background: pk.isUser ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (pk.isUser ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'var(--ov-4, rgba(255,255,255,0.05))') }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                         {avatarEl(initialsOf(team), pk.isUser ? 'var(--gold)' : 'var(--silver)', pk.isUser ? 'rgba(212,175,55,0.14)' : 'var(--ov-3, rgba(255,255,255,0.05))')}
-                        <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.76rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
+                        <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: (bpBucket() === 'mobile') ? '14px' : '0.76rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
                         <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{'R' + (pk.round || '?') + '.' + String(pk.pickInRound || pk.slot || 0).padStart(2, '0')}{pk.ts ? ' · ' + agoOf(pk.ts) : ''}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 7 }}>
                         <img src={photo} alt="" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', objectPosition: 'center top', background: 'var(--ov-3, rgba(255,255,255,0.05))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.84rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pk.name}</span>
+                                <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: (bpBucket() === 'mobile') ? '16px' : '0.84rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pk.name}</span>
                                 <span style={{ flexShrink: 0, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: posColors[pk.pos] || 'var(--silver)', padding: '1px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.4)' }}>{pk.pos || '—'}</span>
                             </div>
                             <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{bits || '—'}</div>
                         </div>
-                        <span style={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'var(--silver)', flexShrink: 0 }}>{fmtK(pk.dhq)}</span>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: (bpBucket() === 'mobile') ? '14px' : '0.78rem', fontWeight: 700, color: 'var(--silver)', flexShrink: 0 }}>{fmtK(pk.dhq)}</span>
                     </div>
                     {rs && (
                         <div style={{ marginTop: 7, padding: '5px 8px', borderRadius: 6, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.4, color: rs.steal ? 'var(--k-2ecc71, #2ecc71)' : 'var(--bad, #e5534b)', background: rs.steal ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)', border: '1px solid ' + (rs.steal ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)') }}>
@@ -8041,12 +8047,12 @@
                 <div key={ev.id} style={{ padding: '8px 11px', borderRadius: 10, background: 'var(--ov-1, rgba(255,255,255,0.018))', border: '1px solid var(--ov-4, rgba(255,255,255,0.045))' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                         {avatarEl(voice.avatar, voice.color, voice.bg)}
-                        <span style={{ color: voice.color, fontWeight: 900, fontSize: '0.74rem', flexShrink: 0 }}>{voice.name}</span>
+                        <span style={{ color: voice.color, fontWeight: 900, fontSize: (bpBucket() === 'mobile') ? '14px' : '0.74rem', flexShrink: 0 }}>{voice.name}</span>
                         <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{voice.tag}</span>
                         <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{agoOf(ev.ts)}</span>
                     </div>
                     {ev.title && <div style={{ marginTop: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: ev.color || voice.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{(ev.badge ? ev.badge + ' ' : '') + ev.title}</div>}
-                    {ev.text && <div style={{ marginTop: 2, color: 'var(--silver)', fontSize: '0.76rem', lineHeight: 1.45 }}>{ev.text}</div>}
+                    {ev.text && <div style={{ marginTop: 2, color: 'var(--silver)', fontSize: (bpBucket() === 'mobile') ? '14px' : '0.76rem', lineHeight: 1.45 }}>{ev.text}</div>}
                 </div>
             );
         };
@@ -8054,7 +8060,7 @@
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2, ...(heightStyle || {}) }}>
                 {feedRows.length
                     ? feedRows.map(row => (row.kind === 'pick' ? pickRowEl(row.pk) : alexRowEl(row.ev)))
-                    : <div style={{ padding: 14, border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 9, color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>{emptyText || "The feed starts when the first pick lands — picks and Alex's reads land here in order."}</div>}
+                    : <div style={{ padding: 14, border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 9, color: 'var(--silver)', opacity: 0.7, fontSize: (bpBucket() === 'mobile') ? '14px' : '0.78rem' }}>{emptyText || "The feed starts when the first pick lands — picks and Alex's reads land here in order."}</div>}
             </div>
         );
     }
@@ -8080,6 +8086,8 @@
         // Which demoted side panel is open: 'alex'|'intel'|'analytics'.
         // Hooks sit above every early return so hook order never varies.
         const [phPanel, setPhPanel] = React.useState(null);
+        const phoneViewport = window.WR.useViewport();
+        const roomPaneStyle = phoneViewport.height <= 520 || phoneViewport.kbOpen ? { height: 'auto', minHeight: 0, overflowY: 'visible' } : { height: '56dvh', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' };
         // Live-room redesign (owner ask): the room is a swipeable 3-tab surface —
         // FEED (pick log with Alex's stream interwoven) / BOARD / ROSTER — under a
         // permanent DraftCast bar that carries on-clock opponent intel.
@@ -8212,29 +8220,25 @@
             if (ni !== i) setPhTab(TAB_KEYS[ni]);
         };
         return (
-            <div style={{ fontFamily: FONT_UI, padding: '4px 0' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div className="la-mobile la-draft la-live-draft" style={{ fontFamily: FONT_UI, padding: '4px 0' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
                 {/* Bottom clearance for the phone dock comes from the league shell
                     (.app-container[data-league-skin-type] pads by --wr-bottom-inset
                     at ≤767). The ActionBar (and its 66px clearance) was removed. */}
                 <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn}
                     intel={draftCastIntel} />
-                <div className="wr-seg" style={{ marginBottom: 10 }}>
-                    {(hasTeamTracker ? [['feed', 'Feed'], ['board', 'Board'], ['teams', 'Teams'], ['roster', 'My Roster']] : [['feed', 'Draft Feed'], ['board', 'Big Board'], ['roster', 'My Roster']]).map(([k, l]) => (
-                        <button key={k} type="button" aria-pressed={phTab === k} className={phTab === k ? 'is-on' : ''} onClick={() => setPhTab(k)}>{l}</button>
-                    ))}
-                </div>
+                <label className="la-view-select">Live room<select value={phTab} onChange={event => setPhTab(event.target.value)}>{(hasTeamTracker ? [['feed','Feed'],['board','Board'],['teams','Teams'],['roster','My roster']] : [['feed','Draft feed'],['board','Big Board'],['roster','My roster']]).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 {hasTeamTracker && phTab === 'feed' && LiveRoomPulse && <LiveRoomPulse state={state} onOpen={() => setPhTab('teams')} />}
                 {hasTeamTracker && <div hidden={phTab !== 'teams'} style={{ display: phTab === 'teams' ? 'flex' : 'none', flexDirection: 'column' }}><LiveRoomPanel state={state} /></div>}
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (
-                    <div style={{ height: '56dvh', minHeight: 300, overflowY: 'auto' }}>
+                    <div className="la-draft-pane" style={roomPaneStyle}>
                         {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
-                        <DraftRoomFeed state={state} heightStyle={isRedraftLive(state) ? {} : { height: '56dvh', minHeight: 300 }}
+                        <DraftRoomFeed state={state} heightStyle={{ height: 'auto', minHeight: 0, maxHeight: 'none', overflowY: 'visible' }}
                             emptyText="The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board." />
                     </div>
                 )}
-                {phTab === 'board' && (<div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
+                {phTab === 'board' && (<div className="la-draft-pane" style={roomPaneStyle}>
                     {drafting && isRedraftLive(state) && window.DraftCC.LivePickBrief && <div style={{ marginBottom: 12, padding: 10 }}>
                         {React.createElement(window.DraftCC.LivePickBrief, { state, compact: true })}
                     </div>}
@@ -8273,7 +8277,7 @@
                     </div>
                 </div>)}
                 {phTab === 'roster' && (
-                    <div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
+                    <div className="la-draft-pane" style={roomPaneStyle}>
                         {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard
                             ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state })
                             : <MyDraftRosterPanel state={state} />}
@@ -8286,17 +8290,17 @@
                     <button type="button" className={phPanel === 'analytics' ? 'is-on' : ''} onClick={() => setPhPanel('analytics')}>Analytics ▾</button>
                 </div>
                 <Sheet open={phPanel === 'alex'} onClose={() => setPhPanel(null)} title="Ask Alex" desktop={null}>
-                    <div style={{ padding: '4px 12px 10px', minHeight: 320, height: '68dvh' }}>
+                    <div className="la-mobile la-draft la-draft-sheet" style={{ padding: '4px 12px 10px', minHeight: 0 }}>
                         {AlexStreamPanel ? <AlexStreamPanel state={state} dispatch={dispatch} /> : null}
                     </div>
                 </Sheet>
                 <Sheet open={phPanel === 'intel'} onClose={() => setPhPanel(null)} title="Opponent Intel" desktop={null}>
-                    <div style={{ padding: '4px 12px 10px', height: '68dvh' }}>
+                    <div className="la-mobile la-draft la-draft-sheet" style={{ padding: '4px 12px 10px', minHeight: 0 }}>
                         {OpponentIntelPanel ? <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} /> : null}
                     </div>
                 </Sheet>
                 <Sheet open={phPanel === 'analytics'} onClose={() => setPhPanel(null)} title="Draft Analytics" desktop={null}>
-                    <div style={{ padding: '4px 12px 10px' }}>
+                    <div className="la-mobile la-draft" style={{ padding: '4px 12px 10px' }}>
                         {/* Live grade/value analytics are interpretation reads → Pro
                             (same A–F boundary as the desktop header grade chip). */}
                         {pro

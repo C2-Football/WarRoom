@@ -303,6 +303,7 @@
         const [allWireOpen, setAllWireOpen] = useState(false);
         const [proMode, setProMode] = useState(false); // Empire Dashboard mode
         const [leagueQuery, setLeagueQuery] = useState('');
+        const [hubAllLeagues, setHubAllLeagues] = useState(false);
         const [showConnect, setShowConnect] = useState(false); // hub: show platform connect / add-league view
         // Lifted tab state for browser history navigation
         const [activeTab, setActiveTab] = useState('dashboard');
@@ -1294,67 +1295,69 @@
             const isPaid = EMPIRE_FREE_PRELIVE || tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
             const query = leagueQuery.trim().toLowerCase();
             const resume = leagues.find(l => String(l.id) === String(lastLeagueId));
+            const focusLeague = resume || leagues[0];
+            const focusHealth = focusLeague ? leagueHealth(focusLeague) : null;
             const filtered = leagues.filter(l => [l.name, leagueTeamName(l), leagueFormat(l)].join(' ').toLowerCase().includes(query))
                 .sort((a, b) => Number(String(b.id) === String(lastLeagueId)) - Number(String(a.id) === String(lastLeagueId)));
+            const leagueCards = filtered.map((l, index) => {
+                const h = leagueHealth(l);
+                const team = leagueTeamName(l);
+                const title = team || l.name;
+                const isLast = String(l.id) === String(lastLeagueId);
+                return <button type="button" key={l.id} className={'hub-league-card' + (isLast ? ' is-last' : '') + (!query && index >= 3 ? ' hub-league-overflow' + (hubAllLeagues ? ' is-expanded' : '') : '')} onClick={() => onSelect(l)}>
+                    <span className="hub-league-card-top"><span className="hub-team-avatar" aria-hidden="true">{initialsFor(title)}</span><span className="hub-league-identity"><strong>{title}</strong><span>{l.name}</span></span>{isLast && <span className="hub-last-badge">Last opened</span>}</span>
+                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
+                </button>;
+            });
             return (
                 <main className="hub-franchise-picker experience-hub">
                     <div className="hub-welcome">
-                        <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>Choose your experience.</h1><p>Your leagues. Your bigger picture. Your next great season.</p></div>
+                        <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>{leagues.length ? 'Back to the action.' : 'Your home field.'}</h1></div>
                         <span className="hub-sync-status" role="status">{hubSyncing ? 'Syncing leagues…' : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
-                    {sleeperLeagues.length > 0 && <button type="button" className="hub-resume wr-all-wire-launch" onClick={() => setAllWireOpen(true)}><span className="hub-eyebrow">THE WIRE · ALL YOUR LEAGUES</span><strong>Your leagues. One front page.</strong><span>Recaps, records and rivalries across {sleeperLeagues.length} leagues</span><b aria-hidden="true">→</b></button>}
-                    {resume && <button type="button" className="hub-resume" onClick={() => onSelect(resume)}><span className="hub-eyebrow">PICK UP WHERE YOU LEFT OFF</span><strong>Resume {leagueTeamName(resume) || resume.name}</strong><span>{resume.name}</span><b aria-hidden="true">→</b></button>}
+                    {focusLeague && <button type="button" className={resume ? 'hub-resume' : 'hub-resume hub-open-league'} onClick={() => onSelect(focusLeague)}><span className="hub-eyebrow">{resume ? 'PICK UP WHERE YOU LEFT OFF' : 'YOUR LEAGUE'}</span><strong>{resume ? 'Resume ' : 'Open '}{leagueTeamName(focusLeague) || focusLeague.name}</strong><span>{focusLeague.name}{focusHealth.wp !== null && <span className="hub-focus-record"> · {focusLeague.wins}–{focusLeague.losses}{focusLeague.ties > 0 ? '–' + focusLeague.ties : ''}</span>}</span><b aria-hidden="true">→</b></button>}
+                    {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
                     <nav className="hub-jump-nav" aria-label="Choose your experience">
                         <a href="#hub-leagues"><span>01</span> Your leagues <small>{leagues.length}</small></a>
                         {(EMPIRE_ENABLED || COMMISH_ENABLED) && <a href="#hub-management"><span>02</span> Multi-league</a>}
                         {TIME_LEAGUE_ENABLED && <a href="#hub-games"><span>03</span> Games</a>}
                     </nav>
                     <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
-                        <div className="hub-section-heading"><div><span className="hub-eyebrow">ONE LEAGUE. YOUR FULL FOCUS.</span><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2><p>Open a team to manage your roster, trades, and next move.</p></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add a league</button></div>
-                        {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Search league, team, or format" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{filtered.length} of {leagues.length}</span></div>}
+                        <div className="hub-section-heading"><div><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add league</button></div>
+                        {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Find a league or team" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{query ? filtered.length + ' found' : ''}</span></div>}
                         {error && <div className="hub-invite" role="alert">{error}<button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button></div>}
-                        <div className="hub-league-grid">
-                            {filtered.map(l => {
-                                const h = leagueHealth(l);
-                                const team = leagueTeamName(l);
-                                const title = team || l.name;
-                                const isLast = String(l.id) === String(lastLeagueId);
-                                return <button type="button" key={l.id} className={'hub-league-card' + (isLast ? ' is-last' : '')} onClick={() => onSelect(l)}>
-                                    <span className="hub-league-card-top"><span className="hub-team-avatar">{initialsFor(title)}</span><span className="hub-league-identity"><strong>{title}</strong><span>{l.name}</span></span>{isLast && <span className="hub-last-badge">Last opened</span>}</span>
-                                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
-                                </button>;
-                            })}
-                        </div>
+                        <div id="hub-league-results" className="hub-league-grid">{leagueCards}</div>
+                        {!query && leagueCards.length > 3 && <button type="button" className="hub-more-leagues" aria-expanded={hubAllLeagues} aria-controls="hub-league-results" onClick={() => setHubAllLeagues(!hubAllLeagues)}><span>{hubAllLeagues ? 'Show fewer leagues' : 'Show all ' + leagues.length + ' leagues'}</span><span aria-hidden="true">{hubAllLeagues ? '⌃' : '⌄'}</span></button>}
                         {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
+                        {sleeperLeagues.length > 0 && <button type="button" className="hub-wire-entry wr-all-wire-launch" onClick={() => setAllWireOpen(true)}><span className="hub-wire-icon" aria-hidden="true">W</span><span><strong>The Wire</strong><span>One front page for your leagues</span></span><b aria-hidden="true">→</b></button>}
                     </section>
                     <div className="hub-experience-grid">
                         {(EMPIRE_ENABLED || COMMISH_ENABLED) && <section id="hub-management" className="hub-management" aria-labelledby="hub-management-title">
-                            <div className="hub-section-heading"><div><span className="hub-eyebrow">THE BIGGER PICTURE</span><h2 id="hub-management-title">Multi-league management</h2></div></div>
+                            <div className="hub-section-heading"><div><h2 id="hub-management-title">Across your leagues</h2></div></div>
                             <div className="hub-management-cards">
                                 {EMPIRE_ENABLED && <button type="button" className="hub-experience-card empire-hero" onClick={() => { if (isPaid) setProMode(true); else if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = distPrefix + 'landing.html'; }}>
                                     <span className="hub-card-top"><ProTierIcon size={34} /><span className="hub-product-tag">{isPaid ? 'PORTFOLIO' : 'PRO'}</span></span>
-                                    <strong>Empire Command</strong><span className="hub-card-description">See the whole board. Find opportunities across every league you manage.</span>
+                                    <strong>Empire Command</strong><span className="hub-card-description">Your players and opportunities across leagues.</span>
                                     <span className="hub-card-action">{isPaid ? 'Open Empire' : 'Explore Empire Pro'} <span aria-hidden="true">↗</span></span>
                                 </button>}
                                 {COMMISH_ENABLED && <button type="button" className="hub-experience-card commish-hero" disabled={commishCount < 1} onClick={openCommishOffice}>
                                     <span className="hub-card-top"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z"/><path d="m8 12 3 3 5-6"/></svg><span className="hub-product-tag">COMMISSIONER</span></span>
-                                    <strong>Commissioner’s Office</strong><span className="hub-card-description">Keep your leagues running smoothly. People, rules, and league operations in one place.</span>
+                                    <strong>Commissioner’s Office</strong><span className="hub-card-description">People, rules, and league operations.</span>
                                     <span className="hub-card-action">{commishCount >= 1 ? 'Open Commissioner' : hubSyncing ? 'Checking commissioner access…' : 'Requires a commissioner league'} {commishCount >= 1 && <span aria-hidden="true">↗</span>}</span>
                                 </button>}
                             </div>
                         </section>}
                         {TIME_LEAGUE_ENABLED && <section id="hub-games" className="hub-games" aria-labelledby="hub-games-title">
-                            <div className="hub-section-heading"><div><span className="hub-eyebrow">A DIFFERENT WAY TO PLAY</span><h2 id="hub-games-title">Games</h2></div><span className="hub-section-note">Solo or with friends</span></div>
+                            <div className="hub-section-heading"><div><h2 id="hub-games-title">Keep playing</h2></div><span className="hub-section-note">Solo or with friends</span></div>
                             <button type="button" className="hub-experience-card time-league-hero" onClick={openTimeLeague}>
                                 <span className="hub-vault-art" aria-hidden="true"><span className="hub-era-card">1970<span>CLASSIC</span></span><span className="hub-era-card">?<span>YOUR SEASON</span></span><span className="hub-era-card">2025<span>MODERN</span></span></span>
-                                <span className="hub-vault-copy"><span className="hub-product-tag">FANTASY THROUGH TIME · BETA</span><strong>The Vault</strong><span className="hub-card-description">Draft legends. Discover their seasons. Rewrite football history.</span><span className="hub-card-action">Enter The Vault <span aria-hidden="true">↗</span></span></span>
+                                <span className="hub-vault-copy"><span className="hub-product-tag">TIME TRAVEL · BETA</span><strong>The Vault</strong><span className="hub-card-description">Draft legends. Discover their seasons.</span><span className="hub-card-action">Enter The Vault <span aria-hidden="true">↗</span></span></span>
                             </button>
                             <button type="button" className="hub-experience-card hub-duat-card" onClick={openDuat}>
-                                <span className="hub-duat-symbol" aria-hidden="true">𓂀</span><span className="hub-duat-copy"><span className="hub-product-tag">FACTIONS & CONQUEST · HISTORICAL BETA</span><strong>The Duat</strong><span>Resurrect a ruler. Command a historical army. Claim the realm.</span><span className="hub-card-action">Enter The Duat ↗</span></span>
+                                <span className="hub-duat-symbol" aria-hidden="true">𓂀</span><span className="hub-duat-copy"><span className="hub-product-tag">HISTORICAL BETA</span><strong>The Duat</strong><span className="hub-card-description">Command a historical army. Claim the realm.</span><span className="hub-card-action">Enter The Duat ↗</span></span>
                             </button>
                         </section>}
                     </div>
-                    {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
                     <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => setShowSettings(true)}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
                 </main>
             );
@@ -1501,18 +1504,17 @@
                 `}</style>
                 {/* ── Header ── */}
                 <header className="header">
-                    <div className="header-brand" role="link" aria-label="Dynasty HQ home"
-                        onClick={() => { window.location.href = distPrefix + 'landing.html'; }}
-                        style={{ cursor: 'pointer' }}>
+                    <a className="header-brand" aria-label="Dynasty HQ home" href={distPrefix + 'landing.html'}
+                        style={{ cursor: 'pointer', textDecoration: 'none' }}>
                         <img src={iconSrc} alt="Logo" style={{ width:'44px',height:'44px',borderRadius:'var(--card-radius, 10px)',boxShadow:'0 2px 12px var(--acc-line2, rgba(212,175,55,.3))' }} />
                         <div className="header-text">
                             <h1 className="owner-name wr-wordmark" style={{ fontSize:'1.1rem',letterSpacing:'.06em' }}>DYNASTY HQ</h1>
                             <div className="header-subtitle">{String(displayName)}</div>
                         </div>
-                    </div>
+                    </a>
                     <div className="hub-account-controls">
                         <a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a>
-                        <button type="button" onClick={() => setShowSettings(true)}><span className="hub-account-avatar" aria-hidden="true">{initialsFor(String(displayName))}</span> Account & settings</button>
+                        <button type="button" aria-label="Account & settings" onClick={() => setShowSettings(true)}><span className="hub-account-avatar" aria-hidden="true">{initialsFor(String(displayName))}</span><span className="hub-account-label">Account & settings</span></button>
                     </div>
                 </header>
 

@@ -111,6 +111,13 @@ async function buildDraftPosMix(startLeagueId) {
     };
 }
 
+function AnalyticsPhonePanel({ phone, active, children }) {
+    return phone ? (active ? <section className="la-selected-analysis">{children}</section> : null) : <React.Fragment>{children}</React.Fragment>;
+}
+function AnalyticsPhoneDisclosure({ phone, title, children }) {
+    return phone ? <details className="la-disclosure"><summary>{title}</summary><div className="la-disclosure-body">{children}</div></details> : <React.Fragment>{children}</React.Fragment>;
+}
+
 function AnalyticsPanel({
   analyticsData,
   analyticsTab,
@@ -167,6 +174,8 @@ function AnalyticsPanel({
     // in panel scope: AnalyticsProofGrid is a closure component that remounts
     // on every parent render, so local state there would reset each render.
     const [_proofOpen, _setProofOpen] = React.useState(null);
+    const [phoneAnalysisViews, setPhoneAnalysisViews] = React.useState({ draft: 'dna', trades: 'results' });
+    const [phoneRoundLimit, setPhoneRoundLimit] = React.useState(5);
     // _SS mirrors the window.S shape consumed throughout this component
     const _SS = {
         rosters: _seasonCtx.rosters?.length ? _seasonCtx.rosters : (window.S?.rosters || currentLeague?.rosters || []),
@@ -223,6 +232,9 @@ function AnalyticsPanel({
     const requestedView = workspaceView ? (workspaceAliases[workspaceView] || workspaceView) : analyticsTab;
     const activeSubTab = subTabs.find(t => t.key === requestedView) || subTabs[0];
     const analyticsViewTab = activeSubTab.key;
+    React.useEffect(() => { setPhoneRoundLimit(5); }, [analyticsViewTab, currentLeague?.league_id, currentLeague?.id]);
+    React.useEffect(() => { setPhoneAnalysisViews({ draft: 'dna', trades: 'results' }); }, [currentLeague?.league_id, currentLeague?.id]);
+    const phoneAnalysisPicker = (key, choices) => _phone && <label className="la-view-select">Explore<select value={phoneAnalysisViews[key]} onChange={event => setPhoneAnalysisViews(previous => ({ ...previous, [key]: event.target.value }))}>{choices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>;
 
     const _analyticsContext = {
         roster: 'Winner-template gaps, room coverage, and roster construction evidence.',
@@ -394,7 +406,7 @@ function AnalyticsPanel({
         if (_phone) {
             const toneColOf = it => it.color || (it.tone === 'good' ? 'var(--good, #2ecc71)' : it.tone === 'warn' ? 'var(--warn, #f0a500)' : it.tone === 'bad' ? 'var(--bad, #e5534b)' : 'var(--white)');
             return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '6px', marginBottom: 'var(--card-gap, 14px)' }}>
+                <div className="la-proof-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px', marginBottom: 'var(--card-gap, 14px)' }}>
                     {items.map((item, i) => {
                         const key = item.label || String(i);
                         const open = _proofOpen === key;
@@ -404,11 +416,11 @@ function AnalyticsPanel({
                                 onClick={() => _setProofOpen(open ? null : key)}
                                 style={{ textAlign: 'left', gridColumn: open ? '1 / -1' : 'auto', minHeight: '58px', background: 'var(--black, #121217)', border: '1px solid ' + (open ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'rgba(255,255,255,0.07)'), borderLeft: '3px solid ' + col, borderRadius: 'var(--card-radius, 10px)', padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', minWidth: 0 }}>
-                                    <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.05em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                                    <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '14px', fontWeight: 500, color: 'var(--silver)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{item.label}</span>
                                     <span aria-hidden="true" style={{ color: 'var(--text-muted, #55555f)', fontSize: '0.62rem', flexShrink: 0, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}>›</span>
                                 </div>
                                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.18rem', fontWeight: 700, color: col, lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.value}</div>
-                                {open && item.detail && <div style={{ marginTop: '5px', color: 'var(--silver)', fontSize: '0.74rem', lineHeight: 1.5 }}>{item.detail}</div>}
+                                {open && item.detail && <div style={{ marginTop: '5px', color: 'var(--silver)', fontSize: '14px', lineHeight: 1.5 }}>{item.detail}</div>}
                             </button>
                         );
                     })}
@@ -487,7 +499,7 @@ function AnalyticsPanel({
     );
 
     return (
-    <div className="analytics-shell" style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
+    <div className={"analytics-shell" + (_phone ? " la-mobile la-analytics" : "")} style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
         {!workspaceView && setActiveTab && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><button type="button" onClick={() => setActiveTab('stats')} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 10px', color: 'var(--gold)', fontSize: '.75rem', cursor: 'pointer' }}>Browse player stats →</button></div>}
         {/* PHONE (≤767): the 5 sub-tabs re-pour as the shared P2 .wr-seg
             (scrollable 4+ variant — min-width:fit-content children); long
@@ -996,6 +1008,8 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
                 {isPro && <div className="analytics-draft-summary"><strong>Roster &amp; winning benchmarks</strong><span>{gm.hasStrategy ? 'Your plan' : 'Assessment suggests'} · <b style={{ color: modeColor }}>{modeLabel}</b></span><details><summary>How to read this</summary><p>{modeDirective} ({modeSource})</p><p>Your plan sets the direction. The coverage and benchmark evidence below describes your current roster.</p><p>Elite player = 7000+ DHQ or top 5 at position. Team benchmarks compare your roster against this league’s proven top teams.</p></details></div>}
 
+                {_phone && isPro && <section className="la-priority"><h2>Start here</h2><AnalyticsDataStack rows={gapRows.slice(0, 1)} />{gapRows.length > 1 && <AnalyticsPhoneDisclosure phone title="More roster priorities"><AnalyticsDataStack rows={gapRows.slice(1)} /></AnalyticsPhoneDisclosure>}</section>}
+                <AnalyticsPhoneDisclosure phone={_phone} title="Benchmarks & position investment">
                 <AnalyticsProofGrid items={rosterProofItems} />
 
                 <div className="analytics-lab-grid">
@@ -1004,15 +1018,16 @@ function AnalyticsPanel({
                         <strong>Position Investment Delta</strong>
                         <AnalyticsDeltaRows rows={investmentRows} benchmarkLabel="Elite" />
                     </div>
-                    <div className="analytics-lab-card">
+                    {!_phone && <div className="analytics-lab-card">
                         <span>Priority Evidence</span>
                         <strong>Rooms To Fix First</strong>
                         {isPro ? <React.Fragment>
                             <AnalyticsDataStack rows={gapRows} compact />
                         </React.Fragment> : <ProLock label="Priority Evidence" sub="Roster gaps ranked by urgency — the fix-first queue is a Pro read." />}
-                    </div>
+                    </div>}
                 </div>
-
+                </AnalyticsPhoneDisclosure>
+                <AnalyticsPhoneDisclosure phone={_phone} title="Starter quality by room">
                 <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
                     <div className="analytics-lab-card">
                         <span>Coverage Matrix</span>
@@ -1036,6 +1051,8 @@ function AnalyticsPanel({
                     </div>
                 </div>
 
+                </AnalyticsPhoneDisclosure>
+                <AnalyticsPhoneDisclosure phone={_phone} title="Roster outlook & age risks">
                 {/* ── INSIGHT CARDS ── */}
                 {insights.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
@@ -1146,6 +1163,7 @@ function AnalyticsPanel({
                         </div>
                     );
                 })()}
+                </AnalyticsPhoneDisclosure>
             </React.Fragment>
             );
         })()}
@@ -1512,6 +1530,8 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. The Ideal Draft Strategy read below stays free." />}
                 <div className="analytics-draft-summary"><strong>Draft strategy &amp; results</strong>{latestRecap && <span>Latest draft · {latestRecap.grade?.letter || '—'} · {Number(latestRecap.totalDHQ || latestRecap.grade?.totalDHQ || 0).toLocaleString()} DHQ{latestRecap.rank ? ' · Value rank #' + latestRecap.rank : ''}</span>}<details><summary>How to read this</summary><p>Draft-slot strategy compares historical starter hit rates by position and round. Winner’s Perch tracks top-three finishes and titles. Position Mix describes selections, not which strategy wins. Historical associations do not prove an optimal draft plan.</p></details></div>
 
+                {phoneAnalysisPicker('draft', [['dna', 'Position mix & slot strategy'], ...(isRedraftLeague ? [['perch', 'Finishes by draft slot']] : []), ['outcomes', 'Draft outcomes & champion formula']])}
+                <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.draft === 'dna'}>
                 {/* ── Ideal Draft Strategy ──────────────────────────────────────
                     One panel: "All Picks" is the original pooled read; Early/
                     Middle/Late join it as tabs only for redraft/chopped/best-ball/
@@ -1541,9 +1561,10 @@ function AnalyticsPanel({
                         <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '-4px', marginBottom: '12px', lineHeight: 1.5 }}>
                             What every team drafted at each position, round by round, pooled across every season this league's Sleeper history reaches — <b style={{ color: 'var(--gold)' }}>{seasonCount} season{seasonCount === 1 ? '' : 's'}</b> ({seasonSpan}).
                         </p>
-                        {roundNums.map(rd => {
+                        {roundNums.slice(0, _phone ? phoneRoundLimit : undefined).map(rd => {
                             const total = mix.roundTotals[rd] || 0;
                             const entries = Object.entries(mix.roundCounts[rd] || {}).sort((a, b) => b[1] - a[1]);
+                            if (_phone) return <details key={rd} className="la-report-row"><summary><span><strong>Round {rd}</strong><small>{total} picks</small></span><span className="la-main-value"><strong>{entries[0] ? posLabel(entries[0][0]) : '—'}</strong><small>{entries[0] ? pctFmt(entries[0][1] / Math.max(1, total)) + ' of picks' : 'No picks'}</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields">{entries.map(([pos, count]) => <div key={pos}><dt>{posLabel(pos)}</dt><dd>{count} picks · {pctFmt(count / Math.max(1, total))}</dd></div>)}</dl></details>;
                             return (
                                 <div key={rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '54px minmax(0,1fr)' : '74px minmax(0,1fr)', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
                                     <div>
@@ -1572,11 +1593,12 @@ function AnalyticsPanel({
                                 <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>
                             ))}
                         </div>
+                        {_phone && roundNums.length > phoneRoundLimit && <button className="la-show-more" onClick={() => setPhoneRoundLimit(n => n + 5)}>Show 5 more rounds</button>}
                 </div>
             );
                         })() : <React.Fragment>
                         {isSeasonalLeague && (
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+                            <div style={{ display: 'flex', flexWrap: _phone ? 'wrap' : undefined, gap: '6px', marginBottom: '14px' }}>
                                 {[{ key: 'all', label: 'All Picks', sub: 'every draft slot' }, ...SLOT_TIERS].map(t => {
                                     const has = t.key === 'all' ? strategyRounds.length > 0 : Object.keys(bySlot?.[t.key] || {}).length > 0;
                                     return (
@@ -1602,6 +1624,7 @@ function AnalyticsPanel({
                                 {strategyTab === 'all' ? 'No qualifying player-outcome history is loaded for this league.' : 'No qualifying player-outcome history is loaded for the ' + (strategyTab === 'mid' ? 'middle' : strategyTab) + ' third of the draft.'} Draft order and position counts alone cannot establish a winning strategy. The heatmap appears when position, round, slot, and starter outcomes are available together.
                             </div>
                         ) : (
+                        _phone ? <div>{activeRounds.slice(0, phoneRoundLimit).map(round => <details className="la-report-row" key={round.rd}><summary><span><strong>Round {round.rd} · {posLabel(round.ranked[0].pos)}</strong><small>{round.total} champion picks{round.source !== 'winners' ? ' · Fallback sample' : ''}</small></span><span className="la-main-value"><strong>{round.ranked[0].rate}%</strong><small>Starters</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields">{blueprintRows.map(pos => { const cell = cellFor(pos, round.rd); return <div key={pos}><dt>{posLabel(pos)}</dt><dd>{cell ? cell.rate + '% · ' + cell.total + ' picks' : 'Insufficient sample'}</dd></div>; })}</dl></details>)}{activeRounds.length > phoneRoundLimit && <button className="la-show-more" onClick={() => setPhoneRoundLimit(limit => limit + 5)}>Show 5 more rounds</button>}<p className="analytics-draft-note">Champion starter rates need at least two picks per position and round.{activeRounds.some(round => round.source !== 'winners') ? pathFallbackNote : ''}</p></div> : (
                         <React.Fragment>
                         {activeHeadline && (
                             <div style={{ marginBottom: '14px' }}>
@@ -1655,11 +1678,14 @@ function AnalyticsPanel({
                             Darker green = higher champion starter-rate. Dash = fewer than 2 champion picks at that position/round.{activeRounds.some(r => r.source !== 'winners') ? pathFallbackNote : ''}
                         </div>
                         </React.Fragment>
+                        )
                         )}
                         </React.Fragment>}
                     </div>
                 )}
 
+                </AnalyticsPhonePanel>
+                <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.draft === 'perch'}>
                 {isRedraftLeague && (
                     <div key={'perch-' + perchTick} className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
                         <div className="analytics-panel-head">
@@ -1699,6 +1725,8 @@ function AnalyticsPanel({
                     </div>
                 )}
 
+                </AnalyticsPhonePanel>
+                <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.draft === 'outcomes'}>
                 {draftProofItems.length > 0 && !latestRecap && <p className="analytics-draft-note">No saved draft recap yet. Historical outcome analysis is shown only where supported.</p>}
 
                 {hasDraftOutcomeHistory && !isPro ? (
@@ -1730,7 +1758,7 @@ function AnalyticsPanel({
                                 </div>
                                 <span />
                             </div>
-                            {roundTape.map(t => {
+                            {roundTape.slice(0, _phone ? phoneRoundLimit : undefined).map(t => {
                                 const tint = t.state !== 'solid' ? 'rgba(255,255,255,0.02)' : (t.gap >= 0 ? 'linear-gradient(90deg,rgba(46,204,113,0.10),transparent)' : 'rgba(240,165,0,0.10)');
                                 const gapColor = t.state !== 'solid' ? 'rgba(189,184,173,0.45)' : (t.gap >= 0 ? 'var(--good)' : 'var(--warn)');
                                 return (
@@ -1778,7 +1806,7 @@ function AnalyticsPanel({
                                 {['RB', 'WR', 'QB', 'TE', 'DL', 'LB', 'DB', 'K'].map(p => <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>)}
                                 <span><i style={{ display: 'inline-block', width: '10px', height: '10px', background: 'var(--k-4ecdc4,#4ecdc4)', borderRadius: '50%', marginRight: '4px', verticalAlign: 'middle' }} />You (&times; = picks)</span>
                             </div>
-                            {rounds.map(rd => {
+                            {rounds.slice(0, _phone ? phoneRoundLimit : undefined).map(rd => {
                                 const wEntries = Object.entries(dr.winnerDraftProfile[rd] || {}).sort((a, b) => b[1] - a[1]);
                                 const wRdCount = draftOutcomes.filter(dp => dp.round === rd && winnerIds.has(dp.roster_id)).length;
                                 const myRdCount = draftOutcomes.filter(dp => dp.round === rd && dp.roster_id === myRid).length;
@@ -1842,6 +1870,8 @@ function AnalyticsPanel({
                         </div>
                     </div>
                 )}
+                {_phone && rounds.length > phoneRoundLimit && <button className="la-show-more" onClick={() => setPhoneRoundLimit(n => n + 5)}>Show 5 more rounds</button>}
+                </AnalyticsPhonePanel>
             </React.Fragment>
             );
         })()}
@@ -1961,10 +1991,12 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis and trade-pattern read are Pro. Raw trade and waiver numbers stay below." />}
                 {isPro && <div className="analytics-draft-summary"><strong>Market moves &amp; value</strong><details><summary>How to read this</summary><p>Compare your trade results, waiver prices, and transaction patterns with this league’s winning teams. Historical differences describe the market; they do not guarantee future returns.</p></details></div>}
 
-                <AnalyticsProofGrid items={marketProofItems} />
+                {_phone && isPro && <section className="la-priority"><h2>{hasTraded ? 'Your trade results' : 'No completed trades yet'}</h2><p>{hasTraded ? 'Average value per deal: ' + signedNum(mp.avgValueGained, ' DHQ') + '.' : 'Completed trades will build your personal market record.'}</p><details className="la-disclosure"><summary>Read the market assessment</summary><p>{tradeSummaryText}</p></details></section>}
+                {phoneAnalysisPicker('trades', [['results', 'Trade results'], ['waivers', 'Waiver prices'], ['timing', 'Trade timing'], ['flow', 'Position movement'], ['history', 'Recent trades'], ['alerts', 'Market signals']])}
+                <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'results'}><AnalyticsProofGrid items={marketProofItems} /></AnalyticsPhonePanel>
 
                 <div className="analytics-lab-grid">
-                    <div className="analytics-lab-card">
+                    <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'waivers'}><div className="analytics-lab-card">
                         <span>Waiver Economy</span>
                         <strong>Position Price Map</strong>
                         <div className="analytics-mini-table">
@@ -1974,7 +2006,7 @@ function AnalyticsPanel({
                             {!Object.keys(wa.leagueFaabProfile || {}).length && <div><strong>No FAAB history</strong><span>Use Free Agency recommendations until transactions load.</span></div>}
                         </div>
                     </div>
-                    <div className="analytics-lab-card">
+                    </AnalyticsPhonePanel><AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'timing'}><div className="analytics-lab-card">
                         <span>Market Clock</span>
                         <strong>When Winners Trade</strong>
                         {[
@@ -2001,10 +2033,10 @@ function AnalyticsPanel({
                         {isPro && <div style={{ background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '9px 11px' }}>
                             <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', lineHeight: 1.45 }}>{clockVerdict}</span>
                         </div>}
-                    </div>
+                    </div></AnalyticsPhonePanel>
                 </div>
 
-                <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
+                <AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'flow'}><div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
                     <div className="analytics-lab-card">
                         <span>Trade Flow</span>
                         <strong>Net Buy/Sell Posture by Position</strong>
@@ -2012,6 +2044,8 @@ function AnalyticsPanel({
                     </div>
                 </div>
 
+                </AnalyticsPhonePanel><AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'history'}>
+                {_phone && !(tr.myLast5 || []).length && <p>No completed trades are available in this history.</p>}
                 {/* ── YOUR LAST 5 TRADES ── */}
                 {tr.myLast5 && tr.myLast5.length > 0 && (
                 <AnalyticsReadout title="Your Recent Trade Performance" detail={'Best & worst all-time' + ((tr.myLast5 || []).length ? ' · last ' + Math.min(5, tr.myLast5.length) + ' deals' : '')}>
@@ -2062,6 +2096,8 @@ function AnalyticsPanel({
                 </AnalyticsReadout>
                 )}
 
+                </AnalyticsPhonePanel><AnalyticsPhonePanel phone={_phone} active={phoneAnalysisViews.trades === 'alerts'}>
+                {_phone && !alerts.length && <p>No market signals are available yet.</p>}
                 {/* ── BIGGEST WIN / LOSS (all-time, most lopsided) ── */}
 
                 {/* ── INSIGHT CARDS ROW ── */}
@@ -2082,6 +2118,7 @@ function AnalyticsPanel({
                     ))}
                 </div>
                 )}
+                </AnalyticsPhonePanel>
             </React.Fragment>
             );
         })()}

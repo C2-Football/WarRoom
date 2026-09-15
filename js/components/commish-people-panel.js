@@ -18,17 +18,21 @@
 //   onCopy(text)  clipboard fallback — navigator.clipboard is undefined on
 //                 non-HTTPS/older WebViews, so the host app owns plan B
 // ══════════════════════════════════════════════════════════════════
-function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, onCopy }) {
+function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, onCopy, phone = false }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
     const MUTED = 'var(--text-muted, #8D887E)';
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
     // Transient "Copied" flash per button; keyed so two buttons never share it.
     const [copiedKey, setCopiedKey] = React.useState(null);
+    const [peopleView, setPeopleView] = React.useState('people');
+    const [query, setQuery] = React.useState('');
+    const [needsOnly, setNeedsOnly] = React.useState(true);
+    const [peopleLimit, setPeopleLimit] = React.useState(8);
     const copyTimer = React.useRef(null);
     React.useEffect(() => () => clearTimeout(copyTimer.current), []);
     const doCopy = (key, text) => {
@@ -43,24 +47,16 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
     };
 
     // ── Shells ───────────────────────────────────────────────────────
-    const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
+    const Section = WrCommishPeopleSection;
     const CopyBtn = ({ k, text, label }) => (
         <button onClick={() => doCopy(k, text)}
-            style={{ padding: '4px 10px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start' }}>
+            style={{ padding: '4px 10px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.62rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start' }}>
             {copiedKey === k ? 'Copied' : (label || 'Copy')}
         </button>
     );
     // Drafted-message block: same left-gold quote idiom as Alex reads elsewhere.
     const Quote = ({ children }) => (
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '8px 11px', fontStyle: 'italic', fontSize: '0.78rem', color: '#C9C9D2', lineHeight: 1.5 }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '8px 11px', fontStyle: 'italic', fontSize: 'var(--co-readable-body, 0.78rem)', color: '#C9C9D2', lineHeight: 1.5 }}>
             {children}
         </div>
     );
@@ -93,27 +89,42 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
 
     const seatList = Array.isArray(seats) ? seats : [];
     const folderList = Array.isArray(folders) ? folders : [];
+    const matches = (people || []).filter(p => {
+        if (phone && needsOnly && !['DARK_ALL', 'DARK_ONE', 'FADING'].includes(p.status)) return false;
+        return !phone || !query.trim() || [p.name, ...(p.teams || []).map(t => t.leagueName)].join(' ').toLowerCase().includes(query.trim().toLowerCase());
+    });
+    const shownPeople = phone ? matches.slice(0, peopleLimit) : people;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <Section title="The Dave Alarm" meta={people ? people.length + ' member' + (people.length === 1 ? '' : 's') + ' · ' + darkCount + ' dark' : null}>
-                <div style={{ color: TEXT, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
+        <div className="co-people" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {phone && <>
+                <nav className="co-local-tabs" aria-label="People views">{[['people', 'People'], ['seats', `Open seats (${seatList.length})`], ['folders', 'Welcome folders']].map(([id, label]) => <button key={id} type="button" aria-current={peopleView === id ? 'page' : undefined} onClick={() => setPeopleView(id)}>{label}</button>)}</nav>
+                {peopleView === 'people' && <div className="co-people-controls"><label>Find a person or league<input type="search" value={query} onChange={e => { setQuery(e.target.value); setPeopleLimit(8); }} /></label><div className="co-local-tabs"><button type="button" aria-pressed={needsOnly} onClick={() => { setNeedsOnly(true); setPeopleLimit(8); }}>Needs attention</button><button type="button" aria-pressed={!needsOnly} onClick={() => { setNeedsOnly(false); setPeopleLimit(8); }}>All people ({(people || []).length})</button></div></div>}
+            </>}
+            <Section phone={phone} peopleView={peopleView} title="The Dave Alarm" meta={people ? people.length + ' member' + (people.length === 1 ? '' : 's') + ' · ' + darkCount + ' dark' : null}>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                     Dark in one league means bored. Dark in all of them means life happened. Different conversations.
                 </div>
                 {!people || !people.length ? (
-                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>The radar hasn't swept yet — it lights up once your commissioned leagues sync.</div>
-                ) : people.map((p, i) => {
+                    <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>The radar hasn't swept yet — it lights up once your commissioned leagues sync.</div>
+                ) : shownPeople.map((p, i) => {
                     const chip = chipFor(p);
                     const isDark = p.status === 'DARK_ALL' || p.status === 'DARK_ONE';
+                    if (phone) return <details className="co-person" key={p.userId}>
+                        <summary><strong>{p.name}{p.isMe ? ' (you)' : ''}</strong><span style={{ color: chip.color }}>{chip.label}</span><small>{(p.teams || []).length} league{(p.teams || []).length === 1 ? '' : 's'} · View details</small></summary>
+                        <div className="co-person-details">{(p.teams || []).map(t => <p key={t.leagueId + ':' + t.rosterId}><strong>{t.leagueName}</strong><span>{sigTitle(t).replace(t.leagueName + ': ', '')}</span></p>)}
+                            {isDark && p.checkin ? <><blockquote>{p.checkin}</blockquote><CopyBtn k={'checkin:' + p.userId} text={p.checkin} label="Copy check-in" /></> : null}
+                        </div>
+                    </details>;
                     return (
                         <div key={p.userId} style={{ padding: '9px 0', borderBottom: i === people.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{p.name}{p.isMe ? ' (you)' : ''}</span>
-                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: chip.color, border: '1px solid ' + chip.border, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px', whiteSpace: 'nowrap' }}>{chip.label}</span>
+                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.82rem)', color: TEXT }}>{p.name}{p.isMe ? ' (you)' : ''}</span>
+                                <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.62rem)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: chip.color, border: '1px solid ' + chip.border, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px', whiteSpace: 'nowrap' }}>{chip.label}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '5px' }}>
                                 {(p.teams || []).map(t => (
-                                    <span key={t.leagueId + ':' + t.rosterId} title={sigTitle(t)} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.7rem', color: TEXT, cursor: 'default' }}>
+                                    <span key={t.leagueId + ':' + t.rosterId} title={sigTitle(t)} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: 'var(--co-readable-small, 0.7rem)', color: TEXT, cursor: 'default' }}>
                                         <i style={{ width: '7px', height: '7px', borderRadius: '50%', background: dotColor(t.status), display: 'inline-block', flexShrink: 0 }} />
                                         {t.leagueName}
                                     </span>
@@ -128,14 +139,16 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                         </div>
                     );
                 })}
+                {phone && people?.length > 0 && !matches.length && <p role="status">{query.trim() ? 'No people match this search.' : 'Nobody needs attention right now.'} <button type="button" onClick={() => { setQuery(''); setNeedsOnly(false); }}>View all people</button></p>}
+                {phone && matches.length > peopleLimit && <button className="co-more" type="button" onClick={() => setPeopleLimit(n => n + 8)}>Show more people · {matches.length - peopleLimit} remaining</button>}
             </Section>
 
-            <Section title="Open Seats + The Bench" meta={seatList.length ? seatList.length + ' open seat' + (seatList.length === 1 ? '' : 's') : null}>
+            <Section phone={phone} peopleView={peopleView} title="Open Seats + The Bench" meta={seatList.length ? seatList.length + ' open seat' + (seatList.length === 1 ? '' : 's') : null}>
                 {seats == null ? (
                     // No graph yet ≠ no vacancies — the green all-clear would be a lie here.
-                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>The seat scan hasn't run yet — it fills in with the member graph.</div>
+                    <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>The seat scan hasn't run yet — it fills in with the member graph.</div>
                 ) : seatList.length === 0 ? (
-                    <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', color: GREEN, fontSize: '0.78rem' }}>
+                    <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', color: GREEN, fontSize: 'var(--co-readable-body, 0.78rem)' }}>
                         Every seat is filled.
                     </div>
                 ) : seatList.map((seat, i) => {
@@ -146,19 +159,19 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                     return (
                         <div key={seat.leagueId + ':' + seat.rosterId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: i === seatList.length - 1 ? 0 : '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '7px' }}>
-                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{seat.leagueName}</span>
-                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px' }}>
+                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.82rem)', color: TEXT }}>{seat.leagueName}</span>
+                                <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.62rem)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px' }}>
                                     {seat.reason === 'owner_left' ? 'Owner left' : 'Unowned'}
                                 </span>
                             </div>
                             {bench.length === 0 ? (
-                                <div style={{ color: TEXT, fontSize: '0.76rem' }}>No recruits scored for this seat yet.</div>
+                                <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)' }}>No recruits scored for this seat yet.</div>
                             ) : bench.map((c, ci) => (
                                 <div key={c.userId} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '5px 0', borderBottom: ci === bench.length - 1 ? 'none' : `1px solid ${LINE}` }}>
-                                    <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.78rem', color: TEXT }}>{c.name}</span>
-                                    <span style={{ ...mono, fontSize: '0.68rem', color: TEXT }}>fit {c.score}</span>
+                                    <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.78rem)', color: TEXT }}>{c.name}</span>
+                                    <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.68rem)', color: TEXT }}>fit {c.score}</span>
                                     {(c.reasons || []).map((r, ri) => (
-                                        <span key={ri} style={{ fontSize: '0.62rem', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{r}</span>
+                                        <span key={ri} style={{ fontSize: 'var(--co-readable-small, 0.62rem)', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{r}</span>
                                     ))}
                                 </div>
                             ))}
@@ -173,9 +186,9 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                 })}
             </Section>
 
-            <Section title="Day One Folder" meta={folderList.length ? folderList.length + ' drafted' : null}>
+            <Section phone={phone} peopleView={peopleView} title="Day One Folder" meta={folderList.length ? folderList.length + ' drafted' : null}>
                 {folderList.length === 0 ? (
-                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>Generates once a seat has a shortlist to draft one for.</div>
+                    <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>Generates once a seat has a shortlist to draft one for.</div>
                 ) : folderList.map((f, fi) => {
                     const sections = Array.isArray(f?.sections) ? f.sections : [];
                     const copyAll = sections.map(s => (s.title || '').toUpperCase() + '\n' + (s.body || '')).join('\n\n');
@@ -193,12 +206,12 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                                 Draft — written for {f.recruitName || 'the top shortlist candidate'}. Swap the name before you send it.
                             </div>
                             {sections.length === 0 ? (
-                                <div style={{ color: TEXT, fontSize: '0.76rem' }}>This folder came back empty — regenerate it from the seat.</div>
+                                <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)' }}>This folder came back empty — regenerate it from the seat.</div>
                             ) : sections.map((s, si) => (
                                 <div key={si} style={{ marginBottom: si === sections.length - 1 ? 0 : '10px' }}>
                                     <div style={{ ...microHdr, marginBottom: '3px' }}>{s.title}</div>
                                     {/* pre-wrap: folder bodies carry deliberate line breaks (rules lists, 90-day plan) */}
-                                    <div style={{ fontSize: '0.78rem', color: '#C9C9D2', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{s.body}</div>
+                                    <div style={{ fontSize: 'var(--co-readable-body, 0.78rem)', color: '#C9C9D2', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{s.body}</div>
                                 </div>
                             ))}
                         </div>
@@ -210,3 +223,17 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
 }
 
 window.WrCommishPeoplePanel = WrCommishPeoplePanel;
+
+function WrCommishPeopleSection({ title, meta, children, phone, peopleView }) {
+    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))', TEXT = 'var(--text, #e8e8ea)';
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) var(--font-mono, monospace)', color: 'var(--text-muted, #8D887E)' };
+    return phone && ({ 'The Dave Alarm': 'people', 'Open Seats + The Bench': 'seats', 'Day One Folder': 'folders' }[title] !== peopleView) ? null : (
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+            </div>
+            {children}
+        </div>
+    );
+}

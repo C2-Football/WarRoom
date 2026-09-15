@@ -81,3 +81,24 @@ assert(text(heroOf(tree).props.spotlight).includes('READY FOR KICKOFF'), 'Explic
 reset();tree=staticCast({...league,phase:'season',weekStage:'ready',currentWeek:1,finalizedWeeks:[]});
 assert(text(heroOf(tree).props.spotlight).includes('READY FOR KICKOFF'), 'An unplayed matchup keeps its pregame copy');
 console.log('PASS: root draft/home renders, weekly gate role/mode controls, postgame autoplay and replay deduplication');
+
+// Phone disclosure moves secondary analysis, retaining the saved score and full lineups.
+window.WR = { useViewport: () => ({ isPhone: true }) };
+reset(); tree = staticCast(completedLeague);
+const beforePhoneRead = JSON.stringify(completedLeague);
+const phoneHero = heroOf(tree);
+assert.equal(phoneHero.props.row.homePoints, 42);
+assert.equal(phoneHero.props.row.awayPoints, 36);
+const phoneHeroTree = phoneHero.type(phoneHero.props);
+const analysis = walk(phoneHeroTree).find(node => node.type === 'details');
+assert(analysis && !analysis.props.open);
+assert(text(analysis).includes('FINAL RESULT'));
+assert(text(analysis).includes('Week Archive'));
+const phoneChildren = tree.children.filter(Boolean);
+assert.equal(phoneChildren[0].type.name, 'HeroMatchup');
+assert(phoneChildren.findIndex(node => node.type?.name === 'LiveLineups') < phoneChildren.findIndex(node => node.type === 'details'));
+const upcomingPhone = heroOf(staticCast({ ...league, phase: 'season', weekStage: 'ready', currentWeek: 1, finalizedWeeks: [] }));
+const upcomingDetails = walk(upcomingPhone.type(upcomingPhone.props)).find(node => node.type === 'details');
+assert(text(upcomingDetails).includes('not a calibrated prediction'));
+assert.equal(JSON.stringify(completedLeague), beforePhoneRead, 'Reading phone details leaves the fixture unchanged');
+console.log('PASS: phone matchup leads; optional analysis retains score provenance and forecast disclaimer');

@@ -35,20 +35,20 @@ const search = () => find(tree, n => n.type === 'input' && n.props.placeholder =
     assert(find(tree, n => n.props['aria-label'] === 'Player stats results'));
     assert(!find(tree, n => n.type === 'table'), 'Mobile defaults to player rows without a duplicated wide table');
     assert.equal(all(tree, n => n.props.className === 'dhs-mobile-player').length, 50);
-    assert(search()); assert(find(tree, n => n.props['aria-label'] === 'Sort players by')); assert(find(tree, n => n.props['aria-label'] === 'Sort ascending')); assert(find(tree, n => n.props['aria-label'] === 'Filter by position'));
+    assert(search()); assert(!find(tree, n => n.props['aria-label'] === 'Sort players by'), 'Sort stays in Stat view'); assert(!find(tree, n => n.props['aria-label'] === 'Filter by position'), 'Positions stay in Filters without a duplicate strip');
     assert(!sheet()); assert(!labelledSelect('NFL team'), 'Advanced filters stay out of the results flow');
     await click('Next'); assert(text(tree).includes('51–53 of 53'));
-    await change(find(tree, n => n.props['aria-label'] === 'Sort players by'), 'name');
+    await click('Stat view'); await change(find(sheet(), n => n.props['aria-label'] === 'Sort players by'), 'name');
     assert(text(all(tree, n => n.props.className === 'dhs-mobile-player')[0]).includes('Missing Player'), 'Sort choice applies and resets pagination');
     find(tree, n => n.props['aria-label'] === 'Sort descending').props.onClick(); await flush();
-    assert(text(all(tree, n => n.props.className === 'dhs-mobile-player')[0]).includes('Zero Player'), 'Sort direction changes the visible order');
+    assert(text(all(tree, n => n.props.className === 'dhs-mobile-player')[0]).includes('Zero Player'), 'Sort direction changes the visible order'); await click('Done', sheet());
     await click('Filters'); assert.equal(sheet().props.title, 'Filter players');
     await change(labelledSelect('Availability', sheet()), 'rostered'); await click('Show 1 players', sheet());
     assert(!sheet()); assert.equal(all(tree, n => n.props.className === 'dhs-mobile-player').length, 1); assert(text(tree).includes('Zero Player'));
     await click('Filters (1)'); await click('Reset filters', sheet()); sheet().props.onClose(); await flush();
     await change(find(tree, n => n.props['aria-label'] === 'Stats period'), '2'); assert.equal(loads.at(-1).week, 2); assert(text(tree).includes('Week 2'));
-    await click('WR'); assert(all(tree, n => n.props.className === 'dhs-mobile-player').every(n => text(n).includes('WR')));
-    await click('All');
+    await click('Filters'); await change(labelledSelect('Position', sheet()), 'WR'); assert(all(tree, n => n.props.className === 'dhs-mobile-player').every(n => text(n).includes('WR')));
+    await change(labelledSelect('Position', sheet()), ''); sheet().props.onClose(); await flush();
     for (const [name, expected] of [['Zero Player', '0.00'], ['Negative Player', '-2.00'], ['Missing Player', '—']]) {
         await change(search(), name); const row = find(tree, n => n.props.className === 'dhs-mobile-player'); assert(row); assert(text(find(row, n => n.props.className === 'dhs-player-score')).includes(expected), name + ' scoring stays distinct');
     }

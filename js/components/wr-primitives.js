@@ -409,6 +409,8 @@
         (document.head || document.documentElement).appendChild(st);
     }
 
+    const openSheets = [];
+    let sheetPreviousOverflow = '';
     function Sheet({ open, onClose, title, children, height, showClose, desktop }) {
         // Hook-order safety: viewport.js is a plain script loaded before the
         // babel chain, so this branch is fixed for the page's lifetime.
@@ -417,11 +419,46 @@
         const sheetRef = React.useRef(null);
         const dragRef = React.useRef(null);
         const locked = !!(open && vp.isPhone);
-        React.useEffect(() => {
-            if (!locked) return undefined;
-            const prev = document.body.style.overflow;
+        const closeRef = React.useRef(onClose);
+        closeRef.current = onClose;
+        const useDialogEffect = React.useLayoutEffect || React.useEffect;
+        useDialogEffect(() => {
+            if (!locked || !sheetRef.current) return undefined;
+            const dialog = sheetRef.current;
+            const opener = document.activeElement;
+            if (!openSheets.length) sheetPreviousOverflow = document.body.style.overflow;
+            openSheets.push(dialog);
             document.body.style.overflow = 'hidden';
-            return () => { document.body.style.overflow = prev; };
+            const controls = () => Array.from(dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.getClientRects().length && !el.closest('details:not([open]) > :not(summary)'));
+            (controls()[0] || dialog).focus();
+            const onKey = event => {
+                // A child dialog owns its own keyboard handling.
+                if (openSheets[openSheets.length - 1] !== dialog) return;
+                const targetDialog = event.target.closest?.('[role="dialog"], dialog[open]');
+                if (targetDialog && targetDialog !== dialog) return;
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRef.current?.(); }
+                if (event.key !== 'Tab') return;
+                const items = controls();
+                if (!items.length) { event.preventDefault(); dialog.focus(); return; }
+                if (!dialog.contains(document.activeElement)) { event.preventDefault(); items[event.shiftKey ? items.length - 1 : 0].focus(); }
+                else if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1].focus(); }
+                else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0].focus(); }
+            };
+            const onFocus = event => {
+                if (openSheets[openSheets.length - 1] !== dialog || dialog.contains(event.target)) return;
+                if (event.target.closest?.('[role="dialog"], dialog[open]')) return;
+                (controls()[0] || dialog).focus();
+            };
+            document.addEventListener('keydown', onKey, true);
+            document.addEventListener('focusin', onFocus);
+            return () => {
+                document.removeEventListener('keydown', onKey, true);
+                document.removeEventListener('focusin', onFocus);
+                const index = openSheets.indexOf(dialog);
+                if (index >= 0) openSheets.splice(index, 1);
+                if (!openSheets.length) document.body.style.overflow = sheetPreviousOverflow;
+                if (opener?.isConnected && (!openSheets.length || openSheets[openSheets.length - 1].contains(opener))) opener.focus();
+            };
         }, [locked]);
 
         if (!open) return null;
@@ -492,6 +529,8 @@
                 className: 'wr-sheet',
                 role: 'dialog',
                 'aria-modal': 'true',
+                'aria-label': typeof title === 'string' ? title : 'Details',
+                tabIndex: -1,
                 style: {
                     position: 'absolute', left: 0, right: 0, bottom: lift + 'px',
                     display: 'flex', flexDirection: 'column',
@@ -526,7 +565,8 @@
                     }),
                     title
                         ? h('div', {
-                            style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', paddingTop: '8px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                            className: 'wr-sheet-title',
+                            style: { fontFamily: 'var(--font-body, sans-serif)', fontSize: '1rem', fontWeight: 700, color: 'var(--gold)', paddingTop: '8px', minWidth: 0, whiteSpace: 'normal', lineHeight: 1.35 }
                         }, title)
                         : (hasHeaderRow ? h('span') : null),
                     showClose !== false ? h('button', {
@@ -546,6 +586,15 @@
                 }, children)
             )
         );
+    }
+
+    // Optional detail on phones, with the original content preserved on desktop.
+    function MobileSection({ title, summary, children, defaultOpen, phone, className }) {
+        const vp = window.WR?.useViewport ? window.WR.useViewport() : { isPhone: false };
+        if (!(phone === undefined ? vp.isPhone : phone)) return children || null;
+        return h('details', { className: 'wr-mobile-section ' + (className || ''), open: defaultOpen || undefined },
+            h('summary', null, h('span', null, title), summary ? h('small', null, summary) : null),
+            h('div', { className: 'wr-mobile-section-body' }, children));
     }
 
     // ══ Phone pattern kit (iPhone program Phase 0) ════════════════════
@@ -637,12 +686,12 @@
     //              the same card (row tap is the only toggle; children
     //              clicks don't re-toggle).
     //   ...rest  — forwarded to the card root (data-* hooks etc.).
-    function AssetRow({ pos, pid, name, tag, slots, verdict, onClick, expanded, children, accent, ...rest }) {
+    function AssetRow({ pos, pid, name, tag, slots, verdict, onClick, expanded, children, details, accent, ...rest }) {
         const tint = POS_TINTS[String(pos || '').toUpperCase()] || { bg: 'var(--ov-4, rgba(255,255,255,0.06))', fg: 'var(--silver, #BDB8AD)' };
         const borderColor = accent === 'gold' ? 'rgba(212,175,55,0.4)'
             : accent === 'risk' ? 'rgba(240,165,0,0.4)'
             : 'rgba(255,255,255,0.06)';
-        const onKey = onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } } : undefined;
+        const onKey = onClick ? (e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } } : undefined;
         return h('div', {
             style: {
                 background: 'var(--black, #121217)',
@@ -651,11 +700,14 @@
                 overflow: 'hidden',
             },
             ...rest,
+            className: 'wr-asset-row ' + (rest.className || ''),
+            'data-slot-count': Math.min((slots || []).length, 3),
             // Babel's shared browser helpers can leak onClick into rest when
             // deferred scripts load. Only the header should toggle this card.
             onClick: undefined,
         },
             h('div', {
+                className: 'wr-asset-head',
                 role: onClick ? 'button' : undefined,
                 'aria-expanded': onClick && expanded !== undefined ? !!expanded : undefined,
                 tabIndex: onClick ? 0 : undefined,
@@ -668,6 +720,7 @@
                 },
             },
                 pid ? h('span', {
+                    className: 'wr-asset-avatar',
                     style: {
                         width: '30px', height: '30px', borderRadius: 'var(--card-radius-sm, 8px)', flexShrink: 0,
                         position: 'relative', display: 'inline-flex', overflow: 'hidden',
@@ -691,6 +744,7 @@
                         }
                     }, String(name || pos || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase())
                 ) : h('span', {
+                    className: 'wr-asset-avatar',
                     style: {
                         width: '30px', height: '30px', borderRadius: 'var(--card-radius-sm, 8px)', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -699,22 +753,22 @@
                         fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
                     }
                 }, pos),
-                h('div', { style: { flex: '1 1 76px', minWidth: 0 } },
+                h('div', { className: 'wr-asset-identity', style: { flex: '1 1 76px', minWidth: 0 } },
                     // flex-basis 76px (not the bare 0% that `flex: 1` implies) gives the
                     // name a real starting share before the fixed-width slots/verdict/
                     // chevron eat the row — without it, names were squeezed to ~2-3
                     // visible characters ("Danie…") on 375px phones. Two-line clamp
                     // (vs. single-line ellipsis) so a still-tight name reads in full
                     // ("Aaron / Rodgers") instead of truncating mid-word.
-                    h('div', { style: { fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' } }, name),
-                    tag != null && h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--text-muted, #8B8B96)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' } }, tag)
+                    h('div', { className: 'wr-asset-name', style: { fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' } }, name),
+                    tag != null && h('div', { className: 'wr-asset-tag', style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--text-muted, #8B8B96)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' } }, tag)
                 ),
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 } },
-                    ...(slots || []).slice(0, 3).map((s, i) => h('div', { key: 'slot-' + i, style: { textAlign: 'right', minWidth: '32px' } },
+                h('div', { className: 'wr-asset-slots', style: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 } },
+                    ...(slots || []).slice(0, 3).map((s, i) => h('div', { className: 'wr-asset-slot', key: 'slot-' + i, style: { textAlign: 'right', minWidth: '32px' } },
                         // `strong` slots (the signature DHQ value) render gold +
                         // a notch larger so they read as the row's headline stat.
-                        h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: s.strong ? 700 : 500, color: s.strong ? 'var(--gold)' : 'var(--text-muted, #55555f)', textTransform: 'uppercase', letterSpacing: '0.02em' } }, s.label),
-                        h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: s.strong ? '0.98rem' : '0.8rem', fontWeight: s.strong ? 700 : 600, color: s.strong ? 'var(--gold)' : toneColor(s.tone) } }, s.value != null && s.value !== '' ? s.value : '—')
+                        h('div', { className: 'wr-asset-label', style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: s.strong ? 700 : 500, color: s.strong ? 'var(--gold)' : 'var(--text-muted, #55555f)', textTransform: 'uppercase', letterSpacing: '0.02em' } }, s.label),
+                        h('div', { className: 'wr-asset-value', style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: s.strong ? '0.98rem' : '0.8rem', fontWeight: s.strong ? 700 : 600, color: s.strong ? 'var(--gold)' : toneColor(s.tone) } }, s.value != null && s.value !== '' ? s.value : '—')
                     )),
                     // Verdict clamp (owner iPhone pass 2026-07-12, widened 2026-08-09):
                     // an unclamped chip here squeezed the name column to ~2 chars on
@@ -726,12 +780,12 @@
                     h('span', { 'aria-hidden': 'true', style: { color: 'var(--text-muted, #55555f)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.9rem', fontWeight: 600, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' } }, '›')
                 )
             ),
-            expanded && children ? h('div', {
+            (details || (expanded && children)) ? h('div', {
                 // Children carry their own interactive controls — don't let
                 // taps inside the dossier re-toggle the row.
                 onClick: (e) => e.stopPropagation(),
                 style: { borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))', padding: '10px 12px' },
-            }, children) : null
+            }, details || children) : null
         );
     }
 
@@ -742,7 +796,7 @@
         const out = [];
         (groups || []).forEach((g, gi) => {
             if (g.label) {
-                out.push(h('div', { key: 'div-' + gi, style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: gi === 0 ? 0 : '2px' } },
+                out.push(h('div', { key: 'div-' + gi, className: 'wr-card-list-heading', style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: gi === 0 ? 0 : '2px' } },
                     h('span', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' } }, g.label),
                     g.sub != null && h('span', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' } }, g.sub),
                     h('span', { 'aria-hidden': 'true', style: { flex: 1, height: '1px', background: 'rgba(212,175,55,0.25)' } })
@@ -760,6 +814,8 @@
         const useVp = window.WR && window.WR.useViewport;
         const vp = useVp ? useVp() : { isPhone: false };
         return h('button', {
+            type: 'button',
+            className: 'wr-filter-pill',
             onClick: onClick,
             style: {
                 display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -1140,6 +1196,7 @@
     window.WR.InsightCard = InsightCard;
     window.WR.ClampedRead = ClampedRead;
     window.WR.Sheet = Sheet;
+    window.WR.MobileSection = MobileSection;
     // Phone pattern kit (Phase 0)
     window.WR.HeroCard = HeroCard;
     window.WR.AssetRow = AssetRow;

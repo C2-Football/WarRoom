@@ -29,7 +29,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: 'var(--text-muted, #8D887E)', letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: 'var(--text-muted, #8D887E)', letterSpacing: '0.08em', textTransform: 'uppercase' };
 
     const [openLid, setOpenLid] = React.useState(null);
     const [question, setQuestion] = React.useState('');
@@ -42,7 +42,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -50,7 +50,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
     );
     const btn = (label, onClick, opts) => (
         <button onClick={onClick} disabled={opts && opts.disabled}
-            style={{ padding: '5px 12px', cursor: 'pointer', background: 'transparent', color: (opts && opts.color) || GOLD, border: '1px solid ' + ((opts && opts.color) || 'rgba(212,175,55,0.5)'), borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: opts && opts.disabled ? 0.5 : 1 }}>
+            style={{ padding: '5px 12px', cursor: 'pointer', background: 'transparent', color: (opts && opts.color) || GOLD, border: '1px solid ' + ((opts && opts.color) || 'rgba(212,175,55,0.5)'), borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.66rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: opts && opts.disabled ? 0.5 : 1 }}>
             {label}
         </button>
     );
@@ -77,7 +77,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                         return (
                             <div key={lid} style={{ border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)' }}>
                                 <div onClick={() => setOpenLid(open ? null : lid)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }}>
-                                    <span style={{ color: TEXT, fontWeight: 700, fontSize: '0.85rem' }}>{l.name}</span>
+                                    <span style={{ color: TEXT, fontWeight: 700, fontSize: 'var(--co-readable-body, 0.85rem)' }}>{l.name}</span>
                                     {section !== 'dues' && <span style={{ ...microHdr, color: con && con.clauses.length ? GREEN : AMBER }}>
                                         {con && con.clauses.length ? con.clauses.length + ' clauses on file' : 'no constitution on file'}
                                     </span>}
@@ -91,7 +91,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                         {section !== 'dues' && <div>
                                             <div style={{ ...microHdr, marginBottom: '6px' }}>Bylaws desk</div>
                                             {!con || !con.clauses.length ? (
-                                                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                                                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
                                                     Upload this league's constitution under Settings → League documents and the desk lights up: clause search, grounded rulings, amendment history.
                                                 </div>
                                             ) : (
@@ -105,15 +105,15 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                     {rul && rul.text ? (
                                                         <div style={{ marginTop: '8px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '10px 12px' }}>
                                                             <div style={{ ...microHdr, color: GOLD, marginBottom: '4px' }}>Ruling — grounded in the constitution</div>
-                                                            <div style={{ fontSize: '0.8rem', color: '#C9C9D2', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{rul.text}</div>
+                                                            <div style={{ fontSize: 'var(--co-readable-body, 0.8rem)', color: '#C9C9D2', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{rul.text}</div>
                                                             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '6px' }}>Answers only from quoted clauses — when the constitution is silent, the ruling says so.</div>
                                                         </div>
-                                                    ) : rul && rul.err ? <div style={{ marginTop: '8px', color: TEXT, fontSize: '0.76rem' }}>No ruling available — AI is Pro-gated or the call failed.</div> : null}
+                                                    ) : rul && rul.err ? <div style={{ marginTop: '8px', color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)' }}>No ruling available — AI is Pro-gated or the call failed.</div> : null}
                                                     {amd.length ? (
                                                         <div style={{ marginTop: '10px' }}>
                                                             <div style={{ ...microHdr, marginBottom: '4px' }}>Amendment ledger</div>
                                                             {amd.slice(0, 5).map((a, i) => (
-                                                                <div key={i} style={{ ...mono, fontSize: '0.72rem', color: TEXT, padding: '2px 0' }}>
+                                                                <div key={i} style={{ ...mono, fontSize: 'var(--co-readable-small, 0.72rem)', color: TEXT, padding: '2px 0' }}>
                                                                     {new Date(a.ts).toLocaleDateString()} · <span style={{ color: TEXT }}>{a.path}</span> <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{String(a.from)}</span> → <span style={{ color: GOLD }}>{String(a.to)}</span> <span style={{ opacity: 0.6 }}>({a.source})</span>
                                                                 </div>
                                                             ))}
@@ -138,7 +138,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                         {tre.rows.map(r => (
                                                             <label key={r.userId} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr) auto', gap: '10px', alignItems: 'center', padding: '6px 10px', borderBottom: `1px solid rgba(255,255,255,0.04)`, cursor: 'pointer' }}>
                                                                 <input type="checkbox" checked={!!r.paid} onChange={() => onMarkPaid && onMarkPaid(lid, r.userId, !r.paid)} />
-                                                                <span style={{ color: r.paid ? SILVER : TEXT, fontWeight: r.paid ? 400 : 600, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                                                <span style={{ color: r.paid ? SILVER : TEXT, fontWeight: r.paid ? 400 : 600, fontSize: 'var(--co-readable-body, 0.8rem)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                                                                 <span style={{ ...microHdr, color: r.paid ? GREEN : AMBER }}>{r.paid ? 'PAID' : 'UNPAID'}</span>
                                                             </label>
                                                         ))}
@@ -174,7 +174,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                         {csvNote[lid] ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{csvNote[lid]}</span> : null}
                                                     </div>
                                                 </React.Fragment>
-                                            ) : <div style={{ color: TEXT, fontSize: '0.78rem' }}>Treasury unavailable for this league.</div>}
+                                            ) : <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>Treasury unavailable for this league.</div>}
                                         </div>}
                                     </div>
                                 ) : null}

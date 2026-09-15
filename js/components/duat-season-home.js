@@ -20,7 +20,7 @@
         const compact=model.standings.length>8&&!full,rows=compact?model.standings.filter((row,index)=>index<5||row===own):model.standings;
         return <section className="duat-panel duat-home-standings"><div className="duat-home-section-heading"><div><span className="duat-eyebrow">THE RACE FOR THE THRONE</span><h2>{final?'Final regular-season standings':'Season standings'}</h2></div><span className="duat-home-asof">{through?'Through Week '+through:'Before Week 1'}</span></div>
             <p className="duat-home-help">Cumulative all-play record · top {model.outlook?.fieldSize||0} enter the Heavenly Battle.</p>
-            <table><caption>Season standings through Week {through}. Ranked by all-play wins, with ties worth half a win, then fantasy points.</caption><colgroup><col className="duat-home-rank-col"/><col/><col className="duat-home-record-col"/><col className="duat-home-points-col"/></colgroup><thead><tr><th scope="col">#</th><th scope="col">Faction</th><th scope="col">W–L–T</th><th scope="col">Points</th></tr></thead><tbody>{rows.map(row=><tr key={row.factionId} className={(row.isMine||row.factionId===factionId?'is-you ':'')+(model.visibleThroughWeek&&row.rank===model.outlook?.fieldSize?'cut-line':'')}><td>{model.visibleThroughWeek?row.rank:'—'}</td><th scope="row"><span>{row.name}</span>{(row.isMine||row.factionId===factionId)&&<small>You</small>}</th><td>{row.record||`${row.wins}–${row.losses}–${row.ties}`}</td><td>{number(row.points)}</td></tr>)}</tbody></table>
+            <table><caption>Season standings through Week {through}. Ranked by all-play wins, with ties worth half a win, then fantasy points.</caption><colgroup><col className="duat-home-rank-col"/><col/><col className="duat-home-record-col"/><col className="duat-home-points-col"/></colgroup><thead><tr><th scope="col">#</th><th scope="col">Faction</th><th scope="col">W–L–T</th><th scope="col">Points</th></tr></thead><tbody>{rows.map(row=><tr key={row.factionId} className={(row.isMine||row.factionId===factionId?'is-you ':'')+(model.visibleThroughWeek&&row.rank===model.outlook?.fieldSize?'cut-line':'')}><td>{model.visibleThroughWeek?row.rank:'—'}</td><th scope="row"><span>{row.name}</span>{(row.isMine||row.factionId===factionId)&&<small>You</small>}<small className="duat-home-mobile-record">{row.record||`${row.wins}–${row.losses}–${row.ties}`} · all-play</small></th><td>{row.record||`${row.wins}–${row.losses}–${row.ties}`}</td><td>{number(row.points)}</td></tr>)}</tbody></table>
             {model.standings.length>8&&<button className="duat-button duat-home-standings-expand" aria-expanded={full} onClick={()=>setFull(value=>!value)}>{full?'Show compact standings':`Full standings · all ${model.standings.length} factions`}</button>}
             <p className="duat-home-table-note">{compact?'Top five and your faction are shown. ':''}{model.visibleThroughWeek?'The gold line marks the current playoff cut. Ties count as half a win for seeding; points break equal records.':'The first week will put the banners in order.'}</p>
         </section>;
@@ -47,6 +47,10 @@
             </div>
         </section>;
     }
+    function SeasonDetail({ title, children }) {
+        const phone = root.WR?.useViewport ? root.WR.useViewport().isPhone : false;
+        return phone ? <details className="duat-home-disclosure"><summary>{title}</summary>{children}</details> : children;
+    }
     function DuatSeasonHomeView({model,onResume,onExplore,campaignName='',factionId,cycle=1,rulerName=''}){
         const [selectedWeek,setSelectedWeek]=useState(model.currentWeek),headingRef=useRef(null);
         useEffect(()=>{setSelectedWeek(model.currentWeek);},[model.currentWeek,cycle]);
@@ -54,10 +58,10 @@
         const own=model.standings.find(row=>row.isMine||row.factionId===factionId),Sigil=App.DuatPresentation.Sigil;
         return <div className="duat-season-home"><header className="duat-home-heading" ref={headingRef} tabIndex="-1"><div><span className="duat-eyebrow">{campaignName||'YOUR DYNASTY'} · SEASON {cycle}</span><h1>{own?.name||'Your faction'}</h1>{rulerName&&<p>{rulerName} leads your walking army.</p>}</div><Sigil id={factionId}/></header>
             <section className="duat-home-resume"><div><span className="duat-eyebrow">YOUR NEXT MOVE · WEEK {model.resume.week}</span><h2>{model.resume.label}</h2><p>{model.resume.detail}</p>{own&&<p className="duat-home-your-place">{model.visibleThroughWeek?<><strong>#{own.rank} of {model.standings.length}</strong><span>{own.record} all-play · {number(own.points)} pts</span></>:<span>The standings begin with your first game.</span>}</p>}</div><button className="duat-button primary" onClick={onResume}>{model.resume.stage==='complete'?'View season honors':`Resume Week ${model.resume.week}`} <span aria-hidden="true">→</span></button></section>
-            <Timeline timeline={model.timeline} currentWeek={model.currentWeek} selectedWeek={selectedWeek} onSelect={setSelectedWeek}/>
+            <SeasonDetail title={"Season calendar · Week "+model.currentWeek}><Timeline timeline={model.timeline} currentWeek={model.currentWeek} selectedWeek={selectedWeek} onSelect={setSelectedWeek}/></SeasonDetail>
             {model.pendingResultWeek&&<p className="duat-home-unseen">Week {model.pendingResultWeek} is waiting in your journey. Results here stay within what you have revealed.</p>}
-            <PlayoffHunt outlook={model.outlook} visibleThroughWeek={model.visibleThroughWeek}/>
-            <div className="duat-home-columns"><Standings model={model} factionId={factionId}/><Tournament tournament={model.tournament} visibleThroughWeek={model.visibleThroughWeek} onExplore={onExplore}/></div>
+            <SeasonDetail title={model.outlook?.available?"Playoff hunt · "+model.outlook.heading:"Playoff hunt · opens after Week 4"}><PlayoffHunt outlook={model.outlook} visibleThroughWeek={model.visibleThroughWeek}/></SeasonDetail>
+            <div className="duat-home-columns"><SeasonDetail title="Season standings"><Standings model={model} factionId={factionId}/></SeasonDetail><SeasonDetail title={model.tournament.name+" · alliance tournament"}><Tournament tournament={model.tournament} visibleThroughWeek={model.visibleThroughWeek} onExplore={onExplore}/></SeasonDetail></div>
         </div>;
     }
     App.DuatSeasonHomeView=DuatSeasonHomeView;App.DuatSeasonHomeTimeline=Timeline;

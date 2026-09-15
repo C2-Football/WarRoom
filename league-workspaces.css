@@ -20,13 +20,36 @@
 .wr-workspace-views button:hover { color: var(--white); }
 .wr-help-search { display: block; margin: 0 0 16px; color: var(--silver); }
 .wr-help-search input { display: block; width: 100%; max-width: 520px; margin-top: 6px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); background: var(--black); color: var(--white); font: inherit; border-radius: var(--card-radius-sm, 8px); }
+.wr-mobile-workspace { display: none; }
+.wr-league-wire-entry { display: contents; }
 @media (max-width: 767px) {
-    .wr-workspace-header { padding: 12px 14px 0; }
-    .wr-workspace-heading h1 { font-size: 1.25rem; }
-    .wr-workspace-heading p { font-size: .8125rem; }
-    .wr-workspace-views { gap: 0 14px; }
-    .wr-workspace-views button { font-size: .8125rem; }
-    .wr-phone-dock .wr-dock-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; overflow: visible; mask-image: none; -webkit-mask-image: none; }
-    .wr-phone-dock .wr-dock-chip { min-width: 0; width: 100%; padding-left: 2px; padding-right: 2px; }
-    .wr-phone-dock .wr-dock-chip span { font-size: 11px; }
+    :root { --wr-tab-bar-h: 68px; }
+    .wr-main-content { display: flex; flex-direction: column; }
+    .wr-main-content > .wr-content-frame { order: 2; padding: 10px max(16px, var(--sar)) 20px max(16px, var(--sal)); }
+    .wr-main-content > .wr-league-wire-entry { display: block; order: 3; padding-bottom: calc(16px + var(--wr-bottom-inset)); }
+    .wr-workspace-header { padding: 12px max(16px, var(--sar)) 0 max(16px, var(--sal)); border-bottom: 0; }
+    .wr-workspace-heading, .wr-workspace-views { display: none; }
+    .wr-mobile-workspace { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .wr-mobile-workspace h1 { margin: 0; flex: 1; min-width: 0; color: var(--white); font: 600 28px/1.2 var(--font-body); letter-spacing: -.035em; }
+    .wr-mobile-workspace select { width: 100%; max-width: 100%; min-height: 48px; padding: 6px 26px 6px 0; background: transparent; border: 0; border-radius: var(--card-radius-sm); color: var(--white); font: inherit; font-size: 28px !important; letter-spacing: inherit; text-overflow: ellipsis; cursor: pointer; }
+    .wr-mobile-workspace option { background: var(--black); color: var(--white); font-size: 16px; }
+    .wr-mobile-help { min-height: 44px; min-width: 44px; padding: 8px 0 8px 8px; color: var(--silver); background: transparent; border: 0; font: 500 14px var(--font-body); cursor: pointer; }
+    .wr-phone-lhdr .wr-league-switch { min-height: 44px !important; font: 500 14px var(--font-body) !important; letter-spacing: 0 !important; text-transform: none !important; }
+    .wr-phone-lhdr [aria-label="League status and actions"] > span:nth-child(2) { font-family: var(--font-body) !important; font-size: 16px !important; letter-spacing: 0 !important; }
+    .wr-phone-dock { border-top-color: var(--ov-6, rgba(255,255,255,.1)); box-shadow: none; }
+    .wr-phone-dock .wr-dock-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; padding-inline: 4px; overflow: visible; mask-image: none; -webkit-mask-image: none; }
+    .wr-phone-dock .wr-dock-chip { min-width: 0; width: 100%; padding: 7px 2px; gap: 6px; border-top: 0; letter-spacing: 0; }
+    .wr-phone-dock .wr-dock-chip span { font-size: 13px; line-height: 1.2; }
+    .wr-phone-dock .wr-dock-chip svg { width: 22px; height: 22px; }
+    .wr-phone-more-menu { padding: 4px 20px 16px; }
+    .wr-phone-more-menu section { margin-bottom: 16px; }
+    .wr-phone-more-menu h2 { margin: 14px 0 4px; color: var(--silver); font: 500 14px var(--font-body); }
+    .wr-phone-more-menu button { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; text-align: left; color: var(--white); background: transparent; border: 0; border-bottom: 1px solid var(--ov-4, rgba(255,255,255,.06)); font: 500 16px/1.4 var(--font-body); cursor: pointer; }
+    .wr-phone-more-menu button[aria-current="page"] { color: var(--gold); }
+    .wr-phone-more-menu button > span:last-child { color: var(--silver); }
+    .wr-mobile-workspace :is(select, button):focus-visible, .wr-phone-more-menu button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+}
+@media (max-width: 767px) and (max-height: 520px) {
+    :root { --wr-tab-bar-h: 56px; }
+    .wr-phone-dock .wr-dock-chip { padding-block: 4px; gap: 3px; }
 }

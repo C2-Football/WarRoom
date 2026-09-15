@@ -201,8 +201,8 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
 
     // ── Styles ──
     // Token-driven — radius/pad/gap come from the global scale.
-    const cardStyle = { background: 'var(--black)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius, 10px)', padding: 'var(--card-pad, 14px 16px)', marginBottom: 'var(--card-gap, 12px)' };
-    const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.85rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '10px' };
+    const cardStyle = { minWidth: 0, background: 'var(--black)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius, 10px)', padding: 'var(--card-pad, 14px 16px)', marginBottom: 'var(--card-gap, 12px)' };
+    const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: _phone ? '18px' : '0.85rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: _phone ? 0 : '0.06em', marginBottom: '10px' };
 
     // ── Trophy icon by finish ──
     function finishIcon(finish) {
@@ -257,12 +257,12 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
 
         // 2-col top section: Championship Timeline (left) + All-Time Leaders (right)
         return React.createElement('div', null,
-            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-md, 12px)', marginBottom: 'var(--space-md, 12px)' } },
+            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: _phone ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-md, 12px)', marginBottom: 'var(--space-md, 12px)' } },
                 renderChampionshipTimelineCard(seasons),
-                renderAllTimeLeadersCard(),
+                _phone ? React.createElement(window.WR.MobileSection, { title: 'All-time leaders' }, renderAllTimeLeadersCard()) : renderAllTimeLeadersCard(),
             ),
-            renderAllTimeStandingsCard(),
-            renderHofSection('league'),
+            _phone ? React.createElement(window.WR.MobileSection, { title: 'All-time standings' }, renderAllTimeStandingsCard()) : renderAllTimeStandingsCard(),
+            _phone ? React.createElement(window.WR.MobileSection, { title: 'League Hall of Fame' }, renderHofSection('league')) : renderHofSection('league'),
         );
     }
 
@@ -287,7 +287,7 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                 ),
                 React.createElement('div', { style: { marginTop: '10px' } }),
                 seasons.length === 0
-                    ? React.createElement('div', { style: { color: 'var(--silver)', fontSize: '0.8rem' } }, "No championship data yet. Play a full season to see your league history \u2014 or add the years Sleeper can't reach below.")
+                    ? React.createElement('div', { style: { color: 'var(--silver)', fontSize: _phone ? '14px' : '0.8rem' } }, "No championship data yet. Play a full season to see your league history \u2014 or add the years Sleeper can't reach below.")
                     : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                         seasons.map(season => {
                             const c = championships[season];
@@ -306,18 +306,18 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                             return React.createElement('div', { key: season, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: c.champion != null ? 'pointer' : 'default' }, onClick },
                                 React.createElement('span', { style: { fontSize: '1.2rem' } }, '\uD83C\uDFC6'),
                                 React.createElement('div', { style: { flex: 1 } },
-                                    React.createElement('div', { style: { fontSize: '0.85rem', fontWeight: 700, color: 'var(--gold)' } },
+                                    React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.85rem', fontWeight: 700, color: 'var(--gold)' } },
                                         season + ' Champion',
                                         c.manual && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginLeft: '6px', fontWeight: 400, letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'added by hand'),
                                     ),
-                                    React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--white)' } },
+                                    React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.78rem', color: 'var(--white)' } },
                                         champName,
                                         champLeft && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginLeft: '6px', fontStyle: 'italic' } }, '(former owner)'),
                                     ),
                                 ),
                                 runnerName && React.createElement('div', { style: { textAlign: 'right' } },
                                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' } }, 'Runner-Up'),
-                                    React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } },
+                                    React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)' } },
                                         runnerName,
                                         runnerLeft && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.55, marginLeft: '4px', fontStyle: 'italic' } }, '(former)'),
                                     ),
@@ -400,33 +400,33 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                             opacity: o.isFormer ? 0.65 : 1,
                         },
                     },
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: i < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 700, textAlign: 'right' } }, i + 1),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem', color: i < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 700, textAlign: 'right' } }, i + 1),
                         avatarUrl
                             ? React.createElement('img', { src: avatarUrl, style: { width: 22, height: 22, borderRadius: '50%' }, onError: e => e.target.style.display = 'none' })
                             : React.createElement('div', { style: { width: 22, height: 22, borderRadius: '50%', background: 'var(--ov-4, rgba(255,255,255,0.06))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--silver)' } }, (o.ownerName || '?')[0]),
                         React.createElement('div', { style: { minWidth: 0 } },
-                            React.createElement('div', { style: { fontSize: '0.78rem', fontWeight: 600, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.78rem', fontWeight: 600, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
                                 o.ownerName,
                                 isMe && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', marginLeft: '6px' } }, '★'),
                                 o.isFormer && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, marginLeft: '6px', fontStyle: 'italic', fontWeight: 400 } }, '(former)'),
                             ),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 } }, (o.tenure || 0) + ' season' + ((o.tenure || 0) === 1 ? '' : 's')),
                         ),
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.74rem', color: 'var(--white)', fontWeight: 600, textAlign: 'right' } }, o.wins + '-' + o.losses),
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.74rem', fontWeight: 700, color: wpCol, textAlign: 'right' } }, winPct + '%'),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.74rem', color: 'var(--white)', fontWeight: 600, textAlign: 'right' } }, o.wins + '-' + o.losses),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.74rem', fontWeight: 700, color: wpCol, textAlign: 'right' } }, winPct + '%'),
                         React.createElement('span', { style: { textAlign: 'right' } },
                             o.championships > 0
-                                ? React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 } }, o.championships, '🏆')
-                                : React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.45 } }, '—'),
+                                ? React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.74rem', color: 'var(--gold)', fontWeight: 700 } }, o.championships, '🏆')
+                                : React.createElement('span', { style: { fontSize: _phone ? '14px' : '0.7rem', color: 'var(--silver)', opacity: 0.45 } }, '—'),
                         ),
                         React.createElement('span', { style: { textAlign: 'right' } },
                             o.runnerUps > 0
-                                ? React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'var(--k-c0c0c0, #c0c0c0)', fontWeight: 700 } }, o.runnerUps, '🥈')
-                                : React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.45 } }, '—'),
+                                ? React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem', color: 'var(--k-c0c0c0, #c0c0c0)', fontWeight: 700 } }, o.runnerUps, '🥈')
+                                : React.createElement('span', { style: { fontSize: _phone ? '14px' : '0.7rem', color: 'var(--silver)', opacity: 0.45 } }, '—'),
                         ),
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'var(--silver)', textAlign: 'right' } }, o.playoffAppearances || 0),
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'var(--silver)', textAlign: 'right' } }, Math.round(o.pointsFor || 0).toLocaleString()),
-                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65, textAlign: 'right' } }, Math.round(o.pointsAgainst || 0).toLocaleString()),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', textAlign: 'right' } }, o.playoffAppearances || 0),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', textAlign: 'right' } }, Math.round(o.pointsFor || 0).toLocaleString()),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.65, textAlign: 'right' } }, Math.round(o.pointsAgainst || 0).toLocaleString()),
                     );
                 }),
             ),
@@ -439,12 +439,12 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
         const leader = sorted[0];
         if (!leader || valueFn(leader) <= 0) return React.createElement('div', { key: title, style: { padding: '8px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)' } },
             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.04em' } }, title),
-            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: '4px' } }, '\u2014'),
+            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', marginTop: '4px' } }, '\u2014'),
         );
         return React.createElement('div', { key: title, style: { padding: '8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }, onClick: () => { setSelectedOwner(leader.rosterId); setView('personal'); } },
             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.04em' } }, title),
             React.createElement('div', { style: { fontSize: '1rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'JetBrains Mono, monospace' } }, displayFn(leader)),
-            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px' } }, leader.ownerName),
+            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', marginTop: '2px' } }, leader.ownerName),
         );
     }
 
@@ -468,14 +468,14 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
 
         return React.createElement('div', null,
             // Back button
-            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 All Teams'),
+            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: _phone ? '14px' : '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 All Teams'),
 
             // Owner header
             React.createElement('div', { style: { ...cardStyle, display: 'flex', alignItems: 'center', gap: '12px' } },
                 avatarUrl && React.createElement('img', { src: avatarUrl, style: { width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }, onError: e => e.target.style.display = 'none' }),
                 React.createElement('div', { style: { flex: 1 } },
                     React.createElement('div', { style: { fontSize: '1.1rem', fontWeight: 700, color: 'var(--white)' } }, o.ownerName),
-                    React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)' } }, displayRecord, ' \u00B7 ', o.tenure, ' seasons \u00B7 ', o.pointsFor.toLocaleString(), ' PF'),
+                    React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.78rem', color: 'var(--silver)' } }, displayRecord, ' \u00B7 ', o.tenure, ' seasons \u00B7 ', o.pointsFor.toLocaleString(), ' PF'),
                     chronRow && React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.7, marginTop: '2px' } }, 'All-time record imported from Chronicles'),
                 ),
                 displayChamps > 0 && React.createElement('div', { style: { textAlign: 'center' } },
@@ -505,7 +505,7 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                     wonAwards.map((a, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: 'var(--card-radius-sm, 8px)' } },
                         React.createElement('span', { style: { fontSize: '0.95rem' } }, '\uD83C\uDFC5'),
                         React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                            React.createElement('div', { style: { fontSize: '0.8rem', fontWeight: 700, color: 'var(--white)' } }, a.name),
+                            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.8rem', fontWeight: 700, color: 'var(--white)' } }, a.name),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' } }, a.year || '', a.stats ? ' · ' + a.stats : ''),
                         ),
                     ))
@@ -552,8 +552,8 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                             const curYear = String(currentLeague?.season || new Date().getFullYear());
                             return s.season !== curYear || s.finish === 'Champion' || s.finish === 'Runner-Up';
                         }).map(s => React.createElement('div', { key: s.season, style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: s.finish === 'Champion' ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'transparent' } },
-                            React.createElement('span', { style: { fontSize: '0.75rem', minWidth: '16px' } }, finishIcon(s.finish)),
-                            React.createElement('span', { style: { fontSize: '0.72rem', fontWeight: 600, color: 'var(--white)', minWidth: '32px' } }, s.season),
+                            React.createElement('span', { style: { fontSize: _phone ? '14px' : '0.75rem', minWidth: '16px' } }, finishIcon(s.finish)),
+                            React.createElement('span', { style: { fontSize: _phone ? '14px' : '0.72rem', fontWeight: 600, color: 'var(--white)', minWidth: '32px' } }, s.season),
                             React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: s.finish === 'Champion' ? 'var(--gold)' : 'var(--silver)', flex: 1 } }, formatSeasonLine(s)),
                         )),
                     ),
@@ -568,8 +568,8 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                     if (!best) return null;
                     return React.createElement('div', { style: cardStyle },
                         React.createElement('div', { style: headerStyle }, 'BEST DRAFT PICK'),
-                        React.createElement('div', { style: { fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' } }, best.name),
-                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px' } }, best.pos, ' \u00B7 R', best.round, ' \u00B7 ', best.season),
+                        React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.82rem', fontWeight: 600, color: 'var(--white)' } }, best.name),
+                        React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', marginTop: '2px' } }, best.pos, ' \u00B7 R', best.round, ' \u00B7 ', best.season),
                         React.createElement('div', { style: { fontSize: '1rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', marginTop: '4px' } }, best.dhq.toLocaleString(), ' DHQ'),
                     );
                 })(),
@@ -581,7 +581,7 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                         o.rivalries.map((r, i) => {
                             const oppRid = r.rosterId || r.opponent;
                             const opp = ownerHistory[oppRid];
-                            return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' } },
+                            return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: _phone ? '14px' : '0.75rem' } },
                                 React.createElement('span', { style: { color: 'var(--white)', fontWeight: 600, flex: 1 } }, opp?.ownerName || ('Team ' + oppRid)),
                                 React.createElement('span', { style: { color: r.wins > r.losses ? 'var(--good)' : r.wins < r.losses ? 'var(--bad)' : 'var(--silver)', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' } }, r.wins, '-', r.losses),
                             );
@@ -626,7 +626,7 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
             },
                 React.createElement('span', { style: { fontSize: '1.15rem', filter: isEarned ? 'none' : 'grayscale(0.7)' } }, a.icon),
                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                    React.createElement('div', { style: { fontSize: '0.78rem', fontWeight: 700, color: isEarned ? tc : 'var(--white)', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px' } },
+                    React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.78rem', fontWeight: 700, color: isEarned ? tc : 'var(--white)', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px' } },
                         a.label,
                         isEarned && React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 5px', borderRadius: 3, background: wrAlpha(tc, '22'), color: tc, fontWeight: 700, letterSpacing: '0.04em' } }, 'EARNED'),
                     ),
@@ -674,12 +674,12 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                 React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'none', letterSpacing: 0 } }, entries.length + ' inductee' + (entries.length === 1 ? '' : 's'))
             ),
             entries.length === 0
-                ? React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'No inductees yet. Add a legendary player, manager move, or season below.')
+                ? React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'No inductees yet. Add a legendary player, manager move, or season below.')
                 : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' } },
                     entries.map(h => React.createElement('div', { key: h.id, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.05))', borderLeft: '3px solid var(--gold)', borderRadius: '0 6px 6px 0' } },
                         React.createElement('span', { style: { fontSize: '1rem' } }, '\uD83C\uDFF5\uFE0F'),
                         React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                            React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, h.name),
+                            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.84rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, h.name),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', marginTop: '2px' } }, h.category + ' · ' + h.year + (h.note ? ' · ' + h.note : ''))
                         ),
                         React.createElement('button', { onClick: () => removeHof(h.id), style: { background: 'none', border: '1px solid rgba(231,76,60,0.3)', color: 'var(--k-e74c3c, #e74c3c)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 8px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', cursor: 'pointer', fontFamily: 'inherit' } }, 'Remove')
@@ -687,10 +687,10 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
                 ),
             // Add form (scope-aware)
             React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '6px' } },
-                React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.name : '', onChange: e => setHofDraft({ ...hofDraft, scope, name: e.target.value }), placeholder: scope === 'team' ? 'Player or moment name' : 'Player, team, or moment', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
-                React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.category : '', onChange: e => setHofDraft({ ...hofDraft, scope, category: e.target.value }), placeholder: 'Category (e.g., QB, Draft Steal)', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
-                React.createElement('input', { type: 'number', value: hofDraft.scope === scope ? hofDraft.year : '', onChange: e => setHofDraft({ ...hofDraft, scope, year: e.target.value }), placeholder: 'Year', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
-                React.createElement('button', { onClick: () => addHof(scope), disabled: hofDraft.scope !== scope || !hofDraft.name.trim(), style: { padding: '6px 12px', minHeight: '44px', background: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'var(--gold)' : 'var(--acc-line1, rgba(212,175,55,0.2))', color: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'var(--black)' : 'var(--silver)', border: 'none', borderRadius: 'var(--card-radius-xs, 5px)', fontSize: '0.72rem', fontWeight: 700, cursor: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'pointer' : 'not-allowed', fontFamily: 'inherit' } }, 'Induct')
+                React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.name : '', onChange: e => setHofDraft({ ...hofDraft, scope, name: e.target.value }), placeholder: scope === 'team' ? 'Player or moment name' : 'Player, team, or moment', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: _phone ? '14px' : '0.76rem', fontFamily: 'inherit' } }),
+                React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.category : '', onChange: e => setHofDraft({ ...hofDraft, scope, category: e.target.value }), placeholder: 'Category (e.g., QB, Draft Steal)', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: _phone ? '14px' : '0.76rem', fontFamily: 'inherit' } }),
+                React.createElement('input', { type: 'number', value: hofDraft.scope === scope ? hofDraft.year : '', onChange: e => setHofDraft({ ...hofDraft, scope, year: e.target.value }), placeholder: 'Year', style: { padding: '6px 8px', minHeight: '44px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontSize: _phone ? '14px' : '0.76rem', fontFamily: 'inherit' } }),
+                React.createElement('button', { onClick: () => addHof(scope), disabled: hofDraft.scope !== scope || !hofDraft.name.trim(), style: { padding: '6px 12px', minHeight: '44px', background: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'var(--gold)' : 'var(--acc-line1, rgba(212,175,55,0.2))', color: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'var(--black)' : 'var(--silver)', border: 'none', borderRadius: 'var(--card-radius-xs, 5px)', fontSize: _phone ? '14px' : '0.72rem', fontWeight: 700, cursor: (hofDraft.scope === scope && hofDraft.name.trim()) ? 'pointer' : 'not-allowed', fontFamily: 'inherit' } }, 'Induct')
             )
         );
     }
@@ -785,29 +785,29 @@ ${importText.substring(0, 8000)}`;
     }
 
     function renderImportView() {
-        return React.createElement('div', null,
-            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
+        return React.createElement('div', { className: 'la-history-import' },
+            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: _phone ? '16px' : '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
             React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: headerStyle }, 'IMPORT LEAGUE CHRONICLES'),
-                React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '12px' } },
-                    'Upload a file or paste your league\'s historical data. Alex will parse the structure and map it into your Trophy Room.'),
+                React.createElement('div', { style: { fontSize: _phone ? '16px' : '0.78rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '12px' } },
+                    _phone ? 'Upload or paste historical league results for Alex to organize.' : 'Upload a file or paste your league\'s historical data. Alex will parse the structure and map it into your Trophy Room.'),
                 // File upload
                 React.createElement('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
-                    React.createElement('label', { style: { flex: 1, padding: '10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', textAlign: 'center', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--gold)', fontWeight: 600 } },
+                    React.createElement('label', { style: { flex: 1, padding: '10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', textAlign: 'center', cursor: 'pointer', fontSize: _phone ? '16px' : '0.78rem', color: 'var(--gold)', fontWeight: 600 } },
                         '\uD83D\uDCC1 Upload CSV, Excel, PDF, or Image',
                         React.createElement('input', { type: 'file', accept: '.csv,.tsv,.txt,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.gif,.webp', onChange: handleFileUpload, style: { display: 'none' } }),
                     ),
                 ),
-                importStatus === 'reading' && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--gold)', marginBottom: '8px' } }, 'Reading file...'),
+                importStatus === 'reading' && React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--gold)', marginBottom: '8px' } }, 'Reading file...'),
                 React.createElement('textarea', {
                     value: importText, onChange: e => setImportText(e.target.value),
                     placeholder: 'Paste your spreadsheet data here...\n\nExample:\nTEAM  FROM  TO  W  L  CHMP  2ND\nSkjjcruz  2021  47  22  2  1\n...',
-                    style: { width: '100%', minHeight: '200px', padding: '12px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', resize: 'vertical', boxSizing: 'border-box' }
+                    style: { width: '100%', minHeight: _phone ? '140px' : '200px', padding: '12px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: _phone ? '16px' : '0.78rem', fontFamily: 'JetBrains Mono, monospace', resize: 'vertical', boxSizing: 'border-box' }
                 }),
                 React.createElement('button', {
                     // Free: button stays live but opens the Pro upsell (parseChronicles gates).
                     onClick: parseChronicles, disabled: importStatus === 'parsing' || (isPro && !importText.trim()),
-                    style: { width: '100%', marginTop: '10px', padding: '10px', background: importStatus === 'parsing' ? 'var(--silver)' : 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: '0.85rem', fontWeight: 700, cursor: importStatus === 'parsing' ? 'wait' : 'pointer', fontFamily: 'inherit' }
+                    style: { width: '100%', marginTop: '10px', padding: '10px', background: importStatus === 'parsing' ? 'var(--silver)' : 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: _phone ? '14px' : '0.85rem', fontWeight: 700, cursor: importStatus === 'parsing' ? 'wait' : 'pointer', fontFamily: 'inherit' }
                 }, !isPro ? '\ud83d\udd12 Import with Alex \u2014 Pro' : importStatus === 'parsing' ? 'Alex is parsing...' : importStatus === 'done' ? 'Imported!' : importStatus === 'error' ? 'Error \u2014 Try Again' : 'Import with Alex'),
             ),
         );
@@ -817,25 +817,25 @@ ${importText.substring(0, 8000)}`;
     // CHRONICLES VIEW (imported data)
     // ══════════════════════════════════════════════════════════════
     function renderChroniclesView() {
-        if (!chronicles) return React.createElement('div', { style: { color: 'var(--silver)', padding: '20px', textAlign: 'center', fontSize: '0.82rem' } },
+        if (!chronicles) return React.createElement('div', { style: { color: 'var(--silver)', padding: '20px', textAlign: 'center', fontSize: _phone ? '16px' : '0.82rem' } },
             'No chronicles imported yet. Use the Import button to add your league\'s history.');
 
-        return React.createElement('div', null,
-            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
+        return React.createElement('div', { className: 'la-chronicles' },
+            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: _phone ? '14px' : '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
 
             // League name
             chronicles.leagueName && React.createElement('div', { style: { fontSize: '1.1rem', fontWeight: 800, color: 'var(--gold)', marginBottom: '12px', textAlign: 'center', letterSpacing: 0 } }, chronicles.leagueName),
 
             // Championship History
-            chronicles.championshipHistory?.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'CHAMPIONSHIP HISTORY'),
+            chronicles.championshipHistory?.length > 0 && React.createElement(_phone ? 'details' : 'div', { className: _phone ? 'la-disclosure' : undefined, style: _phone ? undefined : cardStyle },
+                React.createElement(_phone ? 'summary' : 'div', { style: _phone ? undefined : headerStyle }, _phone ? 'Championship History' : 'CHAMPIONSHIP HISTORY'),
                 chronicles.championshipHistory.map((c, i) =>
-                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: i < chronicles.championshipHistory.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none' } },
+                    React.createElement('div', { key: i, className: 'la-history-champ', style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: i < chronicles.championshipHistory.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none' } },
                         React.createElement('span', { style: { fontSize: '1rem' } }, '\uD83C\uDFC6'),
-                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', minWidth: '35px' } }, c.year),
-                        React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('div', { style: { fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' } }, c.winner, c.winnerScore ? ' ' + c.winnerScore : ''),
-                            c.loser && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, 'vs ', c.loser, c.loserScore ? ' ' + c.loserScore : ''),
+                        React.createElement('span', { style: { fontSize: _phone ? '14px' : '0.78rem', fontWeight: 700, color: 'var(--gold)', minWidth: '35px' } }, c.year),
+                        React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+                            React.createElement('div', { style: { fontSize: _phone ? '16px' : '0.82rem', fontWeight: 600, color: 'var(--white)' } }, c.winner, c.winnerScore ? ' ' + c.winnerScore : ''),
+                            c.loser && React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)' } }, 'vs ', c.loser, c.loserScore ? ' ' + c.loserScore : ''),
                         ),
                         c.hsp?.offense && React.createElement('div', { style: { textAlign: 'right', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' } },
                             React.createElement('div', null, 'HSP: ', c.hsp.offense.name),
@@ -846,10 +846,10 @@ ${importText.substring(0, 8000)}`;
             ),
 
             // All-Time Standings
-            chronicles.standings?.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'ALL-TIME STANDINGS'),
+            chronicles.standings?.length > 0 && React.createElement(_phone ? 'details' : 'div', { className: _phone ? 'la-disclosure' : undefined, style: _phone ? undefined : cardStyle },
+                React.createElement(_phone ? 'summary' : 'div', { style: _phone ? undefined : headerStyle }, _phone ? 'All-Time Standings' : 'ALL-TIME STANDINGS'),
                 React.createElement('div', { style: { overflowX: 'auto', overflowY: 'clip' } },
-                    React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' } },
+                    React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: _phone ? '14px' : '0.72rem' } },
                         React.createElement('thead', null,
                             React.createElement('tr', null,
                                 ['Team', 'W', 'L', 'W%', 'Chmp', 'PO'].map(h =>
@@ -874,13 +874,13 @@ ${importText.substring(0, 8000)}`;
             ),
 
             // Custom Awards
-            chronicles.customAwards?.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'AWARDS'),
+            chronicles.customAwards?.length > 0 && React.createElement(_phone ? 'details' : 'div', { className: _phone ? 'la-disclosure' : undefined, style: _phone ? undefined : cardStyle },
+                React.createElement(_phone ? 'summary' : 'div', { style: _phone ? undefined : headerStyle }, 'Awards'),
                 chronicles.customAwards.map((award, ai) =>
                     React.createElement('div', { key: ai, style: { marginBottom: ai < chronicles.customAwards.length - 1 ? '12px' : 0 } },
-                        React.createElement('div', { style: { fontSize: '0.75rem', fontWeight: 700, color: 'var(--gold)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' } }, award.name),
+                        React.createElement('div', { style: { fontSize: _phone ? '16px' : '0.75rem', fontWeight: 700, color: 'var(--gold)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' } }, award.name),
                         (award.winners || []).map((w, wi) =>
-                            React.createElement('div', { key: wi, style: { display: 'flex', gap: '8px', padding: '3px 0', fontSize: '0.72rem' } },
+                            React.createElement('div', { key: wi, style: { display: 'flex', gap: '8px', padding: '3px 0', fontSize: _phone ? '14px' : '0.72rem' } },
                                 React.createElement('span', { style: { color: 'var(--silver)', minWidth: '35px' } }, w.year),
                                 React.createElement('span', { style: { color: 'var(--white)', fontWeight: 600, flex: 1 } }, w.winner),
                                 w.stats && React.createElement('span', { style: { color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)' } }, w.stats),
@@ -891,21 +891,21 @@ ${importText.substring(0, 8000)}`;
             ),
 
             // All-Time Team
-            chronicles.allTimeTeam?.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'ALL-TIME TEAM'),
+            chronicles.allTimeTeam?.length > 0 && React.createElement(_phone ? 'details' : 'div', { className: _phone ? 'la-disclosure' : undefined, style: _phone ? undefined : cardStyle },
+                React.createElement(_phone ? 'summary' : 'div', { style: _phone ? undefined : headerStyle }, _phone ? 'All-Time Team' : 'ALL-TIME TEAM'),
                 chronicles.allTimeTeam.map((p, i) =>
-                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: i < chronicles.allTimeTeam.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none', fontSize: '0.78rem' } },
+                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: i < chronicles.allTimeTeam.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none', fontSize: _phone ? '14px' : '0.78rem' } },
                         React.createElement('span', { style: { fontWeight: 700, color: 'var(--gold)', minWidth: '28px' } }, p.pos),
-                        React.createElement('span', { style: { fontWeight: 600, color: 'var(--white)', flex: 1 } }, p.name),
+                        React.createElement('span', { style: { fontWeight: 600, fontSize: _phone ? '16px' : undefined, color: 'var(--white)', flex: 1 } }, p.name),
                         p.team && React.createElement('span', { style: { color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)' } }, p.team),
                         p.year && React.createElement('span', { style: { color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)' } }, p.year),
-                        p.points && React.createElement('span', { style: { color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem' } }, p.points),
+                        p.points && React.createElement('span', { style: { color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', fontSize: _phone ? '14px' : '0.72rem' } }, p.points),
                     )
                 ),
             ),
 
             // Re-import button
-            React.createElement('button', { onClick: () => setView('import'), style: { marginTop: '12px', width: '100%', padding: '8px', background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--silver)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' } }, 'Re-import Chronicles'),
+            React.createElement('button', { onClick: () => setView('import'), style: { marginTop: '12px', width: '100%', padding: '8px', background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--silver)', fontSize: _phone ? '14px' : '0.72rem', cursor: 'pointer', fontFamily: 'inherit' } }, 'Re-import Chronicles'),
         );
     }
 
@@ -958,7 +958,7 @@ ${importText.substring(0, 8000)}`;
         if (champEntries.length === 0) {
             return React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: headerStyle }, 'ALL-TIME'),
-                React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.7 } },
+                React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.78rem', color: 'var(--silver)', opacity: 0.7 } },
                     cache ? 'No championship lineups have been captured yet — finish a season to populate.' : 'Loading league history…',
                 ),
             );
@@ -1002,13 +1002,13 @@ ${importText.substring(0, 8000)}`;
             ),
 
             // ── All-Time Team ──
-            hof.length > 0 && React.createElement('div', { style: cardStyle },
+            React.createElement(window.WR.MobileSection, { title: 'All-time team' }, hof.length > 0 && React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: { ...headerStyle, display: 'flex', alignItems: 'center', gap: '6px' } },
                     React.createElement('span', { style: { fontSize: '1rem' } }, '🎓'),
                     React.createElement('span', { style: { flex: 1 } }, 'ALL-TIME TEAM'),
                     React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'none', letterSpacing: 0 } }, 'Started in multiple championship lineups'),
                 ),
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' } },
+                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: _phone ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' } },
                     ...hof.map(p => {
                         const meta = resolve(p.pid);
                         const posCol = POS_COLORS[meta.pos] || 'var(--k-8d887e, #8d887e)';
@@ -1019,7 +1019,7 @@ ${importText.substring(0, 8000)}`;
                             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } },
                                 React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, padding: '2px 6px', borderRadius: '3px', background: wrAlpha(posCol, '22') } }, meta.pos),
                                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                                    React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, meta.name),
+                                    React.createElement('div', { style: { fontSize: _phone ? '16px' : '0.88rem', fontWeight: 700, color: 'var(--white)', whiteSpace: _phone ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, meta.name),
                                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 } }, meta.team),
                                 ),
                                 React.createElement('div', { style: { textAlign: 'right' } },
@@ -1028,15 +1028,15 @@ ${importText.substring(0, 8000)}`;
                                 ),
                             ),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.3 } },
-                                p.championships.map(c => c.season + ' (' + (c.ownerName || '?').slice(0, 14) + ')').join(' · '),
+                                p.championships.map(c => c.season + ' (' + (_phone ? (c.ownerName || '?') : (c.ownerName || '?').slice(0, 14)) + ')').join(' · '),
                             ),
                         );
                     }),
                 ),
-            ),
+            )),
 
             // ── All-Time Best Lineup (top scorer at each slot) ──
-            Object.keys(bestBySlot).length > 0 && React.createElement('div', { style: cardStyle },
+            React.createElement(window.WR.MobileSection, { title: 'Best championship lineup' }, Object.keys(bestBySlot).length > 0 && React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: { ...headerStyle, display: 'flex', alignItems: 'center', gap: '6px' } },
                     React.createElement('span', { style: { fontSize: '1rem' } }, '🏟️'),
                     React.createElement('span', { style: { flex: 1 } }, 'ALL-TIME BEST CHAMPIONSHIP LINEUP'),
@@ -1053,16 +1053,16 @@ ${importText.substring(0, 8000)}`;
                             style: { padding: '8px 10px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + wrAlpha(posCol, '44'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' },
                         },
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, textTransform: 'uppercase', letterSpacing: '0.08em' } }, _posLabelOf(slot)),
-                            React.createElement('div', { style: { fontSize: '0.85rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '3px' } }, p.name),
+                            React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.85rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '3px' } }, p.name),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '1px' } }, p.season + ' · ' + (p.ownerName || '').slice(0, 14)),
                             React.createElement('div', { style: { fontSize: '0.92rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', marginTop: '4px' } }, p.points.toFixed(1) + ' pts'),
                         );
                     }),
                 ),
-            ),
+            )),
 
             // ── Full champion-roster table (grouped by position group) ──
-            _phone ? _renderChampRosterPhone(posGroups, resolve) :
+            React.createElement(window.WR.MobileSection, { title: 'Full champion roster' }, _phone ? _renderChampRosterPhone(posGroups, resolve) :
             React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: { ...headerStyle, display: 'flex', alignItems: 'center', gap: '6px' } },
                     React.createElement('span', { style: { fontSize: '1rem' } }, '📜'),
@@ -1090,7 +1090,7 @@ ${importText.substring(0, 8000)}`;
                             const avg = (p.totalPoints / p.appearances).toFixed(1);
                             return React.createElement('div', {
                                 key: p.pid, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
-                                style: { display: 'grid', gridTemplateColumns: '40px 1fr 60px 70px 60px 1fr', gap: '8px', padding: '5px 8px', fontSize: '0.74rem', alignItems: 'center', cursor: 'pointer', background: p.appearances >= 2 ? 'var(--acc-fill1, rgba(212,175,55,0.04))' : 'var(--ov-1, rgba(255,255,255,0.01))', borderRadius: 'var(--card-radius-xs, 5px)' },
+                                style: { display: 'grid', gridTemplateColumns: '40px 1fr 60px 70px 60px 1fr', gap: '8px', padding: '5px 8px', fontSize: _phone ? '14px' : '0.74rem', alignItems: 'center', cursor: 'pointer', background: p.appearances >= 2 ? 'var(--acc-fill1, rgba(212,175,55,0.04))' : 'var(--ov-1, rgba(255,255,255,0.01))', borderRadius: 'var(--card-radius-xs, 5px)' },
                             },
                                 React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, padding: '2px 5px', borderRadius: '3px', background: wrAlpha(posCol, '22'), textAlign: 'center' } }, meta.pos),
                                 React.createElement('span', { style: { color: 'var(--white)', fontWeight: p.appearances >= 2 ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, meta.name + (p.appearances >= 2 ? ' 🎓' : '')),
@@ -1104,7 +1104,7 @@ ${importText.substring(0, 8000)}`;
                         }),
                     ]),
                 ),
-            ),
+            )),
         );
     }
 
@@ -1161,26 +1161,10 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     // full-width row under the seg (league view only), identical Pro-gated
     // labels/handler as the desktop toolbar button.
     function _renderPhoneToolbar() {
-        const segBtn = (label, tabKey, clickOverride) => React.createElement('button', {
-            key: tabKey,
-            className: view === tabKey ? 'is-on' : '',
-            onClick: clickOverride || (() => setView(tabKey)),
-            style: { minHeight: '44px' },
-        }, label);
+        const choices = [['league','League'],['personal','Me'],['alltime','All-time'],...(cupEnabled ? [['cup','Cup history']] : []),...(chronicles ? [['chronicles','Chronicles']] : []),['import','Import history']];
         return React.createElement(React.Fragment, null,
-            React.createElement('div', { className: 'wr-seg', style: { marginBottom: 'var(--space-sm, 8px)' } },
-                segBtn('League', 'league'),
-                segBtn('Me', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
-                segBtn('All-Time', 'alltime'),
-                cupEnabled && segBtn('Cup history', 'cup'),
-                chronicles && segBtn('Chronicles', 'chronicles'),
-                segBtn('Import', 'import'),
-            ),
-            view === 'league' && React.createElement('button', {
-                key: 'recap-btn',
-                onClick: generateSeasonRecap, disabled: recapStatus === 'generating',
-                style: { width: '100%', marginBottom: 'var(--space-md, 12px)', padding: '6px 12px', minHeight: '44px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontSize: '0.7rem', fontWeight: 700, cursor: recapStatus === 'generating' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
-            }, !isPro ? '🔒 Season Recap — Pro' : recapStatus === 'generating' ? 'Alex is writing…' : '✨ Season Recap'),
+            React.createElement('label', { className: 'la-view-select' }, 'History view', React.createElement('select', { value: view, onChange: event => { const next = event.target.value; setView(next); if (next === 'personal' && !selectedOwner) setSelectedOwner(myRoster?.roster_id); } }, choices.map(([value,label]) => React.createElement('option', { key: value, value }, label)))),
+            view === 'league' && React.createElement(window.WR.MobileSection, { title: 'Create a season recap' }, React.createElement('button', { type:'button', onClick:generateSeasonRecap, disabled:recapStatus === 'generating', className:'la-show-more' }, !isPro ? 'Season recap · Pro' : recapStatus === 'generating' ? 'Alex is writing…' : 'Create season recap')),
         );
     }
 
@@ -1238,7 +1222,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                         facts: "No championship data yet \u2014 or add the years Sleeper can't reach below.",
                     }),
             ),
-            older.length > 0 && React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' } },
+            older.length > 0 && React.createElement('details', { className: 'la-disclosure' }, React.createElement('summary', null, 'Earlier champions · ' + older.length + ' seasons'),
                 older.map(season => {
                     const c = championships[season];
                     const champOwner = ownerHistory[c.champion];
@@ -1254,10 +1238,10 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                     });
                 }),
             ),
-            window.WR?.ManualSeasonsEditor && React.createElement(window.WR.ManualSeasonsEditor, {
+            window.WR?.ManualSeasonsEditor && React.createElement(window.WR.MobileSection, { title: 'Add missing seasons' }, React.createElement(window.WR.ManualSeasonsEditor, {
                 leagueId,
                 teamCount: currentLeague?.rosters?.length || currentLeague?.settings?.num_teams || 12,
-            }),
+            })),
         );
     }
 
@@ -1266,48 +1250,17 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     // monochrome per the table doctrine — gold only on the title count,
     // top-3 rank and the isMe left rule (kept from desktop).
     function _renderStandingsPhone(ranked) {
-        const mono = 'var(--font-mono, "JetBrains Mono", monospace)';
-        const micro = 'var(--text-micro, 0.6875rem)';
-        const thS = { padding: '9px 8px', textAlign: 'right', fontFamily: mono, fontSize: micro, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, opacity: 0.7, whiteSpace: 'nowrap', borderBottom: '1px solid var(--ov-5, rgba(255,255,255,0.08))' };
-        const tdS = { padding: '12px 8px', textAlign: 'right', fontFamily: mono, fontSize: '0.72rem', color: 'var(--silver)', whiteSpace: 'nowrap', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' };
-        return React.createElement('div', { style: cardStyle },
-            React.createElement('div', { style: { ...headerStyle, display: 'flex', alignItems: 'center', gap: '6px' } },
-                React.createElement('span', { style: { flex: 1 } }, 'ALL-TIME STANDINGS'),
-                React.createElement('span', { style: { fontSize: micro, color: 'var(--silver)', textTransform: 'none', letterSpacing: 0 } }, ranked.length, ' owner', ranked.length === 1 ? '' : 's'),
-            ),
-            React.createElement('div', { className: 'wr-sticky-table-wrap' },
-                React.createElement('table', { className: 'wr-sticky-table', style: { width: '100%', borderCollapse: 'collapse' } },
-                    React.createElement('thead', null, React.createElement('tr', null,
-                        React.createElement('th', { style: { ...thS, textAlign: 'left', minWidth: '124px' } }, 'Owner'),
-                        ['Rec', 'Win%', 'Titles', 'R-Up', 'PO', 'PF', 'PA'].map(hd => React.createElement('th', { key: hd, style: thS }, hd)),
-                    )),
-                    React.createElement('tbody', null, ranked.map((o, i) => {
-                        const isMe = !o.isFormer && o.rosterId === myRoster?.roster_id;
-                        const total = (o.wins || 0) + (o.losses || 0);
-                        const winPct = total > 0 ? Math.round((o.wins / total) * 100) : 0;
-                        return React.createElement('tr', {
-                            key: o.rosterId,
-                            onClick: () => { if (!o.isFormer) { setSelectedOwner(o.rosterId); setView('personal'); } },
-                            style: { cursor: o.isFormer ? 'default' : 'pointer', opacity: o.isFormer ? 0.65 : 1 },
-                        },
-                            React.createElement('td', { style: { ...tdS, textAlign: 'left', borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent' } },
-                                React.createElement('span', { style: { fontFamily: mono, fontSize: micro, color: i < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 700, marginRight: '7px' } }, i + 1),
-                                React.createElement('span', { style: { fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, color: isMe ? 'var(--gold)' : 'var(--white)' } },
-                                    o.ownerName, isMe ? ' ★' : '', o.isFormer ? ' (former)' : ''),
-                                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: micro, color: 'var(--silver)', opacity: 0.6, marginLeft: '15px' } }, (o.tenure || 0) + ' season' + ((o.tenure || 0) === 1 ? '' : 's')),
-                            ),
-                            React.createElement('td', { style: { ...tdS, color: 'var(--white)', fontWeight: 600 } }, o.wins + '-' + o.losses),
-                            React.createElement('td', { style: tdS }, winPct + '%'),
-                            React.createElement('td', { style: { ...tdS, color: o.championships > 0 ? 'var(--gold)' : 'var(--silver)', fontWeight: o.championships > 0 ? 700 : 400 } }, o.championships > 0 ? o.championships + '🏆' : '—'),
-                            React.createElement('td', { style: tdS }, o.runnerUps > 0 ? o.runnerUps : '—'),
-                            React.createElement('td', { style: tdS }, o.playoffAppearances || 0),
-                            React.createElement('td', { style: tdS }, Math.round(o.pointsFor || 0).toLocaleString()),
-                            React.createElement('td', { style: { ...tdS, opacity: 0.65 } }, Math.round(o.pointsAgainst || 0).toLocaleString()),
-                        );
-                    })),
-                ),
-            ),
-        );
+        const h = React.createElement;
+        return h('div', { className:'la-history-standings' }, ranked.map((owner,index) => {
+            const total = (owner.wins || 0) + (owner.losses || 0);
+            const winPct = total > 0 ? Math.round(owner.wins / total * 100) : 0;
+            const fields = [['Record',owner.wins + '-' + owner.losses],['Win rate',winPct + '%'],['Titles',owner.championships || 0],['Runner-up',owner.runnerUps || 0],['Playoffs',owner.playoffAppearances || 0],['Points for',Math.round(owner.pointsFor || 0).toLocaleString()],['Points against',Math.round(owner.pointsAgainst || 0).toLocaleString()]];
+            return h('details',{ key:owner.rosterId ?? index, className:'la-report-row' },
+                h('summary',null,h('span',null,h('strong',null,(index + 1) + '. ' + owner.ownerName),h('small',null,(owner.tenure || 0) + ' seasons' + (owner.isFormer ? ' · Former owner' : ''))),h('span',{className:'la-main-value'},h('strong',null,owner.championships || 0),h('small',null,'Titles')),h('span',{className:'la-detail-cue','aria-hidden':true},'+')),
+                h('dl',{className:'la-fields'},fields.map(([label,value]) => h('div',{key:label},h('dt',null,label),h('dd',null,value)))),
+                !owner.isFormer && h('button',{type:'button',onClick:()=>{setSelectedOwner(owner.rosterId);setView('personal');}},'View owner history')
+            );
+        }));
     }
 
     // All-time champion roster → P1 AssetRows: pos badge · seasons tag ·
@@ -1346,10 +1299,10 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     // ══════════════════════════════════════════════════════════════
     const tabBtn = (label, tabKey, clickOverride) => React.createElement('button', {
         onClick: clickOverride || (() => setView(tabKey)),
-        style: { padding: '6px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid ' + (view === tabKey ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.1))'), background: view === tabKey ? 'var(--gold)' : 'transparent', color: view === tabKey ? 'var(--black)' : 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+        style: { padding: '6px 12px', minHeight: '44px', fontSize: _phone ? '14px' : '0.72rem', fontWeight: 700, borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid ' + (view === tabKey ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.1))'), background: view === tabKey ? 'var(--gold)' : 'transparent', color: view === tabKey ? 'var(--black)' : 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
     }, label);
 
-    return React.createElement('div', { style: { padding: '0' } },
+    return React.createElement('div', { className: _phone ? 'la-mobile la-history' : undefined, style: { padding: '0' } },
         // Tab toolbar — view toggle on the left, Season Recap CTA on the right (League view only)
         _phone ? _renderPhoneToolbar() :
         React.createElement('div', { style: { display: 'flex', gap: 'var(--space-sm, 8px)', marginBottom: 'var(--space-md, 12px)', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', alignItems: 'center', flexWrap: 'wrap' } },
@@ -1362,7 +1315,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
             view === 'league' && React.createElement('button', {
                 key: 'recap-btn',
                 onClick: generateSeasonRecap, disabled: recapStatus === 'generating',
-                style: { marginLeft: 'auto', padding: '6px 12px', minHeight: '44px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontSize: '0.7rem', fontWeight: 700, cursor: recapStatus === 'generating' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
+                style: { marginLeft: 'auto', padding: '6px 12px', minHeight: '44px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontSize: _phone ? '14px' : '0.7rem', fontWeight: 700, cursor: recapStatus === 'generating' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
             }, !isPro ? '🔒 Season Recap — Pro' : recapStatus === 'generating' ? 'Alex is writing…' : '✨ Season Recap'),
         ),
 
@@ -1372,8 +1325,8 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
         view === 'league' && recapStatus === 'done' && recapText && React.createElement('div', { style: { ...cardStyle, whiteSpace: 'pre-wrap' } },
             React.createElement('div', { style: headerStyle }, 'SEASON RECAP'),
             (window.WR && window.WR.ClampedRead)
-                ? React.createElement(window.WR.ClampedRead, { text: recapText, maxHeight: 268, style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 }, fadeColor: 'var(--black, #000)' })
-                : React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 } }, recapText),
+                ? React.createElement(window.WR.ClampedRead, { text: recapText, maxHeight: 268, style: { fontSize: _phone ? '14px' : '0.82rem', color: 'var(--silver)', lineHeight: 1.7 }, fadeColor: 'var(--black, #000)' })
+                : React.createElement('div', { style: { fontSize: _phone ? '14px' : '0.82rem', color: 'var(--silver)', lineHeight: 1.7 } }, recapText),
         ),
 
         view === 'cup' && cupEnabled ? React.createElement(window.CupHonours,{key:leagueId,league:currentLeague}) : view === 'league' ? renderLeagueView()

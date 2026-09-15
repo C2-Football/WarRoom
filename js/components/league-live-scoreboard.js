@@ -2,6 +2,7 @@
 // never inferred game completion or recomputed from a league's current roster.
 function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab, selectedWeek, onWeekChange, onRefresh }) {
     const service = window.App.LeagueLiveScores;
+    const isPhone = !!window.WR?.useViewport?.().isPhone;
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
     const defaultWeek = service.currentWeek(currentLeague);
     const [selection, setSelection] = React.useState(null);
@@ -48,7 +49,8 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     const updated = board.updatedAt ? new Date(board.updatedAt) : null;
     const loading = ['loading', 'idle', 'refreshing'].includes(board.status);
     const hasRows = (board.rows || []).length > 0;
-    const visibleLadder = expanded ? ladder : ladder.slice().sort((a, b) => Number(own(b)) - Number(own(a)));
+    const visibleLadder = isPhone && !expanded ? ladder.slice().sort((a, b) => Number(own(b)) - Number(own(a))).slice(0, 3) : ladder;
+    const visibleGroups = isPhone && !expanded ? groups.slice(0, 1) : groups;
     const boardId = `lls-board-${leagueId}`;
     const starters = row => <div className="lls-starters">
         <div className="lls-starter-head"><span>{ownerName(row)}</span><span>Actual</span></div>
@@ -75,13 +77,14 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
                 {index === 1 && <span className="lls-vs" aria-hidden="true">VS</span>}
                 <div className={`lls-side${index ? ' lls-side-right' : ''}${own(row) ? ' lls-own' : ''}`}>
                     <span className="lls-owner" title={ownerName(row)}>{ownerName(row)}</span>
-                    <span className="lls-side-label">{own(row) ? 'YOUR TEAM' : 'TOTAL POINTS'}</span>
+                    <span className="lls-side-label">{own(row) ? 'Your team' : 'Points'}</span>
                     <strong className="lls-score">{points(teamPoints(row))}</strong>
                 </div>
             </React.Fragment>)}
         </div>;
     };
     const matchupStarters = rows => {
+        if (isPhone) return <div className="la-score-starters">{matchupTeams(rows).map(row => <details key={row.roster_id}><summary>{ownerName(row)}</summary>{starters(row)}</details>)}</div>;
         const [left, right] = matchupTeams(rows);
         const leftPids = left.starters || [], rightPids = right.starters || [];
         const count = Math.max(leftPids.length, rightPids.length);
@@ -109,7 +112,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             </div>)}
         </div>;
     };
-    return <section className={`lls${expanded ? ' lls-expanded' : ' lls-compact'}`} aria-label="League scoreboard">
+    return <section className={`lls${expanded ? ' lls-expanded' : ' lls-compact'}${isPhone ? ' la-mobile la-league-score' : ''}`}  aria-label="League scoreboard">
         <style>{`
             .lls{border:1px solid rgba(212,175,55,.2);border-radius:var(--card-radius, 10px);background:var(--off-black,#1b1b22);padding:12px 14px;color:var(--white,#f5f2ea);margin-bottom:14px}
             .lls-header,.lls-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.lls h3{margin:0;font-family:var(--font-title,'Rajdhani',sans-serif);font-size:1.5rem}.lls-note{font-size:.75rem;line-height:1.6;color:var(--text-muted,#8d887e);margin:6px 0 12px}.lls-controls label{font-size:.75rem;color:var(--silver,#bdb8ad)}
@@ -129,13 +132,13 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             .lls-matchups:focus-visible{outline:2px solid var(--gold,#d4af37);outline-offset:3px}@media(max-width:480px){.lls{padding:10px}.lls-controls{width:auto}.lls-header{gap:8px}.lls-heading{width:100%}.lls-compact .lls-matchups>.lls-card{flex-basis:230px}}
         `}</style>
         <div className="lls-header">
-            <div className="lls-heading"><h3>{chopped ? 'Weekly scoring race' : 'Around the league'}</h3><span className="lls-note">{currentLeague?.season} · Actual points</span></div>
+            <div className="lls-heading" hidden={isPhone && !expanded && !chopped && hasRows}><h3>{chopped ? 'Weekly scoring race' : 'Around the league'}</h3><span className="lls-note">{currentLeague?.season} · Actual points</span></div>
             <div className="lls-controls">
                 <label>Week <select aria-label="Scoreboard week" value={week} onChange={event => { const value = Number(event.target.value); if (onWeekChange) onWeekChange(value); else setSelection({ leagueId, week: value }); }}>
                     {Array.from({ length: 18 }, (_, i) => i + 1).map(w => <option key={w} value={w}>{w}</option>)}
                 </select></label>
-                <button type="button" disabled={loading || board.supported === false} onClick={() => { board.refresh?.(); onRefresh?.(); }}>{loading ? 'Updating…' : 'Refresh scores'}</button>
-                {hasRows && <button type="button" aria-expanded={expanded} aria-controls={boardId} onClick={() => setExpanded(!expanded)}>{expanded ? 'Collapse' : `All ${chopped ? ladder.length + ' teams' : groups.length + ' matchups'} ↓`}</button>}
+                {(!isPhone || expanded || !hasRows || board.error) && <button type="button" disabled={loading || board.supported === false} onClick={() => { board.refresh?.(); onRefresh?.(); }}>{loading ? 'Updating…' : 'Refresh scores'}</button>}
+                {hasRows && <button type="button" aria-expanded={expanded} aria-controls={boardId} onClick={() => setExpanded(!expanded)}>{expanded ? (isPhone ? 'Show less' : 'Collapse') : `All ${chopped ? ladder.length + ' teams' : groups.length + (isPhone ? ' games' : ' matchups')}${isPhone ? '' : ' ↓'}`}</button>}
             </div>
         </div>
         <div role="status" aria-live="polite">
@@ -148,7 +151,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             {chopped ? visibleLadder.map(row => <article className={`lls-card${own(row) ? ' lls-card-own' : ''}`} key={row.roster_id}>
                 <div className="lls-rank">{teamPoints(row) == null ? 'Awaiting score' : `Position ${ladder.findIndex(r => teamPoints(r) === teamPoints(row)) + 1}`}</div>
                 {team(row)}{expanded && <details><summary>Starter scores</summary>{starters(row)}</details>}
-            </article>) : groups.map((group, i) => <article className={`lls-card${group.teams.length === 2 ? ' lls-pair' : ''}${group.teams.some(own) ? ' lls-card-own' : ''}`} key={`${group.matchupId ?? 'unpaired'}-${i}`}>
+            </article>) : visibleGroups.map((group, i) => <article className={`lls-card${group.teams.length === 2 ? ' lls-pair' : ''}${group.teams.some(own) ? ' lls-card-own' : ''}`} key={`${group.matchupId ?? 'unpaired'}-${i}`}>
                 {group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}
                 {group.teams.length === 1 && <p className="lls-note">No opponent reported this week.</p>}
                 {expanded && <details><summary>{group.teams.length === 2 ? 'Matchup breakdown' : 'Starter scores'}</summary>{group.teams.length === 2 ? matchupStarters(group.teams) : group.teams.map(row => <div key={row.roster_id}>{starters(row)}</div>)}</details>}
@@ -169,7 +172,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             })}</div>
         </details>}
         <div className="lls-footer">
-            <p className="lls-note">{updated && !Number.isNaN(updated.getTime()) ? `Updated ${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ` : ''}{expanded ? 'Sleeper scores refresh every 30 seconds while visible. Scoring may be delayed or corrected. A dash means no score was reported.' : 'Sleeper · Refreshes every 30s'}{expanded && chopped ? ' Positions are provisional; eliminations follow league results.' : ''}</p>
+            <p className="lls-note">{updated && !Number.isNaN(updated.getTime()) ? `${isPhone && !expanded ? '' : 'Updated '}${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ` : ''}{expanded ? 'Sleeper scores refresh every 30 seconds while visible. Scoring may be delayed or corrected. A dash means no score was reported.' : isPhone ? 'Sleeper' : 'Sleeper · Refreshes every 30s'}{expanded && chopped ? ' Positions are provisional; eliminations follow league results.' : ''}</p>
             {setActiveTab && <button type="button" onClick={() => setActiveTab('lineup')}>My Game Plan →</button>}
         </div>
     </section>;

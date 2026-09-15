@@ -44,6 +44,17 @@
         manager: playMode === 'friends' || index === 0 ? 'human' : 'ai',
     }));
 
+    // Native disclosures keep every setup choice reachable without a long phone form.
+    function SetupStep({ id, title, summary, first, children }) {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
+        return h(phone ? 'details' : 'div', { className: 'tl-builder-section' + (phone ? ' tl-phone-step' : ''), id, ...(phone ? { open: Boolean(first) } : {}) },
+            phone && h('summary', null, h('strong', null, title), h('span', null, summary)), children);
+    }
+    function LobbyStory() {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
+        return h(phone ? 'details' : 'div', { className: 'tl-lobby-story' }, phone && h('summary', null, 'Discover the Vault · how it works'), h(VaultHero));
+    }
+
     function PersonaMeterRow({ label, value }) {
         const clamped = Math.max(0, Math.min(100, value));
         return h('div', { className: 'tl-persona-meter' },
@@ -320,7 +331,7 @@
                 h('div', { className: 'tl-flow-steps', 'aria-label': 'League setup progress' },
                     ['HOW', 'TWIST', 'TEAM'].map((label, index) => h('a', { key: label, href: `#vault-setup-${index}`, className: 'active' }, h('b', null, index + 1), label)))),
 
-            h('div', { className: 'tl-builder-section', id: 'vault-setup-0' },
+            h(SetupStep, { id: 'vault-setup-0', title: 'Play mode', summary: playMode === 'friends' ? 'With friends' : 'Solo · AI rivals', first: true },
                 h('div', { className: 'tl-question' }, h('span', null, '1'), h('div', null, h('h3', null, 'How do you want to play?'), h('p', null, 'Both modes use the same draft, waivers, trades, and live gamecast.'))),
                 h('div', { className: 'tl-play-grid' },
                     h(PlayModeCard, { id: 'solo', selected: playMode === 'solo', onClick: () => choosePlayMode('solo') }),
@@ -330,7 +341,7 @@
                     h('p', null, h('b', null, 'Sign in to host a friends league.'), ' Your league and every move will sync live across devices.'),
                     h('a', { className: 'tl-btn', href: 'login.html?vault=1' }, 'SIGN IN'))),
 
-            h('div', { className: 'tl-builder-section', id: 'vault-setup-1' },
+            h(SetupStep, { id: 'vault-setup-1', title: 'Time travel & draft', summary: `${selectedEra.label} · ${DRAFT_FORMATS.find(format => format.id === draftFormat).label}`, first: false },
                 h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Pick the time-travel twist'), h('p', null, 'You draft the player. The Vault reveals the season.'))),
                 h('div', { className: 'tl-era-mode-grid' }, ERA_MODE_OPTIONS.map((option) => h(EraModeCard, {
                     key: option.id, option, selected: eraMode === option.id, onClick: () => setEraMode(option.id),
@@ -382,7 +393,7 @@
                     h('p', { className: 'tl-hint' }, `${settings.regularSeasonWeeks} regular-season games · 14 weeks total. Higher seed wins a playoff tie. Missing game logs score zero.`)),
                 playMode === 'friends' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'WEEKLY ADVANCEMENT'), h('select', { className: 'tl-select', value: advancementMode, onChange: event => setAdvancementMode(event.target.value) }, h('option', { value: 'commissioner' }, 'Commissioner advances'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Timed gates')), advancementMode === 'timed' && h('input', { className: 'tl-input', type: 'number', min: 1, max: 168, value: gateHours, onChange: event => setGateHours(Math.max(1, Math.min(168, Number(event.target.value) || 24))), 'aria-label': 'Hours per gate' }), h('p', { className: 'tl-hint' }, 'Four stops each week: claims, final roster decisions, game day, and final results. The commissioner can override any gate.', advancementMode === 'timed' && ' Deadlines are checked while a manager has the room open and resume on return.'))),
 
-            h('div', { className: 'tl-builder-section', id: 'vault-setup-2' },
+            h(SetupStep, { id: 'vault-setup-2', title: 'Your team', summary: seats[0].name || 'Choose a name & helmet', first: false },
                 h('div', { className: 'tl-question' }, h('span', null, '3'), h('div', null, h('h3', null, 'Name your team. Build your helmet.'), h('p', null, 'Choose a retro identity, then take the ready-to-play defaults or tune every rule below.'))),
                 h('div', { className: 'tl-identity-grid' },
                     h('label', null, h('span', { className: 'tl-label' }, 'League name'), h('input', { className: 'tl-input', value: name, maxLength: 80, placeholder: playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season', onChange: (event) => setName(event.target.value) })),
@@ -467,10 +478,11 @@
     }
 
     function WrTimeLeagueSetupPanel({ index, onOpen, onDelete, onCreate, onlineIndex, onlineIndexState, onOpenOnline, onCreateOnline }) {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         return h('div', { className: 'tl-vault-lobby' },
-            h(VaultHero, null),
+            !phone && h(LobbyStory, null),
             h(LeagueShelf, { index, onlineIndex, onOpen, onDelete, onOpenOnline }),
-            h(LeagueBuilder, { key: window.App.OD?.getCurrentUserId?.() || 'guest', onCreate, onCreateOnline, onOpenOnline, onlineIndexState }));
+            h(LeagueBuilder, { key: window.App.OD?.getCurrentUserId?.() || 'guest', onCreate, onCreateOnline, onOpenOnline, onlineIndexState }), phone && h(LobbyStory, null));
     }
 
     window.WrTimeLeagueSetupPanel = WrTimeLeagueSetupPanel;

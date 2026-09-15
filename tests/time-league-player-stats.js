@@ -68,3 +68,22 @@ assert(text(tree).includes('Free runner')); assert(!text(tree).includes('Alpha')
 find('Search player stats').props.onChange({ target: { value: 'no such player' } }); tree = render();
 assert(text(tree).includes('No players match these filters.'));
 console.log('PASS: YTD/week scoring, saved points, bench/acquisition continuity, missing data, spoiler gates, free-agent editions, filters and stats UI.');
+// Phone rows retain every statistic behind a native detail, including signed/missing totals.
+window.WR = { useViewport: () => ({ isPhone: true }) };
+state = []; tree = render();
+const phoneRows = () => all(tree).filter(node => node.type === 'details' && node.props.className === 'tl-stats-mobile-row');
+assert.equal(phoneRows().length, 3);
+assert(!all(tree).some(node => node.props.className === 'tl-stats-scroll'));
+const alphaPhone = phoneRows().find(node => text(node).includes('Alpha'));
+for (const label of ['Vault games', 'Points per game', 'Recorded season · reference scoring', 'Pass yd']) assert(text(alphaPhone).includes(label), label + ' is reachable in phone detail');
+find('Stats period').props.onChange({ target: { value: '2' } }); tree = render();
+assert(text(phoneRows().find(node => text(node).includes('Alpha'))).includes('-4.0'), 'Phone does not drop negative production');
+const actualPlayers = P.players;
+P.players = () => Array.from({ length: 43 }, (_, i) => ({ ...rows[0], identity: 'phone-' + i, name: 'Phone player ' + i, points: i === 0 ? null : i === 1 ? 0 : -i }));
+state = []; tree = render(); assert.equal(phoneRows().length, 20);
+all(tree).find(node => node.type === 'button' && text(node) === 'Show more').props.onClick(); tree = render(); assert.equal(phoneRows().length, 40);
+all(tree).find(node => node.type === 'button' && text(node) === 'Show more').props.onClick(); tree = render(); assert.equal(phoneRows().length, 43);
+assert(text(phoneRows().find(node => text(node).includes('Phone player 0'))).includes('—'), 'Unavailable stays unavailable');
+assert(text(phoneRows().find(node => text(node).includes('Phone player 1'))).includes('0.0'), 'Zero stays a scored zero');
+P.players = actualPlayers;
+console.log('PASS: phone details retain all columns, signed/zero/missing points, and every paginated result.');

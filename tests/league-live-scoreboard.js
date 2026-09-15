@@ -46,6 +46,18 @@ tree = render({ currentLeague: { ...props.currentLeague, settings: { type: 3 }, 
 assert(text(tree).includes('Weekly scoring race'));
 assert.equal(nodes(tree).filter(n => n.type === 'article').length, 2, 'Previously chopped team excluded');
 assert(!text(tree).includes('No opponent reported'), 'Chopped does not show head-to-head');
+const desktopChopped = render({ currentLeague: { ...props.currentLeague, settings: { type: 3 } }, myRoster: rows[1] });
+assert(text(nodes(desktopChopped).find(n => n.type === 'article')).includes('Owner 1'), 'Desktop Chopped order remains score-ranked even when a lower-scoring team is mine');
+// Phone initially shows the user's game, with all league scores reachable.
+scope.window.WR = { useViewport: () => ({ isPhone: true }) };
+hooks = [];
+tree = render();
+assert.equal(nodes(tree).filter(n => n.type === 'article').length, 1);
+assert(text(nodes(tree).find(n => n.type === 'article')).includes('Owner 3'));
+nodes(tree).find(n => n.type === 'button' && text(n) === 'All 2 games').props.onClick();
+tree = render();
+assert.equal(nodes(tree).filter(n => n.type === 'article').length, 2);
+assert(text(tree).includes('0.00') && text(tree).includes('-2.00'));
 board = { supported: false, status: 'unsupported', rows: [], groups: [] };
 assert(text(render()).includes('connected Sleeper leagues'));
 console.log('League scoreboard render checks passed.');

@@ -11,10 +11,6 @@
 .fa-market-phone-budget { color: var(--silver); font-size: .75rem; }
 .fa-market-phone-budget strong { color: var(--gold); margin-left: 6px; font-variant-numeric: tabular-nums; }
 .fa-market-phone-budget span { font-size: .68rem; }
-.fa-market-phone-row > [role="button"] { display: grid !important; grid-template-columns: 30px minmax(0, 1fr); }
-.fa-market-phone-row > [role="button"] > div:last-child { grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) 10px; border-top: 1px solid rgba(189,184,173,.1); padding-top: 7px; }
-.fa-market-phone-row > [role="button"] > div:last-child > div { min-width: 0 !important; text-align: left !important; }
-.fa-market-phone-row > [role="button"] > div:last-child > div > div:first-child { font-size: .59rem !important; }
 .fa-market-data-note { margin: 10px 0 12px; color: var(--silver); font-size: .7rem; line-height: 1.5; }
 .fa-market-table { font-variant-numeric: tabular-nums; }
 .fa-market-table .fa-market-sort { display: block; min-width: 0; padding: 0; background: transparent; border: 0; border-radius: 0; text-align: right; font-family: inherit; line-height: 1.5; }

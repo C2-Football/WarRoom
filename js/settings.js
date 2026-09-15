@@ -42,7 +42,7 @@
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px' }}>
                 {badgeColors.map(bc => {
                     const isActive = currentBadge === bc.id;
-                    return <button key={bc.id} onClick={() => selectBadge(bc.id)}
+                    return <button key={bc.id} aria-pressed={isActive} onClick={() => selectBadge(bc.id)}
                         style={{
                             padding: '12px 8px', textAlign: 'center',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -217,7 +217,7 @@
 
         if (isModule) {
             const moduleSectionStyle = { ...sectionStyle, marginBottom: '0.7rem', background: 'var(--ov-2, rgba(255,255,255,0.025))' };
-            const moduleGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', alignItems: 'start' };
+            const moduleGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '12px', alignItems: 'start' };
             const moduleColumnStyle = { minWidth: 0 };
             return (
                 <div className="wr-settings-module-screen" style={{ width: '100%' }}>
@@ -228,41 +228,41 @@
                     )}
                     <div className="wr-settings-module-grid" style={moduleGridStyle}>
                         <div style={moduleColumnStyle}>
-                            <div style={moduleSectionStyle}>
+                            <window.WR.MobileSection title="Profile" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>ACCOUNT</div>
                                 <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.5rem' }}>Display name</div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <input
-                                        style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                                        aria-label="Display name" autoComplete="nickname" style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
                                         placeholder={sleeperUsername}
                                         value={displayName}
                                         onChange={e => setDisplayName(e.target.value)}
                                     />
                                     <button onClick={handleDisplayNameSave} style={{ ...btnPrimary, flex: 'none', padding: '0.55rem 0.85rem' }}>Save</button>
                                 </div>
-                            </div>
-                            <div style={moduleSectionStyle}>
+                            </div></window.WR.MobileSection>
+                            <window.WR.MobileSection title="Password" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>PASSWORD</div>
-                                <input style={inputStyle} type="password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
-                                <input style={inputStyle} type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                                <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                                <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
+                                <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                                <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                                 <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
                                 {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
-                            </div>
-                            <div style={moduleSectionStyle}>
+                            </div></window.WR.MobileSection>
+                            <window.WR.MobileSection title="Sign out" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>ACCOUNT ACTIONS</div>
                                 <button onClick={handleLogout} style={{ width: '100%', padding: '0.7rem', background: 'rgba(231,76,60,0.18)', border: '1px solid rgba(231,76,60,0.45)', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                                     Logout
                                 </button>
-                            </div>
+                            </div></window.WR.MobileSection>
                         </div>
 
                         <div style={moduleColumnStyle}>
-                            <AlexTab sectionStyle={moduleSectionStyle} sectionTitle={sectionTitle} />
+                            <window.WR.MobileSection title="Alex badge & briefing" defaultOpen={false}><AlexTab sectionStyle={moduleSectionStyle} sectionTitle={sectionTitle} /></window.WR.MobileSection>
                         </div>
 
                         <div style={moduleColumnStyle}>
-                            <div style={moduleSectionStyle}>
+                            <window.WR.MobileSection className="wr-settings-display" title="Display" defaultOpen={true}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>DISPLAY</div>
                                 <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                                     Change the visual style of your dashboard widgets.
@@ -272,7 +272,7 @@
                                         const t = window.WrTheme?.themes?.[themeId] || {};
                                         const isActive = (window.WrTheme?.current || 'default') === themeId;
                                         return (
-                                            <button key={themeId} onClick={() => {
+                                            <button key={themeId} aria-pressed={isActive} onClick={() => {
                                                 if (window.WrTheme) window.WrTheme.set(themeId);
                                                 setSettingsTab('display');
                                             }} style={{
@@ -306,11 +306,11 @@
                                         );
                                     })}
                                 </div>
-                            </div>
+                            </div></window.WR.MobileSection>
                         </div>
 
                         <div style={moduleColumnStyle}>
-                            <div style={moduleSectionStyle}>
+                            <window.WR.MobileSection title="Plan" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>PLAN</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                                     <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>Current plan:</span>
@@ -322,13 +322,13 @@
                                     <button onClick={goToManagePlan} style={{ ...btnPrimary, fontSize: 'var(--text-label, 0.75rem)' }}>Upgrade</button>
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
                                 </div>
-                            </div>
-                            <div style={moduleSectionStyle}>
+                            </div></window.WR.MobileSection>
+                            <window.WR.MobileSection title="AI preferences" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>AI SETTINGS</div>
                                 <p style={{ color: 'var(--silver)', lineHeight: 1.5 }}>All app features are unlocked. Use shared Gemini or your own AI key.</p>
                                 <button onClick={() => { window.location.href = 'ai-settings.html'; }} style={btnOutline}>Manage AI key</button>
-                            </div>
-                            <div style={moduleSectionStyle}>
+                            </div></window.WR.MobileSection>
+                            <window.WR.MobileSection title="Data and refresh" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>DATA</div>
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     <button onClick={() => {
@@ -343,7 +343,7 @@
                                         Clear Session Cache
                                     </button>
                                 </div>
-                            </div>
+                            </div></window.WR.MobileSection>
                             {/* ABOUT section removed (owner ask). */}
                         </div>
                     </div>
@@ -373,7 +373,7 @@
                         <div>
                             <div style={labelStyle}>Display name</div>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <input style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder={uname} value={displayName} onChange={e => setDisplayName(e.target.value)} />
+                                <input aria-label="Display name" autoComplete="nickname" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder={uname} value={displayName} onChange={e => setDisplayName(e.target.value)} />
                                 <button onClick={handleDisplayNameSave} style={{ ...btnPrimary, flex: 'none', padding: '0.55rem 0.95rem' }}>Save</button>
                             </div>
                         </div>
@@ -382,9 +382,9 @@
                                 <button onClick={() => setShowPw(true)} style={{ ...btnOutline, width: '100%', flex: 'none' }}>Change password</button>
                             ) : (<>
                                 <div style={labelStyle}>Change password</div>
-                                <input style={inputStyle} type="password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
-                                <input style={inputStyle} type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                                <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                                <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
+                                <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                                <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                                 <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update password</button>
                                 {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg.replace(/^ok /, '').replace(/^x /, '')}</div>}
                             </>)}
@@ -424,7 +424,7 @@
                                 { id: 'subscription', label: 'Plan' },
                                 { id: 'data', label: 'Data' },
                             ].map(tab => (
-                                <button key={tab.id} className={settingsTab === tab.id ? 'is-on' : ''} style={{ minHeight: '44px' }} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
+                                <button key={tab.id} aria-current={settingsTab === tab.id ? 'page' : undefined} className={settingsTab === tab.id ? 'is-on' : ''} style={{ minHeight: '44px' }} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
                             ))}
                         </div>
                     ) : (
@@ -436,7 +436,7 @@
                             { id: 'subscription', label: 'Plan' },
                             { id: 'data', label: 'Data' },
                         ].map(tab => (
-                            <button key={tab.id} className={settingsTab === tab.id ? 'is-active' : ''} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
+                            <button key={tab.id} aria-current={settingsTab === tab.id ? 'page' : undefined} className={settingsTab === tab.id ? 'is-active' : ''} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
                         ))}
                     </div>
                     )}
@@ -449,7 +449,7 @@
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.5rem' }}>Custom name (optional)</div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <input
-                                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                                aria-label="Display name" autoComplete="nickname" style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
                                 placeholder={sleeperUsername}
                                 value={displayName}
                                 onChange={e => setDisplayName(e.target.value)}
@@ -461,9 +461,9 @@
                     {/* ── CHANGE PASSWORD ── */}
                     <div style={sectionStyle}>
                         <div style={sectionTitle}>CHANGE PASSWORD</div>
-                        <input style={inputStyle} type="password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
-                        <input style={inputStyle} type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                        <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                        <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
+                        <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                        <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                         <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
                         {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
                     </div>
@@ -486,7 +486,7 @@
                                     const t = window.WrTheme?.themes?.[themeId] || {};
                                     const isActive = (window.WrTheme?.current || 'default') === themeId;
                                     return (
-                                        <button key={themeId} onClick={() => {
+                                        <button key={themeId} aria-pressed={isActive} onClick={() => {
                                             if (window.WrTheme) window.WrTheme.set(themeId);
                                             // Force re-render by updating a dummy state
                                             setSettingsTab('display');

@@ -114,7 +114,7 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
 
     // ── Shells ───────────────────────────────────────────────────────
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
+        <div className="gd-season-odds" style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -154,7 +154,7 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
 
     const { ledger, sim, playedWeeks } = so;
     if (!playedWeeks) {
-        return <Section title="Season Odds"><div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>No games scored yet this season. Playoff odds, this-week leverage and the luck ledger all light up from Week 1 onward.</div></Section>;
+        return <Section title="Season Odds"><div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>Completed-week history is not available yet. Live scores stay in This week; the luck ledger updates after a week closes. Playoff odds need at least two completed weeks.</div></Section>;
     }
 
     const luckRows = ledger?.rows || [];

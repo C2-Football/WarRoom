@@ -32,7 +32,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const MUTED = 'var(--text-muted, #8D887E)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
     // Expansion is per-person, additive (opening one row shouldn't close
     // another — a commissioner comparing two humans wants both open).
@@ -46,7 +46,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -56,7 +56,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     // Name | Rating | Δ | All-Play | Lgs — Δ is the single semantic-color
     // column; everything else stays monochrome so movement is what pops.
     const coefGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.8fr) 0.8fr 0.6fr 0.9fr 0.5fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
-    const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: '0.75rem', ...mono };
+    const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: 'var(--co-readable-small, 0.75rem)', ...mono };
     const myRowStyle = { background: 'rgba(212,175,55,0.07)', boxShadow: `inset 3px 0 0 ${GOLD}`, color: TEXT };
 
     const meta = rows.length
@@ -75,7 +75,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     if (!rows.length) {
         return (
             <Section title="The Coefficient">
-                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
                     No members on the graph yet — The Coefficient builds itself from the leagues you commission once their rosters and scores load.
                 </div>
             </Section>
@@ -98,7 +98,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {overlap.map(o => (
-                            <span key={o.userId} style={{ ...mono, fontSize: '0.68rem', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px', whiteSpace: 'nowrap' }}>
+                            <span key={o.userId} style={{ ...mono, fontSize: 'var(--co-readable-small, 0.68rem)', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px', whiteSpace: 'nowrap' }}>
                                 {o.name} <span style={{ color: GOLD }}>×{o.leagueCount}</span>
                             </span>
                         ))}
@@ -129,7 +129,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                                     </span>
                                     <span style={{ textAlign: 'right', fontWeight: 700, color: r.rating != null ? TEXT : MUTED }}>
                                         {r.rating != null ? r.rating : '—'}
-                                        {r.provisional && r.rating != null ? <span style={{ color: MUTED, fontWeight: 400, fontSize: '0.62rem' }}> (prov)</span> : null}
+                                        {r.provisional && r.rating != null ? <span style={{ color: MUTED, fontWeight: 400, fontSize: 'var(--co-readable-small, 0.62rem)' }}> (prov)</span> : null}
                                     </span>
                                     <span style={{ textAlign: 'right' }}>{delta(r)}</span>
                                     {/* apGames guards the record: 0 counted games prints '—', never a fake 0-0. */}
@@ -137,7 +137,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                                     <span style={{ textAlign: 'right', opacity: 0.8 }}>{r.leagueCount}</span>
                                 </div>
                                 {open[r.userId] ? (r.perLeague || []).map(pl => (
-                                    <div key={pl.leagueId} style={{ padding: '4px 10px 4px 26px', borderBottom: `1px solid ${LINE}`, fontSize: '0.7rem', color: MUTED, ...mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <div key={pl.leagueId} style={{ padding: '4px 10px 4px 26px', borderBottom: `1px solid ${LINE}`, fontSize: 'var(--co-readable-small, 0.7rem)', color: MUTED, ...mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         ↳ <span style={{ color: TEXT }}>{pl.leagueName}</span>
                                         {pl.rating != null
                                             ? <span> — rating {pl.rating} · all-play {pl.apRecord} · h2h {h2h(pl.record)}</span>
@@ -151,7 +151,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
             ) : (
                 // Offseason honesty: the network above is real, the table isn't
                 // until games count — never print a column of dashes as data.
-                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5, padding: '10px 0' }}>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5, padding: '10px 0' }}>
                     No all-play games counted yet — The Coefficient starts rating humans from the first scored week of the season.
                 </div>
             )}
@@ -173,8 +173,8 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const MUTED = 'var(--text-muted, #8D887E)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
-    const goldBtn = { padding: '6px 12px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' };
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const goldBtn = { padding: '6px 12px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.66rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' };
 
     const list = Array.isArray(programmes) ? programmes : [];
 
@@ -192,23 +192,23 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
             {/* The captured region: everything inside this id ships as the PNG. */}
             <div id={'wr-programme-' + p.leagueId} style={{ background: 'var(--black, #121217)', padding: '12px 14px', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', borderBottom: `1px solid ${LINE}`, paddingBottom: '8px', marginBottom: '10px' }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.85rem', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leagueName}</span>
-                    {!p.empty ? <span style={{ ...mono, fontSize: '0.7rem', fontWeight: 700, color: GOLD, whiteSpace: 'nowrap' }}>WK {p.week}</span> : null}
+                    <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--co-readable-body, 0.85rem)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leagueName}</span>
+                    {!p.empty ? <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.7rem)', fontWeight: 700, color: GOLD, whiteSpace: 'nowrap' }}>WK {p.week}</span> : null}
                 </div>
 
                 {p.empty ? (
-                    <div style={{ color: TEXT, fontSize: '0.76rem', lineHeight: 1.5 }}>
+                    <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', lineHeight: 1.5 }}>
                         {EMPTY_REASON[p.reason] || 'Nothing to print for this league yet.'}
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ color: TEXT, fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.4 }}>{p.headline}</div>
+                        <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)', fontWeight: 600, lineHeight: 1.4 }}>{p.headline}</div>
 
                         {p.results && p.results.length ? (
                             <div>
                                 <div style={{ ...microHdr, marginBottom: '4px' }}>Results</div>
                                 {p.results.slice(0, 3).map((r, i) => (
-                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '10px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: TEXT, ...mono }}>
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '10px', alignItems: 'baseline', padding: '2px 0', fontSize: 'var(--co-readable-small, 0.73rem)', color: TEXT, ...mono }}>
                                         {/* margin 0 keeps the first row in the winner slot — check tie before crowning */}
                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {r.tie ? r.winnerName + ' ties ' + r.loserName : r.winnerName + ' def. ' + r.loserName}
@@ -221,7 +221,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                         ) : null}
 
                         {p.topScore ? (
-                            <div style={{ fontSize: '0.73rem', color: TEXT, ...mono }}>
+                            <div style={{ fontSize: 'var(--co-readable-small, 0.73rem)', color: TEXT, ...mono }}>
                                 <span style={{ ...microHdr }}>Top score</span>{' '}
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: TEXT }}>{p.topScore.name}</span>{' '}
                                 <span style={{ color: GOLD, fontWeight: 700 }}>{num(p.topScore.pts)}</span>
@@ -229,7 +229,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                         ) : null}
 
                         {p.luckNote ? (
-                            <div style={{ fontSize: '0.72rem', color: TEXT, lineHeight: 1.5, borderLeft: `2px solid ${LINE}`, paddingLeft: '8px' }}>
+                            <div style={{ fontSize: 'var(--co-readable-small, 0.72rem)', color: TEXT, lineHeight: 1.5, borderLeft: `2px solid ${LINE}`, paddingLeft: '8px' }}>
                                 <span style={{ ...microHdr }}>Luck</span> {p.luckNote.text}
                             </div>
                         ) : null}
@@ -238,7 +238,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                             <div>
                                 <div style={{ ...microHdr, marginBottom: '4px' }}>Standings</div>
                                 {p.standingsTop3.map((s, i) => (
-                                    <div key={s.rosterId} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) auto', gap: '8px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: TEXT, ...mono }}>
+                                    <div key={s.rosterId} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) auto', gap: '8px', alignItems: 'baseline', padding: '2px 0', fontSize: 'var(--co-readable-small, 0.73rem)', color: TEXT, ...mono }}>
                                         <span style={{ color: MUTED }}>{i + 1}.</span>
                                         <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                                         <span>{fmtRec(s.wins, s.losses, s.ties)} · {num(s.pf)}</span>
@@ -266,7 +266,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                 <div>
-                    <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>Matchday Programme</div>
+                    <div style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>Matchday Programme</div>
                     <div style={{ color: TEXT, fontSize: '0.9rem', fontWeight: 600, marginTop: '2px' }}>One button. Every group chat.</div>
                 </div>
                 {typeof onExportAll === 'function' && list.some(p => !p.empty) ? (
@@ -279,7 +279,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                     {list.map((p, i) => <Card key={p.leagueId || i} p={p} />)}
                 </div>
             ) : (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
                     No commissioned leagues to print — the programme composes one page per league you run, from its latest scored week.
                 </div>
             )}

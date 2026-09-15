@@ -773,6 +773,7 @@
             return h('div', { className: 'wr-seg' },
                 tabs.map(t => h('button', {
                     key: t.k,
+                    'aria-current': value === t.k ? 'page' : undefined,
                     className: value === t.k ? 'is-on' : '',
                     onClick: () => onChange(t.k),
                 }, shortLabels[t.k] || t.label))
@@ -781,6 +782,7 @@
         return h('div', { className: 'wr-module-nav', style: { margin: '0 0 var(--space-lg)' } },
             tabs.map(t => h('button', {
                 key: t.k,
+                'aria-current': value === t.k ? 'page' : undefined,
                 className: value === t.k ? 'is-active' : '',
                 onClick: () => onChange(t.k),
             }, t.label))
@@ -1044,7 +1046,7 @@
                                 onDown: () => sendInsightFeedback(ins, 'down'),
                             },
                         } : cardIns),
-                        ins.recommendationWhy?.length > 0 && h('div', {
+                        ins.recommendationWhy?.length > 0 && h(window.WR.MobileSection, { phone: _phone, title: 'Why this recommendation' }, h('div', {
                             style: {
                                 display: 'flex', flexWrap: 'wrap', gap: '5px',
                                 margin: '6px 2px 0',
@@ -1062,7 +1064,7 @@
                                     lineHeight: 1.25,
                                 }
                             }, line))
-                        ),
+                        )),
                         ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro)', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(124,107,248,0.2)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
                         );
                     })
@@ -1319,7 +1321,7 @@
                     }))
                     : null),
             // Trade partners — volume
-            h(Panel, {
+            h(window.WR.MobileSection, { title: 'Trade partners \u2014 who you deal with' }, h(Panel, {
                 title: 'Trade partners \u2014 who you deal with',
                 subtitle: partners.length + ' partner' + (partners.length === 1 ? '' : 's') + ' over ' + myTrades.length + ' trade' + (myTrades.length === 1 ? '' : 's'),
                 interpretation: isPro ? tradePartnersInterp : null,
@@ -1333,9 +1335,9 @@
                     valStr: String(p.count),
                     barColor: 'var(--gold)',
                 }))
-            ),
+            )),
             // Trade partners — net DHQ (fleecer vs fleeced)
-            h(Panel, {
+            h(window.WR.MobileSection, { title: 'Trade value \u2014 who you profit from' }, h(Panel, {
                 title: 'Trade value \u2014 who you profit from',
                 subtitle: 'Net DHQ per partner; green = you won, red = they won',
                 interpretation: isPro ? tradeValueInterp : null,
@@ -1351,9 +1353,9 @@
                     barColor: p.net > 0 ? 'var(--good)' : p.net < 0 ? 'var(--bad)' : 'var(--silver)',
                     rightText: p.net > 0 ? 'var(--good)' : p.net < 0 ? 'var(--bad)' : 'var(--silver)',
                 }))
-            ),
+            )),
             // Draft — hit rate by round
-            h(Panel, {
+            h(window.WR.MobileSection, { title: 'Draft hit rate by round' }, h(Panel, {
                 title: 'Draft hit rate by round',
                 subtitle: draftPicks.length + ' pick' + (draftPicks.length === 1 ? '' : 's') + ' tracked · contributor threshold 3000 DHQ',
                 interpretation: isPro ? draftHitInterp : null,
@@ -1368,9 +1370,9 @@
                     valStr: r.hits + '/' + r.total + '  ' + r.rate + '%',
                     barColor: r.rate >= 50 ? 'var(--good)' : r.rate >= 25 ? 'var(--warn)' : 'var(--bad)',
                 }))
-            ),
+            )),
             // Draft — position mix
-            h(Panel, {
+            h(window.WR.MobileSection, { title: 'Draft position mix' }, h(Panel, {
                 title: 'Draft position mix',
                 subtitle: 'Where your picks land',
                 interpretation: isPro ? draftPosInterp : null,
@@ -1387,9 +1389,9 @@
                 })),
                 // Deep-link to the Analytics draft tab for full tabular detail.
                 h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 } },
-                    'For full roster and waiver data tables, open ',
-                    h('a', { href: '#', onClick: e => { e.preventDefault(); props?.setActiveTab?.('analytics'); }, style: { color: 'var(--gold)', textDecoration: 'underline' } }, 'Analytics'), '.')
-            )
+                    'For the full draft record, open ',
+                    h('a', { href: '#', onClick: e => { e.preventDefault(); props?.setActiveTab?.('draft-analysis'); }, style: { color: 'var(--gold)', textDecoration: 'underline' } }, 'Draft analysis'), '.')
+            ))
         );
     }
 
@@ -1701,10 +1703,10 @@
                 // the SAME asset chips wrapping free. Semantic color stays
                 // on the result chip only — the call badge is monochrome.
                 return h(window.WR.Card, { key: 'tx' + i, padding: '10px 12px' },
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' } },
+                    h('div', { className: 'gm-history-phone-head' },
                         h(window.WR.Badge, { label: kind, kind }),
                         netStr && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: netCol, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, netStr),
-                        h('div', { style: { marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
+                        h('time', null, date),
                     ),
                     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px' } },
                         renderChips(addedPids, '+ ', 'var(--k-2ecc71, #2ecc71)'),
@@ -1715,6 +1717,17 @@
                         renderPickChips(droppedPicks, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
                         renderFaabChip(droppedFaab, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
                         !hasTradeAssets && h('span', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6, fontStyle: 'italic' } }, 'No recorded asset changes'),
+                    ),
+                    [addedPids, droppedPids, addedPicks, droppedPicks].some(items => items.length > 4) && h('details', { className: 'gm-history-full-assets' },
+                        h('summary', null, 'All transaction assets'),
+                        [[addedPids, addedPicks, addedFaab, 'Received'], [droppedPids, droppedPicks, droppedFaab, 'Sent']].map(([pids, picks, faab, label]) => (pids.length || picks.length || faab) ? h('section', { key: label },
+                            h('h4', null, label),
+                            h('ul', null,
+                                pids.map(pid => h('li', { key: pid }, pname(pid))),
+                                picks.map((pick, index) => h('li', { key: 'pick' + index }, pickText(pick))),
+                                faab ? h('li', { key: 'faab' }, '$' + faab + ' FAAB') : null,
+                            ),
+                        ) : null),
                     ),
                 );
             }
@@ -1763,6 +1776,10 @@
     }
 
     // ── Model Settings sub-tab ────────────────────────────────────
+    function PreferenceDetails({ title, children }) {
+        return h(window.WR.MobileSection, { title }, h(window.WR.Card, { padding: 'var(--card-pad-lg)' }, children));
+    }
+
     function SettingsView({ settings, setSettings, leagueSkin, currentLeague }) {
         // Trade aggression / acceptance floor lives in the GM Strategy editor
         // (My Strategy sub-tab) — not here. Model Settings is Alex behavioral
@@ -1796,7 +1813,7 @@
             ),
             hint && h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginBottom: '8px', lineHeight: 1.4 } }, hint),
             h('input', {
-                type: 'range', min, max, step: step || 1,
+                type: 'range', 'aria-label': label, min, max, step: step || 1,
                 value: settings[key],
                 onChange: e => update({ [key]: Number(e.target.value) }),
                 style: { width: '100%', accentColor: 'var(--gold)' },
@@ -1804,7 +1821,7 @@
         );
 
         const focusChip = (k, label) => h('button', {
-            key: k, onClick: () => updateFocus(k, !settings.focus[k]),
+            key: k, 'aria-pressed': !!settings.focus[k], onClick: () => updateFocus(k, !settings.focus[k]),
             style: {
                 minHeight: '44px',
                 padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 500,
@@ -1815,7 +1832,7 @@
             }
         }, label);
         const chanChip = (k, label, opts = {}) => h('button', {
-            key: k, onClick: opts.disabled ? undefined : () => updateChannel(k, !settings.channel[k]),
+            key: k, 'aria-pressed': !!settings.channel[k], onClick: opts.disabled ? undefined : () => updateChannel(k, !settings.channel[k]),
             disabled: !!opts.disabled,
             title: opts.title,
             style: {
@@ -1846,19 +1863,16 @@
             h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, fontWeight: 400 } }, desc),
         );
 
-        return h('div', null,
+        return h('div', { className: 'gm-settings-content' },
             // Intro card
             h('div', { style: { padding: '12px 16px', marginBottom: '14px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
                 h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How Alex talks to you'),
                 h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
-                    settingsIntro)
+                    'Choose how often Alex speaks up. Presets save immediately.')
             ),
             h('div', { className: 'gm-office-settings-grid' },
                 h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Sensitivity', sub: 'When and how often Alex speaks up' }),
-                    sliderRow('Alert threshold', 'Minimum confidence Alex needs before showing an insight. Higher = quieter, only the strong signals.', 'alertThreshold', 0, 100, 1, v => v + '%'),
-                    sliderRow('Max alerts per week', 'Caps how many cards Alex shows in Overview. Lower = curated.', 'maxAlertsPerWeek', 1, 20, 1),
-                    sliderRow('Min projected-points delta', 'Smallest swing (in projected fantasy points) Alex bothers flagging on lineup or waiver moves.', 'minPointsDelta', 0, 10, 0.5, v => Number(v).toFixed(1) + ' pts'),
                     h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Only flag 85%+ confidence \u00B7 ~3 alerts/week',
@@ -1868,8 +1882,11 @@
                         presetButton('Aggressive', '55% threshold \u00B7 up to 12 alerts/week',
                             () => ({ ...DEFAULT_SETTINGS, alertThreshold: 55, maxAlertsPerWeek: 12, minPointsDelta: 1 })),
                     ),
+                    h(window.WR.MobileSection, { title: 'Advanced sensitivity', summary: 'Confidence, frequency and projected points' }, sliderRow('Alert threshold', 'Minimum confidence Alex needs before showing an insight. Higher = quieter, only the strong signals.', 'alertThreshold', 0, 100, 1, v => v + '%'),
+                    sliderRow('Max alerts per week', 'Caps how many cards Alex shows in Overview. Lower = curated.', 'maxAlertsPerWeek', 1, 20, 1),
+                    sliderRow('Min projected-points delta', 'Smallest swing (in projected fantasy points) Alex bothers flagging on lineup or waiver moves.', 'minPointsDelta', 0, 10, 0.5, v => Number(v).toFixed(1) + ' pts')),
                 ),
-                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
+                h(PreferenceDetails, { title: 'Focus areas & notifications' },
                     sectionTitle({ title: 'Focus areas', sub: 'Which categories Alex monitors' }),
                     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '7px' } },
                         (allowRedraft || !!settings?.focus?.startSit) && focusChip('startSit', 'Start / Sit'),
@@ -1896,7 +1913,7 @@
             ),
             // ── Asset Priorities (trade acceptance % now lives in the GM Strategy editor) ──
             h('div', { className: 'gm-office-settings-grid', style: { marginTop: 'var(--card-gap)' } },
-                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
+                h(PreferenceDetails, { title: 'Asset priorities' },
                     sectionTitle({ title: 'Asset Priorities', sub: 'What Deal HQ targets' }),
                     h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },
                         'Active chips tell Deal HQ which assets to prioritize. All positions off = auto-detect from roster needs.'),
@@ -1910,7 +1927,7 @@
                                 const active = tp.positions?.[pos];
                                 const c = posColors[pos] || 'var(--silver)';
                                 return h('button', {
-                                    key: pos, onClick: () => updateTP('positions', pos, !active),
+                                    key: pos, 'aria-pressed': !!active, onClick: () => updateTP('positions', pos, !active),
                                     style: {
                                         minHeight: '44px',
                                         padding: '5px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
@@ -1931,7 +1948,7 @@
                                 draftPickYears.map(yr => {
                                     const active = tp.picks?.[yr];
                                     return h('button', {
-                                        key: yr, onClick: () => updateTP('picks', yr, !active),
+                                        key: yr, 'aria-pressed': !!active, onClick: () => updateTP('picks', yr, !active),
                                         style: {
                                             minHeight: '44px',
                                             padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
@@ -1947,7 +1964,7 @@
                         h('div', null,
                             h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'FAAB'),
                             h('button', {
-                                onClick: () => updateTPFaab(!tp.faab),
+                                'aria-pressed': !!tp.faab, onClick: () => updateTPFaab(!tp.faab),
                                 style: {
                                     minHeight: '44px',
                                     padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,

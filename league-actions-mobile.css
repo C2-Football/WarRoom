@@ -1,0 +1,116 @@
+/* Personal actions: a short first read, with the supporting record one tap away. */
+@media (max-width: 767px) {
+  .wr-dashboard-grid [data-widget-key="intel-brief"] button { min-height: 48px !important; }
+  .wr-dashboard-grid [data-widget-key="intel-brief"] :is([style*="font-size: 0."],[style*="font-size: var(--text-micro"],[style*="font-size: var(--text-label"]) { font-size: 14px !important; line-height: 1.45; }
+  .wr-dashboard-grid [data-widget-key="intel-brief"] [style*="cursor: pointer"][title] { min-height: 44px; }
+  .wr-league-kpi-grid { grid-template-columns: minmax(0,1fr) !important; padding: 0 !important; }
+  .wr-league-kpi-grid > .wr-widget { min-height: 0 !important; height: auto !important; }
+  .wr-dashboard-grid { padding-inline: 0 !important; gap: 12px !important; }
+  .wr-dashboard-grid > .wr-mobile-section { margin: 0; }
+  .wr-dashboard-grid .wr-mobile-section-body { padding-inline: 0; padding-bottom: 0; }
+  .wr-dashboard-grid .wr-mobile-section .wr-widget { height: auto !important; min-height: 0 !important; }
+  .league-progress-widget { height: auto; min-height: 180px; padding: 16px !important; }
+  .lpw-header, .lpw-compact .lpw-header, .lpw-sm .lpw-caption { font-size: 14px !important; letter-spacing: 0; text-transform: none; }
+  .lpw-header { align-items: flex-start; flex-wrap: wrap; }
+  .lpw-header > span:first-child, .lpw-caption, .lpw-secondary, .lpw-eyebrow { white-space: normal; overflow: visible; }
+  .lpw-badge, .lpw-freshness, .lpw-footer, .lpw-secondary, .lpw-eyebrow, .lpw-row small, .lpw-you { font-size: 14px !important; line-height: 1.4; }
+  .lpw-headline, .lpw-compact .lpw-scoreline { font-size: 28px !important; padding-top: 8px; }
+  .lpw-caption, .lpw-row strong { font-size: 16px !important; line-height: 1.4; }
+  .lpw-footer { flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .lpw-footer button { min-height: 44px; font-size: 14px; }
+  .fa-page, .tc-trade-root { padding-inline: 0 !important; }
+  .fa-mobile-candidate { display: grid; gap: 10px; width: 100%; padding: 16px 14px; text-align: left; border: 1px solid var(--ov-6,rgba(255,255,255,.1)); border-radius: var(--card-radius-sm); background: var(--black); color: var(--white); cursor: pointer; font-family: var(--font-body); }
+  .fa-mobile-candidate.is-primary { border-color: var(--acc-line2,rgba(212,175,55,.3)); background: var(--acc-fill1,rgba(212,175,55,.06)); }
+  .fa-mobile-candidate-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .fa-mobile-candidate-head > span { min-width: 0; flex: 1; }
+  .fa-mobile-candidate-head strong { display: block; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+  .fa-mobile-candidate small { display: block; font-size: 14px; line-height: 1.4; color: var(--silver); margin-top: 4px; }
+  .fa-mobile-candidate-head > .fa-mobile-candidate-value { flex: 0 0 auto; text-align: right; }
+  .fa-mobile-candidate-reason { font-size: 14px; font-weight: 400; color: var(--silver); line-height: 1.45; }
+  .fa-mobile-candidate-bye { margin-top: 0 !important; }
+  .fa-mobile-candidate-action { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--ov-5,rgba(255,255,255,.08)); color: var(--gold); font-size: 16px; font-weight: 600; }
+  .fa-hq-panel-head > em { text-align: left !important; }
+  .fa-hq-board-list .wr-mobile-section-body { display: grid; gap: 10px; padding: 0; }
+  .fa-hq-board-list .wr-mobile-section { margin: 0; }
+  .fa-hq-board-head { display: none !important; }
+  .fa-hq-panel-head { display: block !important; }
+  .fa-hq-panel-head > span { display: block; font-size: 16px !important; }
+  .fa-hq-panel-head > em { display: block; font-size: 14px !important; white-space: normal !important; margin-top: 4px; }
+  .fa-hq-panel button, .fa-hq-panel summary, .fa-section-tabs button, .fa-mobile-more, .fa-saved-targets button { min-height: 44px !important; font-size: 14px !important; }
+  .fa-hq-board-foot { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+  .fa-hq-board-foot span, .fa-hq-empty, .fa-hq-mini-body em, .fa-hq-swap-side b, .fa-hq-chipline { font-size: 14px !important; line-height: 1.45; }
+  .fa-mobile-more, .tc-phone-open-builder { width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--gold); border-radius: var(--card-radius-sm); color: var(--gold); background: var(--acc-fill1, rgba(212,175,55,.06)); font: 600 16px/1.35 var(--font-body); cursor: pointer; }
+  .fa-phone-stat-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0; }
+  .fa-phone-stat-details dt { color: var(--silver); font-size: 14px; }
+  .fa-phone-stat-details dd { color: var(--white); font-size: 16px; margin: 4px 0 0; }
+  .fa-market-phone-row > div:last-child { padding: 0 !important; border: 0 !important; }
+  .fa-market-phone-row .wr-mobile-section { border: 0; background: transparent; margin: 0 0 8px; }
+  .fa-market-phone-row .wr-mobile-section > summary { font-size: 14px; padding-block: 10px; }
+  .tc-phone-filters { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); overflow: visible !important; }
+  .tc-phone-filters > button { min-width: 0; white-space: normal !important; text-align: left; }
+  .tc-trade-root button, .tc-trade-root select { min-height: 44px !important; }
+  .tc-trade-root .wr-asset-row button { min-width: 44px !important; }
+  .wr-strategy-editor { padding-top: 0 !important; padding-bottom: 100px !important; }
+  .wr-strategy-editor > div:first-child { margin-bottom: 14px !important; }
+  .wr-strategy-editor > div:first-child > div:first-child { display: none; }
+  .wr-strategy-mode-picker { display: grid; gap: 10px; font-size: 14px; color: var(--silver); }
+  .wr-strategy-mode-picker select { width: 100%; min-height: 48px; font: 600 16px var(--font-body); color: var(--white); background: var(--black); padding: 10px; border: 1px solid var(--gold); border-radius: var(--card-radius-sm); }
+  .wr-strategy-editor .wr-mobile-section-body > div { padding: 0 !important; border: 0 !important; margin-bottom: 0 !important; box-shadow: none !important; }
+  .wr-strategy-editor .wr-mobile-section-body > div > div:first-child { margin-top: 0 !important; }
+  .wr-strategy-editor button, .wr-strategy-editor select, .wr-strategy-editor input[type=range], .gm-office-shell button, .gm-office-shell input[type=range] { min-height: 44px !important; }
+  .wr-strategy-editor input:not([type=checkbox]), .wr-settings-module-screen input, .wr-settings-module-screen select { min-height: 44px !important; min-width: 0; font-size: 16px !important; box-sizing: border-box; }
+  .wr-settings-module-grid { display: flex !important; flex-direction: column; gap: 0 !important; }
+  .wr-settings-module-grid > div { display: contents; }
+  .wr-settings-module-grid > div > .wr-mobile-section { width: 100%; box-sizing: border-box; margin: 0 0 10px; }
+  .wr-settings-display { order: -1; }
+  .wr-settings-module-screen .wr-mobile-section-body > div { border: 0 !important; margin: 0 !important; padding: 0 !important; background: transparent !important; }
+  .wr-settings-module-screen .wr-mobile-section-body > div > div:first-child { display: none; }
+  .wr-phone-guide { padding: 0; }
+  .wr-phone-guide-context { color: var(--white); font-size: 16px; margin-bottom: 14px; }
+  .wr-phone-guide-context button { display: block; min-height: 44px; font-size: 14px; background: transparent; color: var(--gold); border: 0; padding: 8px 0; }
+  .wr-phone-guide dl { margin: 0; }
+  .wr-phone-guide dl > div + div { margin-top: 18px; }
+  .wr-phone-guide dt { font-size: 16px; font-weight: 650; color: var(--white); }
+  .wr-phone-guide dd { margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: var(--silver); }
+  .gd-season-rail button, .gd-season-rail select { min-height: 44px !important; }
+  .gd-season-rail > div:nth-child(2) { order: -1; }
+  .gd-season-rail span[style*="text-overflow: ellipsis"] { white-space: normal !important; overflow: visible !important; }
+  .wr-roster-mobile-detail select { min-height: 44px !important; font-size: 16px !important; }
+  .gm-settings-content .gm-office-settings-grid > :first-child > div:nth-last-child(2) { grid-template-columns: 1fr !important; }
+  .gm-settings-content .gm-office-settings-grid > :first-child > div:nth-last-child(2) > button { padding: 12px !important; }
+  .gmoff-phone-ins .wr-mobile-section { margin-top: -1px; border-top-left-radius: 0; border-top-right-radius: 0; }
+  .gmoff-phone-ins .wr-mobile-section > summary { font-size: 14px; }
+  :is(.wr-strategy-editor,.gm-office-shell,.gd-season-rail,.wr-settings-module-screen,.fa-acquisition-plan,.fa-saved-targets,.tc-trade-root) :is([style*="font-size: 0."],[style*="font-size: var(--text-micro"],[style*="font-size: var(--text-label"]) { font-size: 14px !important; line-height: 1.45; }
+}
+@media(max-width:767px) {
+  .fa-mobile-candidate-head > .fa-hq-avatar { flex:0 0 34px; width:34px!important; height:34px!important; border-radius:50%; }
+  .gm-history-phone-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px; }
+  .gm-history-phone-head time { margin-left:auto; color:var(--silver); font-size:14px; }
+  .gm-history-full-assets { margin-top:10px; border-top:1px solid var(--ov-5); }
+  .gm-history-full-assets > summary { min-height:44px; align-content:center; font-size:14px; color:var(--gold); cursor:pointer; }
+  .gm-history-full-assets h4 { font-size:16px; margin:12px 0 8px; }
+  .gm-history-full-assets li { font-size:14px; margin-block:6px; overflow-wrap:anywhere; }
+  .gm-history-full-assets ul { margin:0 0 12px; padding-left:20px; }
+}
+@media(max-width:767px) {
+  .tc-trade-root .wr-asset-name { font-size:16px!important; }
+  .tc-phone-builder-side .tc-ta-side { padding:12px; gap:10px; }
+  .tc-phone-builder-side :is(select,input) { width:100%; max-width:100%; min-height:44px; font-size:16px!important; box-sizing:border-box; }
+  .tc-phone-builder-side .tc-ta-roster-list-tall { max-height:36dvh; }
+  .tc-phone-builder-side .tc-ta-roster-item { display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:5px 8px; padding:12px 10px; min-height:64px; }
+  .tc-phone-builder-side .tc-ta-roster-item > span:nth-child(2) { grid-column:2; white-space:normal!important; overflow:visible!important; font-size:16px!important; line-height:1.35; }
+  .tc-phone-builder-side .tc-ta-player-meta { grid-column:2; grid-row:2; font-size:14px; opacity:1; }
+  .tc-phone-builder-side .tc-ta-player-val { grid-column:3; grid-row:1; font-size:16px; }
+  .tc-phone-builder-side .tc-ta-player-row { flex-wrap:wrap; min-height:56px; }
+  .tc-phone-builder-side .tc-ta-player-row > span[style*="flex"] { font-size:16px!important; white-space:normal!important; overflow:visible!important; }
+  .tc-phone-builder-side .tc-ta-pos-group-hdr { font-size:14px; }
+  .tc-phone-builder-side [role=button]:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
+  .tc-phone-builder-nav { display:grid!important; grid-template-columns:1fr 1fr; }
+  .tc-phone-builder-nav button { white-space:normal!important; text-align:left; }
+  .fa-saved-targets .fa-saved-target-name { font-size:16px!important; }
+  .wr-widget button[aria-label="Widget actions"] { width:44px!important; height:44px!important; min-width:44px!important; min-height:44px!important; }
+}
+@media(max-width:767px) {
+  .fa-hq-command-head { align-items:flex-start; flex-wrap:wrap; gap:6px 12px; }
+  .fa-hq-command-head > b, .fa-hq-command-head > span, .tc-phone-builder-side .tc-ta-total-label, .wr-sheet .tc-dhq-empty { font-size:14px!important; line-height:1.45; }
+}

@@ -41,6 +41,7 @@
     }
 
     function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId }) {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((team) => team.teamId === teamId);
         const teamName = (teamId) => teamOf(teamId)?.name ?? teamId;
@@ -127,7 +128,7 @@
                     h('span', { className: 'tl-eyebrow' }, heroStatus),
                     league.phase === 'complete'
                         ? h('h1', null, champion?.teamId === myTeam.teamId ? 'You own the timeline.' : `${champion?.name ?? 'A champion'} owns the timeline.`)
-                        : h('h1', null, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
+                        : h('h1', { className: 'tl-home-matchup-heading' }, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
                     h('p', null, league.phase === 'complete'
                         ? `${champion?.name ?? 'The champion'} survived every era and finished on top of ${league.name}.`
                         : postgame
@@ -163,7 +164,7 @@
                 })),
 
             playoffHunt,
-            showHunt ? h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Full standings & team details'), h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true })) : h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true }),
+            (showHunt || phone) ? h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Full standings & team details'), h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true })) : h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true }),
             h('section', { className: 'tl-home-recap-grid' },
                 h('article', { className: 'tl-card tl-league-update' },
                     h('header', { className: 'tl-league-update-heading' }, h('h2', null, 'League update'),

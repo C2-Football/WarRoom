@@ -1,0 +1,143 @@
+/* The weekly task leads; the realm remains a deliberate choice. */
+.duat-home-mobile-record { display:none; }
+@media (min-width:768px) {
+  .duat-phone-disclosure { display:contents; }
+  .duat-phone-disclosure > summary { display:none; }
+}
+@media (max-width:767px) {
+  .duat-game { font-size:16px; }
+  .duat-game :is(p,small,label,summary,.duat-muted,.duat-eyebrow,.duat-notice,.duat-weekly-note,.duat-lineup-completion,.duat-lineup-positions,.duat-source) { font-size:14px!important; line-height:1.5; }
+  .duat-game :is(button,.duat-button,.duat-link,.duat-back,a) { min-height:44px; font-size:14px!important; }
+  .duat-game :is(input,select,textarea) { font-size:16px!important; min-height:44px; min-width:0; max-width:100%; }
+  .duat-game input[type=checkbox] { min-height:22px; width:22px; }
+  .duat-game :is(button,summary,a):focus-visible { outline:3px solid #edcc91; outline-offset:3px; }
+  .duat-game summary { cursor:pointer; min-height:44px; align-content:center; }
+  .duat-game :is(.duat-panel,.duat-main,.duat-form-row,.duat-setup-grid,.duat-weekly-content,.duat-home-columns) { min-width:0; }
+  .duat-game :is(h1,h2,h3,strong,span,button,summary) { overflow-wrap:anywhere; }
+  .duat-game .duat-main { padding-inline:12px; }
+  .duat-game .duat-intro { min-height:0; padding:20px 16px; margin-bottom:14px; }
+  .duat-game .duat-intro h1 { font-size:30px; margin:6px 0; line-height:1.15; }
+  .duat-game .duat-intro > p { display:none; }
+  .duat-game .duat-intro .duat-eyebrow { font-size:14px!important; letter-spacing:1px; }
+  .duat-game .duat-setup-grid { gap:14px; }
+  .duat-setup-grid > form { padding:16px; display:flex; flex-direction:column; }
+  .duat-setup-grid > form > .duat-choice-row { margin-bottom:16px; }
+  .duat-game .duat-choice-row { gap:8px; }
+  .duat-game .duat-choice { padding:12px 10px; }
+  .duat-game .duat-choice strong { font-size:16px; }
+  .duat-game .duat-choice span { font-size:14px; margin-top:6px; }
+  .duat-game .duat-phone-disclosure { border:1px solid #7e704d66; border-radius:var(--card-radius); margin:0 0 12px; padding:0 12px; }
+  .duat-phone-disclosure > summary { padding:12px 0; color:#e9cf9d; }
+  .duat-journey-disclosure { order:10; margin-top:16px!important; }
+  .duat-journey-disclosure .duat-first-journey { padding:0 0 12px; border:0; margin:0; }
+  .duat-journey-disclosure h2 { font-size:22px; }
+  .duat-game .duat-mode-disclosure .duat-choice-row { grid-template-columns:minmax(0,1fr); }
+  .duat-game .duat-era-picker { padding:0; border:0; }
+  .duat-game .duat-era-picker legend { display:none; }
+  .duat-game .duat-banner-disclosure .duat-faction-picker { grid-template-columns:repeat(2,minmax(0,1fr)); max-height:400px; overflow:auto; }
+  .duat-game .duat-faction-choice { font-size:14px!important; min-height:64px; }
+  .duat-game .duat-faction-choice .duat-sigil { width:34px; height:34px; min-width:34px; }
+  .duat-game .duat-rival-picker > div { grid-template-columns:minmax(0,1fr); }
+  .duat-game .duat-rival-picker label { min-height:44px; }
+  .duat-game .duat-home-heading { gap:12px; margin-bottom:0; }
+  .duat-game .duat-home-heading h1 { font-size:28px; }
+  .duat-game .duat-home-heading p { margin:6px 0 0; }
+  .duat-game .duat-home-resume { padding:16px; gap:14px; }
+  .duat-game .duat-home-resume h2 { font-size:24px; }
+  .duat-game .duat-home-resume .primary { min-height:50px; font-size:16px!important; }
+  .duat-game .duat-home-your-place { font-size:14px!important; }
+  .duat-game .duat-home-disclosure { border:1px solid #7e704d77; border-radius:var(--card-radius); background:#142a31; min-width:0; }
+  .duat-home-disclosure > summary { padding:14px; color:#e9d5b1; }
+  .duat-game .duat-home-columns { gap:12px; }
+  .duat-home-disclosure > section { border:0; margin:0; }
+  .duat-game .duat-home-schedule { padding:10px; }
+  .duat-game .duat-home-week { flex-basis:90px; min-height:100px; padding:8px; }
+  .duat-game .duat-home-week > :is(span,small) { font-size:14px; }
+  .duat-game .duat-home-schedule-heading { flex-wrap:wrap; }
+  .duat-game .duat-home-schedule-heading button { min-width:44px; }
+  .duat-game .duat-home-standings { padding:12px; }
+  .duat-game .duat-home-standings :is(th,td) { font-size:14px; padding:12px 5px; }
+  .duat-game .duat-home-standings th[scope=row] { font-size:16px; }
+  .duat-game .duat-home-record-col,.duat-game .duat-home-standings :is(th,td):nth-child(3) { display:none; }
+  .duat-game .duat-home-points-col { width:72px; }
+  .duat-game .duat-home-rank-col { width:25px; }
+  .duat-game .duat-home-mobile-record { display:block; margin-top:6px; }
+  .duat-game .duat-home-arena-art { min-height:190px; padding:20px 16px; }
+  .duat-game .duat-home-arena-title h2 { font-size:28px; }
+  .duat-game .duat-home-hunt { padding:14px; }
+  .duat-game .duat-home-hunt-facts > span { font-size:14px; }
+  .duat-game .duat-weekly-explore { margin:12px 0; }
+  .duat-game .duat-weekly-explore > summary { padding:12px; border:1px solid #7e704d77; border-radius:var(--card-radius); }
+  .duat-game .duat-weekly-explore .duat-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:10px 0; }
+  .duat-game .duat-weekly-explore button { padding:10px; font-size:14px!important; white-space:normal; }
+  .duat-game .duat-season-navigation button { font-size:14px!important; }
+  .duat-game .duat-weekly-next :is(.primary,.duat-link) { font-size:14px!important; }
+  .duat-game .duat-weekly-next .primary { min-height:50px; }
+  .duat-game .duat-weekly-content { padding:8px; }
+  .duat-game :is(.duat-player-row,.duat-starter-row,.duat-lineup-row) strong { font-size:16px; }
+  .duat-game :is(.duat-player-row,.duat-starter-row,.duat-lineup-row) span { font-size:14px; }
+  .duat-game .duat-table-wrap { max-width:100%; overflow:auto; }
+  .duat-game .duat-table-wrap :is(td,th) { font-size:14px; }
+  .duat-game .duat-table-wrap:focus-visible { outline:2px solid #edcc91; }
+}
+@media(max-width:767px) {
+  .duat-game .duat-player { display:grid; grid-template-columns:22px 28px minmax(0,1fr) 56px; gap:8px; padding:12px 4px; }
+  .duat-game .duat-player-name strong { font-size:16px; line-height:1.4; }
+  .duat-game .duat-player-name { min-width:0; }
+  .duat-game .duat-player-points strong { font-size:16px; }
+  .duat-game .duat-player > .duat-player-points:nth-of-type(4) { grid-column:3 / -1; justify-self:end; display:flex; gap:8px; align-items:center; }
+  .duat-game .duat-position { font-size:14px; }
+}
+@media(max-width:767px) {
+  .duat-setup-aside { display:flex; flex-direction:column; gap:12px; }
+  .duat-setup-aside > .duat-shelf-disclosure { order:-1; }
+  .duat-setup-aside > .duat-realm-story { order:2; }
+  .duat-shelf-disclosure .duat-campaign-shelf { padding:0 0 12px; border:0; }
+  .duat-shelf-disclosure .duat-campaign-shelf > h2 { display:none; }
+  .duat-game .duat-save-open strong { font-size:16px; }
+  .duat-game .duat-save-open span,.duat-game .duat-status { font-size:14px; }
+}
+@media(max-width:767px) {
+  .duat-game .duat-campaign-footer > span { font-size:14px; }
+}
+@media(max-width:767px) {
+  .duat-game .duat-weekly-path > span { font-size:14px; }
+  .duat-game.has-season-flow .duat-campaign-heading { padding:10px 12px; }
+  .duat-game.has-season-flow .duat-campaign-facts { margin-top:6px; padding-top:6px; gap:8px; font-size:14px; }
+  .duat-game.has-season-flow .duat-campaign-identity p { margin:0; }
+  .duat-game.has-week-action .duat-weekly-heading > p { display:none; }
+  .duat-game.has-week-action .duat-weekly-heading .duat-eyebrow { display:none; }
+  .duat-game.has-week-action .duat-weekly-path { display:none; }
+  .duat-game .duat-weekly-heading h2 { font-size:24px; }
+}
+@media(max-width:767px) {
+  .duat-game :is(dt,.duat-library-cycle,.duat-library-d20,.duat-pill,.duat-library-record span,.duat-heptad-situation > div > span) { font-size:14px; }
+  .duat-game :is(.duat-heptad-standard span,.duat-heptad-entry-order strong) { font-size:16px; }
+  .duat-game .duat-heptad-nav { display:flex; overflow:auto; }
+  .duat-game .duat-heptad-nav > button { flex-shrink:0; }
+  .duat-game .duat-home-calendar-tags > span { font-size:14px; }
+}
+@media(max-width:767px) {
+  .duat-game :is(.duat-home-asof,.duat-home-standings td,.duat-home-standings caption) { font-size:14px!important; }
+}
+@media(max-width:767px) {
+  .duat-game :is(.duat-chapter-steps > span,.duat-draft-years span,.duat-draft-recent strong,.duat-empty-recruit) { font-size:14px; }
+  .duat-game .duat-chapter-banner { padding:16px; min-height:0; }
+  .duat-game .duat-chapter-banner h2 { font-size:24px; }
+  .duat-game .duat-chapter-steps { flex-wrap:wrap; gap:10px; }
+  .duat-game .duat-draft-years { grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); }
+  .duat-game .duat-draft-start { padding:16px; display:flex; flex-direction:column; }
+  .duat-game .duat-draft-start h2 { font-size:24px; }
+  .duat-game .duat-draft-start > .duat-eyebrow { display:none; }
+  .duat-game .duat-draft-start > button { order:-1; margin-bottom:14px; }
+  .duat-game .duat-draft-army-details { border:1px solid #7e704d77; border-radius:var(--card-radius); padding:12px; }
+  .duat-game .duat-draft-army-details:not([open]) > :not(summary) { display:none; }
+  .duat-game .duat-draft-layout .duat-panel { padding:14px; }
+  .duat-game .duat-draft-player { display:grid; grid-template-columns:30px minmax(0,1fr) 60px; gap:10px; }
+  .duat-game .duat-draft-player > div strong,.duat-game .duat-drafted-army .duat-army-player strong { font-size:16px; }
+  .duat-game .duat-draft-player .duat-draft-estimate { grid-column:2; grid-row:2; text-align:left; font-size:16px; }
+  .duat-game .duat-draft-player > .duat-button { grid-column:3; grid-row:1/3; }
+  .duat-game .duat-draft-search { flex-wrap:wrap; }
+  .duat-game .duat-draft-search :is(input,select) { width:100%; min-width:0; font-size:16px!important; }
+  .duat-game .duat-drafted-army .duat-army-player { display:flex; width:100%; }
+}

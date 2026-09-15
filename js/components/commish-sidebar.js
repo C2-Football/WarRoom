@@ -23,12 +23,20 @@
     const BAD = 'var(--bad, #E74C3C)', WARN = 'var(--warn, #F0A500)', GOOD = 'var(--good, #2ECC71)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
 
-    const label = { font: '700 0.6875rem ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED, lineHeight: 1 };
-    const chip = { font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const label = { font: '700 var(--co-readable-small, 0.6875rem) ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED, lineHeight: 1 };
+    const chip = { font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' };
     const num = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
 
     // ── Sidebar ──────────────────────────────────────────────────────
     function WrCommishSidebar({ groups, active, counts, onSelect, onOpenSettings, managedCount, leagueCount, phone, open, onClose }) {
+        const dialog = React.useRef(null);
+        React.useEffect(() => {
+            if (!phone || !open || !dialog.current) return undefined;
+            const opener = document.activeElement;
+            const node = dialog.current;
+            node.showModal();
+            return () => { node.close(); if (opener?.isConnected) opener.focus(); };
+        }, [phone, open]);
         const Row = ({ hub, name, dormant }) => {
             const isActive = active === hub;
             const n = (counts && counts[hub]) || 0;
@@ -54,7 +62,7 @@
         };
 
         const body = (
-            <nav aria-label="Commissioner workspaces" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: phone ? '260px' : '208px', flex: 'none', background: phone ? SURF : 'transparent', height: phone ? '100%' : undefined, overflowY: phone ? 'auto' : undefined, padding: phone ? '12px 0' : 0 }}>
+            <nav aria-label="Commissioner workspaces" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: phone ? '100%' : '208px', flex: 'none', background: phone ? SURF : 'transparent', padding: phone ? '12px 0' : 0 }}>
                 <button onClick={() => { onSelect('command'); if (phone && onClose) onClose(); }}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
@@ -62,7 +70,7 @@
                         borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: '8px',
                         background: active === 'command' ? ACC_FILL : 'transparent',
                         color: active === 'command' ? ACCENT : SILVER,
-                        font: '700 0.75rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
+                        font: '700 var(--co-readable-small, 0.75rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
                         minHeight: phone ? '44px' : undefined,
                     }}>
                     ◧ Overview
@@ -73,7 +81,7 @@
                     const count = g.hubs.reduce((n, h) => n + ((counts && counts[h.hub]) || 0), 0);
                     return <div key={g.name} style={{ marginBottom: '4px' }}>
                         <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => { onSelect(g.hubs[0].hub); if (phone && onClose) onClose(); }}
-                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: 'var(--card-radius-sm, 8px)', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 0.75rem ' + MONO, cursor: 'pointer' }}>
+                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: 'var(--card-radius-sm, 8px)', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 var(--co-readable-small, 0.75rem) ' + MONO, cursor: 'pointer' }}>
                             <span style={{ flex: 1 }}>{g.name}</span>
                             {count ? <span style={{ ...chip, color: BAD }}>{count}</span> : g.dormant ? <span style={{ ...chip, color: MUTED }}>WK 1</span> : null}
                         </button>
@@ -89,7 +97,7 @@
                             borderLeft: '3px solid ' + (active === 'settings' ? ACCENT : 'transparent'),
                             background: active === 'settings' ? ACC_FILL : 'transparent',
                             color: active === 'settings' ? TEXT : SILVER,
-                            font: '600 0.75rem ' + MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
+                            font: '600 var(--co-readable-small, 0.75rem) ' + MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
                             minHeight: phone ? '44px' : undefined,
                         }}>
                         ⚙ Settings
@@ -104,10 +112,11 @@
         if (!phone) return body;
         if (!open) return null;
         return (
-            <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#08080B', display: 'flex' }}>
-                <div onClick={e => e.stopPropagation()} style={{ background: SURF, borderRight: `1px solid ${LINE}`, height: '100%' }}>{body}</div>
-                <button onClick={onClose} aria-label="Close menu" style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
-            </div>
+            <dialog ref={dialog} className="co-workspace-dialog" aria-label="Commissioner menu"
+                onCancel={e => { e.preventDefault(); onClose?.(); }} onClick={e => { if (e.target === e.currentTarget) onClose?.(); }}>
+                <div className="co-workspace-dialog-head"><h2>Workspaces</h2><button type="button" onClick={onClose} aria-label="Close menu">Close ×</button></div>
+                {body}
+            </dialog>
         );
     }
 
@@ -152,7 +161,7 @@
                     <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div>
                             <div style={{ font: '600 0.9375rem var(--font-body)', color: TEXT, lineHeight: 1.4 }}>{item.headline}</div>
-                            {item.detail ? <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginTop: '6px' }}>{item.detail}</div> : null}
+                            {item.detail ? <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55, marginTop: '6px' }}>{item.detail}</div> : null}
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -177,7 +186,7 @@
                                 <span style={{ fontSize: '1.25rem', fontWeight: 700, color: sevColor }}>{item.score}</span>
                                 <span style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>of 100 · {item.tier} threshold {item.tier === 'NOW' ? '70' : item.tier === 'SOON' ? '40' : '0'}</span>
                             </div>
-                            <div style={{ font: '400 0.75rem var(--font-body)', color: MUTED, marginTop: '6px', lineHeight: 1.5 }}>
+                            <div style={{ font: '400 var(--co-readable-small, 0.75rem) var(--font-body)', color: MUTED, marginTop: '6px', lineHeight: 1.5 }}>
                                 Signal: <span style={{ fontFamily: MONO, color: TEXT }}>{item.kind}</span>
                                 {(item.leagueIds || []).length > 1 ? ' · weighted up for spanning ' + item.leagueIds.length + ' leagues' : ''}
                             </div>
@@ -186,7 +195,7 @@
                         {state ? (
                             <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px' }}>
                                 <div style={{ ...label, color: ACCENT }}>Currently {state.state}</div>
-                                <div style={{ font: '400 0.75rem var(--font-body)', color: TEXT, marginTop: '4px', lineHeight: 1.5 }}>
+                                <div style={{ font: '400 var(--co-readable-small, 0.75rem) var(--font-body)', color: TEXT, marginTop: '4px', lineHeight: 1.5 }}>
                                     {state.state === 'done' ? 'Hidden until the underlying number changes — if it gets worse, this comes back on its own.'
                                         : state.state === 'skipped' ? 'Snoozed. Returns automatically when the timer runs out.'
                                             : 'Hidden indefinitely. Only Settings brings it back.'}
@@ -201,12 +210,12 @@
                             </div>
                             <label style={{ ...label, display: 'block', marginBottom: '5px' }}>Message draft</label>
                             <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Draft a commissioner message"
-                                style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 10px', color: TEXT, font: '400 0.8125rem/1.5 var(--font-body)' }} />
+                                style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 10px', color: TEXT, font: '400 var(--co-readable-small, 0.8125rem)/1.5 var(--font-body)' }} />
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 132px', gap: '8px', marginTop: '8px' }}>
                                 <input value={note} onChange={e => setNote(e.target.value)} placeholder="Private note"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 0.75rem var(--font-body)' }} />
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 var(--co-readable-small, 0.75rem) var(--font-body)' }} />
                                 <input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} aria-label="Follow-up date"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 0.75rem var(--font-mono)' }} />
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 var(--co-readable-small, 0.75rem) var(--font-mono)' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                                 {act('Save follow-up', commit)}
@@ -216,7 +225,7 @@
                                 <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
                                     <div style={{ ...label, marginBottom: '7px' }}>Activity</div>
                                     {followup.history.slice(-4).reverse().map((event, i) => (
-                                        <div key={event.ts + ':' + i} style={{ display: 'flex', gap: '8px', padding: '4px 0', font: '400 0.72rem var(--font-body)', color: TEXT }}>
+                                        <div key={event.ts + ':' + i} style={{ display: 'flex', gap: '8px', padding: '4px 0', font: '400 var(--co-readable-small, 0.72rem) var(--font-body)', color: TEXT }}>
                                             <span style={{ ...chip, color: ACCENT, minWidth: '62px' }}>{event.type}</span>
                                             <span style={{ flex: 1 }}>{event.detail || new Date(event.ts).toLocaleString()}</span>
                                         </div>
@@ -260,7 +269,7 @@
                 </span>
                 <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', font: '600 0.875rem var(--font-body)', color: on ? TEXT : SILVER }}>{children}</span>
-                    {sub ? <span style={{ display: 'block', font: '400 0.75rem var(--font-body)', color: MUTED, marginTop: '2px', lineHeight: 1.45 }}>{sub}</span> : null}
+                    {sub ? <span style={{ display: 'block', font: '400 var(--co-readable-small, 0.75rem) var(--font-body)', color: MUTED, marginTop: '2px', lineHeight: 1.45 }}>{sub}</span> : null}
                 </span>
                 <input type="checkbox" checked={on} onChange={e => onChange(e.target.checked)} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
             </label>
@@ -272,7 +281,7 @@
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <Section title="Leagues you manage here" meta={managedN + ' of ' + (leagues || []).length + ' on'}>
-                    <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
+                    <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
                         Every league you commission is on by default. Switching one off removes it from the queue, the grid and every desk count — it does not leave the league or change anything on Sleeper.
                     </div>
                     {(leagues || []).map(l => {
@@ -280,14 +289,14 @@
                         return <Toggle key={lid} on={isManaged(lid)} onChange={v => onToggleLeague(lid, v)} sub={(l.settings && l.settings.num_teams ? l.settings.num_teams + '-team · ' : '') + (l.season || '')}>{l.name}</Toggle>;
                     })}
                     {managedN === 0 ? (
-                        <div style={{ marginTop: '12px', background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${WARN}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.5 }}>
+                        <div style={{ marginTop: '12px', background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${WARN}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.5 }}>
                             Every league is switched off, so the office has nothing to show. Turn at least one back on.
                         </div>
                     ) : null}
                 </Section>
 
                 <Section title="What you want to be told about">
-                    <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
+                    <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
                         These control the Command queue and the desk badges. Switching a category off never hides data from its own desk — the desk is the place built to show it.
                     </div>
                     {(domainLabels || []).map(d => (
@@ -306,12 +315,12 @@
 
                 <Section title="Dismissed items" meta={(suppressed || []).length + ' hidden by you'}>
                     {!(suppressed || []).length ? (
-                        <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55 }}>Nothing dismissed. Items you mark done, skip or hide land here so you can always get them back.</div>
+                        <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55 }}>Nothing dismissed. Items you mark done, skip or hide land here so you can always get them back.</div>
                     ) : (
                         (suppressed || []).map(s => (
                             <div key={s.item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
                                 <span style={{ ...chip, color: s.state === 'done' ? GOOD : s.state === 'skipped' ? WARN : MUTED, minWidth: '54px' }}>{s.state}</span>
-                                <span style={{ flex: 1, minWidth: 0, font: '400 0.8125rem var(--font-body)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
+                                <span style={{ flex: 1, minWidth: 0, font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
                                 <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
                             </div>
                         ))
@@ -320,7 +329,7 @@
 
                 <Section title="Follow-up history" meta={(followups || []).length + ' tracked'}>
                     {!(followups || []).length ? (
-                        <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55 }}>No follow-ups yet. Open any Command item to draft outreach, leave a private note or set a review date.</div>
+                        <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55 }}>No follow-ups yet. Open any Command item to draft outreach, leave a private note or set a review date.</div>
                     ) : (
                         (followups || []).slice(0, 50).map(f => {
                             const last = (f.history || [])[f.history.length - 1];
@@ -328,8 +337,8 @@
                                 <div key={f.itemId} style={{ display: 'grid', gridTemplateColumns: '70px minmax(0,1fr) auto', gap: '10px', alignItems: 'start', padding: '10px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
                                     <span style={{ ...chip, color: f.status === 'DONE' ? GOOD : ACCENT }}>{f.status}</span>
                                     <span style={{ minWidth: 0 }}>
-                                        <span style={{ display: 'block', font: '600 0.8125rem/1.35 var(--font-body)', color: TEXT }}>{f.headline}</span>
-                                        <span style={{ display: 'block', marginTop: '3px', font: '400 0.72rem/1.4 var(--font-body)', color: MUTED }}>{f.note || f.message}{f.dueAt ? ' · due ' + f.dueAt : ''}{last ? ' · last ' + last.type.toLowerCase() : ''}</span>
+                                        <span style={{ display: 'block', font: '600 var(--co-readable-small, 0.8125rem)/1.35 var(--font-body)', color: TEXT }}>{f.headline}</span>
+                                        <span style={{ display: 'block', marginTop: '3px', font: '400 var(--co-readable-small, 0.72rem)/1.4 var(--font-body)', color: MUTED }}>{f.note || f.message}{f.dueAt ? ' · due ' + f.dueAt : ''}{last ? ' · last ' + last.type.toLowerCase() : ''}</span>
                                     </span>
                                     <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: MUTED, cursor: 'pointer', padding: '5px 9px', ...chip }}>Remove</button>
                                 </div>

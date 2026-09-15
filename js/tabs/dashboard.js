@@ -1933,14 +1933,38 @@ function DashboardPanel({
                     </div>
                 )}
 
+                {/* Weekly results stay visible on phones without restoring the
+                    old health / power-ranking strip. */}
+                {_phoneSm.some(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)) && (
+                    <div className="wr-league-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '10px', padding: 'var(--space-md) var(--space-md) 0' }}>
+                        {_phoneSm.filter(({ w }) => w.key === 'weekly-matchups').map(({ w, i }) => _phoneKpiTile(w, i))}
+                    </div>
+                )}
+                {/* md+ widget cards — existing stack order, original indices */}
+                <div className="wr-dashboard-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0,1fr)',
+                    gridAutoRows: 'auto',
+                    gap: 'var(--space-md)',
+                    padding: 'var(--space-md) var(--space-md) 0',
+                    background: BK,
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    overflowX: 'hidden',
+                }}>
+                    {_phoneStack.map(({ w, i }, position) => (w.key === 'intel-brief' || (isFixedHome && position === 0)) ? renderWidget(w, i) : <window.WR.MobileSection key={w.id || w.key} phone={true} title={WIDGET_MODULES[w.key]?.label || w.title || 'More insights'}>{renderWidget(w, i)}</window.WR.MobileSection>)}
+                    {_phoneSm.filter(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key) && w.key !== 'weekly-matchups').map(({ w, i }) => <window.WR.MobileSection key={w.id || w.key} phone={true} title={WIDGET_MODULES[w.key]?.label || ({ 'league-standings': 'Standings', 'league-stats': 'League stats', 'league-cup': 'Cup' })[w.key]}>{_phoneKpiTile(w, i)}</window.WR.MobileSection>)}
+                </div>
+
+                {!isFixedHome && <>
                 {/* Customizable-widgets section header + reorder entry. The
                     ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
                     the per-card ▲▼ arrows on phone, owner ask). */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
-                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isFixedHome ? 'Home' : 'Customizable Widgets'}</div>
+                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Customize Home</div>
                     {!isFixedHome && widgets.length >= 2 && (
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
-                            flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
+                            flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', padding: '0 14px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
                             borderRadius: 'var(--card-radius-sm, 8px)', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
                         }}>
@@ -1949,28 +1973,7 @@ function DashboardPanel({
                     )}
                 </div>
 
-                {/* Weekly results stay visible on phones without restoring the
-                    old health / power-ranking strip. */}
-                {_phoneSm.some(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)) && (
-                    <div className="wr-league-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '10px', padding: 'var(--space-md) var(--space-md) 0' }}>
-                        {_phoneSm.filter(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)).map(({ w, i }) => _phoneKpiTile(w, i))}
-                    </div>
-                )}
-                {/* md+ widget cards — existing stack order, original indices */}
-                <div className="wr-dashboard-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0,1fr)',
-                    gridAutoRows: 'minmax(160px,auto)',
-                    gap: 'var(--space-md)',
-                    padding: 'var(--space-md) var(--space-md) 0',
-                    background: BK,
-                    minWidth: 0,
-                    maxWidth: '100%',
-                    overflowX: 'hidden',
-                }}>
-                    {_phoneStack.map(({ w, i }) => renderWidget(w, i))}
-                </div>
-
+                </>}
                 {/* Add widget — bottom of the phone stack */}
                 {!isFixedHome && (
                 <div style={{ padding: 'var(--space-md)', background: BK, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>

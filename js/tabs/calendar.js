@@ -252,6 +252,8 @@ window.WrCalendar = WrCalendar;
 
 function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
     const { useState, useMemo } = React;
+    const isPhone = !!window.WR?.useViewport?.().isPhone;
+    const [calendarScope, setCalendarScope] = useState('upcoming');
     const leagueId = currentLeague?.id || currentLeague?.league_id || '';
     const EVENTS_KEY = 'wr_calendar_' + leagueId;
 
@@ -294,15 +296,18 @@ function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
     const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-hero, 2rem)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' };
 
     const now = Date.now();
+    const nextEventId = events.find(event => !event.tbd && event.date?.getTime() >= now)?.id;
+    const visibleEvents = isPhone ? events.filter(event => calendarScope === 'all' || (calendarScope === 'past' ? event.date?.getTime() < now : event.tbd || !(event.date?.getTime() < now))) : events;
 
-    return React.createElement('div', null,
-        // Header with Add button
+    return React.createElement('div', { className: isPhone ? 'la-mobile la-calendar' : undefined },
+        // Phone leads with upcoming dates; the workspace already supplies its title.
         React.createElement('div', { style: { display: 'flex', alignItems: 'center', marginBottom: '12px' } },
-            React.createElement('div', { style: { ...headerStyle, flex: 1 } }, 'LEAGUE CALENDAR'),
+            !isPhone && React.createElement('div', { style: { ...headerStyle, flex: 1 } }, 'LEAGUE CALENDAR'),
+            isPhone && React.createElement('select', { 'aria-label': 'Calendar dates', value: calendarScope, onChange: event => setCalendarScope(event.target.value), style: { flex: 1, minWidth: 0, marginRight: 8 } }, React.createElement('option', { value: 'upcoming' }, 'Upcoming dates'), React.createElement('option', { value: 'past' }, 'Past dates'), React.createElement('option', { value: 'all' }, 'All dates')),
             React.createElement('button', { title: 'Add custom calendar event', onClick: () => setShowAdd(!showAdd), style: { background: 'none', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm)', color: 'var(--gold)', fontSize: 'var(--text-label)', fontWeight: 700, padding: '10px 14px', minHeight: '44px', cursor: 'pointer', fontFamily: 'inherit' } }, showAdd ? 'Cancel' : '+ Add Event'),
         ),
 
-        React.createElement('p', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.5, margin: '0 0 14px' } }, 'Scheduled draft dates use the league schedule. Week-based dates are marked as estimates; confirm exact deadlines with your league. Custom reminders are saved in this browser for this league.'),
+        isPhone ? React.createElement('details', { className: 'la-disclosure' }, React.createElement('summary', null, 'About these dates'), React.createElement('p', null, 'Estimated dates need league confirmation. Custom reminders stay in this browser.')) :React.createElement('p', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.5, margin: '0 0 14px' } }, 'Scheduled draft dates use the league schedule. Week-based dates are marked as estimates; confirm exact deadlines with your league. Custom reminders are saved in this browser for this league.'),
 
         // Add event form
         showAdd && React.createElement('div', { style: { ...cardStyle, padding: '12px', marginBottom: '12px' } },
@@ -313,24 +318,24 @@ function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
 
         // Events timeline
         React.createElement('div', { style: cardStyle },
-            events.length === 0
-                ? React.createElement('div', { style: { padding: '30px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-label)' } }, 'No events yet. League dates will appear here once your league settings load.')
+            visibleEvents.length === 0
+                ? React.createElement('div', { style: { padding: '30px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-label)' } }, events.length ? 'No dates in this view.' : 'No events yet. League dates will appear here once your league settings load.')
                 : React.createElement('div', null,
-                    events.map((event, i) => {
+                    visibleEvents.map((event, i) => {
                         const timestamp = event.date?.getTime();
                         const isPast = Number.isFinite(timestamp) && timestamp < now;
-                        const isNext = !event.tbd && !isPast && (i === 0 || (events[i - 1].date?.getTime() || Infinity) < now);
+                        const isNext = event.id === nextEventId;
                         const daysAway = Number.isFinite(timestamp) ? Math.ceil((timestamp - now) / 86400000) : null;
                         const dateStr = event.tbd ? 'Date TBD' : (event.estimated ? 'Estimated · ' : '') + event.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: event.date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
                         const countdown = !event.tbd && !event.estimated && !isPast && daysAway <= 30 ? (daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : daysAway + ' days') : null;
 
-                        return React.createElement('div', { key: event.id, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: i < events.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none', opacity: isPast ? 0.4 : 1, background: isNext ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' } },
+                        return React.createElement('div', { key: event.id, className: 'la-calendar-event', style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: i < events.length - 1 ? '1px solid var(--ov-3, rgba(255,255,255,0.04))' : 'none', opacity: isPast ? (isPhone ? 0.75 : 0.4) : 1, background: isNext ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' } },
                             // Timeline dot
                             React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: '28px', flexShrink: 0 } },
                                 React.createElement('span', { style: { fontSize: '1.1rem' } }, event.icon),
                             ),
                             // Content
-                            React.createElement('div', { style: { flex: 1 } },
+                            React.createElement('div', { className: 'la-calendar-copy', style: { flex: 1, minWidth: 0 } },
                                 React.createElement('div', { style: { fontSize: 'var(--text-body)', fontWeight: 600, color: isNext ? 'var(--gold)' : 'var(--white)' } }, event.title, isNext && React.createElement('span', { style: { fontSize: 'var(--text-micro)', fontWeight: 700, padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--gold)', color: 'var(--black)', marginLeft: '6px' } }, 'NEXT')),
                                 React.createElement('div', { style: { fontSize: 'var(--text-label)', color: 'var(--silver)', marginTop: '2px' } }, dateStr, event.detail ? ' \u00B7 ' + event.detail : ''),
                                 event.sourceLabel && React.createElement('div', { style: { fontSize: 'var(--text-micro, .6875rem)', color: 'var(--silver)', opacity: .7, marginTop: '3px' } }, event.sourceLabel),

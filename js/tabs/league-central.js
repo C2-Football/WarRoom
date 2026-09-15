@@ -261,8 +261,9 @@ function LeagueCentralTab({
         }));
     }, [tableTeams, hasDivisions]);
 
+    // Hook-free render helpers keep native details mounted across live score refreshes.
     // ── Shells ──
-    const Panel = ({ title, meta, right, children }) => (
+    const renderPanel = ({ title, meta, right, children }) => (
         <div style={{ minWidth: 0, background: PANEL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: isPhone ? '12px 10px' : '14px 16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <span style={{ fontFamily: RAJ, fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.03em', color: WHITE }}>{title}</span>
@@ -386,7 +387,16 @@ function LeagueCentralTab({
     };
 
     const score = value => value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(2);
-    const StandingsTable = ({ teams, showCutline }) => <div className="lct-table-wrap">
+    const renderStandingsTable = ({ teams, showCutline }) => isPhone ? <div className="la-standings" aria-label={liveReady ? `Week ${board.week} live standings` : 'Official standings'}>{teams.map((team, index) => {
+        const divisionView = hasDivisions && standingsView === 'division';
+        const rank = liveReady ? (team.rank == null ? null : divisionView ? teams.findIndex(t => t.rank === team.rank) + 1 : team.rank) : index + 1;
+        const baseline = divisionView ? liveTable?.baselineRows.filter(t => t.division === team.division) : null;
+        const before = divisionView && team.baselineRank != null ? baseline.findIndex(t => t.rank === team.baselineRank) + 1 : team.baselineRank;
+        const movement = liveReady && before != null && rank != null ? before - rank : null;
+        const result = team.currentResult;
+        const cutline = showCutline && !hasDivisions && index === playoffTeams - 1 && index < teams.length - 1;
+        return <React.Fragment key={team.rosterId}><details className={'la-report-row' + (sameId(team.rosterId, myRoster?.roster_id) ? ' la-own' : '')}><summary><span><strong>{rank ?? '—'}. {team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong><small>{score(team.pointsFor)} points for{movement ? ` · ${movement > 0 ? '↑' : '↓'}${Math.abs(movement)}` : ''}</small></span><span className="la-main-value"><strong>{team.wins}-{team.losses}-{team.ties || 0}</strong><small>W–L–T</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields"><div><dt>Points for</dt><dd>{score(team.pointsFor)}</dd></div><div><dt>Points against</dt><dd>{score(team.pointsAgainst)}</dd></div>{liveReady ? <><div><dt>Week {board.week}</dt><dd>{result ? (liveContext.historical ? result : { W:'Leading', L:'Trailing', T:'Tied' }[result]) : team.opponentRosterId == null && team.currentPoints != null ? 'Bye' : 'Pending'}</dd></div><div><dt>Current points</dt><dd>{score(team.currentPoints)}{team.opponentRosterId != null && `–${score(team.opponentPoints)}`}</dd></div>{team.medianResult && <div><dt>Median result</dt><dd>{team.medianResult}</dd></div>}<div><dt>Rank movement</dt><dd>{movement == null ? 'No prior rank' : movement ? `${movement > 0 ? 'Up' : 'Down'} ${Math.abs(movement)} since entering Week ${board.week}` : 'Unchanged'}</dd></div></> : <div><dt>Form</dt><dd>{team.streak || '—'}{team.form?.length > 0 && <span className="la-form-history">{team.form.map(game => `Week ${game.week}: ${game.result}${game.pts != null ? ' · ' + Number(game.pts).toFixed(1) : ''}`).join('; ')}</span>}</dd></div>}</dl></details>{cutline && <p className="la-cutline">Playoff cutline</p>}</React.Fragment>;
+    })}</div> : <div className="lct-table-wrap">
         <table className="lct-table" aria-label={liveReady ? `Week ${board.week} live standings` : 'Official standings'}>
             <thead><tr>
                 <th scope="col" className="lct-rank-col" aria-label="Rank">#</th><th scope="col" className="lct-team-col">Team</th>
@@ -418,7 +428,7 @@ function LeagueCentralTab({
         </table>
     </div>;
 
-    const OddsTable = ({ teams }) => (
+    const renderOddsTable = ({ teams }) => isPhone ? <div>{teams.map((team, index) => <details className="la-report-row" key={team.rosterId}><summary><span><strong>{index + 1}. {team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong><small>{team.wins}-{team.losses} record</small></span><span className="la-main-value"><strong>{team.playoffPct == null ? '—' : team.playoffPct + '%'}</strong><small>Playoffs</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields">{[['Playoffs',team.playoffPct],['First-round bye',team.byePct],['Title',team.titlePct]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value == null ? '—' : value + '%'}</dd></div>)}</dl></details>)}</div> : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
                 <tr>
@@ -464,8 +474,8 @@ function LeagueCentralTab({
     const oddsReady = odds.status === 'ready' && odds.sim;
 
     return (
-        <div ref={centralRef} style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
-            <div style={{ marginBottom: '14px' }}>
+        <div ref={centralRef} className={isPhone ? 'la-mobile la-central' : undefined} style={{ padding: isPhone ? '0' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
+            {!isPhone && <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>
                     {homeMerged ? 'Command Center' : 'League Central'}
                 </div>
@@ -473,9 +483,9 @@ function LeagueCentralTab({
                     {currentLeague?.name || 'League'} · {season} · {teamCount} Teams
                     {board.week ? <> · Week {board.week}</> : null}
                 </div>
-            </div>
+            </div>}
 
-            {window.LeagueLiveScoreboard && React.createElement(window.LeagueLiveScoreboard, {
+            {window.LeagueLiveScoreboard && (!isPhone || innerTab === 'league') && React.createElement(window.LeagueLiveScoreboard, {
                 key: leagueId + ':' + season,
                 currentLeague, myRoster, playersData,
                 getOwnerName: _getOwnerName, getPlayerName: _getPlayerName, setActiveTab,
@@ -527,10 +537,7 @@ function LeagueCentralTab({
             {/* The two things that matter: Standings | Stats */}
             <div id="league-central-standings" style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0,1fr)' : 'minmax(0,1.32fr) minmax(0,1fr)', gap: '14px', alignItems: 'start' }}>
 
-                <Panel
-                    title="Standings"
-                    meta={stMode === 'odds' ? '10,000-sim monte carlo' : null}
-                    right={
+                {renderPanel({ title: "Standings", meta: stMode === 'odds' ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools">{!noPlayoffs && <select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select>}{hasDivisions && stMode === 'table' && <select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">Overall</option><option value="division">By division</option></select>}</div> :
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {hasDivisions && stMode === 'table' && (
                                 <div style={segWrap} role="group" aria-label="Standings grouping">
@@ -547,9 +554,7 @@ function LeagueCentralTab({
                                     <button onClick={() => setStMode('odds')} style={segBtn(stMode === 'odds')}>Playoff Picture</button>
                                 </div>
                             )}
-                        </div>
-                    }
-                >
+                        </div>, children: <>
                     <div className="lct-live-panel">
                     {stMode === 'table' && <>
                         <div className="lct-status">
@@ -598,7 +603,7 @@ function LeagueCentralTab({
                     {!enrichedStandings.length ? (
                         <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No standings yet.</div>
                     ) : stMode === 'odds' ? (
-                        <OddsTable teams={enrichedStandings} />
+                        renderOddsTable({ teams: enrichedStandings })
                     ) : (hasDivisions && standingsView === 'division') ? (
                         <div>
                             {divisionGroups.map(group => (
@@ -606,28 +611,24 @@ function LeagueCentralTab({
                                     <div style={{ ...microHdr, color: GOLD, padding: '6px', background: 'rgba(212,175,55,0.06)', borderRadius: 'var(--card-radius-xs, 5px)', marginBottom: '2px' }}>
                                         {group.name} <span style={{ color: MUTED, textTransform: 'none', letterSpacing: 0 }}>· {group.teams.length} teams</span>
                                     </div>
-                                    <StandingsTable teams={group.teams} showCutline={false} />
+                                    {renderStandingsTable({ teams: group.teams, showCutline: false })}
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <StandingsTable teams={tableTeams} showCutline={!noPlayoffs} />
+                        renderStandingsTable({ teams: tableTeams, showCutline: !noPlayoffs })
                     )}
                     {stMode === 'table' && liveReady && <details style={{ marginTop: 12 }}><summary style={{ fontSize: '.75rem', color: SILVER, cursor: 'pointer', padding: '8px 0' }}>How the live table works</summary><p className="lct-note">Current scores are treated as results, then added once to all earlier regular-season weeks. Rank follows wins, fewer losses, then points for; tied records and points share a rank. Arrows show movement {standingsView === 'division' && hasDivisions ? 'within the division' : 'overall'} since entering Week {board.week}. This table does not apply custom playoff seeding or change your league’s official record. {Number(currentLeague?.settings?.league_average_match) === 1 && 'Median results add a second decision once every matchup has started and all scores are available. Points for count once; points against show head-to-head opponents only.'}</p></details>}
                     </div>
-                </Panel>
+                </> })}
 
-                <Panel
-                    title="Stat leaders"
-                    right={
-                        <div style={segWrap}>
+                <window.WR.MobileSection title="Stat leaders">
+                {renderPanel({ title: "Stat leaders", right: <div style={segWrap}>
                             <button onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
                                 {leaders.week ? 'Week ' + leaders.week : 'Week'}
                             </button>
                             <button onClick={() => setStatScope('season')} style={segBtn(statScope === 'season')}>Season</button>
-                        </div>
-                    }
-                >
+                        </div>, children: <>
                     <button type="button" onClick={() => setActiveTab?.('stats')} style={{ ...segBtn(false), color: GOLD, padding: '5px 0', marginBottom: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Explore all player stats →</button>
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '3px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '8px', marginBottom: '9px' }}>
                         {['Overall', ...leaguePositions].map(p => (
@@ -640,6 +641,8 @@ function LeagueCentralTab({
                         <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Season totals aren't available for this league.</div>
                     ) : !leaderRows.length ? (
                         <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No stats reported yet.</div>
+                    ) : isPhone ? (
+                        <div>{leaderRows.map((row, index) => <details className="la-report-row" key={row.pid}><summary><span><strong>{index + 1}. {row.name}</strong><small>{row.pos} · {row.team}</small></span><span className="la-main-value"><strong>{row.pts.toFixed(1)}</strong><small>Points</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields"><div><dt>Owner</dt><dd>{_getOwnerName(row.rosterId)}</dd></div>{statCols.map(col => <div key={col.key}><dt>{col.label}</dt><dd>{SC.formatStat(SC.computeStat(col.key, row.raw), col.format)}</dd></div>)}</dl><button type="button" onClick={() => window.WR?.openPlayerCard?.(row.pid)}>Open player card</button></details>)}</div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -675,7 +678,8 @@ function LeagueCentralTab({
                             </table>
                         </div>
                     )}
-                </Panel>
+                </> })}
+                </window.WR.MobileSection>
             </div>
             </React.Fragment>
             )}

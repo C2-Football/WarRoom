@@ -1,0 +1,77 @@
+/* Game Day phone layout. All rules are scoped to the phone branch. */
+@media (max-width: 767px) {
+  .gd-season-odds [style*="font-size: 0."] { font-size: 14px !important; line-height: 1.5; }
+  .gd-season-odds > div:last-child { font-size: 16px !important; line-height: 1.55 !important; }
+  .gd-mobile {
+    --text-micro: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    padding: 8px 0 80px;
+    color: var(--text, #e8e8ea);
+    font: 16px/1.45 var(--font-body, "DM Sans", sans-serif);
+  }
+  .gd-mobile *, .gd-mobile-sheet * { box-sizing: border-box; }
+  .gd-mobile h2 { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: -0.02em; }
+  .gd-mobile button, .gd-mobile summary, .gd-mobile-sheet button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .gd-mobile button:focus-visible, .gd-mobile summary:focus-visible, .gd-mobile-sheet button:focus-visible { outline: 2px solid var(--gold, #d4af37); outline-offset: 3px; }
+  .gd-mobile .wr-seg { margin: 0; min-height: 44px; }
+  .gd-mobile .wr-seg button, .gd-mobile-sheet .wr-seg button { min-height: 44px; font: 600 14px/1.2 var(--font-body, "DM Sans", sans-serif); letter-spacing: 0; text-transform: none; }
+  .gd-scoreboard, .gd-planning-focus {
+    padding: 18px 16px 12px;
+    background: linear-gradient(135deg, var(--panel, #15151b), var(--black, #121217));
+    border: 1px solid var(--acc-line2, rgba(212,175,55,.3));
+    border-radius: var(--card-radius-lg, 14px);
+  }
+  .gd-eyebrow { color: var(--gold, #d4af37); font-size: 14px; font-weight: 600; }
+  .gd-scoreboard-sides { display: flex; align-items: flex-end; gap: 12px; margin: 16px 0; }
+  .gd-scoreboard-sides > div { flex: 1; min-width: 0; }
+  .gd-scoreboard-sides > div:last-child:not(:first-child) { text-align: right; }
+  .gd-team-name { display: block; font-size: 14px; overflow-wrap: anywhere; }
+  .gd-scoreboard-sides strong { display: block; font-size: clamp(26px, 8vw, 36px); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.035em; line-height: 1.25; }
+  .gd-versus { align-self: flex-end; margin-bottom: clamp(6px, 1.8vw, 10px); color: var(--silver, #9aa0a6); font-size: 14px; }
+  .gd-score-update { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--ov-4, rgba(255,255,255,.08)); }
+  .gd-score-update > span { min-width: 0; color: var(--silver, #9aa0a6); font-size: 14px; }
+  .gd-score-update button { color: var(--gold, #d4af37); background: transparent; border: 0; padding: 10px 0 10px 8px; min-height: 44px; font-size: 14px; cursor: pointer; }
+  .gd-list-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+  .gd-list-heading h2 { font-size: 16px; }
+  .gd-list-heading > span { color: var(--silver, #9aa0a6); font-size: 14px; flex-shrink: 0; }
+  .gd-player-list { overflow: hidden; background: var(--panel, #15151b); border: 1px solid var(--ov-4, rgba(255,255,255,.08)); border-radius: var(--card-radius, 10px); }
+  .gd-score-player, .gd-plan-player { margin: 0; border: 0; border-bottom: 1px solid var(--ov-4, rgba(255,255,255,.08)); border-radius: 0; }
+  .gd-score-player:last-child, .gd-plan-player:last-child { border-bottom: 0; }
+  .gd-score-player > summary, .gd-plan-player { display: flex; align-items: center; gap: 9px; padding: 12px 10px; min-height: 72px; text-align: left; list-style: none; cursor: pointer; }
+  .gd-score-player > summary::-webkit-details-marker, .gd-disclosure > summary::-webkit-details-marker { display: none; }
+  .gd-player-initial { display: flex; align-items: center; justify-content: center; width: 32px; height: 36px; flex-shrink: 0; border-radius: var(--card-radius-sm, 8px); color: var(--gold, #d4af37); background: var(--acc-bg, rgba(212,175,55,.1)); font-size: 14px; font-weight: 700; }
+  .gd-player-main { flex: 1; min-width: 0; }
+  .gd-player-main strong { display: block; font: 600 16px/1.35 var(--font-body, "DM Sans", sans-serif); color: var(--text, #e8e8ea); overflow-wrap: anywhere; }
+  .gd-player-main > span { display: block; color: var(--silver, #9aa0a6); font: 400 14px/1.4 var(--font-body, "DM Sans", sans-serif); margin-top: 3px; overflow-wrap: anywhere; }
+  .gd-player-points { flex-shrink: 0; color: var(--text, #e8e8ea); font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gd-player-points.is-live { color: var(--k-2ecc71, #2ecc71); }
+  .gd-row-chevron { color: var(--silver, #9aa0a6); flex-shrink: 0; font-size: 18px; }
+  .gd-score-player[open] .gd-row-chevron { transform: rotate(90deg); }
+  .gd-player-detail { padding: 12px 14px; border-top: 1px solid var(--ov-4, rgba(255,255,255,.08)); }
+  .gd-player-detail > div { display: flex; justify-content: space-between; gap: 12px; color: var(--silver, #9aa0a6); font-size: 14px; }
+  .gd-player-detail strong { color: var(--text, #e8e8ea); font-size: 16px; }
+  .gd-player-detail p, .gd-muted, .gd-disclosure-body p { font-size: 14px; color: var(--silver, #9aa0a6); line-height: 1.5; margin: 8px 0; }
+  .gd-disclosure { border-top: 1px solid var(--ov-4, rgba(255,255,255,.08)); }
+  .gd-disclosure > summary { min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; list-style: none; cursor: pointer; }
+  .gd-disclosure > summary::after { content: '+'; color: var(--silver, #9aa0a6); font-size: 20px; }
+  .gd-disclosure[open] > summary::after { content: '−'; }
+  .gd-disclosure-body { padding-bottom: 12px; }
+  .gd-forecast-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+  .gd-planning-focus h2 { margin-top: 8px; font-size: 23px; }
+  .gd-planning-focus p { color: var(--silver, #9aa0a6); font-size: 14px; line-height: 1.5; margin: 8px 0 14px; }
+  .gd-primary, .gd-secondary { width: 100%; min-height: 46px; padding: 12px; border: 1px solid var(--ov-4, rgba(255,255,255,.08)); border-radius: var(--card-radius-sm, 8px); font: 600 16px/1.3 var(--font-body, "DM Sans", sans-serif); cursor: pointer; }
+  .gd-primary { background: var(--gold, #d4af37); color: var(--black, #121217); }
+  .gd-secondary { margin-top: 12px; background: transparent; color: var(--gold, #d4af37); }
+  .gd-plan-player { width: 100%; color: var(--text, #e8e8ea); background: transparent; }
+  .gd-plan-player.is-risk { border-left: 3px solid var(--k-f0a500, #f0a500); padding-left: 7px; }
+  .gd-plan-stats { display: flex; gap: 10px; text-align: right; flex-shrink: 0; }
+  .gd-plan-stats strong { display: block; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gd-plan-stats small { display: block; color: var(--silver, #9aa0a6); font-size: 14px; }
+  .gd-mobile-sheet { --text-micro: 0.875rem; color: var(--text, #e8e8ea); font-size: 16px; }
+  .gd-mobile-sheet [style*="font-size: 0."], .gd-mobile-sheet [style*="font-size: var(--text-micro"] { font-size: 14px !important; }
+  .gd-mobile-sheet button:disabled { opacity: .5; cursor: default !important; }
+  .gd-live-fallback { padding: 0; }
+}

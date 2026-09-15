@@ -123,6 +123,7 @@
     }
 
     function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, auctionControls, onDraftAction, onRevealEra }) {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const archiveCards = cards;
         cards = Engine.cardsFor(league, cards);
         const [query, setQuery] = useState('');
@@ -759,7 +760,7 @@
                         h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simToMyPick }, '⏭ Sim to my pick'))),
                 note && h('p', { className: 'tl-pick-feedback', role: 'status', style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
             auctionControls,
-            league.phase === 'draft' && draftPulse,
+            league.phase === 'draft' && (phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, 'Room watch'), draftPulse) : draftPulse),
             league.phase === 'draft' && selectedCard && h('div', { className: 'tl-draft-dock' },
                 humanTeam && DraftRoster && h('button', { type: 'button', className: 'tl-dock-roster', 'aria-label': 'View my drafted team', onClick: viewMyDraft }, h('small', null, 'My team'), h('strong', { className: 'tabular' }, `${humanTeam.roster.length}/${Engine.rosterCapacity(league.settings)}`)),
                 h('button', { className: 'tl-dock-player', onClick: (event) => openScout(selectedCard, event), 'aria-label': `Scout ${selectedCard.name}` },
@@ -799,8 +800,8 @@
                     draftLog),
                 h('div', { className: 'tl-draft-sidebar' },
                     league.phase === 'draft' && humanTeam && DraftRoster && h('div', { ref: myDraftRef, className: 'tl-draft-my-roster' }, h(DraftRoster, { league, team: humanTeam })),
-                    h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
-                    scoutFile,
+                    phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, 'Opponent intel'), h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId })) : h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
+                    phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, selectedCard ? `Scout file · ${selectedCard.name}` : 'Scout file'), scoutFile) : scoutFile,
                     h('div', { className: 'tl-card' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'My queue'), h('small', null, humanTeam ? `${humanTeam.name} · ${queueCards.length} queued` : 'no human seat')),
                         queueCards.length === 0 ? h('p', { className: 'tl-empty' }, 'Queue empty — star players on the big board.')

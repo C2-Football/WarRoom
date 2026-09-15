@@ -7,6 +7,24 @@
 // ══════════════════════════════════════════════════════════════════
 // ReportSubView — Custom report builder (manager, editor, table)
 // ══════════════════════════════════════════════════════════════════
+// Slice data rows without dropping the group heading for a continued group.
+function leagueReportPageRows(rows, page, size = 25) {
+  const total = rows.filter(row => !row._groupHeader).length;
+  const safePage = Math.min(Math.max(0, page), Math.max(0, Math.ceil(total / size) - 1));
+  const start = safePage * size, end = start + size;
+  let index = 0, heading = null, lastHeading = null;
+  const visible = [];
+  rows.forEach(row => {
+    if (row._groupHeader) { heading = row; return; }
+    if (index >= start && index < end) {
+      if (heading && heading !== lastHeading) { visible.push(heading); lastHeading = heading; }
+      visible.push(row);
+    }
+    index++;
+  });
+  return { rows: visible, total, page: safePage, pages: Math.max(1, Math.ceil(total / size)) };
+}
+
 function leagueMapPosLabel(pos) {
   return window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
 }
@@ -50,6 +68,9 @@ function ReportSubView({
   const [editDraft, setEditDraft] = React.useState(null);
   const [viewResult, setViewResult] = React.useState(null);
   const [viewSort, setViewSort] = React.useState(null);
+  const [phoneReportPage, setPhoneReportPage] = React.useState(0);
+  const [phoneReportTable, setPhoneReportTable] = React.useState(false);
+  React.useEffect(() => { setPhoneReportPage(0); }, [activeReportId, viewSort?.field, viewSort?.dir]);
 
   // A report with historical trend/delta columns runs once off whatever
   // seasons are already cached (often none yet — see StatCatalog.
@@ -198,9 +219,9 @@ function ReportSubView({
     const previewRows = (previewResult?.rows || []).filter(r => !r._groupHeader).slice(0, 6);
     const previewCols = (previewResult?.columns || []).slice(0, 4);
     return (
-      <div>
+      <div className={_phone ? "la-mobile la-report-list" : undefined}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' }}>CUSTOM REPORTS</div>
+          {!_phone && <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' }}>CUSTOM REPORTS</div>}
           <button onClick={handleNewReport} style={{ ...sortBtnStyle(false), marginLeft: 'auto', fontSize: '0.74rem' }}>+ New Report</button>
         </div>
         {reports.length === 0 && <div style={{ color: 'var(--silver)', fontSize: '0.82rem', padding: '24px', textAlign: 'center' }}>No reports yet. Create one to get started.</div>}
@@ -213,8 +234,8 @@ function ReportSubView({
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewReport(r); } }}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--white)' }}>{r.name || 'Untitled Report'}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px' }}>
+                <div style={{ fontSize: _phone ? '16px' : '0.86rem', fontWeight: 600, color: 'var(--white)' }}>{r.name || 'Untitled Report'}</div>
+                <div style={{ fontSize: _phone ? '14px' : '0.72rem', color: 'var(--silver)', marginTop: '2px' }}>
                   <span style={{ textTransform: 'capitalize' }}>{r.dataSource}</span>
                   {r.filters && r.filters.length > 0 && <span> {'\u00B7'} {r.filters.length} filter{r.filters.length > 1 ? 's' : ''}</span>}
                   {r.groupBy && <span> {'\u00B7'} grouped by {r.groupBy}</span>}
@@ -226,7 +247,7 @@ function ReportSubView({
           ))}
         </div>
         {analyticsEmbedMode && previewReport && (
-          <div className="analytics-report-preview">
+          <window.WR.MobileSection title="Report preview"><div className="analytics-report-preview">
             <div className="analytics-evidence-head">
               <div>
                 <span>Evidence Layer</span>
@@ -259,7 +280,7 @@ function ReportSubView({
             ) : (
               <div className="analytics-report-preview-empty">No rows match this report yet.</div>
             )}
-          </div>
+          </div></window.WR.MobileSection>
         )}
       </div>
     );
@@ -310,7 +331,7 @@ function ReportSubView({
     // Shared filter control (js/components/wr-primitives.js) — one dropdown
     // idiom app-wide instead of this file's local selectStyle natives.
     const WrSelect = window.WR && window.WR.Select;
-    const labelStyle = { fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' };
+    const labelStyle = { fontSize: _phone ? '14px' : '0.72rem', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' };
 
     // ══ PHONE (≤767) — stepper WR.Sheet flow (gallery scr-analytics-reports
     // IMPL CONTRACT): Step 1 Name/Source (source = .wr-seg), Step 2 Fields
@@ -322,10 +343,10 @@ function ReportSubView({
     // desktop editor stack below is untouched.
     if (_phone) {
       const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-      const MICRO = 'var(--text-micro, 0.6875rem)';
-      const phInput = { ...inputStyle, width: '100%', boxSizing: 'border-box', minHeight: '44px', fontSize: '0.85rem' };
-      const phSelect = { ...selectStyle, minHeight: '44px', fontSize: '0.82rem' };
-      const phBtn = (goldOn) => ({ padding: '9px 14px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', border: '1px solid ' + (goldOn ? 'var(--acc-line2, rgba(212,175,55,0.4))' : 'rgba(255,255,255,0.14)'), background: goldOn ? 'rgba(212,175,55,0.12)' : 'transparent', color: goldOn ? 'var(--gold)' : 'var(--silver)' });
+      const MICRO = '14px';
+      const phInput = { ...inputStyle, width: '100%', boxSizing: 'border-box', minHeight: '44px', fontSize: '16px' };
+      const phSelect = { ...selectStyle, minHeight: '44px', fontSize: '16px' };
+      const phBtn = (goldOn) => ({ padding: '9px 14px', minHeight: '44px', fontSize: '14px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', border: '1px solid ' + (goldOn ? 'var(--acc-line2, rgba(212,175,55,0.4))' : 'rgba(255,255,255,0.14)'), background: goldOn ? 'rgba(212,175,55,0.12)' : 'transparent', color: goldOn ? 'var(--gold)' : 'var(--silver)' });
       const nameOk = !!draft.name.trim();
       const runDraft = () => { if (!nameOk) { setPhEditStep(0); return; } handleSaveReport(draft); handleViewReport(draft); };
       const stepTitles = ['Name & Source', 'Fields', 'Filters · Sort · Limit'];
@@ -351,7 +372,7 @@ function ReportSubView({
             {colDefs.map(c => {
               const active = (draft.columns || []).includes(c.key);
               return (
-                <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '0 4px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))', cursor: 'pointer', fontSize: '0.84rem', color: active ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)' }}>
+                <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '0 4px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))', cursor: 'pointer', fontSize: '16px', color: active ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)' }}>
                   <input type="checkbox" checked={active} onChange={() => toggleColumn(c.key)} />
                   {c.label}
                 </label>
@@ -381,7 +402,7 @@ function ReportSubView({
                   ) : (
                     <input value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} placeholder={optSet && f.op === 'in' ? optSet.slice(0, 3).join(',') + '…' : 'value'} style={{ ...inputStyle, minHeight: '44px', flex: '1 1 55%' }} />
                   )}
-                  <button onClick={() => removeFilter(i)} style={{ background: 'none', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--bad)', cursor: 'pointer', fontSize: '0.72rem', fontFamily: 'var(--font-body)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  <button onClick={() => removeFilter(i)} style={{ background: 'none', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--bad)', cursor: 'pointer', fontSize: '14px', fontFamily: 'var(--font-body)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                 </div>
               );
             })}
@@ -408,7 +429,7 @@ function ReportSubView({
           </div>
           <div>
             <label style={labelStyle}>Limit Per Group (optional)</label>
-            <input type="number" value={draft.limit || ''} onChange={e => updateDraft({ limit: e.target.value ? parseInt(e.target.value) : null })} placeholder="No limit" min="1" style={{ ...inputStyle, minHeight: '44px', width: '140px' }} />
+            <input type="number" value={draft.limit || ''} onChange={e => updateDraft({ limit: e.target.value ? parseInt(e.target.value) : null })} placeholder="No limit" min="1" style={{ ...phInput, width: '140px' }} />
           </div>
         </div>
       );
@@ -432,7 +453,7 @@ function ReportSubView({
                 <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: 'var(--gold)', flexShrink: 0 }}>{i + 1}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t}</div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stepSummaries[i]}</div>
+                  <div style={{ fontSize: '16px', color: 'var(--white)', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stepSummaries[i]}</div>
                 </div>
                 <span aria-hidden="true" style={{ color: 'var(--text-muted, #55555f)', fontFamily: MONO }}>›</span>
               </div>
@@ -611,55 +632,30 @@ function ReportSubView({
       return 'var(--silver)';
     }
 
-    // ══ PHONE (≤767) — players-source results re-pour as P1 AssetRows
-    // (gallery scr-analytics-reports): slots = the report's first 3 numeric
-    // fields, group headers become CardList dividers, row tap keeps the
-    // openReportPlayerRow route. Teams/wide reports fall through to the
-    // sticky-col table below (tap-to-sort handleResort headers + the
-    // shipped ≤767 .lm-rp-card scroll CSS). Early return — desktop/tablet
-    // table below is untouched.
-    if (_phone && report.dataSource === 'players') {
-      const numericCols = columns.filter(c => c.key !== 'name' && c.key !== 'pos' && rows.some(r => !r._groupHeader && typeof r[c.key] === 'number')).slice(0, 3);
-      const slotCols = numericCols.length ? numericCols : columns.filter(c => c.key !== 'name').slice(0, 3);
-      const groups = [];
-      let cur = { label: null, sub: null, rows: [] };
-      groups.push(cur);
-      rows.forEach((row, idx) => {
-        if (row._groupHeader) {
-          cur = { label: report.groupBy === 'pos' ? leagueMapPosLabel(row._groupKey) : row._groupKey, sub: row._count + (row._count === 1 ? ' row' : ' rows'), rows: [] };
-          groups.push(cur);
-          return;
-        }
-        cur.rows.push(React.createElement(window.WR.AssetRow, {
-          key: 'ph_' + idx,
-          pos: row.pos || '—',
-          name: row.name,
-          tag: [row.team, row.age ? 'Age ' + row.age : null, row.owner].filter(Boolean).join(' · '),
-          slots: slotCols.map(c => ({ label: c.label, value: cellValue(row, c) })),
-          onClick: canOpenReportPlayer(row, report) ? () => openReportPlayerRow(row, report) : undefined,
-          title: canOpenReportPlayer(row, report) ? 'Open player card' : undefined,
-        }));
-      });
-      const shownGroups = groups.filter(g => g.rows.length || g.label);
-      return (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', gap: '8px' }}>
-            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.name || 'Report'}</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--silver)', flexShrink: 0 }}>{rows.filter(r => !r._groupHeader).length} results</span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0 }}>
-              <button onClick={() => handleEditReport(report)} style={{ ...sortBtnStyle(false), minHeight: '44px' }}>Edit</button>
-              <button onClick={() => setReportView('list')} style={{ ...sortBtnStyle(false), minHeight: '44px' }}>Back</button>
-            </div>
-          </div>
-          {rows.length === 0
-            ? <div style={{ padding: '24px', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>No data matches the report criteria.</div>
-            : React.createElement(window.WR.CardList, { groups: shownGroups })}
-        </div>
-      );
+    // Phone rows preserve every report-selected field, including nonnumeric
+    // columns and report-specific units. A player card remains a separate action.
+    if (_phone && !phoneReportTable) {
+      const page = leagueReportPageRows(rows, phoneReportPage);
+      const mainColumn = columns.find(c => c.key !== 'name' && c.key !== 'teamName' && c.key !== 'pos' && rows.some(row => !row._groupHeader && typeof row[c.key] === 'number'));
+      return <div className="la-mobile la-report-results">
+        <div className="la-heading"><div><h2>{report.name || 'Report'}</h2><p>{page.total.toLocaleString()} results · {columns.length} fields</p></div><button onClick={() => setReportView('list')}>Back</button></div>
+        <div className="la-tools"><button onClick={() => handleEditReport(report)}>Edit report</button><button onClick={() => setPhoneReportTable(true)}>Full table</button><label>Sort<select value={viewSort?.field || ''} onChange={e => handleResort(e.target.value)}><option value="" disabled>Choose field</option>{columns.map(col => <option key={col.key} value={col.key}>{col.label}</option>)}</select></label><button aria-label={viewSort?.dir === 'desc' ? 'Sort ascending' : 'Sort descending'} onClick={() => handleResort(viewSort?.field || columns[0]?.key)}>{viewSort?.dir === 'desc' ? '↓' : '↑'}</button></div>
+        {!page.total && <p role="status">No data matches the report criteria.</p>}
+        {page.rows.map((row, idx) => row._groupHeader
+          ? <h3 className="la-group-title" key={'group_' + idx}>{report.groupBy === 'pos' ? leagueMapPosLabel(row._groupKey) : row._groupKey} <small>{row._count} rows</small></h3>
+          : <details className="la-report-row" key={row.pid || row.rosterId || idx}>
+              <summary><span><strong>{row.name || row.teamName || 'Result ' + (page.page * 25 + idx + 1)}</strong><small>{[leagueMapPosLabel(row.pos), row.team, row.owner].filter(Boolean).join(' · ')}</small></span>{mainColumn && <span className="la-main-value"><strong style={{ color: cellColor(row, mainColumn) }}>{cellValue(row, mainColumn)}</strong><small>{mainColumn.label}</small></span>}<span className="la-detail-cue" aria-hidden="true">+</span></summary>
+              <dl className="la-fields">{columns.map(col => <div key={col.key}><dt>{col.label}</dt><dd style={{ color: cellColor(row, col) }}>{cellValue(row, col)}</dd></div>)}</dl>
+              {canOpenReportPlayer(row, report) && <button onClick={() => openReportPlayerRow(row, report)}>Open player card</button>}
+              {canOpenReportTeam(row, report) && <button onClick={() => openReportTeamRow(row, report)}>Open team</button>}
+            </details>)}
+        {page.total > 0 && <nav className="la-pagination" aria-label="Report results pages"><span>{page.page * 25 + 1}–{Math.min((page.page + 1) * 25, page.total)} of {page.total}</span><div><button disabled={page.page === 0} onClick={() => setPhoneReportPage(page.page - 1)}>Previous</button><button disabled={page.page + 1 >= page.pages} onClick={() => setPhoneReportPage(page.page + 1)}>Next</button></div></nav>}
+      </div>;
     }
 
     return (
-      <div>
+      <div className={_phone ? 'la-mobile la-report-results' : undefined}>
+        {_phone && <button onClick={() => setPhoneReportTable(false)}>Player / team rows</button>}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', gap: '8px' }}>
           <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' }}>{report.name || 'Report'}</div>
           <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{rows.filter(r => !r._groupHeader).length} results</span>
@@ -852,6 +848,9 @@ function LeagueMapTab({
 
   // Combined "Players & Picks" screen — which half is showing. Persisted per browser so
   // the toggle survives navigating away to another analytics sub-tab and back.
+  const [phonePlayerLimit, setPhonePlayerLimit] = React.useState(50);
+  const [phonePlayerTable, setPhonePlayerTable] = React.useState(false);
+  React.useEffect(() => { setPhonePlayerLimit(50); }, [currentLeague?.league_id, currentLeague?.id, lpFilter, lpSearch, lpSort?.key, lpSort?.dir, ppgWindow]);
   const [assetsView, setAssetsView] = React.useState(() => { try { return localStorage.getItem('wr_assets_view') || 'players'; } catch { return 'players'; } });
   React.useEffect(() => { try { localStorage.setItem('wr_assets_view', assetsView); } catch {} }, [assetsView]);
   const [pickOwnerFilter, setPickOwnerFilter] = React.useState('all');
@@ -1306,7 +1305,7 @@ function LeagueMapTab({
   };
 
   return (
-    <div style={{ padding: _isEmbed ? '0' : '16px' }}>
+    <div className={_phone ? 'la-mobile la-league-map' : undefined} style={{ padding: _isEmbed || _phone ? '0' : '16px' }}>
       {/* ── PHONE TIER (≤767) — iPhone plan Phase 2 item 14 (Analytics embed).
           The dense asset/report ledgers keep their desktop inline styles and
           get min-width scroll containers + a sticky label column via class
@@ -1759,82 +1758,11 @@ function LeagueMapTab({
                     (+ live count), a compact PPG/Columns row, then the saved-view
                     bar. Same state setters as the desktop toolbar (untouched). */}
                 {_phone ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '8px' }}>
-                        <input
-                            type="text"
-                            value={lpSearch || ''}
-                            onChange={e => setLpSearch && setLpSearch(e.target.value)}
-                            placeholder="Search by player name or owner…"
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', fontSize: '16px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '44px' }}
-                        />
-                        <div className="wr-hscroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: '2px', alignItems: 'center' }}>
-                            {/* League-aware, same source as the desktop chip row below.
-                                This was a hardcoded literal, so a 1QB half-PPR redraft
-                                with no IDP still offered DL / LB / DB chips that could
-                                only ever return an empty board — and it never offered
-                                the FLEX / SFLEX / IDP FLEX groups the league does roster.
-                                getLeaguePositions drops slots the league doesn't use;
-                                getLeagueFlexGroups adds the ones it does, and
-                                posMatchesFilter (already wired into the filter) expands
-                                a flex click into its member positions. */}
-                            {['', ...(typeof window.getLeaguePositions === 'function'
-                                    ? window.getLeaguePositions({ league: currentLeague })
-                                    : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']),
-                                ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || []),
-                                '__ROOKIE__'].map(pos => {
-                                const on = lpFilter === pos;
-                                const label = pos === '' ? 'All' : pos === '__ROOKIE__' ? 'Rookies' : (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos));
-                                return (
-                                    <button key={pos || 'all'} onClick={() => setLpFilter(pos === '__ROOKIE__' && lpFilter === '__ROOKIE__' ? '' : pos)} style={{ flex: 'none', minHeight: '38px', padding: '6px 12px', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? 'var(--gold)' : 'var(--silver)', background: on ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (on ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{label}</button>
-                                );
-                            })}
-                            <span style={{ flex: 'none', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', color: 'var(--silver)', opacity: 0.55, paddingLeft: '2px', whiteSpace: 'nowrap' }}>{filtered.length} players</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PPG</span>
-                            {[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'L5' }, { k: 'l3', l: 'L3' }].map(opt => (
-                                <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'} style={{ minHeight: '38px', padding: '6px 12px', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', color: ppgWindow === opt.k ? 'var(--gold)' : 'var(--silver)', background: ppgWindow === opt.k ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{opt.l}</button>
-                            ))}
-                            <div style={{ position: 'relative', marginLeft: 'auto' }}>
-                                <button onClick={() => setAllPlayersColPickerOpen(o => !o)} style={{ minHeight: '38px', padding: '6px 12px', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', cursor: 'pointer' }}>⚙ Columns ({allPlayersCols.length})</button>
-                                {allPlayersColPickerOpen && (
-                                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px', zIndex: 20, minWidth: '200px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
-                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px' }}>Visible Columns</div>
-                                        {ALL_PLAYERS_COLUMNS.filter(c => isPro || c.key !== 'tier').map(c => {
-                                            const on = allPlayersCols.includes(c.key);
-                                            return (
-                                                <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 0', fontSize: '0.76rem', color: 'var(--silver)', cursor: c.toggleable === false ? 'not-allowed' : 'pointer', opacity: c.toggleable === false ? 0.6 : 1 }}>
-                                                    <input type="checkbox" checked={on} disabled={c.toggleable === false} onChange={() => {
-                                                        if (c.toggleable === false) return;
-                                                        setAllPlayersCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key]);
-                                                    }} />
-                                                    {c.label}
-                                                </label>
-                                            );
-                                        })}
-                                        <div style={{ display: 'flex', gap: '4px', marginTop: '8px', borderTop: '1px solid var(--ov-5, rgba(255,255,255,0.08))', paddingTop: '6px' }}>
-                                            <button onClick={() => setAllPlayersCols(ALL_PLAYERS_COLUMNS.map(c => c.key))} style={{ flex: 1, padding: '8px 4px', fontSize: 'var(--text-micro, 0.6875rem)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '3px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit' }}>All</button>
-                                            <button onClick={() => setAllPlayersCols(ALL_PLAYERS_DEFAULT_VISIBLE.slice())} style={{ flex: 1, padding: '8px 4px', fontSize: 'var(--text-micro, 0.6875rem)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '3px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'inherit' }}>Reset</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        {window.WR?.SavedViews?.SavedViewBar && (
-                            React.createElement(window.WR.SavedViews.SavedViewBar, {
-                                surface: 'all_players',
-                                leagueId: currentLeague?.id || currentLeague?.league_id,
-                                currentState: { columns: allPlayersCols, sort: lpSort, filters: { lpFilter, lpSearch: lpSearch || '' } },
-                                onApply: v => {
-                                    if (Array.isArray(v.columns) && v.columns.length) setAllPlayersCols(v.columns);
-                                    if (v.sort && v.sort.key) setLpSort({ key: v.sort.key, dir: v.sort.dir || -1 });
-                                    if (v.filters) {
-                                        if (typeof v.filters.lpFilter === 'string') setLpFilter(v.filters.lpFilter);
-                                        if (typeof v.filters.lpSearch === 'string' && setLpSearch) setLpSearch(v.filters.lpSearch);
-                                    }
-                                },
-                            })
-                        )}
+                    <div className="la-player-controls">
+                        <input type="search" aria-label="Search players or owners" value={lpSearch || ''} onChange={e => setLpSearch && setLpSearch(e.target.value)} placeholder="Search players or owners" />
+                        <div className="la-tools"><label>Position<select value={lpFilter} onChange={e => setLpFilter(e.target.value)}>{['', ...(typeof window.getLeaguePositions === 'function' ? window.getLeaguePositions({ league: currentLeague }) : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']), ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || []), '__ROOKIE__'].map(pos => <option key={pos || 'all'} value={pos}>{pos === '' ? 'All players' : pos === '__ROOKIE__' ? 'Rookies' : leagueMapPosLabel(pos)}</option>)}</select></label><label>Sort<select value={lpSort.key} onChange={e => setLpSort({ key: e.target.value, dir: e.target.value === 'name' ? 1 : -1 })}>{[['dhq','Value'],['ppg','Points per game'],['age','Age'],['name','Name'],['team','Owner']].map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><button aria-label="Reverse player sort" onClick={() => setLpSort({ ...lpSort, dir: -lpSort.dir })}>{lpSort.dir === 1 ? '↑' : '↓'}</button></div>
+                        <details className="la-disclosure"><summary>View & columns <span>{phonePlayerTable ? 'Full table' : 'Player rows'}</span></summary><div className="la-tools"><label>Layout<select value={phonePlayerTable ? 'table' : 'rows'} onChange={e => setPhonePlayerTable(e.target.value === 'table')}><option value="rows">Player rows</option><option value="table">Full table</option></select></label><label>PPG window<select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)}><option value="season">Season</option><option value="l5">Last 5 games</option><option value="l3">Last 3 games</option></select></label></div><div className="la-checks">{ALL_PLAYERS_COLUMNS.filter(c => isPro || c.key !== 'tier').map(c => <label key={c.key}><input type="checkbox" checked={allPlayersCols.includes(c.key)} disabled={c.toggleable === false} onChange={() => setAllPlayersCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev,c.key])} />{c.label}</label>)}</div>
+                        {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, { surface: 'all_players', leagueId: currentLeague?.id || currentLeague?.league_id, currentState: { columns: allPlayersCols, sort: lpSort, filters: { lpFilter, lpSearch: lpSearch || '' } }, onApply: v => { if (Array.isArray(v.columns) && v.columns.length) setAllPlayersCols(v.columns); if (v.sort?.key) setLpSort({ key: v.sort.key, dir: v.sort.dir || -1 }); if (v.filters) { if (typeof v.filters.lpFilter === 'string') setLpFilter(v.filters.lpFilter); if (typeof v.filters.lpSearch === 'string' && setLpSearch) setLpSearch(v.filters.lpSearch); } } })}</details>
                     </div>
                 ) : (
                 <div className="analytics-player-toolbar">
@@ -1953,8 +1881,8 @@ function LeagueMapTab({
                     // data is free on desktop and stays free here (no tier
                     // column, no verdicts — the card gates internally). Early
                     // return — the desktop/tablet ledger below is untouched.
-                    if (_phone) {
-                        const phoneRows = filtered.map(x => {
+                    if (_phone && !phonePlayerTable) {
+                        const phoneRows = filtered.slice(0, phonePlayerLimit).map(x => {
                             let ppgShown = x.ppg, ppgLbl = 'PPG';
                             if (ppgWindow !== 'season') {
                                 const n = ppgWindow === 'l3' ? 3 : 5;
@@ -1966,11 +1894,7 @@ function LeagueMapTab({
                                 pos: x.pos,
                                 name: x.p.full_name || ((x.p.first_name || '') + ' ' + (x.p.last_name || '')).trim(),
                                 tag: (x.p.team || 'FA') + (x.age ? ' · ' + x.age : '') + ' · ' + x.teamName + (x.isMe ? ' (You)' : ''),
-                                slots: [
-                                    { label: 'DHQ', value: x.dhq > 0 ? x.dhq.toLocaleString() : '—', tone: x.dhq >= 7000 ? 'good' : x.dhq >= 2000 ? undefined : 'mute' },
-                                    { label: ppgLbl, value: ppgShown > 0 ? ppgShown : '—' },
-                                    { label: 'Age', value: x.age || '—', tone: 'mute' },
-                                ],
+                                slots: [lpSort.key === 'ppg' ? { label: ppgLbl, value: ppgShown > 0 ? ppgShown : '—' } : lpSort.key === 'age' ? { label: 'Age', value: x.age || '—' } : { label: 'DHQ', value: x.dhq > 0 ? x.dhq.toLocaleString() : '—', tone: x.dhq >= 7000 ? 'good' : undefined }],
                                 accent: x.isMe ? 'gold' : undefined,
                                 onClick: () => openLeagueMapPlayerCard(x.pid, { context: 'analytics_all_players', scoringSettings: currentLeague?.scoring_settings }),
                                 title: 'Open player card',
@@ -1979,7 +1903,7 @@ function LeagueMapTab({
                         if (!phoneRows.length) {
                             return <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No players match this view.</div>;
                         }
-                        return React.createElement(window.WR.CardList, { groups: [{ label: null, rows: phoneRows }] });
+                        return <><p className="la-result-count">{Math.min(phonePlayerLimit, filtered.length)} of {filtered.length.toLocaleString()} players</p>{React.createElement(window.WR.CardList, { groups: [{ label: null, rows: phoneRows }] })}{phonePlayerLimit < filtered.length && <button className="la-show-more" onClick={() => setPhonePlayerLimit(n => n + 50)}>Show 50 more players</button>}</>;
                     }
                     // Owner Tier = the owning team's ELITE/CONTENDER/REBUILDING
                     // assessment — a competitive-tier read (Q7) → Pro. Filtered at

@@ -857,6 +857,7 @@
         // guarded call keeps hook order stable across renders.
         const _faUseVp = window.WR && window.WR.useViewport;
         const _faVp = _faUseVp ? _faUseVp() : { isPhone: false };
+        const [faPhoneLimit, setFaPhoneLimit] = useState(25);
         const [faPanel, setFaPanel] = useState(null);   // inline chooser: null|'filters'|'sort'|'view'
         const _faPhone = !!_faVp.isPhone && !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.FilterPill && window.WR.FilterSheet && window.WR.Sheet);
         // Redraft → build rest-of-season values so waiver/FA targets rank by ROS
@@ -1180,6 +1181,8 @@
             return { teams: [...teams].sort(), colleges: [...colleges].sort() };
         }, [rookieOnly, availablePlayers, isRookiePlayer, rookieTeamOf, rookieCollegeOf]);
 
+        React.useEffect(() => { setFaPhoneLimit(25); }, [faFilter, faSearch, faSort, rookieOnly, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, currentLeague?.league_id, currentLeague?.id]);
+
         function faSortIndicator(key) { return faSort.key === key ? (faSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''; }
         function handleFaSort(key) { setFaSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: -1 }); }
 
@@ -1254,8 +1257,8 @@
                     return dir * (rank(ra) - rank(rb));
                 }
                 return 0;
-            }).slice(0, 50);
-        }, [availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor, prevStatsData, ppgWindow, marketDataVersion]);
+            }).slice(0, _faPhone ? undefined : 50);
+        }, [_faPhone, availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor, prevStatsData, ppgWindow, marketDataVersion]);
 
         const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' };
 
@@ -1432,6 +1435,12 @@
 
         function renderCandidateRow(x, i, isPrimary) {
             const dhqCol = x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.45))';
+            if (_faPhone) return <button key={x.pid} type="button" className={'fa-mobile-candidate' + (isPrimary ? ' is-primary' : '')} aria-label={'Plan a waiver claim for ' + playerName(x.p)} onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: x.pid, position: x.pos, leagueId: acquisitionLeagueId, source: 'ranked-waiver-plan', dropPid: x.fit.dropPid, reason: x.fit.label + ' · ' + x.windowLabel }) : openFaPlayer(x.pid)}>
+                <span className="fa-mobile-candidate-head"><PlayerAvatar pid={x.pid} p={x.p} size={34} /><span><strong>{playerName(x.p)}</strong><small>{x.pos} · {x.p.team || 'FA'} · {x.windowLabel}</small></span><span className="fa-mobile-candidate-value"><strong>{x.dhq ? x.dhq.toLocaleString() : '—'}</strong><small>{valueShortLabel}</small></span></span>
+                <span className="fa-mobile-candidate-reason">{x.fit.label}</span>
+                <small className="fa-mobile-candidate-bye">{byeRead(x.p)}</small>
+                <span className="fa-mobile-candidate-action">{x.faab ? '$' + x.faab.lo + '–' + x.faab.hi + ' · ' : ''}Plan claim <span aria-hidden="true">›</span></span>
+            </button>;
             return (
                 <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title="Plan this waiver" onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: x.pid, position: x.pos, leagueId: acquisitionLeagueId, source: 'ranked-waiver-plan', dropPid: x.fit.dropPid, reason: x.fit.label + ' · ' + x.windowLabel }) : openFaPlayer(x.pid)}>
                     <span className="fa-hq-rank">{i + 1}</span>
@@ -1470,7 +1479,7 @@
                     <main className="fa-hq-panel fa-hq-board" style={{ order: -1 }}>
                         <div className="fa-hq-panel-head"><span>Ranked action plan</span><em>Select a player to plan the claim</em></div>
                         <div className="fa-hq-board-head"><span>Rank</span><span /><span>Player</span><span>Window</span><span>Score</span><span>Bid planning</span></div>
-                        <div className="fa-hq-board-list">{boardRows.length ? boardRows.map((x, i) => renderCandidateRow(x, i, i === 0)) : <p className="fa-hq-empty">{rosterRead.known ? 'No clear roster upgrade meets your filters. Holding your roster is a valid move.' : 'Roster details are incomplete. Recommendations resume when player details are available.'}</p>}</div>
+                        <div className="fa-hq-board-list">{boardRows.length ? <>{(_faPhone ? boardRows.slice(0, 3) : boardRows).map((x, i) => renderCandidateRow(x, i, i === 0))}{_faPhone && boardRows.length > 3 && <window.WR.MobileSection phone={true} title="More recommendations" summary={(boardRows.length - 3) + ' other options'}>{boardRows.slice(3).map((x, i) => renderCandidateRow(x, i + 3, false))}</window.WR.MobileSection>}</> : <p className="fa-hq-empty">{rosterRead.known ? 'No clear roster upgrade meets your filters. Holding your roster is a valid move.' : 'Roster details are incomplete. Recommendations resume when player details are available.'}</p>}</div>
                         <div className="fa-hq-board-foot"><span>Ranked for your scoring, roster, and strategy.</span><button type="button" onClick={() => setFaSection('market')}>Explore all available players →</button></div>
                         {gmFiltersOn && <p style={{ color: 'var(--silver)', fontSize: '.76rem' }}>Your strategy filters apply{gmHiddenCount ? ' · ' + gmHiddenCount + ' players hidden' : ''}. <button type="button" onClick={() => window.wrNavigateTab?.('alex')}>Edit strategy</button></p>}
                     </main>
@@ -1528,12 +1537,12 @@
             const rows = window.WR?.PlayerNotebook?.list(acquisitionLeagueId) || [];
             return <section className="fa-saved-targets" data-notebook-revision={notebookRevision} style={{ display: 'grid', gap: 12 }}>
                 <div><h2 style={{ color: 'var(--gold)', margin: '0 0 5px' }}>Saved targets</h2><p style={{ color: 'var(--silver)', fontSize: '.85rem' }}>Your watchlist and notes. Personal research follows you across leagues; league plans stay private to this league.</p></div>
-                {!rows.length && <p style={{ color: 'var(--silver)' }}>Open a player’s notebook to watch them or save a note. Draft notes and target tags appear here too.</p>}
+                {!rows.length && <div><p style={{ color: 'var(--silver)' }}>Open a player’s notebook to watch them or save a note. Draft notes and target tags appear here too.</p>{_faPhone && <button type="button" className="fa-mobile-more" onClick={() => window.wrNavigateTab?.('research-players')}>Browse players</button>}</div>}
                 {rows.map(row => {
                     const player = playersData[row.pid] || (String(row.pid).startsWith('csv_') ? { full_name: row.pid.slice(4).replace(/_/g, ' ') } : {});
                     const action = window.WR.PlayerNotebook.resolveAction({ pid: row.pid, league: currentLeague, rosters: currentLeague.rosters, myRosterId: myRoster?.roster_id, features: skinFeatures, context: isDraftProspect(row.pid, player) ? 'draft-prospect' : 'saved-targets' });
                     return <article key={row.pid} style={{ border: '1px solid var(--ov-5, rgba(255,255,255,.1))', borderRadius: 9, padding: 12, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}><button type="button" onClick={() => openFaPlayer(row.pid)} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>{playerName(player, row.pid)} {player.position || ''}</button><button type="button" onClick={() => {
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}><button type="button" className="fa-saved-target-name" onClick={() => openFaPlayer(row.pid)} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>{playerName(player, row.pid)} {player.position || ''}</button><button type="button" onClick={() => {
                             if (action.kind === 'waiver') window.WR.openAcquisition({ pid: action.dropPid ? null : row.pid, dropPid: action.dropPid, position: player.position, leagueId: acquisitionLeagueId, source: 'saved-targets' });
                             else if (action.kind === 'draft') window.WR.openDraftPlayer({ pid: row.pid, leagueId: acquisitionLeagueId, source: 'saved-targets' });
                             else if (action.kind === 'trade') {
@@ -1956,7 +1965,7 @@
             // Phone shows a tighter top slice (owner ask: fewer by default) —
             // desktop's sortedPlayers cap is untouched; sort/search/filters
             // surface anyone below the cut.
-            const _faPhoneMkt = sortedPlayers.slice(0, 25);
+            const _faPhoneMkt = sortedPlayers.slice(0, faPhoneLimit);
             const _faMktRows = _faPhoneMkt.map(x => {
                 const bits = [x.p.team || 'FA', window.App?.NFLByes?.label(x.p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'];
                 if (x.p.age) bits.push(String(x.p.age));
@@ -1968,7 +1977,8 @@
                     pid: x.pid,
                     name: playerName(x.p, x.pid),
                     tag: bits.join(' · '),
-                    slots: _faSlotKeys.map(k => _faSlotFor(k, x)),
+                    slots: _faSlotKeys.slice(0, 1).map(k => _faSlotFor(k, x)),
+                    details: _faSlotKeys.length > 1 ? <window.WR.MobileSection phone={true} title={_faSlotKeys.slice(1).map(k => _faSlotFor(k, x).label).join(' · ')}><dl className="fa-phone-stat-details">{_faSlotKeys.slice(1).map(k => { const stat = _faSlotFor(k, x); return <div key={k}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>; })}</dl></window.WR.MobileSection> : null,
                     // Roster-fit verdict chip (Thin / Fills thin room / …) removed
                     // from phone FA rows, and the desktop Fit column + _faFitChip
                     // helper went with it (owner ask 2026-07-12) — the pos badge +
@@ -2004,7 +2014,7 @@
             })) : [];
             const _faGroups = [];
             if (_faStreamRows.length) _faGroups.push({ label: 'Streaming', sub: 'beats your weakest starter', rows: _faStreamRows });
-            _faGroups.push({ label: 'Market', sub: _faPhoneMkt.length + ' of ' + availablePlayers.length + ' shown', rows: _faMktRowNodes });
+            _faGroups.push({ label: 'Market', sub: _faPhoneMkt.length + ' of ' + sortedPlayers.length + ' matching players', rows: _faMktRowNodes });
             if (_faDropRows.length) _faGroups.push({ label: 'Drop alerts', sub: 'fresh drops worth a claim', rows: _faDropRows });
 
             return (
@@ -2012,10 +2022,9 @@
                     <div className="fa-page wr-fade-in">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {renderAcquisitionPlan()}
-                            {_faHeroEl}
                             <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
                             {renderCrazePanel()}
-                            {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{hasFAAB && <div className="fa-market-phone-budget">FAAB remaining <strong>${remaining.toLocaleString()}</strong><span> / ${budget.toLocaleString()}</span></div>}{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}</>}
+                            {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{hasFAAB && <div className="fa-market-phone-budget">FAAB remaining <strong>${remaining.toLocaleString()}</strong><span> / ${budget.toLocaleString()}</span></div>}{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}{faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}</>}
                         </div>
                     </div>
                     {/* The column customizer stays a drill-down sheet, rendered

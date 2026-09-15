@@ -69,9 +69,9 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         metricSm: { font: '600 0.875rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', color: WHITE },
         title: { font: '700 0.9375rem/1 ' + HEAD, letterSpacing: '0.06em', textTransform: 'uppercase', color: WHITE },
         subject: { font: '600 0.875rem/1.3 ' + BODY, color: WHITE },
-        body: { font: '400 0.8125rem/1.55 ' + BODY, maxWidth: '68ch', color: WHITE },
-        label: { font: '700 0.6875rem/1 ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED },
-        chip: { font: '700 0.625rem/1 ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' },
+        body: { font: '400 var(--co-readable-small, 0.8125rem)/1.55 ' + BODY, maxWidth: '68ch', color: WHITE },
+        label: { font: '700 var(--co-readable-small, 0.6875rem)/1 ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED },
+        chip: { font: '700 var(--co-readable-small, 0.625rem)/1 ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' },
         lede: { font: '400 0.9375rem/1.5 ' + BODY, color: WHITE },
     };
     const ell = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
@@ -158,7 +158,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             </div>
             {extra ? <div style={{ marginTop: '8px' }}>{extra}</div> : null}
             {sub ? <div style={{
-                ...T.body, fontSize: '0.75rem', color: MUTED, maxWidth: 'none', marginTop: '8px',
+                ...T.body, fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, maxWidth: 'none', marginTop: '8px',
                 ...(phone ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' } : ell),
             }}>{sub}</div> : null}
         </button>
@@ -396,7 +396,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 <div style={{ minWidth: 0 }}>
                     {it.kicker ? <div style={{ ...T.label, marginBottom: '4px' }}>{it.kicker}</div> : null}
                     <div style={{ ...T.subject, ...ell }} title={it.headline || ''}>{it.headline}</div>
-                    {it.detail ? <div style={{ ...T.body, fontSize: '0.75rem', color: MUTED, maxWidth: 'none', marginTop: '4px', ...ell }} title={it.detail}>{it.detail}</div> : null}
+                    {it.detail ? <div style={{ ...T.body, fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, maxWidth: 'none', marginTop: '4px', ...ell }} title={it.detail}>{it.detail}</div> : null}
                 </div>
                 {whereChips(it)}
                 <div>
@@ -581,7 +581,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     </span>
                     {!dormant && d.unit ? <span style={{ ...T.label }}>{d.unit}</span> : null}
                 </div>
-                <div style={{ ...T.body, fontSize: '0.75rem', color: MUTED, maxWidth: 'none', ...ell }} title={d.status || ''}>{d.status}</div>
+                <div style={{ ...T.body, fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, maxWidth: 'none', ...ell }} title={d.status || ''}>{d.status}</div>
             </div>
         );
     };
@@ -621,10 +621,8 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     );
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1240px', width: '100%', background: PAGE }}>
-            {band1}
-            {band2}
-            {band3}
+        <div className="co-command" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1240px', width: '100%', background: PAGE }}>
+            {phone ? <>{band2}<details className="co-disclosure"><summary>League health & key dates</summary>{band1}</details><details className="co-disclosure"><summary>All leagues & desks</summary>{band3}</details></> : <>{band1}{band2}{band3}</>}
             {band4}
             {band5}
         </div>

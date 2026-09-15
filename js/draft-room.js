@@ -2759,18 +2759,12 @@
         };
 
         return (
-            <div className="draft-cc-scope" style={{ padding: 'var(--card-pad, 16px 18px)' }}>
+            <div className={"draft-cc-scope" + (_phone ? " la-mobile la-draft" : "")} style={{ padding: 'var(--card-pad, 16px 18px)' }}>
                 {/* Phone (P2 .wr-seg): same view setters as the desktop module
                     strip below — navDraftView / launchLiveDraft / Draft History
                     all preserved; the strip itself never mounts on phone. */}
                 {_phone && (
-                    <div className="wr-seg" style={{ marginBottom: '10px' }}>
-                        {commandTabAllowed && <button type="button" className={activeView === 'command' ? 'is-on' : ''} onClick={() => navDraftView('command')}>War Room</button>}
-                        <button type="button" className={activeView === 'board' ? 'is-on' : ''} onClick={() => navDraftView('board')}>Big Board</button>
-                        <button type="button" className={activeView === 'mock' ? 'is-on' : ''} onClick={() => navDraftView('mock')}>Mock</button>
-                        <button type="button" className={activeView === 'live' ? 'is-on' : ''} onClick={launchLiveDraft}>Live</button>
-                        <button type="button" onClick={() => setShowDraftHistory(true)} title="Archived drafts — grades, picks, and recaps">History</button>
-                    </div>
+                    <label className="la-view-select">Draft view<select value={showDraftHistory ? 'history' : activeView} onChange={event => { const next = event.target.value; if (next === 'history') setShowDraftHistory(true); else if (next === 'live') launchLiveDraft(); else navDraftView(next); }}>{commandTabAllowed && <option value="command">War Room</option>}<option value="board">Big Board</option><option value="mock">Mock draft</option><option value="live">Follow live draft</option><option value="history">Draft history</option></select></label>
                 )}
                 {!_phone && (
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
@@ -2786,7 +2780,8 @@
                 </div>
                 )}
 
-                {activeView !== 'live' && activeView !== 'mock' && <div style={{ marginBottom: 10, color: 'var(--silver)', fontSize: '.78rem' }}>Use your league’s past results to inform prep. <button type="button" onClick={() => window.wrNavigateTab?.('draft-review')} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textDecoration: 'underline', minHeight: 36 }}>Draft results &amp; research →</button></div>}
+                {_phone && activeView !== 'live' && activeView !== 'mock' && <details className="la-disclosure"><summary>Draft research</summary><div><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft results &amp; research</button></div></details>}
+                {!_phone && activeView !== 'live' && activeView !== 'mock' && <div style={{ marginBottom: 10, color: 'var(--silver)', fontSize: '.78rem' }}>Use your league’s past results to inform prep. <button type="button" onClick={() => window.wrNavigateTab?.('draft-review')} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textDecoration: 'underline', minHeight: 36 }}>Draft results &amp; research →</button></div>}
                 {activeView === 'board' && notebookPlayerFocus && !draftPoolRows.some(row => String(row.pid) === String(notebookPlayerFocus)) && <p role="status" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>This player is not in the current draft pool. Your notebook is still saved. <button type="button" onClick={() => { setNotebookPlayerFocus(null); setBoardSearch(''); }}>Browse this draft</button></p>}
 
                 {pickFocus && (
@@ -2819,8 +2814,8 @@
                             })
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', flexWrap: 'wrap' }}>
-                                <strong style={{ color: 'var(--gold)', fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Draft Complete</strong>
-                                <span style={{ color: 'var(--silver)', fontSize: '0.8rem' }}>Open the results once to build your graded report card — it lives here after that.</span>
+                                <strong style={{ color: 'var(--gold)', fontSize: _phone ? '16px' : '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Draft Complete</strong>
+                                <span style={{ color: 'var(--silver)', fontSize: _phone ? '14px' : '0.8rem' }}>Open your draft results and graded report.</span>
                                 <button type="button" onClick={launchLiveDraft} style={{ marginLeft: 'auto', padding: '4px 12px', minHeight: 32, borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 800, border: 'none', background: 'var(--gold)', color: 'var(--black)' }}>View Draft Results</button>
                             </div>
                         )}
@@ -3578,7 +3573,7 @@
                                                 return gp && (
                                                     <button type="button" className="wr-drag-grip" title="Hold and drag to reorder" aria-label={'Drag ' + pName(r.p) + ' to reorder'}
                                                         {...gp}
-                                                        style={{ ...gp.style, width: _vp.isCoarse || _vp.isPhone ? 26 : 14, height: _vp.isCoarse || _vp.isPhone ? 44 : 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
+                                                        style={{ ...gp.style, width: _vp.isCoarse || _vp.isPhone ? 44 : 14, height: _vp.isCoarse || _vp.isPhone ? 44 : 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
                                                 );
                                             })()}
                                             <span>{idx + 1}</span>
@@ -3751,7 +3746,7 @@
                     // (the ≡ grip → handleGripDrop) ships as-is.
                     if (_phone) {
                         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-                        const MICRO = 'var(--text-micro, 0.6875rem)';
+                        const MICRO = '14px';
                         const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
                         const phDossier = (r) => {
                             const pos = normPos(r.p.position) || r.p.position;

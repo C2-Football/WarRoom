@@ -1,0 +1,212 @@
+/* Phone game workspace. Wide layouts keep their existing composition. */
+.tl-roster-mobile-detail,.tl-waiver-mobile-detail { display:none; }
+.tl-lobby-extras > summary { min-height:44px; cursor:pointer; align-content:center; }
+@media (min-width:768px) { .tl-lobby-extras > summary { display:none; } }
+@media (max-width:767px) {
+  .tl-root.tl-play { font-size:16px; }
+  .tl-root :is(p,small,label,summary,.tl-label,.tl-eyebrow,.tl-pill,.tl-hint,.tl-empty,.tl-feedrow time,.tl-feedrow p,.tl-opt-detail,.meta,.tl-pos-badge) { font-size:14px!important; line-height:1.45; }
+  .tl-root :is(button,input,select,textarea,.tl-btn) { font-size:14px!important; min-height:44px; max-width:100%; }
+  .tl-root :is(input,select,textarea) { font-size:16px!important; min-width:0; }
+  .tl-root :is(button,a,summary):focus-visible { outline:3px solid #8af0cf; outline-offset:3px; }
+  .tl-root :is(.tl-card,.tl-main,.tl-main-inner,.tl-roster-main,.tl-waiver-market,.tl-waiver-command,.tl-builder-section) { min-width:0; }
+  .tl-root :is(summary,.tl-btn) { white-space:normal; }
+  .tl-root summary { cursor:pointer; min-height:44px; align-content:center; }
+  .tl-root :is(.tl-feedrow,.tl-card-title,.tl-header) { overflow-wrap:anywhere; }
+  .tl-root .tl-card-title { flex-wrap:wrap; gap:8px; }
+  .tl-lobby-wrap { display:flex; flex-direction:column; }
+  .tl-lobby-wrap > * { order:0; }
+  .tl-lobby-wrap > .tl-lobby-extras { order:2; margin-top:16px; }
+  .tl-lobby-brand small { display:none; }
+  .tl-lobby-header { gap:12px; margin-bottom:16px!important; }
+  .tl-vault-lobby { display:flex; flex-direction:column; gap:14px; }
+  .tl-vault-lobby > .tl-shelf { order:-2; }
+  .tl-vault-lobby > .tl-builder { order:-1; }
+  .tl-lobby-story { border:1px solid #53617b; border-radius:var(--card-radius); padding:10px 14px; }
+  .tl-lobby-story > summary { font-weight:650; }
+  .tl-lobby-story .tl-lobby-hero { margin:12px 0 0; }
+  .tl-lobby-story .tl-hero-cta { display:none; }
+  .tl-root .tl-builder { padding:16px; }
+  .tl-builder-head { margin-bottom:10px!important; }
+  .tl-builder-head .tl-eyebrow,.tl-flow-steps { display:none!important; }
+  .tl-root .tl-builder-head h2 { font-size:26px; margin:0; }
+  .tl-root .tl-phone-step { padding:0; margin:0; border-bottom:1px solid #52607966; }
+  .tl-phone-step > summary { padding:14px 0; display:list-item; }
+  .tl-phone-step > summary strong { font-size:16px; }
+  .tl-phone-step > summary span { display:block; padding:5px 0 0 18px; color:#b8c6df; font-size:14px; }
+  .tl-phone-step .tl-question { display:none; }
+  .tl-phone-step .tl-play-grid,.tl-phone-step .tl-era-mode-grid { grid-template-columns:minmax(0,1fr); gap:8px; padding-bottom:12px; }
+  .tl-root .tl-play-mode { min-height:76px; padding:12px; gap:10px; }
+  .tl-play-mode .tl-play-icon { display:none; }
+  .tl-play-mode .tl-play-copy > span:not(.tl-play-topline) { display:none; }
+  .tl-play-mode strong,.tl-era-copy strong { font-size:16px!important; }
+  .tl-play-topline em,.tl-mode-badge,.tl-era-copy > small { display:none; }
+  .tl-root .tl-era-mode { min-height:88px; padding:12px; }
+  .tl-root .tl-era-copy > span { font-size:14px; }
+  .tl-root .tl-identity-grid,.tl-root .tl-rules-grid,.tl-root .tl-draft-config-grid { grid-template-columns:minmax(0,1fr); }
+  .tl-root .tl-seat-row { display:flex; flex-wrap:wrap; gap:8px; }
+  .tl-seat-row .tl-input { flex:1 1 150px; }
+  .tl-seat-row .tl-select { flex:1 1 120px; }
+  .tl-root .tl-launch-bar { padding:14px 0 0; gap:12px; }
+  .tl-root .tl-launch-bar p { margin:0; }
+  .tl-launch-bar .tl-era-icon { display:none; }
+  .tl-launch-bar b { font-size:16px; }
+  .tl-launch-bar span { font-size:14px; }
+  .tl-root .tl-launch-btn { min-height:50px; font-size:16px!important; }
+  .tl-root .tl-advanced > summary { padding:14px 0; }
+  .tl-advanced > summary small { display:none; }
+  .tl-root .tl-mobile-more:not([open]) { display:none!important; }
+  .tl-root .tl-mobile-more[open] { display:block; inset:auto 12px 12px; width:auto; max-width:none; margin:0; max-height:calc(100dvh - 32px); padding:16px; box-shadow:0 18px 60px #0008; color:#f2f6ff; }
+  .tl-mobile-more::backdrop { background:#071323b8; backdrop-filter:blur(4px); }
+  .tl-root .tl-mobile-more > div:last-child { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .tl-root .tl-mobile-more > div:last-child button { min-height:64px; font-size:16px!important; gap:5px; }
+  .tl-root .tl-mobile-more > div:last-child button span { font-size:20px; }
+  .tl-root .tl-mobile-nav { padding-inline:4px; gap:2px; }
+  .tl-root .tl-mobile-nav b { font-size:14px; white-space:normal; line-height:1.15; }
+  .tl-root .tl-mobile-nav span { font-size:22px; }
+  .tl-root .tl-mobile-nav > button { min-height:58px; }
+  .tl-root .tl-home-hero:not(.champion) { min-height:0; padding:18px 14px; display:flex; flex-direction:column; gap:14px; }
+  .tl-home-hero:not(.champion) .tl-home-matchup { order:-1; }
+  .tl-home-hero .tl-home-matchup-heading { display:none; }
+  .tl-root .tl-home-hero-copy > p { margin:8px 0 12px; font-size:14px; }
+  .tl-root .tl-home-action-grid { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .tl-root .tl-home-action-card { min-height:64px; padding:12px; }
+  .tl-root .tl-home-action-card :is(strong,h3) { font-size:16px; }
+  .tl-root .tl-home-action-card .tl-eyebrow { display:none; }
+  .tl-root .tl-roster-layout .tl-lineup-row,.tl-root .tl-roster-layout .tl-lineup-head { grid-template-columns:36px minmax(0,1fr) 50px!important; gap:5px 8px; padding:12px 8px; }
+  .tl-roster-layout .tl-lineup-head > :nth-child(3),.tl-roster-layout .tl-lineup-head > :nth-child(4),.tl-roster-layout .tl-lineup-row > .tl-lineup-pts { display:none!important; }
+  .tl-root .tl-roster-layout .tl-lineup-player .name { font-size:16px!important; white-space:normal; overflow-wrap:anywhere; }
+  .tl-root .tl-lineup-player .meta { display:block; margin:5px 0 0; }
+  .tl-roster-layout .tl-lineup-player :is(.tl-week-stars,.tl-stars-ceiling) { display:none; }
+  .tl-root .tl-roster-move { width:50px; padding:5px; }
+  .tl-roster-mobile-detail { display:block; grid-column:2 / -1; color:#b8c9df; }
+  .tl-roster-mobile-detail > summary { padding:4px 0; }
+  .tl-roster-mobile-detail p { margin:0 0 10px; }
+  .tl-root .tl-roster-candidate { grid-template-columns:30px minmax(0,1fr); }
+  .tl-root .tl-roster-candidate-player strong { font-size:16px; }
+  .tl-roster-candidate-rating { grid-column:2; text-align:left; }
+  .tl-root .tl-roster-candidate :is(small,.tl-roster-candidate-action) { font-size:14px; }
+  .tl-root .tl-waiver-heading h2 { font-size:25px; }
+  .tl-root .tl-waiver-table { table-layout:fixed; width:100%; min-width:0; }
+  .tl-root .tl-waiver-table :is(th,td):first-child,.tl-root .tl-waiver-table :is(th,td):nth-child(3),.tl-root .tl-waiver-table :is(th,td):nth-child(4) { display:none; }
+  .tl-root .tl-waiver-table :is(th,td):nth-child(2) { width:auto; padding:12px 5px; }
+  .tl-root .tl-waiver-table :is(th,td):last-child { width:75px; padding:12px 0 12px 5px; }
+  .tl-root .tl-waiver-table td strong { font-size:16px; white-space:normal; overflow-wrap:anywhere; }
+  .tl-waiver-mobile-detail,.tl-root .tl-waiver-mobile-points { display:block; }
+  .tl-root .tl-waiver-table .tl-btn { width:70px; min-height:44px; padding:6px; }
+  .tl-waiver-mobile-detail p { margin:0; }
+  .tl-root :is(.tl-waiver-filters,.tl-stats-positions) { flex-wrap:nowrap; overflow:auto; padding-bottom:6px; }
+  .tl-root :is(.tl-waiver-filters,.tl-stats-positions) > button { flex-shrink:0; }
+  .tl-stats-mobile-sort { display:flex; align-items:flex-end; gap:10px; margin:14px 0; }
+  .tl-stats-mobile-sort > label { flex:1; min-width:0; }
+  .tl-stats-mobile-sort .tl-select { width:100%; }
+  .tl-stats-mobile-row { border-top:1px solid #49607866; }
+  .tl-stats-mobile-row > summary { display:flex; align-items:center; gap:14px; justify-content:space-between; padding:14px 0; }
+  .tl-stats-mobile-row > summary > span:first-child { min-width:0; }
+  .tl-stats-mobile-row > summary > span:last-child { text-align:right; flex-shrink:0; }
+  .tl-stats-mobile-row strong { display:block; font-size:16px; overflow-wrap:anywhere; }
+  .tl-stats-mobile-row small { display:block; color:#a5bad4; margin-top:4px; }
+  .tl-stats-mobile-detail { padding:0 0 14px; }
+  .tl-stats-mobile-detail dl { margin:0; }
+  .tl-stats-mobile-detail dl > div { display:flex; justify-content:space-between; gap:16px; padding:8px 0; font-size:14px; }
+  .tl-stats-mobile-detail dd { margin:0; }
+  .tl-stats-mobile-detail dt { color:#a5bad4; }
+  .tl-root .tl-standings-mobile-row { grid-template-columns:22px minmax(0,1fr) 52px 65px; gap:6px; }
+  .tl-root .tl-standings-team > .tl-helmet { display:none; }
+  .tl-root .tl-standings-team strong { font-size:16px; }
+  .tl-root :is(.tl-standings-mobile-head,.tl-standings-mobile-row > .tabular,.tl-standings-rank,.tl-update-match span,.tl-update-highlights span) { font-size:14px; }
+  .tl-root :is(.tl-table-wrap,.tl-scroll) { max-width:100%; overflow:auto; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-play-mode { grid-template-columns:minmax(0,1fr) 22px; }
+  .tl-root.tl-play .tl-play-copy { min-width:0; width:100%; }
+  .tl-root.tl-play .tl-play-copy small { text-transform:none; letter-spacing:0; }
+  .tl-root.tl-play .tl-launch-bar p > span,.tl-root.tl-play .tl-advanced > summary > span { font-size:14px; }
+  .tl-root.tl-play .tl-builder-head { padding:0 0 12px; background:none; min-height:0; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-league-name,.tl-root.tl-play .tl-home-team > span:not(.tl-matchup-helmet),.tl-root.tl-play .tl-home-vs > span,.tl-root.tl-play .tl-home-action-copy > span,.tl-root.tl-play .tl-week-action-status strong { font-size:14px; }
+  .tl-root.tl-play .tl-home-team > strong:not(.tabular),.tl-root.tl-play .tl-home-action-copy strong { font-size:16px; line-height:1.35; }
+  .tl-root.tl-play .tl-home-matchup { width:100%; grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr); gap:8px; }
+  .tl-root.tl-play .tl-home-team { min-width:0; }
+  .tl-root.tl-play .tl-home-team strong { overflow-wrap:anywhere; }
+  .tl-root.tl-play .tl-home-team > span:not(.tl-matchup-helmet) { white-space:normal; }
+  .tl-root.tl-play .tl-home-action { min-height:64px; }
+  .tl-root.tl-play .tl-week-action-more .tl-btn { min-width:44px; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play :is(.tl-roster-lineup-status,.tl-lineup-table-title,.tl-lineup-slot,.tl-lineup-head > span) { font-size:14px; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-waiver-table th,.tl-root.tl-play .tl-waiver-market-foot > span { font-size:14px; }
+  .tl-root.tl-play :is(.tl-btn,.tl-waiver-filters button,.tl-stats-positions button) { min-width:44px; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play :is(.tl-era-open-count,.tl-draft-clock-status,.tl-draft-turn-detail,.tl-draft-roster-team,.tl-era-review-toggle,.tl-era-coverage,.tl-era-scout-link,.tl-draft-live-selection span,.tl-draft-room-run span,.tl-draft-era-summary span,.tl-tbl th,.tl-tbl td,.tl-week-action-status > strong) { font-size:14px!important; }
+  .tl-root.tl-play :is(.tl-draft-current-manager strong,.tl-draft-live-selection strong,.tl-era-headliner strong,.tl-player-name b,.tl-draft-feed-player strong,.tl-draft-class-player strong) { font-size:16px!important; }
+  .tl-root.tl-play .tl-mobile-player { grid-template-columns:minmax(0,1fr) 44px; }
+  .tl-root.tl-play .tl-mobile-player-pick { grid-template-columns:34px minmax(0,1fr); gap:8px; padding:10px; }
+  .tl-root.tl-play .tl-player-name b { line-height:1.35; overflow-wrap:anywhere; }
+  .tl-root.tl-play .tl-player-peak { display:none; }
+  .tl-root.tl-play .tl-player-star { min-width:44px; }
+  .tl-root.tl-play .tl-player-number b { font-size:14px; }
+  .tl-root.tl-play .tl-player-board > div:nth-child(2) { flex-wrap:wrap; }
+  .tl-root.tl-play .tl-player-board > div:nth-child(2) > .tl-select { width:100%!important; }
+  .tl-draft-phone-extra { border:1px solid #53617b; border-radius:var(--card-radius); padding:0 12px; margin-bottom:12px; }
+  .tl-draft-phone-extra > summary { padding:12px 0; }
+  .tl-draft-phone-extra > .tl-card { border:0; padding-inline:0; }
+  .tl-root.tl-play .tl-dock-player b { font-size:16px; white-space:normal; }
+  .tl-root.tl-play .tl-dock-player small { display:none; }
+  .tl-root.tl-play .tl-scout-file :is(td,th,span) { font-size:14px; }
+  .tl-root.tl-play .tl-scout-dialog { width:calc(100% - 20px); max-width:calc(100% - 20px); padding:14px; box-sizing:border-box; }
+  .tl-root.tl-play .tl-scout-file { min-width:0; overflow-wrap:anywhere; }
+}
+/* Supporting views keep the same data and actions at a readable phone size. */
+@media(max-width:767px) {
+  .tl-root.tl-play :is(.tl-trade-list-label span,.tl-trade-package > span,.tl-trade-player .tl-pos,.tl-trade-verdict span,.tl-badge-tier-label,.tl-badge-desc,.tl-profile-status span,.tl-profile-color span,.tl-profile-color b,.tl-profile-backdrop-option span,.tl-career-metric span,.tl-inbox-owner-copy > span,.tl-ceremony-honors span,.tl-ceremony-path span,.tl-hunt-seed) { font-size:14px; }
+  .tl-root.tl-play :is(.tl-trade-player-name strong,.tl-trade-player > .tabular,.tl-badge-label,.tl-profile-backdrops h4,.tl-profile-visibility h4,.tl-profile-backdrop-option strong) { font-size:16px; }
+  .tl-root.tl-play .tl-profile-color input { width:44px; min-width:44px; height:44px; }
+  .tl-root.tl-play :is(.tl-profile-visibility,.tl-trade-player) input[type=checkbox] { width:22px; min-width:22px; height:22px; min-height:22px; flex-shrink:0; }
+  .tl-root.tl-play .tl-profile-visibility label { min-height:44px; }
+  .tl-root.tl-play .tl-gamecast-details { text-align:left; border:1px solid #53617b; border-radius:var(--card-radius); padding:0 12px; margin:12px 0; }
+  .tl-root.tl-play .tl-gamecast-details > summary { padding:12px 0; font-size:14px; }
+  .tl-root.tl-play .tl-hero-matchup { padding:16px 12px; }
+  .tl-root.tl-play .tl-hero-top { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:end; }
+  .tl-root.tl-play .tl-hero-mid { grid-column:1/-1; grid-row:1; display:flex; justify-content:space-between; gap:12px; }
+  .tl-root.tl-play .tl-hero-side { min-width:0; width:auto; }
+  .tl-root.tl-play .tl-hero-side .tl-h-name { font-size:16px; line-height:1.35; white-space:normal; text-overflow:clip; overflow:visible; overflow-wrap:anywhere; }
+  .tl-root.tl-play .tl-hero-side .tl-h-pts { font-size:34px; line-height:1.15; }
+  .tl-root.tl-play :is(.tl-h-vs,.tl-h-clock,.tl-win-prob > span,.tl-sc-tag,.tl-sc-team > span,.tl-sc-pts,.tl-live-lineups-head > span,.tl-live-player-stats,.tl-live-lineup-slot,.tl-cast-pace,.tl-feedrow time,.tl-quarter-score th,.tl-quarter-score td) { font-size:14px; }
+  .tl-root.tl-play .tl-live-lineups-title { flex-wrap:wrap; gap:6px; }
+  .tl-root.tl-play .tl-live-lineups-head { grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr); gap:6px; }
+  .tl-root.tl-play .tl-live-lineups-head > strong { font-size:16px; line-height:1.35; }
+  .tl-root.tl-play .tl-live-lineup-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .tl-root.tl-play .tl-live-lineup-slot { grid-column:1/-1; grid-row:1; padding:6px; }
+  .tl-root.tl-play .tl-live-player { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:12px 10px; }
+  .tl-root.tl-play .tl-live-player.is-right { align-items:flex-end; border-left:1px solid #ffffff10; }
+  .tl-root.tl-play .tl-live-player-name strong { font-size:16px; }
+  .tl-root.tl-play .tl-live-player-points { align-self:auto; font-size:18px; }
+  .tl-root.tl-play .tl-box-scores { grid-template-columns:minmax(0,1fr)!important; }
+  .tl-root.tl-play .tl-box-scores > div { grid-template-columns:minmax(0,1fr)!important; }
+  .tl-root.tl-play .tl-box-scores [role=region]:focus-visible { outline:2px solid #8af0cf; outline-offset:2px; }
+  .tl-root.tl-play .tl-gamecast-archive-row { flex-wrap:wrap; }
+  .tl-root.tl-play .tl-gamecast-archive-row > span:nth-child(2) { flex-basis:calc(100% - 62px)!important; font-size:14px!important; }
+  .tl-root.tl-play .tl-gamecast-champion { flex-wrap:wrap; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-hero-mid { width:100%; max-width:none; min-width:0; }
+  .tl-root.tl-play .tl-h-vs { white-space:nowrap; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play :is(.tl-era-review > summary strong,.tl-era-review-chips b,.tl-draft-roster-counts dt,.tl-clock-speed > span,.tl-draft-roster-slot,.tl-draft-roster-open) { font-size:14px; }
+  .tl-root.tl-play .tl-draft-roster-player strong { font-size:16px; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play :is(.tl-season-meta > span,.tl-phone-step b,.tl-draft-format > span,.tl-advanced b,.tl-advanced summary span) { font-size:14px; }
+  .tl-root.tl-play .tl-draft-format strong { font-size:16px; }
+  .tl-root.tl-play input[type=checkbox] { width:22px; min-width:22px; height:22px; min-height:22px; flex-shrink:0; }
+  .tl-root.tl-play .tl-team-input > button { min-width:44px; flex-shrink:0; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-helmet-trigger { min-width:44px; flex-shrink:0; }
+  .tl-root.tl-play .tl-helmet-picker { flex-shrink:0; }
+}

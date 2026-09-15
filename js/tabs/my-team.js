@@ -58,7 +58,6 @@ function MyTeamTab({
   const byeWeekNow = window.App?.WeeklyProj?.currentWeek?.() || 1;
   const byeLabel = p => window.App?.NFLByes?.label(p, byeSeason) || 'Bye —';
   const byeSummary = window.App?.NFLByes?.rosterWeeks(myRoster, playersData, byeSeason, byeWeekNow) || { weeks: [], unknown: [] };
-  const nextRosterBye = byeSummary.weeks[0];
   const skinFeatures = resolvedLeagueSkin?.features || {};
   const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
   const valueLabel = skinVocabulary.valueLabel || 'DHQ Dynasty Value';
@@ -1482,7 +1481,7 @@ function MyTeamTab({
   // file (blocks are wrapped or hoisted, never edited). Kit presence
   // (wr-primitives.js loads earlier in the babel chain) is fixed for the
   // page's lifetime, so `_phone` can gate render without hook hazards.
-  const _kitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.FilterPill && window.WR.FilterSheet);
+  const _kitReady = !!(window.WR && window.WR.AssetRow && window.WR.CardList && window.WR.FilterSheet && window.WR.Sheet);
   const _phone = _isPhone && _kitReady;
 
   // Preset → "which 3 stat slots ride the card row" (P1 AssetRow). Slot
@@ -1585,14 +1584,11 @@ function MyTeamTab({
       default: return { label: short, value: '—', tone: 'mute' };
     }
   };
-  // Two-line tag under the name: team · age · injury-or-slot.
+  // Keep the collapsed row to player identity and real roster/injury status.
   const _phoneTagFor = (r) => {
-    const bits = [r.p.team || 'FA'];
-    if (r.age) bits.push(String(r.age));
-    if (!isChoppedRoster) bits.push(byeLabel(r.p));
-    bits.unshift(r.pos);
-    if (r.injury) bits.push(r.injury);
-    return bits.join(' · ');
+    const slot = r.isIR ? 'IR' : r.isTaxi ? 'Taxi' : r.isStarter ? 'Starter' : 'Bench';
+    const injury = String(r.injury || '').trim();
+    return [r.pos, r.p.team || 'FA', slot, injury.toLowerCase() === slot.toLowerCase() ? null : injury].filter(Boolean).join(' · ');
   };
   // Verdict chip (Move-column analog) — Pro-only, exactly mirroring the
   // desktop `delete ROSTER_COLUMNS.action` gate: free rows carry rec=null
@@ -1610,44 +1606,50 @@ function MyTeamTab({
     );
   };
 
-  // Hero + pill strip + filter sheet (P5/P3) — computed only on phone.
+  // Compact roster facts, direct scope controls, and the existing view sheet.
   let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null, _reviewSheetEl = null;
   if (_phone) {
-    // Decision hero: drop-alert count + GM window, all from data the tab
-    // already computes (dropCandidatePids / dismissedDrops are Pro
-    // verdicts — free renders raw roster facts, zero gate drift).
     const dropAlerts = isPro ? rows.filter(_isActiveDrop) : [];
     const taxiAlerts = isPro ? rows.filter(_isActiveTaxiSuggestion) : [];
-    const modeLabel = String((gm && gm.modeLabel) || 'Compete');
-    // Override-aware (owner ask): a user-kept player drops out of the hero
-    // count too, matching the review list below (both read _effRec).
-    const sellCalls = isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '')).length : 0;
-    const totalRosterAlerts = dropAlerts.length + taxiAlerts.length;
-    const heroGhost = totalRosterAlerts > 0 ? 'Review' : null;
-    _phoneHeroEl = React.createElement(window.WR.HeroCard, {
-      kicker: 'Roster call',
-      headline: totalRosterAlerts ? `${totalRosterAlerts} roster ${totalRosterAlerts === 1 ? 'decision' : 'decisions'} to review` : `${allPlayers.length} players · Your roster`,
-      facts: isChoppedRoster
-        ? (nextRosterBye ? 'Next bye: W' + nextRosterBye.week + ' · ' + nextRosterBye.pids.length + ' player' + (nextRosterBye.pids.length === 1 ? '' : 's') + ' unavailable' : 'No known upcoming byes')
-        : `${modeLabel} window${sellCalls ? ` · ${sellCalls} sell calls` : ''}`,
-      ctaGhost: heroGhost,
-      onCtaGhost: heroGhost ? () => setReviewOpen(true) : undefined,
+    const totalRosterAlerts = new Set([
+      ...dropAlerts, ...taxiAlerts,
+      ...(isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '')) : []),
+    ].map(r => r.pid)).size;
+    const activeCount = allPlayers.filter(pid => !reserve.has(pid) && !taxi.has(pid)).length;
+    const activeCapacity = (currentLeague?.roster_positions || []).filter(slot => !['IR', 'RES', 'TAXI'].includes(slot)).length;
+    const openSpots = activeCapacity > 0 ? activeCapacity - activeCount : null;
+    const record = myRoster.settings || {};
+    const hasRecord = Number.isFinite(record.wins) && Number.isFinite(record.losses);
+    const recordLabel = hasRecord ? `${record.wins}–${record.losses}${record.ties ? '–' + record.ties : ''}` : null;
+    const scopeCounts = {
+      All: rows.length,
+      Starters: rows.filter(r => r.isStarter).length,
+      Bench: rows.filter(r => !r.isStarter && !r.isIR && !r.isTaxi).length,
+      IR: rows.filter(r => r.isIR).length,
+      Taxi: rows.filter(r => r.isTaxi).length,
+    };
+    const phoneScopes = ['All', 'Starters', 'Bench', 'IR', 'Taxi'].filter(scope => {
+      if (!rosterFilterOptions.includes(scope)) return false;
+      if (scope === 'IR') return scopeCounts.IR > 0 || Number(currentLeague?.settings?.reserve_slots) > 0 || (currentLeague?.roster_positions || []).includes('IR');
+      if (scope === 'Taxi') return scopeCounts.Taxi > 0 || taxiSlotsCap > 0;
+      return true;
     });
-
-    const openSheet = () => setFiltersOpen(true);
+    _phoneHeroEl = (
+      <section className="wr-roster-mobile-summary" aria-label="Your roster summary">
+        <div className="wr-roster-mobile-summary-main">
+          <div><h2>Your roster</h2><span>{[recordLabel && recordLabel + ' record', allPlayers.length + ' players'].filter(Boolean).join(' · ')}</span></div>
+          <div className="wr-roster-mobile-capacity"><strong>{activeCapacity > 0 ? activeCount + ' / ' + activeCapacity : activeCount}</strong><span>{openSpots === null ? 'Active players' : openSpots > 0 ? openSpots + ' open' : openSpots < 0 ? Math.abs(openSpots) + ' over limit' : 'Active roster full'}</span></div>
+        </div>
+        {totalRosterAlerts > 0 && <button type="button" className="wr-roster-mobile-review" onClick={() => setReviewOpen(true)}><span>{totalRosterAlerts} roster {totalRosterAlerts === 1 ? 'decision' : 'decisions'}</span><span>Review <span aria-hidden="true">›</span></span></button>}
+      </section>
+    );
     _phonePillsEl = (
-      <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-        {React.createElement(window.WR.FilterPill, { label: 'Filters', value: rosterFilter, onClick: openSheet })}
-        {React.createElement(window.WR.FilterPill, {
-          label: 'Sort',
-          value: (_phoneSortOptions.find(o => o.key === rosterSort.key)?.label || rosterSort.key)
-            + (_phoneSortDescending ? ' \u2193' : ' \u2191'),
-          onClick: openSheet,
-        })}
-        {React.createElement(window.WR.FilterPill, {
-          label: phoneTableOpen ? 'Player cards' : 'Full table',
-          onClick: () => setPhoneTableOpen(value => !value),
-        })}
+      <div className="wr-roster-mobile-controls">
+        <div className="wr-roster-mobile-list-heading"><h3>Your players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button></div>
+        <div className="wr-roster-mobile-scopes wr-hscroll" role="group" aria-label="Roster group">
+          {phoneScopes.map(scope => <button key={scope} type="button" aria-pressed={rosterFilter === scope} onClick={() => { setRosterFilter(scope); setExpandedPid(null); }}><span>{scope}</span><span>{scopeCounts[scope]}</span></button>)}
+        </div>
+        {!phoneScopes.includes(rosterFilter) && <button type="button" className="wr-roster-mobile-active-filter" onClick={() => setFiltersOpen(true)}>Showing {rosterFilter} · Change filter</button>}
       </div>
     );
 
@@ -1658,8 +1660,14 @@ function MyTeamTab({
     _phoneSheetEl = React.createElement(window.WR.FilterSheet, {
       open: filtersOpen,
       onClose: () => setFiltersOpen(false),
-      title: 'Roster filters',
+      title: 'Roster view & sort',
       sections: [
+        { label: 'Layout', node: (
+          <div className="wr-roster-mobile-layout" role="group" aria-label="Roster layout">
+            <button type="button" aria-pressed={!phoneTableOpen} onClick={() => setPhoneTableOpen(false)}>Player list</button>
+            <button type="button" aria-pressed={phoneTableOpen} onClick={() => setPhoneTableOpen(true)}>Full table</button>
+          </div>
+        ) },
         { label: 'Scope', node: (
           <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={sheetSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
             {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
@@ -1745,11 +1753,14 @@ function MyTeamTab({
       pid: r.pid,
       name: getPlayerName(r.pid),
       tag: _phoneTagFor(r),
-      slots: [{ label: 'DHQ', value: r.dhq > 0 ? r.dhq.toLocaleString() : '—', strong: true }],
+      slots: [_phoneSlotFor('dhq', r)],
       verdict: _phoneVerdictChip(r),
       title: 'Open ' + getPlayerName(r.pid),
       onClick: () => {
         setReviewOpen(false);
+        setRosterFilter('All');
+        setPhoneSearch('');
+        setPhoneTableOpen(false);
         setExpandedPid(r.pid);
         setTimeout(() => { try { const el = document.querySelector('[data-wr-roster-pid="' + r.pid + '"]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }, 90);
       },
@@ -1770,11 +1781,8 @@ function MyTeamTab({
     }
   }
 
-  // P1 card list — the phone board: groups follow the EXISTING group mode
-  // (filtered is already group-sorted), each row is a WR.AssetRow, and row
-  // tap toggles the EXISTING expandedPid state. The expand renders the
-  // hoisted dossier as AssetRow children — the desktop boardWidth pinning
-  // wrapper is bypassed here (cards are viewport-width already).
+  // Phone rows follow the same filter, sort, and grouping as the full table.
+  // The compact player button opens the existing dossier and roster actions.
   const _renderPhoneCards = () => {
     const groups = [];
     filtered.forEach(r => {
@@ -1788,51 +1796,48 @@ function MyTeamTab({
       }
       const isExpanded = expandedPid === r.pid;
       const isDropFlag = isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid);
-      g.rows.push(React.createElement(window.WR.AssetRow, {
-        key: r.pid,
-        pos: r.pos,
-        pid: r.pid,
-        name: getPlayerName(r.pid),
-        tag: _phoneTagFor(r),
-        slots: isChoppedRoster ? [{
-          label: 'BYE',
-          value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
-          tone: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) === byeWeekNow ? 'warn' : undefined,
-          strong: true,
-        }] : [_phoneSlotFor(_phoneSlotKeys[0], r)],
-        // Verdict chip dropped from the collapsed row (owner ask, 2026-08-30)
-        // to give the name/slots more width — Hold/Stash/Sell is still the
-        // first thing you see when you tap into the player card.
-        // No colored row accent either — the outline read as ambiguous
-        // (owner call). Rows keep AssetRow's default faint border.
-        expanded: isExpanded,
-        onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
-        title: 'Open roster player detail',
-        'data-wr-drop-flag': isDropFlag ? '1' : undefined,
-        'data-wr-roster-pid': r.pid,
-      }, isExpanded ? <React.Fragment>
-        <div style={{ display: 'flex', gap: '18px', padding: '4px 0 14px', flexWrap: 'wrap' }}>
-          {_phoneSlotKeys.map(key => { const stat = _phoneSlotFor(key, r); return <div key={key}><div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{stat.label}</div><strong>{stat.value}</strong></div>; })}
+      const primaryStat = isChoppedRoster ? {
+        label: 'Bye',
+        value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
+        tone: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) === byeWeekNow ? 'warn' : undefined,
+      } : _phoneSlotFor(_phoneSlotKeys[0], r);
+      g.rows.push(
+        <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid}>
+          <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
+            <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
+            <span className="wr-roster-mobile-player-identity"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r)}</span></span>
+            <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>
+            <span className="wr-roster-mobile-player-chevron" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
+          </button>
+          {isExpanded && <div id={'roster-detail-' + r.pid} className="wr-roster-mobile-detail">
+            <div className="wr-roster-mobile-detail-facts">{[r.age ? 'Age ' + r.age : null, !isChoppedRoster ? byeLabel(r.p) : null].filter(Boolean).join(' · ')}</div>
+            <div className="wr-roster-mobile-detail-stats">
+              {_phoneSlotKeys.map(key => { const stat = _phoneSlotFor(key, r); return <div key={key}><span>{stat.label}</span><strong>{stat.value}</strong></div>; })}
+            </div>
+            <window.WR.MobileSection phone={true} title="Full player profile" summary="Trends, career statistics and scouting notes">{renderExpandBody(r)}</window.WR.MobileSection>
+            <button type="button" onClick={() => {
+              setExpandedPid(null);
+              requestAnimationFrame(() => {
+                const row = document.querySelector(`[data-wr-roster-pid="${r.pid}"]`);
+                row?.scrollIntoView({ block: 'nearest' });
+                row?.querySelector('.wr-roster-mobile-player-trigger')?.focus({ preventScroll: true });
+              });
+            }} style={{ ...controlBtn(false), width: '100%', minHeight: '44px', marginTop: '14px' }}>Back to roster ↑</button>
+          </div>}
         </div>
-        {renderExpandBody(r)}
-        <button type="button" onClick={() => {
-          setExpandedPid(null);
-          requestAnimationFrame(() => {
-            const row = document.querySelector(`[data-wr-roster-pid="${r.pid}"]`);
-            row?.scrollIntoView({ block: 'nearest' });
-            row?.querySelector('[role="button"]')?.focus({ preventScroll: true });
-          });
-        }} style={{ ...controlBtn(false), width: '100%', minHeight: '44px', marginTop: '14px' }}>Back to roster ↑</button>
-      </React.Fragment> : null));
+      );
     });
     if (!groups.length) {
-      return <div role="status" style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', fontSize: '0.78rem' }}>No players match{phoneSearch ? ` “${phoneSearch}”` : ' this view'}.
+      return <div role="status" className="wr-roster-mobile-empty" style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', fontSize: '0.78rem' }}>No players match{phoneSearch ? ` “${phoneSearch}”` : ' this view'}.
         <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); }} style={{ ...controlBtn(false), display: 'block', minHeight: '44px', marginTop: '8px' }}>Show all players</button>
       </div>;
     }
-    return React.createElement(window.WR.CardList, {
-      groups: groups.map(g => ({ label: g.label, sub: g.rows.length + (g.rows.length === 1 ? ' player' : ' players'), rows: g.rows })),
-    });
+    return <div className="wr-roster-mobile-player-list" aria-label="Roster players">
+      {groups.map(g => <div key={g.key} className="wr-roster-mobile-player-group">
+        {g.label && <div className="wr-roster-mobile-group-heading"><strong>{g.label}</strong><span>{g.rows.length}</span></div>}
+        <div className="wr-roster-mobile-player-rows">{g.rows}</div>
+      </div>)}
+    </div>;
   };
 
   // ── Desktop/tablet roster board — HOISTED VERBATIM from the return so
@@ -1952,7 +1957,7 @@ function MyTeamTab({
               {/* Inline expand card — Madden/FM style */}
               {isExpanded && (
                 <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease', position: 'sticky', left: 0, zIndex: 3, width: boardWidth ? boardWidth + 'px' : '100%', boxSizing: 'border-box' }}>
-                  {renderExpandBody(r)}
+                  <window.WR.MobileSection phone={_phone} title="Full player profile" summary="Trends, career statistics and scouting notes">{renderExpandBody(r)}</window.WR.MobileSection>
                 </div>
               )}
             </React.Fragment>
@@ -2013,14 +2018,13 @@ function MyTeamTab({
       })();
 
   return (
-    <div style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+    <div className={_phone ? 'wr-roster-mobile' : undefined} style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       {_phone && <React.Fragment>
         {_phoneHeroEl}
-        {_phonePillsEl}
         {_phoneSheetEl}
         {_reviewSheetEl}
       </React.Fragment>}
-      {isChoppedRoster && <section aria-label="Roster bye weeks" style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', color: 'var(--silver)' }}>
+      {isChoppedRoster && <section className={_phone ? 'wr-roster-mobile-byes' : undefined} aria-label="Roster bye weeks" style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', color: 'var(--silver)' }}>
         <details>
         <summary style={{ cursor: 'pointer', minHeight: '44px', fontSize: '0.8rem', color: 'var(--gold)' }}>
           <strong>BYE WATCH</strong><span style={{ fontSize: '0.72rem', color: 'var(--silver)', marginLeft: '8px' }}>Weeks · players out</span>
@@ -2111,7 +2115,7 @@ function MyTeamTab({
       )}
       </React.Fragment>}
 
-      <div>
+      <div className={_phone ? 'wr-roster-mobile-content' : undefined}>
 
       {/* Column picker dropdown — desktop/tablet only; the phone tier re-homes
           the SAME showColPicker state into the WR.FilterSheet below (shared
@@ -2246,6 +2250,17 @@ function MyTeamTab({
         ),
       })}
 
+      {_phone && <section className="wr-roster-mobile-players" aria-label="Your players">
+        {_phonePillsEl}
+        {phoneTableOpen ? <div className="wr-sticky-table-wrap" style={{ border: 'none' }}>{_renderRosterBoard()}</div> : <React.Fragment>
+          <div className="wr-roster-mobile-search">
+            <input type="search" aria-label="Search your roster" placeholder="Find a player" value={phoneSearch} onChange={event => setPhoneSearch(event.target.value)} />
+            {phoneSearch && <button type="button" onClick={() => setPhoneSearch('')}>Clear</button>}
+          </div>
+          {_renderPhoneCards()}
+        </React.Fragment>}
+      </section>}
+
       {/* GM's Desk — the standing cut/taxi advisory, framed as a decision memo
           rather than another data row. Same dropCandidatePids/taxiCandidatePids
           engine that drives the chips and Review Roster strip elsewhere on this
@@ -2256,7 +2271,7 @@ function MyTeamTab({
           everywhere. Pro-gated like the rest of the roster call engine, and
           long-horizon-gated by showGmDesk (see above). */}
       {isPro && showGmDesk && (
-        <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <section className={_phone ? 'wr-roster-mobile-planning' : undefined} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button type="button" aria-expanded={phoneDeskOpen} onClick={() => setPhoneDeskOpen(value => { const next = !value; try { localStorage.setItem('wr_roster_desk_open', String(next)); } catch {} return next; })} style={{ ...controlBtn(false), minHeight: '40px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}><span>GM’s Desk · Roster Review</span><span>{phoneDeskOpen ? 'Minimize ▴' : 'Expand ▾'}</span></button>
           {phoneDeskOpen && <React.Fragment>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -2324,7 +2339,7 @@ function MyTeamTab({
         const topRows = keeperRanked.slice(0, shortlistCount).map(r => keeperRowEl(r));
         const bubbleRows = keeperRanked.slice(shortlistCount, shortlistCount + 2).map(r => keeperRowEl(r));
         return (
-          <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <section className={_phone ? 'wr-roster-mobile-planning' : undefined} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>Keeper Shortlist</span>
               <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{maxKeepers === null ? 'Keeper limit unknown' : maxKeepers + ' keeper slot' + (maxKeepers === 1 ? '' : 's')}</span>
@@ -2369,17 +2384,6 @@ function MyTeamTab({
           list by default, or the full board inside the scoped Deep Data
           scroll wrap (P7) so no column is ever lost. */}
       {!_phone && _renderRosterBoard()}
-      {_phone && phoneTableOpen && (
-        <div className="wr-sticky-table-wrap" style={{ border: 'none' }}>{_renderRosterBoard()}</div>
-      )}
-      {_phone && !phoneTableOpen && <React.Fragment>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <input type="search" aria-label="Search your roster" placeholder="Find a player, team or position" value={phoneSearch} onChange={event => setPhoneSearch(event.target.value)} style={{ minWidth: 0, flex: 1, minHeight: '44px', padding: '10px 12px', fontSize: '16px', borderRadius: 'var(--card-radius, 10px)', background: 'var(--black)', color: 'var(--white)', border: '1px solid var(--ov-6, rgba(255,255,255,.12))' }} />
-          {phoneSearch && <button type="button" onClick={() => setPhoneSearch('')} style={{ ...controlBtn(false), minHeight: '44px' }}>Clear</button>}
-        </div>
-        <p style={{ margin: '0 0 12px', fontSize: '0.75rem', color: 'var(--silver)' }}>Tap a player for stats, strategy and roster actions.</p>
-        {_renderPhoneCards()}
-      </React.Fragment>}
 
       </div>
     </div>

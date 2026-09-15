@@ -63,30 +63,33 @@ const ACC_FILL = 'var(--co-accent-fill, #12212B)', ACC_LINE = 'var(--co-accent-l
 const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
 const MUTED = '#8D887E';
 const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
+const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
 const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
 
-const Section = ({ title, meta, children }) => (
+const Section = ({ title, meta, children, folded }) => folded ? (
+    <details className="co-disclosure"><summary>{title}{meta && <small>{meta}</small>}</summary>{children}</details>
+) : (
     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+            <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
             {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
         </div>
         {children}
     </div>
 );
-const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: '0.75rem', ...mono };
+const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: 'var(--co-readable-small, 0.75rem)', ...mono };
 const shiftGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) 0.55fr 0.55fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
 const swingGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.9fr 0.9fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
 const nameCell = { fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
 // ── Per-league result block ──────────────────────────────────────
-const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
+const ReplayDetails = ({ phone, children }) => phone ? <details className="co-disclosure co-replay-details"><summary>Standings, points & player impact</summary>{children}</details> : <React.Fragment>{children}</React.Fragment>;
+const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone }) => {
     if (!result || result.empty) {
         return (
             <Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
-                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
                     {(result && result.reason) || 'No completed weeks to replay in this league.'}
                 </div>
             </Section>
@@ -110,12 +113,12 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
         <div style={{ minWidth: 0 }}>
             <div style={{ ...microHdr, marginBottom: '4px' }}>{label}</div>
             {!rows.length ? (
-                <div style={{ color: MUTED, fontSize: '0.74rem' }}>none — no player moves this way</div>
+                <div style={{ color: MUTED, fontSize: 'var(--co-readable-small, 0.74rem)' }}>none — no player moves this way</div>
             ) : rows.map(d => (
                 <div key={d.pid} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 34px 62px', gap: '8px', alignItems: 'baseline', padding: '3px 0', borderBottom: `1px solid ${LINE}` }}>
-                    <span style={{ ...nameCell, fontSize: '0.75rem', color: TEXT }}>{d.name}</span>
+                    <span style={{ ...nameCell, fontSize: 'var(--co-readable-small, 0.75rem)', color: TEXT }}>{d.name}</span>
                     <span style={{ ...microHdr, textAlign: 'left' }}>{d.pos}</span>
-                    <span style={{ ...mono, fontSize: '0.74rem', fontWeight: 700, textAlign: 'right', color }}>{signed(d.delta)}</span>
+                    <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.74rem)', fontWeight: 700, textAlign: 'right', color }}>{signed(d.delta)}</span>
                 </div>
             ))}
         </div>
@@ -130,23 +133,23 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             {/* Verdict card: the seed + the field, before any table */}
             <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${seed ? GOLD : LINE}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
                 {seed ? (
-                    <div style={{ ...mono, fontSize: '0.82rem', fontWeight: 700, color: GOLD }}>
+                    <div style={{ ...mono, fontSize: 'var(--co-readable-body, 0.82rem)', fontWeight: 700, color: GOLD }}>
                         #1 seed flips: {seed.from} → {seed.to}
                     </div>
                 ) : (
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT }}>No change at the top — the #1 seed holds.</div>
+                    <div style={{ fontSize: 'var(--co-readable-body, 0.8rem)', fontWeight: 600, color: TEXT }}>No change at the top — the #1 seed holds.</div>
                 )}
-                <div style={{ marginTop: '6px', fontSize: '0.76rem', lineHeight: 1.6 }}>
+                <div style={{ marginTop: '6px', fontSize: 'var(--co-readable-small, 0.76rem)', lineHeight: 1.6 }}>
                     {field.unchanged ? (
                         <span style={{ color: TEXT }}>Playoff field unchanged ({field.size}-team cut).</span>
                     ) : (
                         <React.Fragment>
                             <div>
-                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
+                                <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.68rem)', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
                                 <span style={{ color: TEXT, ...mono }}>{(field.in || []).join(', ') || '—'}</span>
                             </div>
                             <div>
-                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
+                                <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.68rem)', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
                                 <span style={{ color: TEXT, ...mono }}>{(field.out || []).join(', ') || '—'}</span>
                             </div>
                         </React.Fragment>
@@ -154,12 +157,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                 </div>
             </div>
 
+            <ReplayDetails phone={phone}>
             {/* Standings shift — moved rows only */}
             <div style={{ ...microHdr, marginBottom: '6px' }}>Standings shift</div>
             {!shift.length ? (
-                <div style={{ color: TEXT, fontSize: '0.76rem', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
             ) : (
-                <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
+                <div role="region" aria-label="Standings shift. Scroll for all columns." tabIndex={0} style={{ overflowX: 'auto', marginBottom: '10px' }}>
                     <div style={{ minWidth: '380px' }}>
                         <div style={{ ...shiftGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
                             <span>Team</span><span style={{ textAlign: 'right' }}>Was</span><span style={{ textAlign: 'right' }}>Now</span><span style={{ textAlign: 'right' }}>Δ</span>
@@ -187,7 +191,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             {(topTeams.length || botTeams.length) ? (
                 <React.Fragment>
                     <div style={{ ...microHdr, marginBottom: '6px' }}>Season points swing</div>
-                    <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
+                    <div role="region" aria-label="Season points comparison. Scroll for all columns." tabIndex={0} style={{ overflowX: 'auto', marginBottom: '10px' }}>
                         <div style={{ minWidth: '400px' }}>
                             <div style={{ ...swingGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
                                 <span>Team</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>Proposed</span><span style={{ textAlign: 'right' }}>Δ pts</span>
@@ -220,7 +224,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                     </div>
                 </React.Fragment>
             ) : (
-                <div style={{ color: TEXT, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
             )}
 
             {/* Position relevance — the league's shape before and after.
@@ -243,7 +247,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                                     <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.basePct * 2.5) + '%', background: LINE }} />
                                     <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.propPct * 2.5) + '%', background: p.deltaPct >= 0 ? ACCENT : RED, opacity: 1, height: '2px', marginTop: '2px' }} />
                                 </div>
-                                <span style={{ ...mono, fontSize: '0.72rem', textAlign: 'right', color: TEXT }}>
+                                <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.72rem)', textAlign: 'right', color: TEXT }}>
                                     {p.basePct}% → <span style={{ fontWeight: 700, color: p.deltaPct >= 0 ? GREEN : RED }}>{p.propPct}%</span>
                                 </span>
                             </div>
@@ -261,11 +265,12 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                 </div>
             ) : null}
 
+            </ReplayDetails>
             {/* Proposer disclosure — the conflict-of-interest line */}
             {note && note.line ? (
                 <div style={{ background: WELL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '10px' }}>
                     <div style={{ ...microHdr, color: AMBER, marginBottom: '4px' }}>Disclosure</div>
-                    <div style={{ fontSize: '0.78rem', color: TEXT, lineHeight: 1.5 }}>{note.line}</div>
+                    <div style={{ fontSize: 'var(--co-readable-body, 0.78rem)', color: TEXT, lineHeight: 1.5 }}>{note.line}</div>
                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>Attach this to the ballot when you put it to a vote.</div>
                 </div>
             ) : null}
@@ -274,13 +279,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {typeof onCopyBallot === 'function' ? (
                     <button onClick={() => onCopyBallot(leagueName, result)}
-                        style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Copy ballot text
                     </button>
                 ) : null}
                 {typeof onExportBallot === 'function' ? (
                     <button onClick={() => onExportBallot(leagueName, result)}
-                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Export PNG
                     </button>
                 ) : null}
@@ -291,6 +296,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
 };
 
 function WrCommishRuleLabPanel({
+    phone = false,
     status, seasonUsed, seasons, onSeason,
     leagues, selectedLeagueId, onSelectLeague,
     proposal, onProposalChange, onProposalStage, rosterProposal, onRosterProposalChange,
@@ -457,30 +463,30 @@ function WrCommishRuleLabPanel({
     if (status === 'loading') {
         body = (
             <Section title="Replay">
-                <div style={{ color: TEXT, fontSize: '0.78rem', ...mono }}>Replaying the {seasonUsed || 'last'} season…</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', ...mono }}>Replaying the {seasonUsed || 'last'} season…</div>
             </Section>
         );
     } else if (status === 'empty') {
         body = (
             <Section title="Replay">
-                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>No completed weeks to replay — the lab needs at least one finished week of box scores.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>No completed weeks to replay — the lab needs at least one finished week of box scores.</div>
             </Section>
         );
     } else if (status === 'error') {
         body = (
             <Section title="Replay">
-                <div style={{ color: TEXT, fontSize: '0.78rem' }}>The replay could not be run — season stats or lineups failed to load.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>The replay could not be run — season stats or lineups failed to load.</div>
             </Section>
         );
     } else if (status === 'ready') {
         body = !resultRows.length ? (
             <Section title="Replay">
-                <div style={{ color: TEXT, fontSize: '0.78rem' }}>No leagues to replay yet.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No leagues to replay yet.</div>
             </Section>
         ) : (
             <React.Fragment>
                 {resultRows.map((row, i) => (
-                    <LeagueResult key={row.leagueId || row.leagueName || i} leagueName={row.leagueName} result={row.result} onCopyBallot={onCopyBallot} onExportBallot={onExportBallot} />
+                    <LeagueResult phone={phone} key={row.leagueId || row.leagueName || i} leagueName={row.leagueName} result={row.result} onCopyBallot={onCopyBallot} onExportBallot={onExportBallot} />
                 ))}
             </React.Fragment>
         );
@@ -488,14 +494,14 @@ function WrCommishRuleLabPanel({
         // idle — the bench is live, the replay hasn't been asked for yet
         body = (
             <Section title="Replay">
-                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>Stage a proposal above and the lab replays the season under it — current rules vs proposed, same lineups, same stat lines.</div>
+                <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>Stage a proposal above and the lab replays the season under it — current rules vs proposed, same lineups, same stat lines.</div>
             </Section>
         );
     }
 
     const chipBtn = (on, extra) => ({
         padding: '6px 11px', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)',
-        font: '600 0.7rem ' + MONO, letterSpacing: '0.03em',
+        font: '600 var(--co-readable-small, 0.7rem) ' + MONO, letterSpacing: '0.03em',
         background: on ? ACC_FILL : 'transparent',
         color: on ? ACCENT : SILVER,
         border: '1px solid ' + (on ? ACC_LINE : LINE),
@@ -503,7 +509,7 @@ function WrCommishRuleLabPanel({
     });
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="co-rulelab" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* Master reset — one click back to current settings, scoring AND
                 roster structure both. The per-section "Clear" buttons below
                 stay (they're the scoped, in-context undo for the section
@@ -527,7 +533,7 @@ function WrCommishRuleLabPanel({
             {/* League scope — you amend ONE constitution at a time. Scoping is
                 also what makes the full editor truthful: only a single league
                 has a real "from" value and a real key set. */}
-            {(leagues || []).length > 1 ? (
+            {phone && (leagues || []).length > 1 ? <label className="co-scope-select">Amending league<select value={selectedLeagueId || ''} onChange={e => onSelectLeague?.(e.target.value)}>{(leagues || []).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}<option value="__all">All {(leagues || []).length} leagues</option></select></label> : (leagues || []).length > 1 ? (
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ ...microHdr }}>Amending</span>
                     {(leagues || []).map(l => (
@@ -547,7 +553,7 @@ function WrCommishRuleLabPanel({
             {/* Stated at SELECTION time, not buried in the editor — the cost of
                 the omnibus is exactly what you lose by not scoping. */}
             {!baselineScoring && (leagues || []).length > 1 ? (
-                <div style={{ background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 11px', fontSize: '0.74rem', color: TEXT, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                <div style={{ background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 11px', fontSize: 'var(--co-readable-small, 0.74rem)', color: TEXT, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
                     Running across <b>every league at once</b>. Each keeps its own scoring, so proposals show no current value and nothing resets to baseline. Pick a single league to edit against real numbers.
                 </div>
             ) : null}
@@ -568,16 +574,16 @@ function WrCommishRuleLabPanel({
 
             <Section title="Proposal Bench" meta="chips compose — stack a PPR change with a TE premium">
                 {!presetList.length ? (
-                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
+                    <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
                 ) : (
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                    <div className="co-rule-presets" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
                         {presetList.map(p => {
                             const on = isActive(p);
                             return (
                                 <button key={p.key} onClick={() => toggle(p)}
                                     style={{
                                         padding: '6px 11px', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)',
-                                        font: '600 0.7rem ' + MONO, letterSpacing: '0.03em',
+                                        font: '600 var(--co-readable-small, 0.7rem) ' + MONO, letterSpacing: '0.03em',
                                         background: on ? 'rgba(212,175,55,0.08)' : 'transparent',
                                         color: on ? GOLD : SILVER,
                                         border: '1px solid ' + (on ? GOLD : LINE),
@@ -590,21 +596,22 @@ function WrCommishRuleLabPanel({
                 )}
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {summaryBits.length ? (
-                        <span style={{ ...mono, fontSize: '0.76rem', color: TEXT }}>{summaryBits.join(' · ')}</span>
+                        <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.76rem)', color: TEXT }}>{summaryBits.join(' · ')}</span>
                     ) : (
-                        <span style={{ ...mono, fontSize: '0.76rem', color: MUTED }}>no changes staged — current rules</span>
+                        <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.76rem)', color: MUTED }}>no changes staged — current rules</span>
                     )}
                     {propKeys.length ? (
                         <button onClick={() => { if (typeof onProposalChange === 'function') onProposalChange({}); }}
-                            style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                            style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.62rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Clear
                         </button>
                     ) : null}
                 </div>
             </Section>
 
+            {phone && <section className="co-rulelab-result" aria-label="Current replay"><div className="co-analysis-state"><p>{hasUnanalyzedChanges ? 'Changes staged. This result still reflects your last analysis.' : 'Current replay for the selected rules.'}</p>{hasUnanalyzedChanges && <button type="button" onClick={() => onAnalyze?.()}>Analyze staged changes</button>}</div>{body}</section>}
             {/* ── Roster Bench: structure proposals ─────────────────────── */}
-            <Section title="Roster Bench" meta="starting-slot changes — superflex, extra flex, the works">
+            <Section folded={phone} title="Roster Bench" meta="starting-slot changes — superflex, extra flex, the works">
                 {currentStructures.length ? (
                     <div style={{ marginBottom: '10px' }}>
                         {currentStructures.map((cs, i) => (
@@ -619,7 +626,7 @@ function WrCommishRuleLabPanel({
                     <span style={{ ...microHdr }}>Proposed structure</span>
                     {!rp ? (
                         <React.Fragment>
-                            <span style={{ fontSize: '0.75rem', color: MUTED, fontFamily: 'var(--font-body)' }}>none — click a slot to start from the first league's current structure</span>
+                            <span style={{ fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, fontFamily: 'var(--font-body)' }}>none — click a slot to start from the first league's current structure</span>
                             {SLOT_UNIVERSE.slice(0, 6).map(s => (
                                 <button key={s} onClick={() => {
                                     const base = currentStructures[0] ? currentStructures[0].slots.slice() : [];
@@ -638,19 +645,19 @@ function WrCommishRuleLabPanel({
                                 <button key={'add' + s} onClick={() => setSlots(rp.concat([s]))} style={chipBtn(false)}>+ {s.replace('_', ' ')}</button>
                             ))}
                             <button onClick={() => setSlots(null)}
-                                style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
+                                style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.62rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
                         </React.Fragment>
                     )}
                 </div>
                 {rp ? (
-                    <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', fontSize: '0.76rem', color: TEXT, lineHeight: 1.55, fontFamily: 'var(--font-body)' }}>
+                    <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', fontSize: 'var(--co-readable-small, 0.76rem)', color: TEXT, lineHeight: 1.55, fontFamily: 'var(--font-body)' }}>
                         Structure change staged → the replay switches to <b>best-lineup mode</b>: both runs refield every roster's optimal lineup from the players they actually had, because as-played starters can't sit in slots that didn't exist. The diff still isolates the rule change.
                     </div>
                 ) : null}
             </Section>
 
             {/* ── The Wind Tunnel: threshold sweep ──────────────────────── */}
-            <Section title="Wind Tunnel" meta="set any number of stats at once, or sweep one to find where the league flips">
+            <Section folded={phone} title="Wind Tunnel" meta="Edit scoring by category or find a threshold">
                 {/* Dial in exact numbers — every stat this league tracks,
                     plus the full catalog for every position this app knows
                     how to score (so a rule the league has never turned on
@@ -660,8 +667,8 @@ function WrCommishRuleLabPanel({
                     and the replay below updates immediately. */}
                 <div style={{ marginBottom: '14px' }}>
                     {groupKeys(editorKeys).map((g, gi) => (
-                        <div key={g.name} style={{ marginBottom: '16px', paddingTop: gi ? '14px' : 0, borderTop: gi ? `1px solid ${LINE}` : 'none' }}>
-                            <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, marginBottom: '8px' }}>{g.name}</div>
+                        <details open={phone ? undefined : true} className="co-scoring-category" key={g.name} style={{ marginBottom: '16px', paddingTop: gi ? '14px' : 0, borderTop: gi ? `1px solid ${LINE}` : 'none' }}>
+                            <summary style={{ fontSize: 'var(--co-readable-small, 0.68rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, marginBottom: '8px' }}>{g.name}{phone && <small>{g.keys.filter(k => Object.prototype.hasOwnProperty.call(prop, k)).length} changes</small>}</summary>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
                                 {g.keys.map(k => {
                                     // No baseline (omnibus) → no placeholder. Showing "0.0"
@@ -680,7 +687,7 @@ function WrCommishRuleLabPanel({
                                     const shownValue = overridden ? prop[k] : (cur != null ? cur : '');
                                     return (
                                         <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
-                                            <span title={k} style={{ fontSize: '0.72rem', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            <span title={k} style={{ fontSize: 'var(--co-readable-small, 0.72rem)', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {humanizeKey(k)}
                                             </span>
                                             <input type="number" step={step} inputMode="decimal"
@@ -692,7 +699,7 @@ function WrCommishRuleLabPanel({
                                     );
                                 })}
                             </div>
-                        </div>
+                        </details>
                     ))}
                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
                         {baselineScoring
@@ -731,7 +738,7 @@ function WrCommishRuleLabPanel({
                 {/* Any-key picker: every rule the editor knows is sweepable. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <select value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
-                        style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 8px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
+                        style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 8px', fontSize: 'var(--co-readable-body, 0.78rem)', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
                         {groupKeys(editorKeys).map(g => (
                             <optgroup key={g.name} label={g.name}>
                                 {g.keys.map(k => <option key={k} value={k}>{humanizeKey(k)}</option>)}
@@ -773,7 +780,7 @@ function WrCommishRuleLabPanel({
                                         <thead><tr>
                                             <th style={{ ...microHdr, textAlign: 'left', padding: '3px 10px 3px 0' }}>Season</th>
                                             {pl.rows.map(r => (
-                                                <th key={r.value} style={{ ...mono, fontSize: '0.72rem', fontWeight: 700, color: r.isCurrent ? ACCENT : SILVER, padding: '3px 7px', textAlign: 'center', borderBottom: `1px solid ${LINE}` }}>
+                                                <th key={r.value} style={{ ...mono, fontSize: 'var(--co-readable-small, 0.72rem)', fontWeight: 700, color: r.isCurrent ? ACCENT : SILVER, padding: '3px 7px', textAlign: 'center', borderBottom: `1px solid ${LINE}` }}>
                                                     {r.value}{r.isCurrent ? '•' : ''}
                                                 </th>
                                             ))}
@@ -781,12 +788,12 @@ function WrCommishRuleLabPanel({
                                         <tbody>
                                             {pl.seasons.map(season => (
                                                 <tr key={season}>
-                                                    <td style={{ ...mono, fontSize: '0.72rem', color: TEXT, padding: '4px 10px 4px 0' }}>{season}</td>
+                                                    <td style={{ ...mono, fontSize: 'var(--co-readable-small, 0.72rem)', color: TEXT, padding: '4px 10px 4px 0' }}>{season}</td>
                                                     {pl.rows.map(r => {
                                                         const cell = r.bySeason[season];
                                                         const bg = cell === 'SEED' ? 'var(--co-fill-bad, #2A1512)' : cell === 'FIELD' ? 'var(--co-fill-warn, #2A2010)' : cell && cell !== 'HOLD' ? SURF2 : 'transparent';
                                                         const fg = cell === 'SEED' ? RED : cell === 'FIELD' ? AMBER : cell && cell !== 'HOLD' ? TEXT : MUTED;
-                                                        return <td key={r.value} style={{ ...microHdr, fontSize: '0.575rem', color: fg, background: bg, padding: '5px 7px', textAlign: 'center', border: `1px solid var(--co-line-soft, #201F27)` }}>{cell || '—'}</td>;
+                                                        return <td key={r.value} style={{ ...microHdr, fontSize: 'var(--co-readable-small, 0.575rem)', color: fg, background: bg, padding: '5px 7px', textAlign: 'center', border: `1px solid var(--co-line-soft, #201F27)` }}>{cell || '—'}</td>;
                                                     })}
                                                 </tr>
                                             ))}
@@ -815,8 +822,8 @@ function WrCommishRuleLabPanel({
                                     {pl.steps.filter(s => !s.empty).map(s => (
                                         <div key={s.value} title={s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
                                             style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
-                                            <div style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
-                                            <div style={{ ...microHdr, fontSize: '0.575rem' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
+                                            <div style={{ ...mono, fontSize: 'var(--co-readable-body, 0.78rem)', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
+                                            <div style={{ ...microHdr, fontSize: 'var(--co-readable-small, 0.575rem)' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -832,7 +839,7 @@ function WrCommishRuleLabPanel({
             </Section>
 
             {/* ── Saved proposals ───────────────────────────────────────── */}
-            <Section title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
+            <Section folded={phone} title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: (saved || []).length ? '10px' : 0 }}>
                     <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
                         style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
@@ -844,7 +851,7 @@ function WrCommishRuleLabPanel({
                 </div>
                 {(saved || []).map(sp => (
                     <div key={sp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)`, flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.8rem', color: sp.status === 'ratified' ? MUTED : TEXT }}>{sp.name}</span>
+                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.8rem)', color: sp.status === 'ratified' ? MUTED : TEXT }}>{sp.name}</span>
                         <span style={{ ...microHdr }}>{Object.keys(sp.overrides || {}).length} rule{Object.keys(sp.overrides || {}).length === 1 ? '' : 's'}{sp.rosterProposal ? ' + structure' : ''}</span>
                         {sp.status === 'ratified' ? <span style={{ ...microHdr, color: GREEN }}>RATIFIED</span> : null}
                         <span style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
@@ -859,7 +866,7 @@ function WrCommishRuleLabPanel({
                 ))}
             </Section>
 
-            {body}
+            {!phone && body}
 
             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5, padding: '0 2px' }}>
                 {rp

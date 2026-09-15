@@ -1,8 +1,8 @@
 /* Phone-only Stats workspace and its portaled sheets. Desktop tables stay intact. */
 @media (max-width: 767px) {
-    .dhq-stats.dhs-mobile { width:100%; max-width:100%; min-width:0; padding:14px 12px 24px; overflow-x:clip; font-size:14px; }
+    .dhq-stats.dhs-mobile { width:100%; max-width:100%; min-width:0; padding:0 0 24px; overflow-x:clip; font-size:14px; }
     .dhq-stats.dhs-mobile *, .dhs-sheet-root .dhs-sheet-content, .dhs-sheet-root .dhs-sheet-content * { box-sizing:border-box; }
-    .dhq-stats.dhs-mobile .dhs-title { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; margin-bottom:16px; }
+    .dhq-stats.dhs-mobile .dhs-title { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; margin-bottom:8px; }
     .dhq-stats.dhs-mobile .dhs-title > div { min-width:0; }
     .dhq-stats.dhs-mobile .dhs-title h2 { font-size:26px; line-height:1.15; }
     .dhq-stats.dhs-mobile > .dhs-title p { font-size:14px; line-height:1.4; margin-top:5px; }
@@ -113,4 +113,13 @@
     .dhs-detail-stat small { display:block; font-size:12px; color:var(--text-muted,#8d887e); margin-top:3px; }
     .dhs-week-cards summary strong { margin-left:auto; text-align:right; color:var(--gold,#d4af37); font-variant-numeric:tabular-nums; }
     .dhq-stats.dhs-mobile .dhs-browse-stats { display:block; width:100%; margin:12px 0; }
+}
+
+@media (max-width:767px) {
+    .dhq-stats.dhs-mobile .dhs-player-score span, .dhq-stats.dhs-mobile .dhs-stat-strip dt, .dhq-stats.dhs-mobile .dhs-player-owner, .dhq-stats.dhs-mobile .dhs-count { font-size:14px; }
+    .dhs-sheet-root .dhs-sheet-content select { font-size:16px; }
+    .dhq-stats.dhs-mobile .dhs-mobile-tools { flex-wrap:nowrap; }
+    .dhq-stats.dhs-mobile .dhs-mobile-tools button { padding-inline:9px; }
+    .dhq-stats.dhs-mobile .dhs-title p { margin:0; }
+    .dhq-stats.dhs-mobile .dhs-active-filters:empty { display:none; }
 }

@@ -1,11 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),Babel=require('@babel/standalone');
 const source=Babel.transform(fs.readFileSync('js/components/duat-season-home.js','utf8'),{presets:['react']}).code;
-function harness(model){
+function harness(model,phone=false){
     const cells=new Map(),calls=[],App={DuatPresentation:{Sigil:({id})=>({type:'span',props:{'data-sigil':id},children:[id]}),art:()=>'/hero.webp'}};
     let path='',cursor=0;
     const React={createElement:(type,props,...children)=>({type,props:props||{},children}),useEffect(){},useRef:()=>({current:null}),useState(initial){const key=path+':'+cursor++;if(!cells.has(key))cells.set(key,initial);return [cells.get(key),value=>cells.set(key,typeof value==='function'?value(cells.get(key)):value)];}};
-    vm.runInNewContext(source,{window:{App},React});
+    vm.runInNewContext(source,{window:{App,WR:{useViewport:()=>({isPhone:phone})}},React});
     function expand(tree,at='root'){
         if(Array.isArray(tree))return tree.map((child,index)=>expand(child,at+'.'+index));
         if(!tree||typeof tree!=='object')return tree;
@@ -69,4 +69,15 @@ test('sealed Home tournament reveals counts only and unsealed path uses actual r
 test('Home puts its single current Resume action before calendar inspection while retaining all seventeen weeks',()=>{
     const h=harness(fixture()),tree=h.render(),all=nodes(tree),resume=all.findIndex(node=>node.props.className==='duat-home-resume'),schedule=all.findIndex(node=>node.props.className==='duat-home-schedule');
     assert(resume>0&&resume<schedule);assert.equal(all.filter(node=>node.type==='button'&&/^Resume Week/.test(text(node))).length,1);assert.equal(all.filter(node=>node.type==='button'&&/^Week \d/.test(node.props['aria-label']||'')).length,17);assert.deepEqual(h.calls,[]);
+});
+
+
+test('phone Home keeps Resume before four optional views and preserves all calendar and table details',()=>{
+    const model=fixture(),before=JSON.stringify(model),h=harness(model,true),tree=h.render(),all=nodes(tree);
+    const disclosures=all.filter(node=>node.props.className==='duat-home-disclosure');
+    assert.equal(disclosures.length,4);assert(disclosures.every(node=>node.type==='details'&&!node.props.open));
+    assert(all.findIndex(node=>node.props.className==='duat-home-resume')<all.indexOf(disclosures[0]));
+    assert.equal(all.filter(node=>node.type==='button'&&/^Week \d/.test(node.props['aria-label']||'')).length,17);
+    assert(all.some(node=>node.props.className==='duat-home-mobile-record'&&text(node).includes('3–2–1')));
+    button(tree,'Resume Week 5 →').props.onClick();assert.deepEqual(h.calls,['resume']);assert.equal(JSON.stringify(model),before);
 });

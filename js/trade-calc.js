@@ -432,7 +432,7 @@
                 return (
                     <div className={`tc-ta-side tc-side-${side.toLowerCase()}`}>
                         <span style={{ fontFamily:'var(--font-title)', fontSize:'0.95rem', color, letterSpacing:'0.08em' }}>{label}</span>
-                        <select className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { setTradeOwner(prev => ({ ...prev, [side]: e.target.value || null })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
+                        <select aria-label={label + ' team'} className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { setTradeOwner(prev => ({ ...prev, [side]: e.target.value || null })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
                             {ownerOptions.map(o => <option key={o.id||'none'} value={o.id||''}>{o.label}</option>)}
                         </select>
 
@@ -443,7 +443,7 @@
                             if (!p) return null;
                             return (
                                 <div key={pid} className="tc-ta-player-row">
-                                    <button className="tc-ta-remove" onClick={() => removePlayer(side, pid)}>X</button>
+                                    <button aria-label={'Remove ' + (p.full_name || p.first_name + ' ' + p.last_name)} className="tc-ta-remove" onClick={() => removePlayer(side, pid)}>X</button>
                                     <span className="tc-ta-pos-dot" style={{ background: posColor(normPos(p.position)) }} />
                                     <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.first_name} {p.last_name}</span>
                                     <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
@@ -466,7 +466,7 @@
                             const isOwn = !via || (ownerId && (() => { const r = allRosters.find(x => x.owner_id === ownerId); return r && String(r.roster_id) === String(fromRid); })());
                             return (
                                 <div key={pkId} className="tc-ta-player-row">
-                                    <button className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
+                                    <button aria-label={'Remove ' + pickLabel(yr, rd, fromRid, slot)} className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
                                     <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
                                     <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{pickLabel(yr, rd, fromRid, slot)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                     <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
@@ -480,7 +480,7 @@
                         {/* Roster picker */}
                         {tradeOwner[side] && rosterPlayers !== null ? (
                             <div>
-                                <input className="tc-ta-roster-filter" placeholder={`Filter ${rosterPlayers.length} players & ${ownerPicksList.length} picks...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
+                                <input aria-label={'Filter ' + label.toLowerCase() + ' players and picks'} className="tc-ta-roster-filter" placeholder={`Filter ${rosterPlayers.length} players & ${ownerPicksList.length} picks...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
                                 <div className="tc-ta-roster-list-tall">
                                     {rosterPlayers.length > 0 && (() => {
                                         const grouped = {};
@@ -491,7 +491,7 @@
                                                 {posPlayers.map(r => {
                                                     const added = ids.includes(r.id);
                                                     return (
-                                                        <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPlayer(side, r.id)}>
+                                                        <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} role="button" tabIndex={added ? -1 : 0} aria-disabled={added} aria-label={'Add ' + r.name + ' to ' + label.toLowerCase()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!added) addPlayer(side, r.id); } }} onClick={() => !added && addPlayer(side, r.id)}>
                                                             <span className="tc-ta-pos-dot" style={{ background: posColor(r.pos) }} />
                                                             <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
                                                             <span className="tc-ta-player-meta">{r.team}{r.usage ? ' · ' + r.usage : ''}</span>
@@ -514,7 +514,7 @@
                                                 const r2 = allRosters.find(x => x.owner_id === ownerId);
                                                 const isOwn2 = r2 && String(r2.roster_id) === String(fromRosterId);
                                                 return (
-                                                    <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
+                                                    <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} role="button" tabIndex={added ? -1 : 0} aria-disabled={added} aria-label={'Add ' + pickLabel(year, round, fromRosterId, slot) + ' to ' + label.toLowerCase()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!added) addPick(side, pkId); } }} onClick={() => !added && addPick(side, pkId)}>
                                                         <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
                                                         <span className="tc-ta-pick-name" style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId, slot)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                                         <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
@@ -534,7 +534,7 @@
                         <div style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
                                 <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
-                                <input type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
+                                <input aria-label={label + ' FAAB amount'} type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
                                     style={{ width:70, background:'rgba(0,0,0,0.3)', border:'1px solid rgba(46,204,113,0.35)', color:'var(--win-green)', padding:'0.2rem 0.4rem', borderRadius:4, fontSize:'0.75rem', fontWeight:700, minHeight:'44px' }} />
                                 {faab > 0 && <button className="tc-ta-remove" onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>X</button>}
                             </div>
@@ -1055,6 +1055,8 @@
         const [finderSearch, setFinderSearch] = useState('');
         const [finderTypeaheadIdx, setFinderTypeaheadIdx] = useState(0);
         const [assetBrowserOpen, setAssetBrowserOpen] = useState(false);
+        const [phAssetLimit, setPhAssetLimit] = useState(28);
+        const [phPickLimit, setPhPickLimit] = useState(40);
         const [dealHqNotice, setDealHqNotice] = useState(null);
         const [showAllDeals, setShowAllDeals] = useState(false);
         const [expandedDealId, setExpandedDealId] = useState(null);
@@ -1062,10 +1064,12 @@
         const [assetBrowserSort, setAssetBrowserSort] = useState('dhq');
         const [assetBrowserRookieOnly, setAssetBrowserRookieOnly] = useState(false);
         const [phPicksScope, setPhPicksScope] = useState('owned');   // 'owned' | 'league' — picks board scope, shared phone + desktop (Intent=Picks)
+        React.useEffect(() => { setPhAssetLimit(28); setPhPickLimit(40); setAssetBrowserOpen(false); }, [assetBrowserPos, assetBrowserSort, assetBrowserRookieOnly, phPicksScope, finderQuery.intent, finderQuery.partnerFilter]);
         const [finderBrowseOpen, setFinderBrowseOpen] = useState(false); // Detailed player/pick board, separate from its row count.
         // Phone tier (iPhone program Phase 2) — Trade Center phone-branch sheet
         // state. Declared unconditionally (hook-order safety); inert off-phone.
-        const [phBuilderOpen, setPhBuilderOpen] = useState(false);   // WR.ActionBar → builder + verdict WR.Sheet
+        const [phBuilderOpen, setPhBuilderOpen] = useState(false);
+        const [phBuilderSide, setPhBuilderSide] = useState('A');   // WR.ActionBar → builder + verdict WR.Sheet
         const [phFinderPanel, setPhFinderPanel] = useState(null);    // inline finder-control disclosure: null|'intent'|'partner'|'pos'|'sort'
         const [phLogRowId, setPhLogRowId] = useState(null);          // Trade Log row → deal WR.Sheet
         // Rookie/prospect join — name→prospect index rebuilt when the rookie CSV lands
@@ -4485,7 +4489,7 @@
                     if (assetBrowserSort === 'prime') return (b.primeYears || 0) - (a.primeYears || 0) || b.value - a.value;
                     return b.value - a.value;
                 });
-            const phVisibleAssets = phSortedAssets.slice(0, assetBrowserOpen ? 28 : 8);
+            const phVisibleAssets = phSortedAssets.slice(0, assetBrowserOpen ? phAssetLimit : 8);
             // ── Picks board (owner ask): when Intent=Picks the Add-assets board
             // lists DRAFT PICKS instead of players, with an Owned/League scope
             // toggle. Owned = your picks (→ YOU SEND); League = every other
@@ -4503,14 +4507,14 @@
                     // (owner ask) — not value-ranked, so 2027 1st→2nd→3rd… then 2028.
                     .sort(comparePicksByDraftOrder)
                 : [];
-            const phVisiblePicks = phPickRowsAll.slice(0, assetBrowserOpen ? 40 : 12);
+            const phVisiblePicks = phPickRowsAll.slice(0, assetBrowserOpen ? phPickLimit : 12);
             // Gold "+" add affordance → the hoisted component-scope
             // addAssetToBuilder (ex phAddToBuilder — shared with the desktop
             // browser's "+" since the 2026-07-12 port; same builder-add +
             // side-B owner-select semantics).
             const phPlusChip = (row) => (
                 <button type="button" aria-label={'Add ' + row.name + ' to the builder'}
-                    onClick={e => { e.stopPropagation(); addAssetToBuilder(row); }}
+                    onClick={e => { e.stopPropagation(); setPhBuilderSide(String(row.rosterId) === String(myRosterId) ? 'A' : 'B'); addAssetToBuilder(row); }}
                     style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phAssetRow = (row) => {
@@ -4518,8 +4522,8 @@
                 const rookieBits = rf ? [rf.college, rf.draftSlot || (rf.isUDFA ? 'UDFA' : ''), rf.tierLabel].filter(Boolean) : [];
                 return (
                     <AssetRow key={`${row.rosterId}-${row.pid}`} pos={row.pos} name={row.name}
-                        tag={row.ownerLabel + (rookieBits.length ? ' · ' + rookieBits.join(' · ') : '')}
-                        slots={[{ label: 'DHQ', value: row.value.toLocaleString() }, { label: 'AGE', value: row.age || '—', tone: 'mute' }]}
+                        tag={row.ownerLabel + (row.age ? ' · Age ' + row.age : '') + (rookieBits.length ? ' · ' + rookieBits.join(' · ') : '')}
+                        slots={[{ label: 'DHQ', value: row.value.toLocaleString() }]}
                         verdict={phPlusChip(row)}
                         accent={focusPlayerPid != null && String(focusPlayerPid) === String(row.pid) ? 'gold' : undefined}
                         onClick={() => {
@@ -4774,14 +4778,16 @@
                         <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.5 }}>
                             Values sourced from <strong style={{ color: 'var(--gold)' }}>{skinVocabulary.valueShortLabel || 'DHQ'} Engine</strong> ({valueSourceLabel}).
                         </div>
-                        <div className="tc-builder-sides" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
-                            {TcTradeSide({ side: 'A', color: 'var(--k-5dade2, #5dade2)', label: 'YOU SEND', ..._tsDeps })}
-                            {TcTradeSide({ side: 'B', color: 'var(--k-e74c3c, #e74c3c)', label: 'YOU GET', ..._tsDeps })}
+                        <nav className="wr-seg tc-phone-builder-nav" aria-label="Trade sides">
+                            <button type="button" aria-pressed={phBuilderSide === 'A'} className={phBuilderSide === 'A' ? 'is-on' : ''} onClick={() => setPhBuilderSide('A')}>You send · {_verdict.totalA.toLocaleString()}</button>
+                            <button type="button" aria-pressed={phBuilderSide === 'B'} className={phBuilderSide === 'B' ? 'is-on' : ''} onClick={() => setPhBuilderSide('B')}>You get · {_verdict.totalB.toLocaleString()}</button>
+                        </nav>
+                        <div className="tc-phone-builder-side">
+                            {TcTradeSide({ side: phBuilderSide, color: phBuilderSide === 'A' ? 'var(--k-5dade2, #5dade2)' : 'var(--k-e74c3c, #e74c3c)', label: phBuilderSide === 'A' ? 'YOU SEND' : 'YOU GET', ..._tsDeps })}
                         </div>
                         {_verdict.hasTrade
                             ? <React.Fragment>
-                                {React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}
-                                {renderAlexVerdict()}
+                                <window.WR.MobileSection phone={true} title="Trade impact" summary={(_verdict.grade?.grade || '') + ' · ' + _verdict.diffDisplay}>{React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}{renderAlexVerdict()}</window.WR.MobileSection>
                             </React.Fragment>
                             : <div className="tc-dhq-empty">Add assets to either side — the verdict updates live.</div>}
                     </div>
@@ -4791,7 +4797,7 @@
             // ── P6 action bar — the canonical live-deal strip (desk only; the Trade
             // Log row tap opens its own sheet instead, per the approved spec).
             const actionBarEl = (
-                <ActionBar visible={active === 'desk'}
+                <ActionBar visible={active === 'desk' && _verdict.hasTrade}
                     label={_verdict.hasTrade ? 'LIVE DEAL' : 'TRADE BUILDER'}
                     value={_verdict.hasTrade ? `${_verdict.grade?.grade || '--'} ${_verdict.diffDisplay}` : 'No live deal'}
                     tone={_verdict.hasTrade ? (_verdict.userGain > 0 ? 'good' : _verdict.userGain < 0 ? 'bad' : 'gold') : 'mute'}
@@ -4804,7 +4810,7 @@
             let deskBody = null;
             if (active === 'desk') {
                 const pillsEl = (_pro && rosterState.isUsable) ? (
-                    <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                    <div className="wr-hscroll tc-phone-filters" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                         {React.createElement(FilterPill, { label: 'Goal', value: intentLabel, onClick: () => setPhFinderPanel(p => p === 'intent' ? null : 'intent') })}
                         {React.createElement(FilterPill, { label: 'Partner', value: pinnedPartnerName, onClick: () => setPhFinderPanel(p => p === 'partner' ? null : 'partner') })}
                         {focusR ? React.createElement(FilterPill, { label: '✕', value: focusR.label, onClick: phClearFocus }) : null}
@@ -4814,6 +4820,7 @@
                 ) : null;
                 deskBody = (
                     <React.Fragment>
+                        {!_verdict.hasTrade && <button type="button" className="tc-phone-open-builder" onClick={() => setPhBuilderOpen(true)}>Build a trade</button>}
                         {dealHqNotice && <div className="tc-dhq-notice" onAnimationEnd={() => setDealHqNotice(null)}>{dealHqNotice}</div>}
                         {tradeContext && (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px' }}>
@@ -4866,7 +4873,7 @@
                                     ? <React.Fragment>
                                         {React.createElement(CardList, { groups: [{ label: null, rows: phVisiblePicks.map(phPickRow) }] })}
                                         {phPickRowsAll.length > 12 && (
-                                            <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer picks ▴' : `Show more picks ▾ (${Math.min(40, phPickRowsAll.length)} of ${phPickRowsAll.length})`}</button>
+                                            <div>{phVisiblePicks.length < phPickRowsAll.length && <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => { if (assetBrowserOpen) setPhPickLimit(n => n + 25); else setAssetBrowserOpen(true); }}>Show more picks ({phVisiblePicks.length} of {phPickRowsAll.length})</button>}{assetBrowserOpen && <button type="button" style={{ ...actBtn(false), width: '100%', marginTop: 8 }} onClick={() => { setAssetBrowserOpen(false); setPhPickLimit(40); }}>Show fewer picks</button>}</div>
                                         )}
                                       </React.Fragment>
                                     : <div className="tc-dhq-empty">No {phPicksScopeMine ? 'owned' : 'league'} picks to browse.</div>}
@@ -4882,7 +4889,7 @@
                                     ? <React.Fragment>
                                         {React.createElement(CardList, { groups: [{ label: null, rows: phVisibleAssets.map(phAssetRow) }] })}
                                         {phSortedAssets.length > 8 && (
-                                            <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer assets ▴' : `Show more assets ▾ (${Math.min(28, phSortedAssets.length)} of ${phSortedAssets.length})`}</button>
+                                            <div>{phVisibleAssets.length < phSortedAssets.length && <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => { if (assetBrowserOpen) setPhAssetLimit(n => n + 25); else setAssetBrowserOpen(true); }}>Show more assets ({phVisibleAssets.length} of {phSortedAssets.length})</button>}{assetBrowserOpen && <button type="button" style={{ ...actBtn(false), width: '100%', marginTop: 8 }} onClick={() => { setAssetBrowserOpen(false); setPhAssetLimit(28); }}>Show fewer assets</button>}</div>
                                         )}
                                       </React.Fragment>
                                     : <div className="tc-dhq-empty">No {assetBrowserPos === 'ALL' ? '' : assetBrowserPos + ' '}assets to browse.</div>}

@@ -267,59 +267,54 @@
         if (!vp.isPhone || vp.kbOpen) return null;
         return <PhoneDockInner {...props} />;
     }
-    function PhoneDockInner({ activeTab, navItems, onSelectTab }) {
-        const stripRef = useRef(null);
-        const chips = navItems.filter(item => item.tab && !item.utility);
+    function PhoneDockInner({ activeTab, navItems, onSelectTab, workspaceOptions }) {
+        const [moreOpen, setMoreOpen] = useState(false);
+        const primaryWorkspaces = ['home', 'team', 'league'];
+        const chips = navItems.filter(item => item.tab && primaryWorkspaces.includes(item.workspace));
+        const moreItems = navItems.filter(item => item.tab && !primaryWorkspaces.includes(item.workspace));
+        const moreActive = !chips.some(item => navItemIsActive(item, activeTab));
+        const selectTab = tab => { setMoreOpen(false); onSelectTab(tab); };
 
-        // Keep the active chip visible whenever the tab changes (sidebar,
-        // deep links, and dock taps all funnel through activeTab).
-        useEffect(() => {
-            const strip = stripRef.current;
-            if (!strip) return;
-            const chip = strip.querySelector('.wr-dock-chip.is-active');
-            if (chip && typeof chip.scrollIntoView === 'function') {
-                try { chip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }
-                catch (_) { /* older WebKit: options-object form unsupported */ }
-            }
-        }, [activeTab]);
+        useEffect(() => { setMoreOpen(false); }, [activeTab]);
 
-        // Edge-fade masks only where chips are actually cut off (.has-left /
-        // .has-right drive the CSS) — a static mask dims the last chip at
-        // full scroll and gives no "more this way" cue on the left.
-        useEffect(() => {
-            const strip = stripRef.current;
-            if (!strip) return;
-            const update = () => {
-                const max = strip.scrollWidth - strip.clientWidth;
-                strip.classList.toggle('has-left', strip.scrollLeft > 4);
-                strip.classList.toggle('has-right', strip.scrollLeft < max - 4);
-            };
-            update();
-            strip.addEventListener('scroll', update, { passive: true });
-            window.addEventListener('resize', update);
-            return () => { strip.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
-        }, [navItems]);
 
-        return (
+        return <React.Fragment>
             <nav className="wr-phone-dock" aria-label="Primary">
-                <div ref={stripRef} className="wr-dock-strip">
+                <div className="wr-dock-strip">
                     {chips.map(item => {
                         const isActive = navItemIsActive(item, activeTab);
-                        return (
-                            <button key={item.tab} type="button"
-                                className={'wr-dock-chip' + (isActive ? ' is-active' : '')}
-                                aria-current={isActive ? 'page' : undefined}
-                                onClick={() => onSelectTab(item.tab)}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                    {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
-                                </svg>
-                                <span>{item.label}</span>
-                            </button>
-                        );
+                        return <button key={item.tab} type="button"
+                            className={'wr-dock-chip' + (isActive ? ' is-active' : '')}
+                            aria-current={isActive ? 'page' : undefined}
+                            onClick={() => selectTab(item.tab)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
+                            </svg>
+                            <span>{item.label}</span>
+                        </button>;
                     })}
+                    <button type="button" className={'wr-dock-chip' + (moreActive ? ' is-active' : '')}
+                        aria-current={moreActive ? 'page' : undefined} aria-haspopup="dialog"
+                        aria-expanded={moreOpen} aria-controls="wr-phone-more-menu" onClick={() => setMoreOpen(true)}>
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                        <span>More</span>
+                    </button>
                 </div>
             </nav>
-        );
+            {moreOpen && <window.WR.Sheet open={true} title="More league views" onClose={() => setMoreOpen(false)}>
+                <div id="wr-phone-more-menu" className="wr-phone-more-menu">
+                    {moreItems.map(item => {
+                        const views = window.WR.LeagueWorkspaces.views(item.workspace, workspaceOptions);
+                        return <section key={item.workspace}>
+                            <h2>{item.label}</h2>
+                            {views.map(view => <button key={view.tab} type="button"
+                                aria-current={view.tab === activeTab ? 'page' : undefined}
+                                onClick={() => selectTab(view.tab)}><span>{view.label}</span><span aria-hidden="true">›</span></button>)}
+                        </section>;
+                    })}
+                </div>
+            </window.WR.Sheet>}
+        </React.Fragment>;
     }
 
     // League Detail Component
@@ -343,6 +338,7 @@
         const isSleeper = _provider?.id === 'sleeper';
         const [trending, setTrending] = useState({ adds: [], drops: [] });
         const [localActiveTab, setLocalActiveTab] = useState('dashboard');
+        const [helpContext, setHelpContext] = useState(null);
         const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
         const setActiveTab = onTabChange || setLocalActiveTab;
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
@@ -726,6 +722,14 @@
 	            if (module) {
                     const matches = item => (item.term + ' ' + item.def).toLowerCase().includes(guideQuery.trim().toLowerCase());
                     const filteredSections = fullItems.map(section => ({ ...section, items: section.items.filter(matches) })).filter(section => section.items.length);
+                    if (alexPhone) {
+                        return <div className="wr-phone-guide">
+                            {helpContext && <div className="wr-phone-guide-context"><strong>Help with {helpContext.label}</strong><button type="button" onClick={() => setActiveTab(helpContext.tab)}>Back to {helpContext.label}</button></div>}
+                            <label className="wr-help-search">Find a tool or term<input type="search" value={guideQuery} onChange={event => setGuideQuery(event.target.value)} placeholder="Search values, trades, waivers…" /></label>
+                            {!filteredSections.length && <p role="status">No matching terms. Try a different word.</p>}
+                            {filteredSections.map(section => <window.WR.MobileSection key={section.cat + (!!guideQuery)} phone={true} title={section.cat} summary={section.items.length + ' topics'} defaultOpen={!!guideQuery}><dl>{section.items.map(item => <div key={item.term}><dt>{item.term}</dt><dd>{item.def}</dd></div>)}</dl></window.WR.MobileSection>)}
+                        </div>;
+                    }
 	                return React.createElement('div', { style: { padding: '10px 16px 16px', maxWidth: '1280px', margin: '0 auto' } },
                         React.createElement('label', { className: 'wr-help-search' }, 'Find a tool or term', React.createElement('input', { type: 'search', value: guideQuery, onChange: event => setGuideQuery(event.target.value), placeholder: 'Search values, trades, waivers…' })),
                         !filteredSections.length && React.createElement('p', { role: 'status' }, 'No matching terms. Try a different word.'),
@@ -3037,8 +3041,8 @@
                         const gm = (leagueSkin?.type !== 'redraft') ? window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete') : null;
                         const phaseColor = (leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown') ? leagueSkin.phaseMeta.color : 'var(--text-muted)';
                         const rowSt = { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '48px', padding: '2px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', background: 'transparent', border: 'none', width: '100%', textAlign: 'left' };
-                        const rowLbl = { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', width: '92px', flex: 'none' };
-                        const rowVal = { fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+                        const rowLbl = { fontFamily: 'var(--font-body)', fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', width: '92px', flex: 'none' };
+                        const rowVal = { fontFamily: 'var(--font-body)', fontSize: '1rem', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
                         const doDraftJump = () => {
                             const jump = headerDraftInfo?.status === 'drafting' || headerDraftInfo?.status === 'complete';
                             if (jump) window._wrOpenLiveDraft = true;
@@ -3067,18 +3071,6 @@
                                         <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
                                     </div>
-                                    <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
-                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={loadStage ? { animation: 'dhqSpin 0.8s linear infinite' } : undefined}>
-                                            {NAV_ICON_PATHS.refresh.map((d, i) => <path key={i} d={d} />)}
-                                        </svg>
-                                    </button>
-                                    {/* Feedback (bug report + feature board) — re-homed here from the
-                                        floating bottom-right launcher that sat over the dock. */}
-                                    {window.WR?.Feedback?.toggleMenu && (
-                                        <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: 'pointer' }}>
-                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                                        </button>
-                                    )}
                                     <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
                                 </div>
                                 {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
@@ -3115,6 +3107,9 @@
                                             <span style={rowLbl}>Phase</span>
                                             <span style={{ ...rowVal, color: leagueSkin.phaseMeta.color }}>{leagueSkin.phaseMeta.label}</span>
                                         </div>}
+                                        <button style={rowSt} onClick={doRefresh} disabled={!!loadStage}><span style={rowVal}>{loadStage ? 'Refreshing…' : 'Refresh data'}</span></button>
+                                        {window.WR?.Feedback?.reportBug && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.reportBug(); }}><span style={rowVal}>Report a bug</span></button>}
+                                        {window.WR?.Feedback?.openBoard && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.openBoard(); }}><span style={rowVal}>Feature requests</span></button>}
                                         {headerDraftClock && <button style={rowSt} onClick={doDraftJump}>
                                             <span style={rowLbl}>Draft</span>
                                             <span style={{ ...rowVal, color: 'var(--gold)', fontFamily: "'JetBrains Mono', monospace" }}>{[headerDraftClock.label, headerDraftClock.clock].filter(Boolean).join(' · ')}</span>
@@ -3400,6 +3395,13 @@
                 </div>}
 
                 <header className="wr-workspace-header">
+                    <div className="wr-mobile-workspace">
+                        <h1>{workspaceViews.length > 1 ? <select aria-label={'Choose ' + workspace.label + ' view'} value={viewTab} onChange={e => setActiveTab(e.target.value)}>
+                            {!workspaceViews.some(view => view.tab === viewTab) && <option value={viewTab}>{workspaceRoute.label}</option>}
+                            {workspaceViews.map(view => <option key={view.tab} value={view.tab} aria-label={view.label} title={view.label}>{({ central: 'Standings', trophies: 'History', 'research-reports': 'Reports', 'research-players': 'Players', 'gm-settings': 'Preferences', 'team-outlook': 'Outlook', decisions: 'Review' })[view.tab] || view.label}</option>)}
+                        </select> : workspaceRoute.label}</h1>
+                        {workspace.id !== 'help' && <button type="button" className="wr-mobile-help" onClick={() => { setHelpContext({ tab: viewTab, label: workspaceRoute.label }); setActiveTab('legend'); }} aria-label={'Help with ' + workspaceRoute.label}>Help</button>}
+                    </div>
                     <div className="wr-workspace-heading">
                         <div><h1>{workspace.label}</h1>{workspace.description && <p>{workspace.description}</p>}</div>
                         <div className="wr-workspace-shortcuts">
@@ -3412,7 +3414,7 @@
                     </nav>}
                 </header>
                 {/* The Wire stays a desktop ticker and becomes an inline launcher on phones. */}
-                {typeof window.WrLeagueWire === 'function' && (
+                <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}
@@ -3423,7 +3425,7 @@
                         getOwnerName={getOwnerName}
                         getPlayerName={getPlayerName}
                     />
-                )}
+                )}</div>
 
                 {/* Existing deep links render in their owning workspace. */}
                 <div className="wr-content-frame">
@@ -3609,13 +3611,12 @@
                 }}
             />}
 
-            {/* Phone bottom dock (≤767 only) — null on tablet/desktop and
-                while the iOS keyboard is open. ONE row: sliding strip of
-                EVERY sidebar nav item (same navItems array — single source
-                of truth). */}
+            {/* Phone dock: three frequent workspaces plus the remaining
+                capability-aware routes in More. Hidden off-phone and while typing. */}
             <PhoneDock
                 activeTab={viewTab}
                 navItems={navItems}
+                workspaceOptions={workspaceOptions}
                 onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
             />
 

@@ -101,3 +101,99 @@
 .hub-shell .header-subtitle { font-style: normal; }
 .hub-shell .header { padding-left: max(24px, calc((100vw - 1256px) / 2)); padding-right: max(24px, calc((100vw - 1256px) / 2)); }
 @media (max-width: 600px) { .hub-shell .header { padding-left: calc(16px + var(--sal, 0px)); padding-right: calc(16px + var(--sar, 0px)); padding-top: calc(14px + var(--sat, 0px)); } }
+
+/* The league list stays searchable without stretching the home screen. */
+.hub-more-leagues { display: none; }
+.hub-wire-entry { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 16px; min-height: 76px; background: var(--ov-1, #ffffff04); color: var(--white); border: 1px solid var(--ov-6, #ffffff18); border-radius: var(--card-radius, 10px); font-family: var(--font-body); cursor: pointer; }
+.hub-wire-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; background: #e9e3d4; color: #27231b; font: 700 24px Georgia, serif; border-radius: var(--card-radius-sm, 8px); }
+.hub-wire-entry > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+.hub-wire-entry strong { font-size: 16px; }
+.hub-wire-entry > span:nth-child(2) > span { font-size: 14px; line-height: 1.4; color: var(--silver); }
+.hub-wire-entry b { margin-left: auto; color: var(--gold); font-size: 20px; }
+
+/* Phone home: one return action, readable rows, and compact product entries. */
+@media (max-width: 767px) {
+ .hub-shell .header { flex-wrap: nowrap; min-height: 68px; gap: 12px; padding: calc(10px + var(--sat, 0px)) calc(16px + var(--sar, 0px)) 10px calc(16px + var(--sal, 0px)); }
+ .hub-shell .header-brand { min-width: 0; gap: 9px; }
+ .hub-shell .header-brand img { width: 34px !important; height: 34px !important; }
+ .hub-shell .header-text { min-width: 0; }
+ .hub-shell .header-text .owner-name { font-size: 16px !important; letter-spacing: .025em !important; white-space: nowrap; }
+ .hub-shell .header-subtitle, .hub-account-controls > a, .hub-account-label { display: none; }
+ .hub-account-controls { width: auto; margin-left: auto; flex: none; }
+ .hub-account-controls button { width: 44px; height: 44px; min-width: 44px; padding: 5px; justify-content: center; }
+ .hub-account-avatar { width: 32px; height: 32px; font-size: 14px; }
+ .experience-hub { padding: 20px 16px calc(16px + var(--sab, 0px)); }
+ .hub-welcome { display: block; margin-bottom: 20px; }
+ .hub-welcome .hub-eyebrow { display: none; }
+ .hub-welcome h1 { font-size: 29px; line-height: 1.12; margin: 0 0 8px; letter-spacing: -.035em; }
+ .hub-sync-status { font-size: 14px; margin-top: 0; line-height: 1.4; white-space: normal; }
+ .hub-resume { padding: 18px; gap: 10px 12px; margin-bottom: 20px; border-radius: var(--card-radius-lg, 14px); background: linear-gradient(125deg, var(--acc-fill2, #d4af3714), var(--acc-fill1, #d4af3708)); }
+ .hub-resume .hub-eyebrow { font-size: 14px; letter-spacing: .035em; line-height: 1.4; text-transform: none; }
+ .hub-resume strong { font-size: 21px; line-height: 1.25; overflow-wrap: anywhere; }
+ .hub-resume > span:last-of-type { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+ .hub-focus-record { white-space: nowrap; }
+ .hub-resume b { font-size: 24px; }
+ .hub-jump-nav { gap: 0; margin-bottom: 22px; padding: 3px; border-radius: var(--card-radius, 10px); }
+ .hub-jump-nav a { font-size: 14px; gap: 5px; min-width: 0; }
+ .hub-jump-nav a > span, .hub-jump-nav small { display: none; }
+ .experience-hub > .hub-leagues { padding-top: 0; border-top: 0; margin-bottom: 28px; }
+ .hub-section-heading { flex-wrap: nowrap; gap: 10px; margin-bottom: 10px; }
+ .hub-section-heading h2 { font-size: 21px; line-height: 1.25; margin-top: 0; }
+ .hub-count { padding: 2px 5px; font-size: 14px; }
+ .hub-add-button { font-size: 14px; padding: 9px 10px; flex: none; }
+ .hub-league-tools { margin: 10px 0; gap: 8px; font-size: 14px; }
+ .hub-league-tools input { flex: 1; width: 100%; min-width: 0; font-size: 16px; padding: 11px 12px; border-radius: var(--card-radius-sm, 8px); }
+ .hub-league-tools > span:empty { display: none; }
+ .hub-league-tools > span { flex: none; }
+ .hub-league-grid { grid-template-columns: 1fr; gap: 0; border: 1px solid var(--ov-6, #ffffff18); border-radius: var(--card-radius, 10px); overflow: hidden; }
+ .hub-league-grid:empty { display: none; }
+ .hub-league-card { padding: 14px 12px; border: 0; border-bottom: 1px solid var(--ov-6, #ffffff18); border-radius: 0; background: var(--ov-1, #ffffff04); }
+ .hub-league-card:last-child { border-bottom: 0; }
+ .hub-shell .hub-league-card:focus-visible { outline-offset: -3px; }
+ .hub-league-card-top { gap: 11px; flex-wrap: nowrap; }
+ .hub-team-avatar { width: 38px; height: 38px; font-size: 16px; border-radius: var(--card-radius-sm, 8px); }
+ .hub-league-identity strong { font-size: 16px; line-height: 1.3; }
+ .hub-league-identity > span { font-size: 14px; line-height: 1.35; }
+ .hub-last-badge { display: none; }
+ .hub-league-card-bottom { border: 0; padding-top: 0; margin: 7px 0 0 49px; gap: 12px; font-size: 14px; line-height: 1.4; }
+ .hub-league-card-bottom > span:first-child { display: none; }
+ .hub-league-card-bottom > span:last-child { display: flex; justify-content: space-between; width: 100%; gap: 10px; }
+ .hub-league-card-bottom > span:last-child > span { color: var(--gold); }
+ .hub-league-overflow:not(.is-expanded) { display: none; }
+ .hub-league-card:nth-child(3):has(+ .hub-league-overflow:not(.is-expanded)) { border-bottom: 0; }
+ .hub-more-leagues { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; margin-top: 4px; padding: 12px 2px; border: 0; background: none; color: var(--gold); font: 600 14px var(--font-body); cursor: pointer; }
+ .hub-experience-grid { grid-template-columns: 1fr; gap: 28px; }
+ .hub-management-cards { grid-template-columns: 1fr; gap: 10px; }
+ .hub-management-cards .hub-experience-card { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 5px 12px; min-height: 108px; padding: 16px; border-radius: var(--card-radius, 10px); }
+ .hub-management-cards .hub-card-top { display: contents; }
+ .hub-management-cards .hub-card-top > svg { grid-column: 1; grid-row: 1 / 4; width: 30px; height: 30px; align-self: start; }
+ .hub-management-cards .hub-product-tag { display: none; }
+ .hub-management-cards strong { grid-column: 2; font: 700 18px/1.25 var(--font-body); }
+ .hub-management-cards .hub-card-description { display: none; }
+ .hub-management-cards .hub-card-action { grid-column: 2; font-size: 14px; line-height: 1.4; margin-top: 3px; gap: 8px; }
+ .hub-management-cards .hub-experience-card:disabled .hub-card-action { font-size: 14px; }
+ .hub-games { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+ .hub-games > .hub-section-heading { grid-column: 1 / -1; margin-bottom: 0; }
+ .hub-section-note { font-size: 14px; }
+ .hub-games .hub-experience-card { display: flex !important; flex-direction: column; align-items: flex-start; min-height: 186px !important; margin-top: 0 !important; padding: 15px !important; gap: 8px; border-radius: var(--card-radius-lg, 14px); box-shadow: none; }
+ .hub-vault-art { position: static; display: block; width: 36px; height: 32px; transform: none; opacity: 1; }
+ .hub-vault-art .hub-era-card { display: none; }
+ .hub-vault-art::before { content: '▱'; font: 700 38px/32px Georgia, serif; color: #465269; }
+ .hub-vault-copy { padding: 0; width: 100%; flex: 1; gap: 8px; }
+ .hub-duat-symbol { font-size: 32px; line-height: 1; height: 32px; color: #e4ba72; }
+ .hub-duat-copy { display: flex; flex-direction: column; gap: 8px; flex: 1; width: 100%; }
+ .hub-games .hub-product-tag { order: 2; font-size: 14px; line-height: 1.35; letter-spacing: 0; font-weight: 500; max-width: none; }
+ .hub-games .hub-experience-card strong { order: 1; font-size: 24px; line-height: 1.15; margin-top: 0; }
+ .hub-games .hub-card-description { display: none; }
+ .hub-games .hub-card-action { order: 3; padding: 0; margin-top: auto; gap: 5px; align-self: stretch; box-shadow: none; background: none; font-size: 14px; line-height: 1.4; }
+ .hub-invite { padding: 16px; margin: 0 0 20px; gap: 12px; font-size: 16px; border-radius: var(--card-radius, 10px); }
+ .hub-invite p { font-size: 14px; line-height: 1.45; }
+ .hub-invite a { display: inline-flex; align-items: center; min-height: 44px; font-size: 16px; }
+ .hub-empty { padding: 22px 16px; border-radius: var(--card-radius, 10px); }
+ .hub-empty strong { font-size: 18px; line-height: 1.4; }
+ .hub-empty p { font-size: 14px; }
+ .hub-footer { gap: 6px 18px; margin-top: 28px; padding: 12px 0; }
+ .hub-footer > span { display: none; }
+ .hub-footer button, .hub-footer a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
+ .hub-experience-card:hover:not(:disabled), .hub-league-card:hover { transform: none; box-shadow: none; }
+}

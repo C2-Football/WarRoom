@@ -1902,6 +1902,10 @@ function EmpireStyles() {
     );
 }
 
+function EmpireSecondaryDetails({ active, children }) {
+    return active ? <details className="empire-secondary-details"><summary>Portfolio insights & supporting detail</summary>{children}</details> : <React.Fragment>{children}</React.Fragment>;
+}
+
 function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack, onRefresh, refreshing, hasNonSleeperLeagues }) {
     const { useState, useMemo, useCallback, useEffect, useRef } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
@@ -2130,10 +2134,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
+        setAssetView('players');
         setDetail(null);
     }, []);
     const applyLens = useCallback((nextFilters) => {
         setFilters({ ...emptyFilters, ...nextFilters });
+        setAssetView('players');
         setDetail(null);
     }, []);
     const clearFilters = useCallback(() => {
@@ -2183,6 +2189,20 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const hasNoResults = !filtered.provinces.length && !filtered.assets.length && !filtered.picks.length;
+    const [phone, setPhone] = useState(Boolean(window.matchMedia?.('(max-width: 767px)').matches));
+    const [assetView, setAssetView] = useState('allocation');
+    const [assetQuery, setAssetQuery] = useState('');
+    const [assetLimit, setAssetLimit] = useState(24);
+    useEffect(() => {
+        const media = window.matchMedia?.('(max-width: 767px)');
+        if (!media) return undefined;
+        const update = () => setPhone(media.matches);
+        update(); media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+    useEffect(() => { setAssetLimit(24); }, [assetQuery, filters]);
+    const searchedAssets = filtered.assets.filter(a => !assetQuery.trim() || [a.name, a.leagueName, a.pos].join(' ').toLowerCase().includes(assetQuery.trim().toLowerCase()));
+    const assetPageSize = phone ? assetLimit : Math.max(150, assetLimit);
     // Empire Wire ticker — scrolling headline feed from live NFL scores /
     // the portfolio signals / priority queue / moves, in that order (scores
     // lead the same way a real sports ticker does). A live/final game shows
@@ -2213,14 +2233,14 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             setDetail(signal.detail);
             return;
         }
-        if (signal.filter) { setWorkspace('assets'); setFilters(prev => ({ ...prev, ...signal.filter })); }
+        if (signal.filter) { setWorkspace('assets'); setAssetView('players'); setFilters(prev => ({ ...prev, ...signal.filter })); }
     }, []);
 
     const actionForQueue = useCallback((action) => {
         if (action.pid) { setDetail({ type: 'player', pid: action.pid }); return; }
         if (action.leagueId) { setDetail({ type: 'league', leagueId: action.leagueId }); return; }
         if (action.sliceDetail?.type) { setDetail(action.sliceDetail); return; }
-        if (action.filter) { setWorkspace('assets'); setDetail(null); setFilters(prev => ({ ...prev, ...action.filter })); }
+        if (action.filter) { setWorkspace('assets'); setAssetView('players'); setDetail(null); setFilters(prev => ({ ...prev, ...action.filter })); }
     }, []);
 
     const workspaceForDetail = ['moves', 'tradeDesk', 'owner'].includes(detail?.type) ? 'actions'
@@ -2230,6 +2250,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         setWorkspace(key);
         clearFilters();
         setActionView('priority');
+        setAssetView('allocation');
+        setAssetQuery('');
         setDetail(key === 'actions' ? { type: 'moves' } : null);
         window.scrollTo({ top: 0, behavior: 'instant' });
     };
@@ -2237,8 +2259,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         setWorkspace(group);
         if (view.type === 'moves') setActionView(view.view || 'priority');
         setDetail(view.type ? { type: view.type, groupBy: 'none', sortBy: 'dhq' } : null);
-        if (view.selector) requestAnimationFrame(() => document.querySelector(view.selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-        else window.scrollTo({ top: 0, behavior: 'instant' });
+        if (view.assetView) setAssetView(view.assetView);
+        window.scrollTo({ top: 0, behavior: 'instant' });
     };
     const renderWorkspaceNav = () => {
         const groups = [
@@ -2255,9 +2277,9 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 { label: 'Map', type: 'provinces' },
             ] },
             { key: 'assets', label: 'Assets', views: [
-                { label: 'Allocation', selector: '.empire-main-grid' },
-                { label: 'Players & picks', selector: '.empire-workspace' },
-                { label: 'Exposure', selector: '.empire-floor' },
+                { label: 'Allocation', assetView: 'allocation' },
+                { label: 'Players & picks', assetView: 'players' },
+                { label: 'Exposure', assetView: 'exposure' },
                 { label: 'Portfolio Lab', type: 'lab' },
                 { label: 'Market index', type: 'index' }, { label: 'Rankings', type: 'scout' },
             ] },
@@ -2268,7 +2290,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 {groups.map(g => <button key={g.key} type="button" aria-current={group.key === g.key ? 'page' : undefined} onClick={() => openWorkspace(g.key)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 7, verticalAlign: 'middle' }}>{EMPIRE_ICON_PATHS[({ overview: 'home', actions: 'zap', leagues: 'layers', assets: 'briefcase' })[g.key]].map((d, i) => <path key={i} d={d} />)}</svg><span>{g.label}</span></button>)}
             </nav>
             {!!group.views.length && <nav aria-label={group.label + ' views'} className="empire-workspace-secondary">
-                {group.views.map(v => <button key={v.label} type="button" aria-current={v.type && detail?.type === v.type && (!v.view || actionView === v.view) ? 'page' : undefined} onClick={() => openWorkspaceView(group.key, v)}>{v.label}</button>)}
+                {group.views.map(v => <button key={v.label} type="button" aria-current={(v.type ? detail?.type === v.type && (!v.view || actionView === v.view) : !detail && (v.assetView ? assetView === v.assetView : group.key === 'leagues')) ? 'page' : undefined} onClick={() => openWorkspaceView(group.key, v)}>{v.label}</button>)}
             </nav>}
         </div>;
     };
@@ -2345,7 +2367,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             >
                 <div className="empire-player-cell">
                     <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + asset.pid + '.jpg'} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                    <strong>{asset.name}</strong>
+                    <span><strong>{asset.name}</strong><small className="empire-phone-asset-meta">{asset.pos} · {asset.age || "Age unknown"}{asset.age ? " years" : ""} · {asset.agePhaseLabel}<br />{asset.leagueName}{asset.exposureCount > 1 ? ` · In ${asset.exposureCount} leagues` : ""}</small></span>
                 </div>
                 <div><span className="empire-pill" style={{ '--tone': posColors[asset.pos] || 'var(--k-d4af37, #d4af37)' }}>{asset.pos}</span></div>
                 <div>{asset.age || '-'}</div>
@@ -2369,7 +2391,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Player Portfolio</strong><span>Ownership, exposure, and league context</span></div>
                     </div>
                 </div>
@@ -2421,7 +2443,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>League Portfolio</strong><span>{province.name}</span></div>
                         <button className="empire-action" type="button" onClick={() => onEnterLeague(province.league)}>Open League</button>
                     </div>
@@ -2481,9 +2503,9 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Portfolio Slice</strong><span>{slice.title || 'Filtered workspace'}</span></div>
-                        <button className="empire-action" type="button" onClick={() => { setFilters(sliceFilters); setDetail(null); }}>Apply As Filter</button>
+                        <button className="empire-action" type="button" onClick={() => { setFilters(sliceFilters); setWorkspace('assets'); setAssetView('players'); setDetail(null); }}>Apply As Filter</button>
                     </div>
                 </div>
                 <main className="empire-detail">
@@ -2527,7 +2549,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Actions</strong><span>Priorities, trade opportunities, and tracked decisions across your leagues</span></div>
                     </div>
                 </div>
@@ -2683,7 +2705,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Negotiation HUD</strong><span>{theirA?.ownerName || theirA?.teamName || 'Owner'} · {league?.name || 'League'}</span></div>
                         {canOpenEmpireTradeDesk(model.provinces.find(p => String(p.id) === String(leagueId))) && <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgb(15,13,20)' }} onClick={() => setDetail({ type: 'tradeDesk', leagueId, seedOwnerId: ownerId })}>Propose Trade</button>}
                         {league?.league ? <button className="empire-action" type="button" onClick={() => onEnterLeague(league.league || league)}>Open League</button> : null}
@@ -2738,7 +2760,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Empire Index</strong><span>the dynasty market · and how your portfolio is levered to it</span></div>
                         <div className="empire-user">{userName}</div>
                     </div>
@@ -2755,7 +2777,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <div className="empire-floor-matrix" style={{ gridTemplateColumns: '1fr' }}>
                             <div className="empire-table-head" style={{ gridTemplateColumns: '80px 1fr 1.6fr 80px' }}><div>Class</div><div>Mkt Avg</div><div>Your exposure</div><div>β</div></div>
                             {idx.classes.map(c => (
-                                <div key={c.pos} className="empire-expo-row" style={{ gridTemplateColumns: '80px 1fr 1.6fr 80px', cursor: 'default' }}>
+                                <div key={c.pos} className="empire-expo-row empire-ranking-row" style={{ gridTemplateColumns: '80px 1fr 1.6fr 80px', cursor: 'default' }}>
                                     <strong style={{ color: posColors[c.pos] || 'var(--gold)' }}>{c.pos}</strong>
                                     <b style={{ fontFamily: 'var(--font-mono)' }}>{c.mktAvg ? empireCompact(c.mktAvg) : '—'}</b>
                                     <div className="empire-expo-track"><div className="empire-expo-fill" style={{ width: Math.min(100, c.myExposurePct) + '%', background: posColors[c.pos] || 'var(--gold)' }} /></div>
@@ -2788,7 +2810,7 @@ const renderThreatDetail = () => {
       <div className="empire-header">
                     {renderWorkspaceNav()}
         <div className="empire-topbar">
-          <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+          <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Threat Board</strong><span>who's coming for your titles · a read on rivals, not a prediction</span></div>
           <div className="empire-user">{userName}</div>
         </div>
@@ -2857,7 +2879,7 @@ const renderWarDetail = () => {
             <div className="empire-header">
                     {renderWorkspaceNav()}
                 <div className="empire-topbar">
-                    <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                    <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                     <div className="empire-title"><strong>War Table</strong><span>every league's competitive window · where to push, where to sell</span></div>
                     <div className="empire-user">{userName}</div>
                 </div>
@@ -2951,7 +2973,7 @@ const renderOutlookDetail = () => {
             <div className="empire-header">
                     {renderWorkspaceNav()}
                 <div className="empire-topbar">
-                    <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                    <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                     <div className="empire-title"><strong>Season Outlook</strong><span>Monte Carlo playoff &amp; title odds · once a league has games on the board</span></div>
                     <div className="empire-user">{userName}</div>
                 </div>
@@ -3025,7 +3047,7 @@ const renderTradeDeskDetail = (d) => {
                 <div className="empire-header">
                     {renderWorkspaceNav()}
                     <div className="empire-topbar">
-                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Trade Desk</strong><span>Pick a league to build a proposal in</span></div>
                         <div className="empire-user">{userName}</div>
                     </div>
@@ -3060,7 +3082,7 @@ const renderTradeDeskDetail = (d) => {
             <div className="empire-header">
                     {renderWorkspaceNav()}
                 <div className="empire-topbar">
-                    <button className="empire-back" type="button" onClick={() => setDetail({ type: 'tradeDesk' })}>{"<"}</button>
+                    <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail({ type: 'tradeDesk' })}>{"<"}</button>
                     <div className="empire-title"><strong>Trade Desk</strong><span>{province?.name || 'League'}</span></div>
                     <div className="empire-user">{userName}</div>
                 </div>
@@ -3101,7 +3123,7 @@ const renderProvincesDetail = () => {
       <div className="empire-header">
                     {renderWorkspaceNav()}
         <div className="empire-topbar">
-          <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+          <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Provinces Map</strong><span>your empire as territory · tile size = DHQ, color = status</span></div>
           <div className="empire-user">{userName}</div>
         </div>
@@ -3178,12 +3200,12 @@ const renderScoutDetail = () => {
       <div className="empire-header">
                     {renderWorkspaceNav()}
         <div className="empire-topbar">
-          <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+          <button className="empire-back" type="button" aria-label="Back to Empire" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Scout Board</strong><span>your top assets · ranked across the whole empire</span></div>
           <div className="empire-user">{userName}</div>
         </div>
       </div>
-      <main className="empire-detail">
+      <main className="empire-detail empire-rankings-detail">
         <section className="empire-detail-hero">
           <div>
             <h1>{s.boardSize} <span style={{ fontSize: '1rem', color: 'var(--silver)' }}>assets on the board</span></h1>
@@ -3191,6 +3213,7 @@ const renderScoutDetail = () => {
           </div>
         </section>
 
+        <details className="empire-ranking-options" open={phone ? undefined : true}><summary>Sort &amp; board details</summary>
         <div className="empire-detail-metrics">
           <div className="empire-metric"><span>Board Size</span><strong>{s.boardSize}</strong></div>
           <div className="empire-metric"><span>Board DHQ</span><strong>{s.totalDHQ > 0 ? empireCompact(s.totalDHQ) : 'No DHQ'}</strong></div>
@@ -3212,17 +3235,20 @@ const renderScoutDetail = () => {
           </div>
         </section>
 
+        </details>
+
         {board.rows.length ? board.groups.map(g => (
           <section className="empire-panel" key={g.key}>
-            <div className="empire-panel-head"><strong style={{ color: g.tone }}>{g.label}</strong><em>{g.rows.length} {g.rows.length === 1 ? 'asset' : 'assets'} · name · pos · age · DHQ · window · empire exposure</em></div>
+            <div className="empire-panel-head"><strong style={{ color: g.tone }}>{g.label}</strong><em>{g.rows.length} {g.rows.length === 1 ? 'asset' : 'assets'}{phone ? ' · tap for details' : ' · name · pos · age · DHQ · window · empire exposure'}</em></div>
             <div className="empire-floor-matrix" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="empire-table-head" style={{ gridTemplateColumns: 'minmax(150px,1.4fr) 48px 46px 70px minmax(120px,1fr) 64px' }}>
+              <div className="empire-table-head empire-ranking-head" style={{ gridTemplateColumns: 'minmax(150px,1.4fr) 48px 46px 70px minmax(120px,1fr) 64px' }}>
                 <div>Player</div><div>Pos</div><div>Age</div><div>DHQ</div><div>Empire exposure</div><div>Of {board.leagueCount}</div>
               </div>
               {g.rows.map(r => (
-                <button key={r.pid} type="button" className="empire-expo-row" style={{ gridTemplateColumns: 'minmax(150px,1.4fr) 48px 46px 70px minmax(120px,1fr) 64px' }} onClick={() => setDetail({ type: 'player', pid: r.pid })}>
+                <button key={r.pid} type="button" className="empire-expo-row empire-ranking-row" style={{ gridTemplateColumns: 'minmax(150px,1.4fr) 48px 46px 70px minmax(120px,1fr) 64px' }} onClick={() => setDetail({ type: 'player', pid: r.pid })}>
                   <div className="empire-expo-name">
                     <strong>{r.name}</strong>
+                    <small className="empire-phone-asset-meta">{r.pos} · {r.age || "Age unknown"}{r.age ? " years" : ""} · {r.exposureCount} of {board.leagueCount} leagues</small>
                     <span style={{ color: r.agePhaseColor }}>{r.agePhaseLabel}{r.tier ? ' · ' + r.tier : ''}</span>
                   </div>
                   <b style={{ color: posColors[r.pos] || 'var(--gold)' }}>{r.pos}</b>
@@ -3285,7 +3311,7 @@ const renderScoutDetail = () => {
             <header className="empire-header">
                 {renderWorkspaceNav()}
                 <div className="empire-topbar">
-                    <button className="empire-back" type="button" onClick={onBack}>{"<"}</button>
+                    <button className="empire-back" type="button" aria-label="Back to hub" onClick={onBack}>{"<"}</button>
                     <div className="empire-title">
                         <strong>Empire Command</strong>
                         <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
@@ -3302,7 +3328,7 @@ const renderScoutDetail = () => {
                     </button>
                     <div className="empire-user">{userName}</div>
                 </div>
-                <div className="empire-kpis" data-testid="empire-command-strip">
+                <div className="empire-kpis" data-testid="empire-command-strip" hidden={!allLeagues?.length}>
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset
                         table below, not these portfolio-level KPIs. */}
@@ -3310,7 +3336,7 @@ const renderScoutDetail = () => {
                 </div>
             </header>
 
-            <main className="empire-shell" data-workspace={workspace}>
+            <main className="empire-shell" data-workspace={workspace} data-asset-view={assetView}>
                 <div className="empire-viewbar" aria-label="Empire portfolio views">
                     <span className="empire-filter-label">View</span>
                     {lensButton('All', {}, 'var(--gold)')}
@@ -3377,9 +3403,9 @@ const renderScoutDetail = () => {
                 ) : null}
                 {hasNoResults ? (
                     <div className="empire-empty" data-testid="empire-empty-state">
-                        <strong>No portfolio results match this view</strong>
-                        The current lens removes every league, player, and pick. Reset filters to return to the full portfolio.
-                        <div style={{ marginTop: 12 }}><button className="empire-action" type="button" onClick={clearFilters}>Reset Filters</button></div>
+                        <strong>{!allLeagues?.length ? 'Your portfolio starts with a league' : activeFilters ? 'No portfolio results match this view' : 'Your portfolio data is not ready'}</strong>
+                        {!allLeagues?.length ? 'Connect your leagues from the hub to see their players, picks and opportunities here.' : activeFilters ? 'No leagues, players or picks match these filters.' : 'Refresh your leagues to load the available roster and pick data.'}
+                        <div style={{ marginTop: 12 }}><button className="empire-action" type="button" onClick={!allLeagues?.length ? onBack : activeFilters ? clearFilters : onRefresh}>{!allLeagues?.length ? 'Connect a league in the hub' : activeFilters ? 'Reset Filters' : refreshing ? 'Refreshing…' : 'Refresh leagues'}</button></div>
                     </div>
                 ) : (
                     <>
@@ -3404,15 +3430,16 @@ const renderScoutDetail = () => {
                                 {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => { setActionView('priority'); setDetail({ type: 'moves' }); }}>View all {actionQueue.length} priorities →</button></div> : null}
                             </div>
                         </section>
-                        <section className="empire-panel empire-lab-entry">
+                        <EmpireSecondaryDetails active={phone && workspace === 'overview'}>
+                        {workspace !== 'assets' && <section className="empire-panel empire-lab-entry">
                             <div><div className="empire-command-kicker">Portfolio Lab</div><strong>How much of your empire rides on one outcome?</strong><p>Model a player, team, or position value drop across every league.</p></div>
                             <button className="empire-action" type="button" onClick={() => setDetail({ type: 'lab' })}>Stress-test portfolio →</button>
-                        </section>
+                        </section>}
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
                             Every league marked to its own book, so the same
                             player carries a different price in each — and the
                             spread is a trade only a portfolio can see. */}
-                        {marks && marks.arbitrage.length ? (() => {
+                        {workspace !== 'assets' && marks && marks.arbitrage.length ? (() => {
                             const mineTotal = marks.arbitrage.reduce((n, a) => n + (a.spreadMine ? 1 : 0), 0);
                             const availableRows = arbMineOnly ? marks.arbitrage.filter(a => a.spreadMine) : marks.arbitrage;
                             const rows = availableRows.slice(0, arbExpanded ? 12 : 3);
@@ -3437,7 +3464,7 @@ const renderScoutDetail = () => {
                                             return (
                                             <div key={a.pid} role="button" tabIndex={0} className="empire-signal" style={{ '--tone': 'var(--purple)', cursor: 'pointer' }}
                                                 onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}
-                                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail && setDetail({ type: 'player', pid: a.pid }); } }}>
+                                                onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setDetail && setDetail({ type: 'player', pid: a.pid }); } }}>
                                                 <div className="empire-signal-top">
                                                     <strong>{a.name}{a.pos ? ' · ' + a.pos : ''}</strong>
                                                     {a.spreadMine ? <b style={{ color: 'var(--gold)' }}>YOURS</b> : null}
@@ -3476,7 +3503,7 @@ const renderScoutDetail = () => {
                             </section>
                             );
                         })() : null}
-                        {rolodex.length ? (
+                        {workspace !== 'assets' && rolodex.length ? (
                             <section className="empire-panel empire-rolodex" data-testid="empire-rolodex">
                                 <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues · ranked by edge</em></div>
                                 <div className="empire-rolodex-grid">
@@ -3493,7 +3520,7 @@ const renderScoutDetail = () => {
                                 </div>
                             </section>
                         ) : null}
-                        <section className="empire-main-grid">
+                        {(workspace !== 'assets' || assetView === 'allocation') && <section className="empire-main-grid">
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Asset Allocation</strong><em>{shareBasis}</em></div>
                                 <div className="empire-panel-head" style={{ marginTop: 0 }}><strong style={{ fontSize: 'var(--text-body, 1rem)' }}>Position</strong><em>{model.positionAllocation.length} groups</em></div>
@@ -3549,9 +3576,10 @@ const renderScoutDetail = () => {
                                         )) : <div className="empire-empty"><strong>No leagues</strong>Reset filters or check roster sync.</div>}
                                 </div>
                             </div>
-                        </section>
+                        </section>}
+                        </EmpireSecondaryDetails>
 
-                        <section className="empire-panel empire-floor" data-testid="empire-floor">
+                        {(workspace !== 'assets' || assetView === 'exposure') && <section className="empire-panel empire-floor" data-testid="empire-floor">
                             <div className="empire-panel-head"><strong>Asset Floor</strong><em>cross-league exposure · tile size = DHQ, edge = age window</em></div>
                             <div className="empire-floor-matrix">
                                 {model.exposure.filter(e => e.count > 1).slice(0, 12).map(e => (
@@ -3563,17 +3591,17 @@ const renderScoutDetail = () => {
                                 ))}
                                 {!model.exposure.some(e => e.count > 1) && <div className="empire-empty"><strong>No duplicate exposure</strong>Your assets are spread cleanly across leagues.</div>}
                             </div>
-                            <div className="empire-tilegrid">
+                            <details className="empire-asset-map" open={phone ? undefined : true}><summary>Top valued assets</summary><div className="empire-tilegrid">
                                 {[...model.assets].filter(a => a.dhq > 0).sort((a, b) => b.dhq - a.dhq).slice(0, 48).map((a, i) => (
                                     <button key={a.pid + ':' + a.leagueId + ':' + i} type="button" className="empire-tile" title={a.name + ' · ' + empireCompact(a.dhq) + ' · ' + (a.agePhaseLabel || '')} style={{ flexGrow: Math.max(1, Math.round(a.dhq / 800)), borderColor: a.agePhaseColor }} onClick={() => setDetail({ type: 'player', pid: a.pid })}>
                                         <span className="empire-tile-name">{a.name}</span>
                                         <span className="empire-tile-dhq">{empireCompact(a.dhq)}</span>
                                     </button>
                                 ))}
-                            </div>
-                        </section>
+                            </div></details>
+                        </section>}
 
-                        <section className="empire-workspace">
+                        {(workspace !== 'assets' || assetView === 'players') && <section className="empire-workspace">
                             <div className="empire-workspace-head">
                                 <div>
                                     <strong>Asset Workspace</strong>
@@ -3585,6 +3613,7 @@ const renderScoutDetail = () => {
                                     ))}
                                 </div>
                             </div>
+                            {filters.assetType !== 'picks' && <label className="empire-asset-search">Find a player or league<input type="search" value={assetQuery} onChange={e => setAssetQuery(e.target.value)} /></label>}
                             {filters.assetType === 'picks' ? (
                                 <div className="empire-quality-grid" style={{ padding: 12, marginTop: 0 }}>
                                     {model.pickCapital.byYear.map(year => (
@@ -3594,18 +3623,20 @@ const renderScoutDetail = () => {
                                         </button>
                                     ))}
                                 </div>
-                            ) : filtered.assets.length ? (
+                            ) : searchedAssets.length ? (
                                 <>
                                     <div className="empire-table-head"><div>Player</div><div>Pos</div><div>Age</div><div>DHQ</div><div>Window</div><div>Exp</div><div>League</div></div>
-                                    {assetRows(filtered.assets, 150)}
+                                    {assetRows(searchedAssets, assetPageSize)}
+                                    {searchedAssets.length > assetPageSize && <button type="button" className="empire-action empire-more-assets" onClick={() => setAssetLimit(assetPageSize + 24)}>Show more players · {searchedAssets.length - assetPageSize} remaining</button>}
                                 </>
                             ) : (
                                 <div className="empire-empty">
                                     <strong>No players match the current filters</strong>
-                                    Pick-only or empty slices are shown above. Reset filters to return to all assets.
+                                    {assetQuery ? 'Try another name or clear your search.' : 'Adjust the filters to return to more assets.'}
+                                    <button type="button" className="empire-action" onClick={() => assetQuery ? setAssetQuery('') : clearFilters()}>{assetQuery ? 'Clear search' : 'Reset filters'}</button>
                                 </div>
                             )}
-                        </section>
+                        </section>}
                     </>
                 )}
                 {wireItems.length ? (

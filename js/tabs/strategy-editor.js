@@ -393,7 +393,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     }
 
     return (
-        <div style={{ padding: _phone ? '20px 0 150px' : '20px 0 60px', width: '100%', maxWidth: 'none', margin: 0 }}>
+        <div className="wr-strategy-editor" style={{ padding: _phone ? '20px 0 150px' : '20px 0 60px', width: '100%', maxWidth: 'none', margin: 0 }}>
 
             {/* ── Header ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
@@ -413,8 +413,8 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
 
             {/* ── Mode (Phase 1: preset-first) ── */}
             <div style={styles.card}>
-                <SectionHeader title="Mode" sub={currentMode?.desc + (isCustom ? '' : ' Preset bundles every downstream setting — switch to Custom to tune individually.')} />
-                <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                {!_phone && <SectionHeader title="Mode" sub={currentMode?.desc + (isCustom ? '' : ' Preset bundles every downstream setting — switch to Custom to tune individually.')} />}
+                {_phone ? <label className="wr-strategy-mode-picker">Your direction<select value={draft.mode} onChange={e => e.target.value === 'custom' ? set('mode', 'custom') : applyPreset(e.target.value)}>{MODES.map(m => <option key={m.value} value={m.value}>{m.label}{m.value === recommendedMode ? ' · Suggested' : ''}</option>)}</select><span>{currentMode?.desc}</span></label> : <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
                     {MODES.map(m => {
                         const active = draft.mode === m.value;
                         return (
@@ -442,7 +442,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                             </button>
                         );
                     })}
-                </div>
+                </div>}
                 {recommendedMode && (
                     <div style={{ marginTop: 12, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
                         <span style={{ color: 'var(--gold)', fontWeight: 700 }}>★ Recommended for your roster:</span> {MODES.find(m => m.value === recommendedMode)?.label}
@@ -451,13 +451,13 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                 )}
                 {!isCustom && (
                     <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 6, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
-                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{draft.timeline}</em>
+                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{TIMELINES.find(t => t.value === draft.timeline)?.label || draft.timeline}</em>
                     </div>
                 )}
             </div>
 
             {/* ── Trade Acceptance Floor (always visible — drives the Trade Center) ── */}
-            <div style={styles.card}>
+            <window.WR.MobileSection phone={_phone} title="Trade Acceptance Floor" summary="How likely a partner must be to accept"><div style={styles.card}>
                 <SectionHeader title="Trade Acceptance Floor" sub="The minimum acceptance an offer must clear for the Trade Center to call it Playable. Lower = chase more long-shot deals; higher = only safe, fair offers. Seeded by your aggression — drag to fine-tune." />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
                     <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '2.1rem', fontWeight: 700, color: 'var(--gold)', minWidth: 90, lineHeight: 1 }}>{draft.acceptanceFloor}%</div>
@@ -483,10 +483,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         onChange={v => set('acceptanceFloor', v)}
                     />
                 </div>
-            </div>
+            </div></window.WR.MobileSection>
 
             {/* ── Aggression (Custom only) ── */}
-            {isCustom && <div style={styles.card}>
+            {isCustom && <window.WR.MobileSection phone={_phone} title="Aggression" summary="Your appetite for risk"><div style={styles.card}>
                 <SectionHeader title="Aggression" sub={(currentAggression?.desc || '') + ' Also re-seeds the acceptance floor above.'} />
                 <PillGroup
                     options={AGGRESSION.map(a => ({ value: a.value, label: a.label }))}
@@ -494,10 +494,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                     onChange={v => setDraft(d => ({ ...d, aggression: v, acceptanceFloor: acceptanceFloorFor(v, d.mode) }))}
                     fullWidth
                 />
-            </div>}
+            </div></window.WR.MobileSection>}
 
             {/* ── FAAB / Waivers ── */}
-            <div style={styles.card}>
+            <window.WR.MobileSection phone={_phone} title="FAAB / Waivers" summary="Minimum bid and waiver rules"><div style={styles.card}>
                 <SectionHeader title="FAAB / Waivers" sub="Your league's minimum waiver bid. Set this when your platform doesn't report it (or reports it wrong) — FAAB Command and Alex's 'offer the minimum' calls pull this number instead." />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ color: 'var(--gold)', fontFamily: 'var(--font-mono, monospace)', fontSize: '1.1rem', fontWeight: 700 }}>$</span>
@@ -515,10 +515,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                             : `Unset — using the imported league setting${currentLeague?.settings?.waiver_budget_min ? ` ($${currentLeague.settings.waiver_budget_min})` : ' (currently $0 — likely not reported by your platform)'}.`}
                     </span>
                 </div>
-            </div>
+            </div></window.WR.MobileSection>
 
             {/* ── Roster Cutdown Day ── */}
-            <div style={styles.card}>
+            <window.WR.MobileSection phone={_phone} title="Roster Cutdown Day" summary="Roster limits and effective date"><div style={styles.card}>
                 <SectionHeader title="Roster Cutdown Day" sub="If your league shrinks its roster limits on a set date — an NFL-style cutdown to a smaller active roster + taxi squad — record it here so the Calendar counts it down and My Roster warns you once you're over the new limit." />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer', fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.75))', fontFamily: 'var(--font-body)' }}>
                     <input type="checkbox" checked={cutdownIsRule} onChange={e => setCutdownIsRule(e.target.checked)}
@@ -568,10 +568,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         {cutdownRule.setBy === 'commissioner' ? ' · marked as the league rule.' : ' · personal note.'}
                     </div>
                 )}
-            </div>
+            </div></window.WR.MobileSection>
 
             {/* ── Free Agency Filters ── */}
-            <div style={styles.card}>
+            <window.WR.MobileSection phone={_phone} title="Free Agency Filters" summary="Age, value and position filters"><div style={styles.card}>
                 <SectionHeader title="Free Agency Filters" sub="Tune who shows up in your waiver / FA recommendations. The market explorer still shows everyone." />
                 <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                     <div>
@@ -608,10 +608,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         onChange={toggleFaPos}
                     />
                 </div>
-            </div>
+            </div></window.WR.MobileSection>
 
             {/* ── Priorities ── */}
-            <div style={styles.card}>
+            <window.WR.MobileSection phone={_phone} title="Priorities" summary="Targets, sell rules and untouchables"><div style={styles.card}>
                 <SectionHeader title="Priorities" />
                 <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
                     {/* Target Positions */}
@@ -648,6 +648,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <input
+                            aria-label="New sell rule"
                             value={newSellRule}
                             onChange={e => setNewSellRule(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter' && newSellRule.trim()) { set('sellRules', [...draft.sellRules, newSellRule.trim()]); setNewSellRule(''); }}}
@@ -672,6 +673,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                     </div>
                     <div style={{ position: 'relative' }}>
                         <input
+                            aria-label="Search roster for untouchables"
                             value={untouchableSearch}
                             onChange={e => { setUntouchableSearch(e.target.value); setShowUntouchablePicker(true); }}
                             onFocus={() => setShowUntouchablePicker(true)}
@@ -697,10 +699,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         )}
                     </div>
                 </div>
-            </div>
+            </div></window.WR.MobileSection>
 
             {/* ── Draft Style (Custom only) ── */}
-            {isCustom && <div style={styles.card}>
+            {isCustom && <window.WR.MobileSection phone={_phone} title="Draft Style" summary="Your approach to the draft"><div style={styles.card}>
                 <SectionHeader title="Draft Style" />
                 <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
                     {DRAFT_STYLES.map(ds => {
@@ -721,13 +723,13 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         );
                     })}
                 </div>
-            </div>}
+            </div></window.WR.MobileSection>}
 
             {/* ── Draft Archetype (Custom only) — which POSITIONS to lean
                  toward (RB Heavy/Zero-RB/etc.), distinct from Draft Style
                  above (pick-CAPITAL philosophy). Feeds the Big Board's AI
                  lane + Mock/Live Draft recommendation scoring. ── */}
-            {isCustom && archetypeOptions.length > 0 && <div style={styles.card}>
+            {isCustom && archetypeOptions.length > 0 && <window.WR.MobileSection phone={_phone} title="Draft Archetype" summary="Roster construction preferences"><div style={styles.card}>
                 <SectionHeader title="Draft Archetype" />
                 <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
                     {archetypeOptions.map(arch => {
@@ -748,10 +750,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         );
                     })}
                 </div>
-            </div>}
+            </div></window.WR.MobileSection>}
 
             {/* ── Market Posture (Custom only) ── */}
-            {isCustom && <div style={styles.card}>
+            {isCustom && <window.WR.MobileSection phone={_phone} title="Market Posture" summary="Buying and selling approach"><div style={styles.card}>
                 <SectionHeader title="Market Posture" />
                 <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
                     {MARKET_POSTURES.map(mp => {
@@ -772,14 +774,14 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         );
                     })}
                 </div>
-            </div>}
+            </div></window.WR.MobileSection>}
 
             {/* ── Timeline (Custom only) ── */}
-            {isCustom && <div style={styles.card}>
+            {isCustom && <window.WR.MobileSection phone={_phone} title="Timeline" summary="When you plan to compete"><div style={styles.card}>
                 <SectionHeader title="Timeline" />
                 <PillGroup
                     options={TIMELINES.map(t => ({ value: t.value, label: t.label }))}
-                    value={draft.timeline}
+                    value={TIMELINES.find(t => t.value === draft.timeline)?.label || draft.timeline}
                     onChange={v => set('timeline', v)}
                     fullWidth
                 />
@@ -788,7 +790,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         {TIMELINES.find(t => t.value === draft.timeline).desc}
                     </div>
                 )}
-            </div>}
+            </div></window.WR.MobileSection>}
 
             {/* Alex Personality card removed — one canonical Alex voice
                 (owner ruling 2026-07-08). Strategy substance above is untouched. */}

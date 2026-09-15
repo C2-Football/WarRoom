@@ -1220,7 +1220,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         // shell that every other view gets for free), so it has to carve out its
         // own safe-area-inset-top — without it, the header row sits under the iOS
         // status bar/notch on phone and its buttons become untappable.
-        <div style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}>
+        <div className="co-office" style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}>
         {isPhone && navOpen && window.WrCommishSidebar ? (
             <window.WrCommishSidebar
                 groups={sidebarGroups} active={tab} counts={hubCounts}
@@ -1245,14 +1245,14 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         ) : null}
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '14px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
+                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
                 {/* Blue wordmark, not gold: the cheapest signal that the Office
                     is a different room from Empire. Gold survives in exactly two
                     places office-wide — the LABS chip and the "this is you" row. */}
                 <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: isPhone ? '1.15rem' : '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
-                <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
+                <span style={{ fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.625rem)', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
                 {state.status === 'ready' ? (
-                    <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                         {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER
                     </span>
                 ) : null}
@@ -1271,8 +1271,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     ) : null}
                     <div style={{ flex: 1, minWidth: 0 }}>
                         {isPhone ? (
-                            <button onClick={() => setNavOpen(true)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            <button aria-haspopup="dialog" aria-expanded={navOpen} onClick={() => setNavOpen(true)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                                 ☰ Workspaces
                             </button>
                         ) : null}
@@ -1281,7 +1281,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         </nav>}
                         {scopeLeagueId ? (
                             <button onClick={() => setScopeLeagueId(null)}
-                                style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+                                style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.08em' }}>
                                 {(state.mine || []).find(l => String(l.league_id || l.id) === scopeLeagueId)?.name || 'SCOPED'} ✕
                             </button>
                         ) : null}
@@ -1292,7 +1292,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             {/* The command panel prints its own provenance footer; only add one
                 here for the hub views, so the two never stack. */}
             {tab !== 'command' ? (
-                <div style={{ marginTop: '24px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
+                <div style={{ marginTop: '24px', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
                     The office reads; it never writes to a platform.
                 </div>
             ) : null}
@@ -1301,18 +1301,18 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     );
 
     if (state.status === 'idle' || state.status === 'loading') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: '0.78rem' }}>{state.step || 'Opening the office…'}</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: 'var(--co-readable-body, 0.78rem)' }}>{state.step || 'Opening the office…'}</div>);
     }
     if (state.status === 'none') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: '0.82rem', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
     }
     if (state.status === 'error' || state.status === 'unavailable') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: '0.82rem' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
     }
 
     const Net = window.WrCommishCoefficientPanel, Prog = window.WrCommishProgrammePanel;
     const People = window.WrCommishPeoplePanel, Ops = window.WrCommishOpsPanel;
-    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px', color: TEXT, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
+    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px', color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', fontFamily: MONO }}>{name} module not loaded.</div>;
 
     return shell(
         <React.Fragment>
@@ -1340,8 +1340,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     />
                 ) : missing('Settings')) : null}
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
-                {tab === 'people' ? (People ? <People radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
-                {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? <window.WrCommishRenewalPanel forecast={state.renewal} /> : null}
+                {tab === 'people' ? (People ? <People phone={isPhone} radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
+                {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? (isPhone ? <details className="co-disclosure"><summary>Renewal forecast</summary><window.WrCommishRenewalPanel forecast={state.renewal} /></details> : <window.WrCommishRenewalPanel forecast={state.renewal} />) : null}
                 {tab === 'ops' ? (Ops ? <Ops drift={state.drift} calendar={opsCalendar} conflicts={state.conflicts}
                     leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
                     onAcknowledge={onAcknowledge} onAddTask={onAddTask} onToggleTask={onToggleTask} onRemoveTask={onRemoveTask}
@@ -1349,6 +1349,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {tab === 'programmes' ? (Prog ? <Prog programmes={state.programmes} onExportAll={onExportAll} /> : missing('Programme rack')) : null}
                 {tab === 'rulelab' ? (window.WrCommishRuleLabPanel ? (
                     <window.WrCommishRuleLabPanel
+                        phone={isPhone}
                         status={ruleLab.status === 'ready' ? 'ready' : ruleLab.status}
                         seasonUsed={ruleLab.season}
                         seasons={ruleLab.seasons || []}

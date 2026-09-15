@@ -153,7 +153,11 @@
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('span', { className: 'tl-lineup-pts tl-lineup-ytd tabular', title: 'Player points through completed Vault weeks, including bench games' }, ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId)), h('small', null, 'YTD PTS')),
                 h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
-                    onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'));
+                    onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'),
+                h('details', { className: 'tl-roster-mobile-detail' }, h('summary', null, `${ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId))} YTD pts · Details`),
+                    h('p', null, `${revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—'} SZN pts · recorded archive total with reference scoring.`),
+                    h('p', null, 'YTD covers completed Vault weeks, including bench games.'),
+                    rating && h('p', null, clue.label), rating && rating.maxRemainingStars !== null && h('p', null, `Archive ceiling: ${rating.maxRemainingStars} stars. Best unused archived game; it may fall outside this Vault season.`)));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
             h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
@@ -290,9 +294,11 @@
     }
 
     function WaiversSection({ league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors }) {
+        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
+        const rowCap = phone ? 20 : WIRE_ROW_CAP;
         const [query, setQuery] = useState('');
         const [pos, setPos] = useState(waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot] ? waiverSlot : 'ALL');
-        const [visibleCount, setVisibleCount] = useState(WIRE_ROW_CAP);
+        const [visibleCount, setVisibleCount] = useState(rowCap);
         const [targetIdentity, setTargetIdentity] = useState('');
         const [dropEntryId, setDropEntryId] = useState('');
         const [bidAmount, setBidAmount] = useState(0);
@@ -316,7 +322,7 @@
         const previews = useMemo(() => new Map(pool.map(card => [card.identity, Engine.waiverPreview(league, card, logIndex, eraFactors)])), [pool, league, logIndex, eraFactors]);
         const estimatedPreviews = league.settings.gameDeckVersion === 1;
         React.useEffect(() => {
-            if (waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot]) { setPos(waiverSlot); setVisibleCount(WIRE_ROW_CAP); }
+            if (waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot]) { setPos(waiverSlot); setVisibleCount(rowCap); }
         }, [waiverSlot]);
         const faab = league.settings.waiverMode === 'faab';
         const chooseTarget = (identity, event) => {
@@ -393,10 +399,10 @@
             h('section', { className: 'tl-card tl-waiver-market' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Market explorer'), h('small', null, `${filtered.length} available players`)),
                 h('div', { className: 'tl-waiver-search' },
-                    h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(WIRE_ROW_CAP); } }),
+                    h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(rowCap); } }),
                     h('span', { className: 'tl-label' }, estimatedPreviews ? 'SORT · EST. POINTS LEFT ↓' : 'SORT · POINTS LEFT ↓')),
                 h('nav', { className: 'tl-waiver-filters', 'aria-label': 'Free agent positions' },
-                    ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(WIRE_ROW_CAP); } }, slotName(position)))),
+                    ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(rowCap); } }, slotName(position)))),
                 h('p', { className: 'tl-waiver-reference' }, league.phase === 'complete' ? 'Season complete. No points remain to play.' : estimatedPreviews
                     ? `This week’s editions · Estimated points left use the recorded-season average across W${league.currentWeek}–W${Engine.seasonEndWeek(league)}. Weekly scores and availability stay sealed. Totals use your league scoring.`
                     : `This week’s editions · Points left cover W${league.currentWeek}–W${Engine.seasonEndWeek(league)}, if started each week. Totals use your league scoring${Engine.playoffCount(league) ? ' and include playoff weeks' : ''}.`),
@@ -409,13 +415,13 @@
                             const selected = card.identity === targetIdentity;
                             return h('tr', { key: card.identity, className: selected ? 'is-selected' : '' },
                                 h('td', { className: 'tl-waiver-rank' }, index + 1),
-                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${preview?.drawnSeason ?? '—'} season`), h('small', { className: 'tl-waiver-mobile-points' }, previewPoints(preview?.remainingPoints) + (preview?.estimated ? ' est. pts left' : ' pts left'))),
+                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${card.position} · ${preview?.drawnSeason ?? '—'} season`), h('small', { className: 'tl-waiver-mobile-points' }, previewPoints(preview?.remainingPoints) + (preview?.estimated ? ' est. pts left' : ' pts left')), h('details', { className: 'tl-waiver-mobile-detail' }, h('summary', null, 'Score detail'), h('p', null, `${previewPoints(preview?.totalPoints)} total · ${previewPoints(preview?.remainingPoints)} ${preview?.estimated ? 'estimated ' : ''}points left. Totals use your league scoring.`))),
                                 h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
                                 h('td', { className: 'tl-waiver-score tabular' }, previewPoints(preview?.remainingPoints), h('small', null, `${previewPoints(preview?.totalPoints)} total`)),
                                 h('td', null, h('button', { className: `tl-btn${selected ? ' primary' : ''}`, disabled: !wireOpen || filing, 'aria-label': `Claim ${card.name}`, 'aria-pressed': selected, onClick: event => chooseTarget(card.identity, event) }, selected ? 'Edit claim' : '+ Claim')));
                         })))),
                 h('div', { className: 'tl-waiver-market-foot' }, h('span', null, `${shown.length} of ${filtered.length} shown`),
-                    filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + WIRE_ROW_CAP) }, 'Show more'))),
+                    filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + rowCap) }, 'Show more'))),
             h('aside', { className: 'tl-waiver-command' },
                 h('div', { style: { display: 'grid', gridTemplateColumns: faab ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Priority'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, myPriority ? `#${myPriority}` : '—')),

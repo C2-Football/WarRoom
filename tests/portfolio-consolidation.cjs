@@ -53,10 +53,14 @@ test('ownership context counts IR/taxi once, excludes opponents, and preserves u
 test('hub resumes the last league and puts league work before portfolio and games', () => {
     Object.assign(context, {
         EMPIRE_FREE_PRELIVE: true, EMPIRE_ENABLED: true, COMMISH_ENABLED: true, TIME_LEAGUE_ENABLED: true,
-        getUserTier: () => 'free', leagueQuery: '', lastLeagueId: 'L1', hubSyncing: false, commishCount: 1,
+        getUserTier: () => 'free', leagueQuery: '', hubAllLeagues: false, lastLeagueId: 'L1', hubSyncing: false, commishCount: 1,
+        sleeperLeagues: fixture.allLeagues,
         pendingInvite: false, error: null, distPrefix: '', ProTierIcon: () => null,
         leagueTeamName: l => 'Team ' + l.id, leagueFormat: () => 'Dynasty', leagueHealth: () => ({ wp: null }), initialsFor: () => 'A',
         setShowSettings() {}, setShowConnect() {}, setProMode() {}, openCommishOffice() {}, openTimeLeague() {}, openDuat() {},
+        setAllWireOpen() {},
+        setLeagueQuery: value => { context.leagueQuery = value; },
+        setHubAllLeagues: value => { context.hubAllLeagues = value; },
     });
     const pickerSource = app.slice(app.indexOf('        function FranchisePicker('), app.indexOf('        function handleSelectLeague('));
     vm.runInContext(Babel.transform(pickerSource, { presets: ['react'] }).code, context);
@@ -79,7 +83,7 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     let account = 'owner-a';
     Object.assign(context, {
         OD: { getCurrentUserId: () => account }, sleeperUser: { user_id: 'sleeper-a' },
-        selectedLeague: null, activeTab: 'dashboard', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [],
+        selectedLeague: null, activeTab: 'dashboard', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [], allWireOverlay: null,
         isNavigatingRef: { current: false }, initialRouteAppliedRef: { current: false },
         sleeperLeagues: [league], espnLeagues: [], mflLeagues: [], visibleEspnLeagues: [], visibleMflLeagues: [], loading: false,
         setSelectedLeague: value => { context.selectedLeague = value; },

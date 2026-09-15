@@ -1,0 +1,198 @@
+/* League research and operations: compact first views, readable detail on demand. */
+@media (max-width: 767px) {
+    .la-mobile { --text-label:14px; --text-micro:14px; min-width:0; max-width:100%; color:var(--white); font:16px/1.45 var(--font-body); }
+    .la-mobile *, .la-report-results * { box-sizing:border-box; }
+    .la-mobile :is(button,select,input:not([type=checkbox]):not([type=radio]),summary) { min-height:44px; }
+    .la-mobile :is(button,select,input,textarea) { max-width:100%; min-width:0; border-radius:var(--card-radius-sm); font-family:var(--font-body) !important; }
+    .la-mobile :is(button,summary) { font-size:14px !important; line-height:1.35; letter-spacing:normal !important; text-transform:none !important; }
+    .la-mobile :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size:16px !important; }
+    .la-mobile button { min-height:44px !important; cursor:pointer; }
+    .la-mobile :is(button,select,input,textarea,summary):focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+    .la-mobile button:disabled { opacity:.45; cursor:default; }
+    .la-mobile h2 { margin:0 0 8px; font:600 20px/1.3 var(--font-body); color:var(--white); letter-spacing:normal; }
+    .la-mobile p { margin:8px 0; font-size:14px; line-height:1.5; color:var(--silver); }
+    .la-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .la-heading > div { min-width:0; }
+    .la-heading h2 { overflow-wrap:anywhere; }
+    .la-heading button { flex:0 0 auto; }
+    .la-tools { display:flex; flex-wrap:wrap; align-items:end; gap:8px; margin:8px 0 12px; min-width:0; }
+    .la-tools label { flex:1 1 100px; min-width:0; display:grid; gap:4px; color:var(--silver); font-size:14px; }
+    .la-tools :is(select,input) { width:100%; }
+    .la-tools > button { flex:0 0 auto; }
+    .la-mobile .la-tools :is(button,select), .la-mobile .la-heading button, .la-mobile .la-pagination button, .la-mobile .la-show-more, .la-mobile .la-report-row > button, .la-mobile .la-player-controls > input, .la-mobile .la-view-select select, .la-calendar > div:first-child select { border:1px solid var(--ov-6,rgba(189,184,173,.2)); background:var(--black); color:var(--white); padding:10px 12px; }
+    .la-view-select { display:grid; gap:5px; min-width:0; width:100%; margin:8px 0 14px; color:var(--silver); font-size:14px; }
+    .la-view-select select { width:100%; }
+    .la-disclosure { border:1px solid var(--ov-5,rgba(189,184,173,.15)); border-radius:var(--card-radius); margin:10px 0; min-width:0; background:var(--black); }
+    .la-disclosure > summary { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:48px; padding:12px; cursor:pointer; list-style:none; color:var(--white); font-weight:500; }
+    .la-disclosure > summary::-webkit-details-marker, .la-report-row > summary::-webkit-details-marker { display:none; }
+    .la-disclosure > summary::after { content:'+'; color:var(--gold); flex-shrink:0; font-size:20px; }
+    .la-disclosure[open] > summary::after { content:'−'; }
+    .la-disclosure > summary > span { margin-left:auto; color:var(--silver); font-size:14px; }
+    .la-disclosure > p, .la-disclosure > .la-tools, .la-disclosure > .la-checks { margin-inline:12px; }
+    .la-disclosure-body { padding:0 12px 12px; min-width:0; max-width:100%; }
+    .la-disclosure-body > :last-child { margin-bottom:0 !important; }
+    .la-checks { display:grid; grid-template-columns:minmax(0,1fr); margin:10px 0; }
+    .la-checks label { display:flex; align-items:center; gap:10px; min-height:44px; font-size:16px; color:var(--silver); }
+    .la-checks input { width:20px; height:20px; flex:0 0 auto; accent-color:var(--gold); }
+    .la-player-controls > input { width:100%; }
+    .la-report-row { background:var(--black); border:1px solid var(--ov-5,rgba(189,184,173,.15)); border-radius:var(--card-radius); padding:0 12px; margin:8px 0; min-width:0; }
+    .la-report-row > summary { display:flex; align-items:center; gap:10px; min-height:76px; padding:12px 0; list-style:none; cursor:pointer; }
+    .la-report-row > summary > span:first-child { flex:1; min-width:0; }
+    .la-report-row strong { display:block; color:var(--white); font-size:16px; font-weight:600; line-height:1.35; overflow-wrap:anywhere; }
+    .la-report-row small { display:block; color:var(--silver); font-size:14px; line-height:1.4; margin-top:3px; overflow-wrap:anywhere; }
+    .la-main-value { flex:0 0 auto; text-align:right; max-width:38%; }
+    .la-main-value strong { font-variant-numeric:tabular-nums; color:var(--gold); }
+    .la-detail-cue { color:var(--gold); font-size:20px; flex:0 0 auto; }
+    .la-report-row[open] .la-detail-cue { transform:rotate(45deg); }
+    .la-fields { margin:0; padding:0; border-top:1px solid var(--ov-4,rgba(189,184,173,.12)); }
+    .la-fields > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; padding:10px 0; border-bottom:1px solid var(--ov-3,rgba(189,184,173,.08)); }
+    .la-fields dt { font-size:14px; color:var(--silver); overflow-wrap:anywhere; }
+    .la-fields dd { margin:0; text-align:right; font-size:16px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .la-report-row > button { width:100%; margin:10px 0 12px; color:var(--gold); }
+    .la-group-title { margin:18px 0 8px; font-size:16px; color:var(--white); }
+    .la-group-title small { color:var(--silver); font-size:14px; font-weight:400; }
+    .la-pagination { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin:16px 0; font-size:14px; color:var(--silver); }
+    .la-pagination > div { display:flex; gap:8px; }
+    .la-show-more { width:100%; margin:16px 0; color:var(--gold) !important; }
+    .la-result-count { margin:8px 0; color:var(--silver); font-size:14px; }
+    .la-analytics.analytics-shell { padding:0 !important; }
+    .la-analytics .analytics-draft-summary { margin-bottom:10px; padding:0; background:none; border:0; }
+    .la-analytics .analytics-draft-summary > strong { display:none; }
+    .la-analytics .analytics-draft-summary > span { font-size:14px; }
+    .la-analytics .analytics-draft-summary details { margin-top:4px; }
+    .la-analytics .analytics-draft-summary summary { display:flex; align-items:center; min-height:44px; }
+    .la-priority { margin-bottom:14px; }
+    .la-analytics .analytics-data-row, .la-analytics .analytics-data-row.is-compact { min-width:0; padding:12px; grid-template-columns:minmax(0,1fr) auto; }
+    .la-analytics .analytics-data-row > div { min-width:0; }
+    .la-analytics .analytics-data-row > div > span { display:block; font-size:14px; color:var(--silver); }
+    .la-analytics .analytics-data-row strong { font-size:16px; white-space:normal; overflow-wrap:anywhere; }
+    .la-analytics .analytics-data-row em { grid-column:1/-1; font-size:14px; font-style:normal; white-space:normal; }
+    .la-analytics .analytics-data-row b { font-size:16px; white-space:normal; overflow-wrap:anywhere; }
+    .la-analytics .analytics-data-row button { width:100%; }
+    .la-analytics .analytics-lab-grid { grid-template-columns:minmax(0,1fr) !important; }
+    .la-analytics .analytics-lab-grid:empty { display:none; }
+    .la-analytics .analytics-lab-card { min-width:0; padding:12px; }
+    .la-analytics .analytics-lab-card > strong { font-size:18px; }
+    .la-analytics .analytics-lab-card > span, .la-analytics .analytics-panel-head, .la-analytics .analytics-draft-note { font-size:14px; }
+    .la-analytics .analytics-panel-head { flex-wrap:wrap; gap:6px; }
+    .la-analytics .analytics-panel-head em { font-size:14px; line-height:1.4; }
+    .la-analytics .analytics-delta-head, .la-analytics .analytics-delta-row { grid-template-columns:44px minmax(0,1fr) 44px 44px 48px; gap:5px; font-size:14px; }
+    .la-analytics .analytics-delta-row :is(strong,b,em) { font-size:14px; }
+    .la-analytics .analytics-delta-track { min-width:0; }
+    .la-analytics .analytics-chip-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .la-analytics .analytics-mini-table > div { grid-template-columns:minmax(0,1fr) auto; gap:6px; font-size:14px; }
+    .la-analytics .analytics-mini-table em { grid-column:1/-1; font-size:14px; }
+    .la-analytics .analytics-dna-tabs { gap:8px; }
+    .la-analytics .analytics-dna-tabs button { flex:1; white-space:normal; padding:8px; }
+    .la-compare.compare-shell { padding:0 0 20px !important; }
+    .la-compare .wr-module-strip { padding:0; border:0; background:none; }
+    .la-compare .wr-module-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .la-compare .wr-module-actions > .la-view-select { margin:0; }
+    .la-compare .wr-kpi-strip { display:grid; grid-template-columns:minmax(0,1fr); overflow:visible; }
+    .la-compare .wr-kpi-strip > div { width:auto !important; min-width:0; }
+    .la-compare .wr-kpi-strip > div > div:last-child { font-size:14px !important; white-space:normal !important; }
+    .la-calendar-event { align-items:flex-start !important; flex-wrap:wrap; }
+    .la-calendar-event > div:first-child { width:20px !important; }
+    .la-calendar-event .la-calendar-copy { flex:1 1 calc(100% - 40px) !important; }
+    .la-calendar-copy > div:first-child { font-size:16px !important; overflow-wrap:anywhere; }
+    .la-calendar-copy > div:not(:first-child) { font-size:14px !important; line-height:1.5; }
+    .la-calendar-event > span { margin-left:30px; font-size:14px !important; }
+    .la-calendar-event > button { margin-left:auto; }
+    .la-central .lct-status { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .la-central :is(.lct-status-copy strong,.lct-status-copy small,.lct-note,.lct-mode-toggle button) { font-size:14px !important; line-height:1.5; }
+    .la-central .lct-mode-toggle { display:flex; gap:6px; }
+    .la-central .lct-mode-toggle button { padding:8px 12px; }
+    .la-central .la-report-row { padding-inline:10px; }
+    .la-central .la-own { border-left:3px solid var(--gold); }
+    .la-central .la-cutline { padding:4px 0 10px; border-bottom:1px dashed var(--gold); font-size:14px; color:var(--gold); }
+    .la-form-history { display:block; font-size:14px; line-height:1.5; margin-top:6px; }
+    .la-league-score.lls { padding:12px; }
+    .la-league-score .lls-heading h3 { font:600 18px/1.3 var(--font-body); }
+    .la-league-score :is(.lls-note,.lls-side-label,.lls-vs,.lls-rank,.lls-team-name small,.lls-starter small,.lls-starter-head) { font-size:14px !important; line-height:1.4; text-transform:none; letter-spacing:normal; }
+    .la-league-score :is(.lls-owner,.lls-team-name) { font-size:16px !important; line-height:1.35; white-space:normal !important; overflow:visible !important; overflow-wrap:anywhere; }
+    .la-league-score .lls-matchups { display:grid !important; grid-template-columns:minmax(0,1fr) !important; overflow:visible !important; }
+    .la-league-score .lls-matchups > .lls-card { width:100%; max-width:100%; padding:12px; }
+    .la-league-score .lls-versus { grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr); gap:8px; }
+    .la-league-score .lls-side .lls-score { font-size:20px !important; margin-top:6px; }
+    .la-league-score .lls-side-label { display:none; }
+    .la-league-score .lls-controls { width:100%; display:flex; flex-wrap:wrap; gap:8px; }
+    .la-league-score .lls-controls label { display:flex; align-items:center; gap:6px; font-size:14px; }
+    .la-league-score .lls-controls select { font-size:16px !important; }
+    .la-league-score .lls-controls button { font-size:14px !important; padding:8px 10px; }
+    .la-league-score .lls-controls button:last-child { margin-left:auto; }
+    .la-league-score .lls-starter { font-size:16px; line-height:1.4; gap:12px; padding:12px 0; }
+    .la-league-score .lls-starter small { display:block; margin-top:4px; }
+    .la-league-score .lls-starter strong { font-size:16px; }
+    .la-league-score .lls-footer { gap:8px; }
+    .la-league-score .lls-footer .lls-note { font-size:14px !important; min-width:0; flex:1 1 100%; }
+    .la-league-score .lls-footer button { min-height:44px !important; font-size:14px !important; }
+    .la-history .wr-kpi-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; }
+    .la-history .wr-kpi-strip > div { min-width:0 !important; width:auto !important; }
+    .la-history .wr-kpi-strip > div > div:last-child { font-size:14px !important; line-height:1.4; letter-spacing:normal !important; text-transform:none !important; }
+    .la-history .la-view-select select { width:100%; }
+    .la-history-import textarea { font-family:var(--font-body) !important; font-size:16px !important; line-height:1.5; }
+    .la-history-import label { min-height:48px; display:flex; align-items:center; justify-content:center; font-size:16px !important; }
+    .la-chronicles .la-disclosure > :not(summary) { margin:10px 12px; }
+    .la-chronicles .la-history-champ { flex-wrap:wrap; }
+    .la-history-champ > div:last-child { flex-basis:100%; text-align:left !important; }
+    .la-chronicles table { min-width:440px; }
+    .la-chronicles th,.la-chronicles td { font-size:14px !important; padding:10px !important; }
+    .la-draft.draft-cc-scope { padding:0 !important; }
+    .la-draft .la-view-select { margin-top:0; }
+    .la-draft :is(.draft-hq-title,.draft-section-title) { font-size:20px; }
+    .la-draft .draft-pick-context-banner { flex-wrap:wrap; }
+    .la-draft-pane { max-width:100%; min-width:0; margin:0; }
+    .la-draft .wr-seg { flex-wrap:wrap; overflow:visible; }
+    .la-draft .wr-seg > button { flex:1 1 100px; min-width:0; white-space:normal; }
+    .wr-sheet-body:has(.la-draft-sheet) { display:flex; flex-direction:column; min-height:0; }
+    .la-draft-sheet { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .la-draft-sheet > div { flex:1; min-height:0; }
+    .la-draft-recap { max-width:100%; min-width:0; }
+    .la-draft-recap .wr-mobile-section { margin:8px; }
+    .la-draft-recap :is(button,summary) { white-space:normal !important; }
+}
+
+/* Cup formats retain their distinct presentation, with the selected description
+   and a single-column path through setup, results and commissioner disclosures. */
+@media (max-width: 767px) {
+    .la-mobile .cup-panel { gap:12px; min-width:0; }
+    .la-mobile .cup-panel :is(button,summary) { font-size:14px; min-height:44px; }
+    .la-mobile .cup-panel :is(input:not([type=checkbox]),select) { font-size:16px; min-height:44px; }
+    .la-mobile .cup-panel :is(p,small,label,.cup-note,.cup-eyebrow,.cup-connection,.cup-section-heading>span,.cup-live-summary,.cup-plan-numbers span,.cup-plan-road>span,.cup-format-copy>span,.cup-stage-rail>div) { font-size:14px !important; line-height:1.45; letter-spacing:normal; }
+    .la-mobile .cup-panel :is(.cup-match strong,.cup-your-team strong,.cup-format-copy strong,.cup-survival-rows strong,.cup-bracket-match span) { font-size:16px; line-height:1.4; white-space:normal; }
+    .la-mobile .cup-panel .cup-hero { padding:12px; }
+    .la-mobile .cup-panel .cup-hero h2 { font-size:26px; }
+    .la-mobile .cup-studio .cup-format-card { min-height:72px; padding:12px; }
+    .la-mobile .cup-format-card:not(.is-selected) .cup-format-copy small { display:none; }
+    .la-mobile .cup-plan-fields,.la-mobile .cup-stage-rail { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .la-mobile .cup-panel .cup-participants label { min-height:44px; align-items:center; }
+    .la-mobile .cup-panel .cup-survival-rows>div { grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; }
+    .la-mobile .cup-survival-rows>div>span { grid-column:1/-1; text-align:left; font-size:14px; }
+    .la-mobile .cup-panel .cup-bracket-match>div { min-height:52px; }
+    .la-mobile .cup-panel .cup-bracket-match b { font-size:16px; }
+    .la-mobile .cup-panel .cup-groups { min-width:0; max-width:100%; }
+    .la-mobile .cup-panel .cup-groups>section { min-width:0; overflow-x:auto; padding:10px; }
+    .la-mobile .cup-panel .cup-groups table { min-width:420px; font-size:14px; }
+    .la-mobile .cup-panel .cup-groups th,.la-mobile .cup-panel .cup-groups td { font-size:14px; padding:10px 8px; }
+    .la-mobile .cup-panel .cup-groups td:first-child { font-size:16px; white-space:normal; min-width:160px; }
+}
+@media (max-width:767px) {
+    .la-league-score .lls-heading[hidden] { display:none !important; }
+    .la-league-score.lls-compact .lls-footer { display:flex; flex-wrap:wrap; gap:4px 12px; }
+    .la-league-score.lls-compact .lls-footer .lls-note { flex:1; margin:0; }
+    .la-league-score.lls-compact .lls-footer button { flex:none; }
+}
+@media (max-width:767px) {
+    .la-capital-section>div:first-child { flex-wrap:wrap; }
+    .la-capital-card>div:first-child { flex-wrap:wrap; }
+    .la-capital-card>div:first-child>div:first-child { flex:1 1 100%; font-size:16px; overflow-wrap:anywhere; }
+    .la-capital-card>div:nth-child(2)>div:nth-child(3) { grid-column:1/-1; }
+    .la-duel-player { display:block !important; }
+    .la-duel-player>span:last-child { display:block; font-size:16px !important; margin-top:6px; }
+}
+@media (max-width:767px) {
+    .la-position-ranking { display:grid !important; grid-template-columns:20px minmax(0,1fr) auto; gap:8px !important; }
+    .la-position-ranking>span:nth-child(2) { font-size:16px !important; white-space:normal !important; overflow-wrap:anywhere; }
+    .la-position-ranking>span:last-child { font-size:16px !important; }
+    .la-position-ranking>div,.la-position-ranking>span:nth-child(3):not(:last-child) { display:none; }
+}

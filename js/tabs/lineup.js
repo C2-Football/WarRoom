@@ -10,6 +10,16 @@
 // lineup-write API, so Sleeper lineups are still set on the platform.
 // ══════════════════════════════════════════════════════════════════
 
+// Stable component identity keeps the player button available for sheet focus return.
+const MobilePlayerRow = ({ pos, name, tag, slots, accent, onClick }) => (
+    <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '')} onClick={onClick}>
+        <span className="gd-player-initial" aria-hidden="true">{pos}</span>
+        <span className="gd-player-main"><strong>{name}</strong><span>{tag}</span></span>
+        <span className="gd-plan-stats">{(slots || []).map(stat => <span key={stat.label}><strong>{stat.value}</strong><small>{stat.label === 'PROJ' ? 'Proj' : stat.label}</small></span>)}</span>
+        <span className="gd-row-chevron" aria-hidden="true">›</span>
+    </button>
+);
+
 function LineupTab({
     myRoster, currentLeague, leagueSkin, playersData, statsData, stats2025Data,
     sleeperUserId, gmStrategy, setActiveTab, timeRecomputeTs,
@@ -79,6 +89,7 @@ function LineupTab({
     const [workingAssign, setWorkingAssign] = React.useState({}); // slotIdx -> pid (the user's working lineup)
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
     const [phoneView, setPhoneView] = React.useState('week');     // phone Game Day: 'week' (matchup + lineup) | 'season' (outlook + schedule)
+    const [phoneLineupView, setPhoneLineupView] = React.useState('submitted'); // submitted scoring | local plan
     const [appliedMoves, setAppliedMoves] = React.useState(null); // phone: swap list shown after Apply Optimal ({sl,cur,opt,gain}[])
     const [explainPid, setExplainPid] = React.useState(null);     // "why this number" ledger target (Pro; tap a projection)
     // Game Day view (owner ruling 2026-07-30: Season Odds belongs here, not in
@@ -456,7 +467,72 @@ function LineupTab({
     }, [liveKey, result, nflGames, platformStarters.join(',')]);
     const savedForecasts = forecastState.key === liveKey ? forecastState.data : { players: {}, persistent: true };
     const liveTotal = Live && liveRow ? Live.rosterPoints(liveRow) : null;
-    const livePanel = (
+    // Phone scores come from the submitted matchup feed, including zero and
+    // negative totals. A matchup ID is required: unrelated bye rows must never
+    // become an invented opponent.
+    const liveOpponent = liveRow?.matchup_id == null ? null : (liveScores.rows || []).find(row =>
+        String(row.roster_id) !== String(liveRow.roster_id) && String(row.matchup_id) === String(liveRow.matchup_id));
+    const liveOpponentTotal = Live && liveOpponent ? Live.rosterPoints(liveOpponent) : null;
+    const opponentRoster = liveOpponent && (currentLeague?.rosters || []).find(row => String(row.roster_id) === String(liveOpponent.roster_id));
+    const opponentUser = opponentRoster && (currentLeague?.users || []).find(user => String(user.user_id) === String(opponentRoster.owner_id));
+    const liveOpponentName = opponentRoster?.metadata?.team_name || opponentUser?.metadata?.team_name || opponentUser?.display_name || (liveOpponent ? 'Team ' + liveOpponent.roster_id : 'Opponent');
+    const mobileScoreStatus = liveScores.error ? 'Last available scores'
+        : liveScores.status === 'loading' ? 'Loading scores'
+        : !liveScores.supported ? 'Scoring unavailable'
+        : weekStarted ? 'Actual points' : 'Submitted lineup · actual points';
+    const mobileScoreboard = (
+        <section className="gd-scoreboard" aria-label="Week matchup score">
+            <div className="gd-eyebrow">Week {liveWeek} · {mobileScoreStatus}</div>
+            <div className="gd-scoreboard-sides">
+                <div><span className="gd-team-name">Your team</span><strong>{liveTotal == null ? '—' : liveTotal.toFixed(2)}</strong></div>
+                {liveOpponent ? <React.Fragment><span className="gd-versus" aria-hidden="true">vs</span><div><span className="gd-team-name">{liveOpponentName}</span><strong>{liveOpponentTotal == null ? '—' : liveOpponentTotal.toFixed(2)}</strong></div></React.Fragment> : null}
+            </div>
+            <div className="gd-score-update">
+                <span>{liveScores.error ? 'Refresh failed · check your platform.' : liveScores.updatedAt ? 'Updated ' + new Date(liveScores.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : liveScores.supported ? 'Waiting for this week’s scoring.' : 'Follow scoring on your league platform.'}</span>
+                {liveScores.supported && liveScores.refresh ? <button type="button" onClick={() => liveScores.refresh()} aria-label="Refresh scores">Refresh</button> : null}
+            </div>
+        </section>
+    );
+    const mobileSubmittedLineup = (
+        <section className="gd-submitted" aria-label="Submitted starters projected versus actual points">
+            <div className="gd-list-heading"><h2>Submitted starters</h2><span>Actual pts</span></div>
+            {platformStarters.length ? <div className="gd-player-list">{platformStarters.map((pid, idx) => {
+                const empty = !pid || String(pid) === '0';
+                const meta = empty ? { name: 'Empty slot', team: '', pos: '' } : pmeta(pid);
+                const state = empty ? 'unknown' : gameState(pid);
+                const game = empty ? null : gameFor(pid);
+                const actual = !empty && Live && liveRow ? Live.playerPoints(liveRow, pid) : null;
+                const forecast = empty ? null : savedForecasts.players[pid];
+                const statusLabel = state === 'final' ? 'Final' : state === 'live' ? (game.shortDetail || 'In progress') : state === 'locked' ? 'Kickoff passed · locked' : state === 'upcoming' ? new Date(game.kickoff).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Status unavailable';
+                const injury = playersData?.[pid]?.injury_status;
+                return <details className="gd-score-player" key={String(pid) + '-' + idx}>
+                    <summary>
+                        <span className="gd-player-initial" aria-hidden="true">{meta.pos || '—'}</span>
+                        <span className="gd-player-main"><strong>{meta.name}</strong><span>{[meta.team, statusLabel, injury].filter(Boolean).join(' · ')}</span></span>
+                        <span className={'gd-player-points' + (state === 'live' ? ' is-live' : '')}>{actual == null ? '—' : actual.toFixed(2)}</span>
+                        <span className="gd-row-chevron" aria-hidden="true">›</span>
+                    </summary>
+                    <div className="gd-player-detail">
+                        <div><span>SAVED PROJ</span><strong>{forecast ? forecast.points.toFixed(1) : '—'}</strong></div>
+                        <p>{forecast ? (forecast.kind === 'pregame' ? 'Pregame projection' : 'First-view projection') + ' · captured ' + new Date(forecast.capturedAt).toLocaleString() : 'No saved projection for this player.'}</p>
+                        <p>{state === 'upcoming' ? 'Set eligible changes on your league platform before kickoff.' : ['live', 'final', 'locked'].includes(state) ? 'Game started · this lineup slot is locked.' : 'Confirm game status and lineup eligibility on your league platform.'}</p>
+                    </div>
+                </details>;
+            })}</div> : <p className="gd-muted">No submitted starters available yet.</p>}
+        </section>
+    );
+    const mobileScoreHelp = (
+        <details className="gd-disclosure">
+            <summary>Scoring &amp; lineup rules</summary>
+            <div className="gd-disclosure-body">
+                <p>Actual points follow your submitted lineup. Saved projections stay fixed in this browser: Pregame means captured before kickoff; First-view means first captured after kickoff, not an original pregame forecast. A dash means unavailable.</p>
+                <p>Scores refresh every 30 seconds while open; provider updates can lag. Injury tags are periodic updates, not instant alerts.</p>
+                <p>A player whose game has started cannot normally be replaced. Check unstarted bench options and confirm eligibility on your league platform.</p>
+                {!savedForecasts.persistent && Object.keys(savedForecasts.players).length ? <p>Browser storage is unavailable; projections are saved for this visit only.</p> : null}
+            </div>
+        </details>
+    );
+    const livePanel = isPhone ? <div className="gd-mobile gd-live-fallback">{mobileScoreboard}{mobileSubmittedLineup}{mobileScoreHelp}</div> : (
         <section aria-label="My live game plan" style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: isPhone ? '14px' : '18px 20px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
@@ -512,8 +588,8 @@ function LineupTab({
             <div style={{ padding: isPhone ? '14px 12px' : '20px 16px', color: SILVER, maxWidth: '1240px', margin: '0 auto' }}>
                 {livePanel}
                 <div style={{ padding: '32px 12px', textAlign: 'center', maxWidth: '520px', margin: '0 auto' }}>
-                <div style={{ fontSize: '1.1rem', color: GOLD, fontWeight: 600, marginBottom: '10px', letterSpacing: '0.04em' }}>LINEUP COMMAND CENTER</div>
-                <div>No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings.</div>
+                <div style={{ fontSize: '1.1rem', color: GOLD, fontWeight: 600, marginBottom: '10px', letterSpacing: '0.04em' }}>{isPhone ? 'Projections unavailable' : 'LINEUP COMMAND CENTER'}</div>
+                <div>{isPhone ? 'Your submitted scores remain available above. Lineup planning will appear when weekly projections load.' : "No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings."}</div>
                 </div>
             </div>
         );
@@ -839,14 +915,14 @@ function LineupTab({
     function renderRail() {
         const d = seasonData;
         const scheduleUnset = !!(d && d.scheduleUnset);
-        const byeWatch = (d && d.byeWatch) || [];
+        const byeWatch = _vp.isPhone ? [...((d && d.byeWatch) || [])].sort((a, b) => a.week - b.week) : (d && d.byeWatch) || [];
         const byeLabel = (bw) => {
             const c = {}; (bw.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
             // count===0 = a roster-gap hole, not a bye week — never say "0 on bye".
             return Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(', ') || (bw.count > 0 ? bw.count + ' on bye' : 'lineup hole');
         };
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
+            <div className="gd-season-rail" style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
                 {/* Season outlook (or a pre-season placeholder when no schedule yet) */}
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
                     <div style={{ fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SEASON OUTLOOK</div>
@@ -889,7 +965,7 @@ function LineupTab({
                 {byeWatch.length ? (
                     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px' }}>
                         <div style={{ fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600, marginBottom: '6px' }}>BYE WATCH</div>
-                        {byeWatch.map(bw => (
+                        {(_vp.isPhone ? byeWatch.slice(0, 1) : byeWatch).map(bw => (
                             <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', padding: '6px 0', fontSize: '0.74rem' }}>
                                 <span style={{ minWidth: 0 }}>
                                     <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 700 }}>Wk {bw.week}</span>
@@ -913,6 +989,30 @@ function LineupTab({
                                 </div>
                             </div>
                         ))}
+                        {_vp.isPhone && byeWatch.length > 1 && <window.WR.MobileSection phone={true} title="Later coverage weeks" summary={(byeWatch.length - 1) + ' weeks to review'}>{byeWatch.slice(1).map(bw => (
+                            <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', padding: '6px 0', fontSize: '0.74rem' }}>
+                                <span style={{ minWidth: 0 }}>
+                                    <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 700 }}>Wk {bw.week}</span>
+                                    <span style={{ color: SILVER, marginLeft: '6px' }}>{byeLabel(bw)}{bw.unfilled && bw.count > 0 ? ' · no cover' : ''}</span>
+                                </span>
+                                <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 800 }}>{bw.unfilled ? '⚠' : bw.count}</span>
+                                <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                    {(bw.positions?.length ? [...new Set(bw.positions)] : [null]).map(position => <button key={position || 'cover'} type="button" onClick={() => {
+                                        const dropPid = (myRoster?.players || []).find(pid => window._playerTags?.[pid] === 'cut');
+                                        const context = {
+                                            position: position || undefined,
+                                            week: bw.week,
+                                            dropPid: dropPid || undefined,
+                                            reason: 'Week ' + bw.week + (position ? ' ' + position : '') + (bw.reason === 'gap' ? ' lineup coverage' : ' bye coverage') + (bw.unfilled ? ' · No cover on your roster.' : ' · Add depth before this week.'),
+                                            source: 'game-day-bye-watch',
+                                            leagueId: currentLeague?.league_id || currentLeague?.id,
+                                        };
+                                        if (typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(context);
+                                        else setActiveTab?.('fa');
+                                    }} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '5px 8px', minHeight: '36px', color: GOLD, fontSize: '.7rem', cursor: 'pointer' }}>Find {position ? position + ' ' : ''}cover →</button>)}
+                                </div>
+                            </div>
+                        ))}</window.WR.MobileSection>}
                         {/* The raw bye listing is free; the "do X" line is a rec. */}
                         <div style={{ fontSize: fz('0.62rem'), color: SILVER, opacity: 0.7, marginTop: '6px' }}>Carry the week and position into your waiver plan.</div>
                     </div>
@@ -956,9 +1056,9 @@ function LineupTab({
     // projections, bye listing and the MFL push stay free.
     const _kitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.Sheet && window.WR.ActionBar);
     if (isPhone && _kitReady) {
-        const HeroCard = window.WR.HeroCard, AssetRow = window.WR.AssetRow, CardList = window.WR.CardList, Sheet = window.WR.Sheet, ActionBar = window.WR.ActionBar;
+        const Sheet = window.WR.Sheet, ActionBar = window.WR.ActionBar;
         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-        const MICRO = 'var(--text-micro, 0.6875rem)';
+        const MICRO = '0.875rem';
         const SLOT_SHORT = { SUPER_FLEX: 'SF', REC_FLEX: 'RF', FLEX: 'FLX', WRTQ: 'WRT', IDP_FLEX: 'IDP', WILDCARD: 'WC' };
         const dispSlots = [...startingSlots].sort((a, b) => (SLOT_DISPLAY_ORDER[a.slotName] ?? 50) - (SLOT_DISPLAY_ORDER[b.slotName] ?? 50));
 
@@ -966,6 +1066,7 @@ function LineupTab({
         // never expose platform starters (currentAssign = {}), so any set slot
         // reads as "unpushed" — exactly when the push path matters.
         const dirty = startingSlots.some(sl => String(workingAssign[sl.idx] || '') !== String(currentAssign[sl.idx] || ''));
+        const missingPlanProjection = Object.values(workingAssign).some(pid => pid && (projOf(pid)?.available === false || !Number.isFinite(projOf(pid)?.points?.[objective])));
 
         // Optimal swap summary for the hero facts — the same per-slot
         // assignment walk as applyOptimal(), diffed against the working
@@ -996,21 +1097,16 @@ function LineupTab({
             if (moves.length) setAppliedMoves(moves);
         };
 
-        // Matchup-grade verdict chip (Pro interpretation — mirrors the Mtch column gate).
-        const gradeChip = (grade) => (
-            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + gradeColor(grade), color: gradeColor(grade), whiteSpace: 'nowrap' }}>{grade}</span>
-        );
 
-        // P1 slot row — the shipped phone column-set (GRID above: slot /
-        // player / proj / mtch) recast as a WR.AssetRow: slot label rides the
-        // tag, PROJ is the stat slot, the Pro matchup grade is the verdict
-        // chip. Row tap = the EXISTING openSlot toggle.
+
+        // Phone rows keep player, slot and one projection visible. A tap opens
+        // eligible replacements and the deeper matchup/form context.
         const slotRow = (sl) => {
             const pid = workingAssign[sl.idx] || null;
             const slotLabel = sl.slotName.replace('_', ' ');
             const open = openSlot === sl.idx;
             if (!pid) {
-                return <AssetRow key={sl.idx} pos={SLOT_SHORT[sl.slotName] || sl.slotName} name="Empty — tap to set" tag={slotLabel}
+                return <MobilePlayerRow key={sl.idx} pos={SLOT_SHORT[sl.slotName] || sl.slotName} name="Empty — tap to set" tag={slotLabel}
                     slots={[{ label: 'PROJ', value: '—', tone: 'mute' }]} accent={open ? 'gold' : undefined}
                     onClick={() => setOpenSlot(open ? null : sl.idx)} />;
             }
@@ -1019,9 +1115,8 @@ function LineupTab({
             const opp = proj && proj.opponent;
             const tag = [slotLabel, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null].filter(Boolean).join(' · ');
             const atRisk = !!status || (proj && proj.available === false);
-            return <AssetRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} tag={tag}
-                slots={[{ label: 'PROJ', value: pts ? (pts[objective] || 0).toFixed(1) : '—' }]}
-                verdict={pro ? gradeChip((proj && proj.matchupGrade) || '—') : null}
+            return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} tag={tag}
+                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }]}
                 accent={open ? 'gold' : atRisk ? 'risk' : undefined}
                 onClick={() => setOpenSlot(open ? null : sl.idx)} />;
         };
@@ -1040,31 +1135,22 @@ function LineupTab({
             const status = (proj && proj.injuryStatus) || '';
             const opp = proj && proj.opponent;
             const fs = formOf(epid);
-            return <AssetRow key={epid} pos={meta.pos || '?'} name={meta.name}
-                tag={[isCur ? 'IN' : null, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null].filter(Boolean).join(' · ')}
-                slots={[{ label: 'PROJ', value: pts ? (pts[objective] || 0).toFixed(1) : '—' }, { label: formWinLabel, value: fs ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
-                verdict={pro ? gradeChip((proj && proj.matchupGrade) || '—') : null}
+            return <MobilePlayerRow key={epid} pos={meta.pos || '?'} name={meta.name}
+                tag={[isCur ? 'IN' : null, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null, pro ? 'Matchup ' + (proj?.matchupGrade || '—') : null].filter(Boolean).join(' · ')}
+                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel, value: fs ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
                 accent={isCur ? 'gold' : undefined}
                 onClick={() => { canChangePlayer(openPid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
         };
 
-        // P5 decision hero. Pro: optimal-vs-working delta + one-swap summary
-        // + APPLY OPTIMAL → the existing applyOptimal(). Free: matchup
-        // context + raw working total, optimizer teaser at the existing gate.
-        const heroEl = !optimizerAvailable ? (
-            <HeroCard kicker="Lineup planning" headline={workingTotal.toFixed(1) + ' PROJECTED'}
-                facts="Follow your submitted lineup above. Whole-lineup optimization is paused once games start or kickoff status cannot be verified. Set eligible changes on your league platform." />
-        ) : pro ? (
-            <HeroCard kicker="Optimizer"
-                headline={isOptimal ? 'LINEUP OPTIMAL · ' + workingTotal.toFixed(1) + ' PROJ' : 'OPTIMAL LINEUP +' + benchPts.toFixed(1) + ' PROJ'}
-                facts={isOptimal ? 'No changes needed · yours ' + workingTotal.toFixed(1) + ' = optimal ' + optimalTotal.toFixed(1) : swapFacts}
-                cta={isOptimal ? null : 'APPLY OPTIMAL'} onCta={applyOptimalWithSummary} />
-        ) : (
-            <HeroCard kicker={'Week ' + result.week + ' · Game Day'}
-                headline={'YOUR LINEUP ' + workingTotal.toFixed(1) + ' PTS'}
-                facts={matchup ? 'vs ' + matchup.oppName + (matchup.oppCurTotal > 0 ? ' · them ' + matchup.oppCurTotal.toFixed(1) + ' (current lineup)' : '') : 'Tap a slot below to set your starters — the total updates live.'}>
-                {GatedRow ? <div style={{ marginTop: '10px' }}><GatedRow title="Lineup optimizer" sub="Optimal lineup + points left on bench, floor–ceiling bands, matchup grades and win odds" feature={STARTSIT_FEAT} /></div> : null}
-            </HeroCard>
+        // Pregame has one next action. Every change here is explicitly a local
+        // plan; the existing optimizer and provider submission guards stay intact.
+        const heroEl = (
+            <section className="gd-planning-focus" aria-label="Lineup planning guidance">
+                <div className="gd-eyebrow">Week {liveWeek} · Local lineup plan</div>
+                <h2>{!optimizerAvailable ? 'Review your lineup' : missingPlanProjection ? 'Some projections are missing' : pro ? isOptimal ? 'Your strongest projected lineup' : '+' + benchPts.toFixed(1) + ' projected points available' : 'Check your starters'}</h2>
+                <p>{!optimizerAvailable ? 'Whole-lineup optimization is paused while games are underway or kickoff status is unverified.' : missingPlanProjection ? 'Review players without a projection before setting your final starters.' : pro ? isOptimal ? 'No projected improvement from a swap.' : swapFacts : 'Tap a player in your plan to compare eligible options.'}</p>
+                {pro && optimizerAvailable && !isOptimal ? <button type="button" className="gd-primary" onClick={() => { applyOptimalWithSummary(); setPhoneLineupView('plan'); }}>Use optimal in my plan</button> : <button type="button" className="gd-primary" onClick={() => setPhoneLineupView(phoneLineupView === 'plan' ? 'submitted' : 'plan')}>{phoneLineupView === 'plan' ? 'View submitted starters' : 'Review lineup plan'}</button>}
+            </section>
         );
 
         const kpiTile = (label, value, sub, valColor) => (
@@ -1074,23 +1160,17 @@ function LineupTab({
                 {sub ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: SILVER, opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{sub}</div> : null}
             </div>
         );
-        const goldDiv = (label) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 600, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</span>
-                <span aria-hidden="true" style={{ flex: 1, height: '1px', background: 'rgba(212,175,55,0.25)' }} />
-            </div>
-        );
         const winColor = matchup && matchup.fc.winPct != null ? (matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD) : SILVER;
 
         return (
-            <div style={{ padding: '14px var(--wr-phone-gutter, 12px) 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="gd-mobile">
                 {ledgerNode}
                 {/* This Week ⇄ Season toggle (owner ask) — week = matchup +
                     lineup; season = outlook + schedule. */}
-                <div className="wr-seg">
-                    <button className={phoneView === 'week' ? 'is-on' : ''} onClick={() => setPhoneView('week')}>This Week</button>
-                    <button className={phoneView === 'season' ? 'is-on' : ''} onClick={() => setPhoneView('season')}>Season</button>
-                    <button className={phoneView === 'odds' ? 'is-on' : ''} onClick={() => setPhoneView('odds')}>Odds</button>
+                <div className="wr-seg gd-view-nav" aria-label="Game Day views">
+                    <button aria-pressed={phoneView === 'week'} className={phoneView === 'week' ? 'is-on' : ''} onClick={() => setPhoneView('week')}>This Week</button>
+                    <button aria-pressed={phoneView === 'season'} className={phoneView === 'season' ? 'is-on' : ''} onClick={() => setPhoneView('season')}>Season</button>
+                    <button aria-pressed={phoneView === 'odds'} className={phoneView === 'odds' ? 'is-on' : ''} onClick={() => setPhoneView('odds')}>Odds</button>
                 </div>
 
                 {phoneView === 'odds' ? (
@@ -1103,48 +1183,32 @@ function LineupTab({
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
                 ) : phoneView === 'week' ? (<React.Fragment>
-                {livePanel}
-                {/* Matchup + breakdown LEAD the week view (owner ask). Free
-                    keeps the raw you-vs-their-current totals; win%, margin,
-                    their-ideal and the breakdown stay Pro (existing gates). */}
-                {matchup ? (
-                    <React.Fragment>
-                        <div className="wr-kpi-strip">
-                            {pro ? [
-                                kpiTile('Win%', matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%', matchup.fc.margin == null ? null : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' margin', winColor),
-                                kpiTile('You', matchup.fc.projMe.toFixed(1), 'working proj'),
-                                kpiTile('Them', matchup.fc.projOpp.toFixed(1), matchup.oppName),
-                                kpiTile('Their ideal', matchup.oppIdealTotal.toFixed(1), matchup.oppCurTotal > 0 ? 'current ' + matchup.oppCurTotal.toFixed(1) : 'current —'),
-                            ] : [
-                                kpiTile('You', matchup.fc.projMe.toFixed(1), 'working proj'),
-                                kpiTile('Them', matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—', 'current lineup'),
-                            ]}
-                        </div>
-                        {!pro && GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null}
-                        {/* Matchup breakdown (position-strength + slot-by-slot) was
-                            dropped from phone entirely on 2026-07-12 as "noise on a
-                            small screen" — re-added 2026-08-09 (owner feedback: no way
-                            to view the opponent's lineup on mobile, and this read is
-                            one of the strongest parts of the tab). It lives in a Sheet
-                            instead of inline (matches the P3/P6 pattern used elsewhere
-                            on this phone branch) and the slot-by-slot rows are stacked
-                            2-line cards, not the desktop 4-column grid — that grid's
-                            name columns collapse to ~106px at 390px width, which
-                            truncates the points value along with the name. */}
-                        {pro && matchup ? (
-                            <div role="button" tabIndex={0} onClick={() => setShowOpp(true)}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '44px', padding: '0 2px', cursor: 'pointer' }}>
-                                <span style={{ fontFamily: MONO, fontSize: '0.76rem', fontWeight: 600, color: GOLD }}>View their lineup · slot-by-slot</span>
-                                <span aria-hidden="true" style={{ color: SILVER, fontSize: '0.9rem' }}>›</span>
-                            </div>
-                        ) : null}
-                    </React.Fragment>
-                ) : null}
-
-
-                {/* Optimizer + working lineup, below the matchup lead. */}
-                {heroEl}
-                <CardList groups={[{ label: 'Starters', sub: 'Proj ' + workingTotal.toFixed(1), rows: dispSlots.map(slotRow) }]} />
+                {optimizerAvailable ? heroEl : mobileScoreboard}
+                <div className="wr-seg gd-lineup-nav" aria-label="Lineup view">
+                    <button type="button" aria-pressed={phoneLineupView === 'submitted'} className={phoneLineupView === 'submitted' ? 'is-on' : ''} onClick={() => setPhoneLineupView('submitted')}>Submitted</button>
+                    <button type="button" aria-pressed={phoneLineupView === 'plan'} className={phoneLineupView === 'plan' ? 'is-on' : ''} onClick={() => setPhoneLineupView('plan')}>My plan</button>
+                </div>
+                {phoneLineupView === 'submitted' ? mobileSubmittedLineup : <section className="gd-working-lineup" aria-label="Local lineup plan">
+                    <div className="gd-list-heading"><h2>My lineup plan</h2><span>{workingTotal.toFixed(1)} proj{missingPlanProjection ? ' · partial' : ''}</span></div>
+                    <p className="gd-muted">{isMfl ? 'Review changes here, then submit to MFL.' : 'Plan here. Set your final starters on your league platform.'}</p>
+                    {!optimizerAvailable ? <p className="gd-muted">Only players with verified upcoming games can be moved.</p> : null}
+                    <div className="gd-player-list">{dispSlots.map(slotRow)}</div>
+                    {dirty || isMfl ? <button type="button" className="gd-secondary" onClick={() => setApplyOpen(true)}>Review planned changes</button> : null}
+                </section>}
+                {matchup ? <details className="gd-disclosure">
+                    <summary>Matchup forecast</summary>
+                    <div className="gd-disclosure-body">
+                        <p>Working lineup vs {matchup.oppName}{pro ? '’s optimal lineup' : '’s submitted lineup'} · projected points</p>
+                        <div className="gd-forecast-grid">{[
+                            kpiTile('You', matchup.fc.projMe.toFixed(1), 'Working plan'),
+                            kpiTile('Them', pro ? matchup.fc.projOpp.toFixed(1) : matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—', pro ? 'Optimal lineup' : 'Submitted lineup'),
+                            ...(pro ? [kpiTile('Win chance', matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%', null, winColor)] : []),
+                        ]}</div>
+                        {pro ? <button type="button" className="gd-secondary" onClick={() => setShowOpp(true)}>View opponent breakdown</button> : null}
+                    </div>
+                </details> : null}
+                {optimizerAvailable ? <details className="gd-disclosure"><summary>Submitted matchup score</summary><div className="gd-disclosure-body">{mobileScoreboard}</div></details> : null}
+                {mobileScoreHelp}
                 </React.Fragment>) : (<React.Fragment>
                 {/* Season view — outlook + week-by-week schedule (renderRail
                     carries every existing free/Pro gate). */}
@@ -1154,12 +1218,13 @@ function LineupTab({
                 {/* P3-style picker sheet — bench players for the open slot */}
                 <Sheet open={!!openSl} onClose={() => setOpenSlot(null)} title={openSl ? 'Set ' + openSl.slotName.replace('_', ' ') : ''} desktop={null}>
                     {openSl ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
+                        <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
                             <div className="wr-seg">
                                 {[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(opt => (
                                     <button key={opt[0]} className={formWindow === opt[1] ? 'is-on' : ''} onClick={() => setFormWindow(opt[1])}>{opt[0]}</button>
                                 ))}
                             </div>
+                            {openPid && pro ? <p className="gd-muted">Matchup grade: {projOf(openPid)?.matchupGrade || '—'} · {canChangePlayer(openPid) ? 'Upcoming game' : 'Changes locked or game status unverified'}</p> : null}
                             {openPid && openFs ? (
                                 <div style={{ fontSize: '0.74rem', color: SILVER, fontVariantNumeric: 'tabular-nums' }}>
                                     {pmeta(openPid).name} · {formWinLabel} <span style={{ color: TEXT, fontWeight: 700 }}>{openFs.rollingPPG.toFixed(1)}</span>
@@ -1171,8 +1236,8 @@ function LineupTab({
                             {openElig.map(pickRow)}
                             {!openElig.length ? <div style={{ color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>No eligible bench players.</div> : null}
                             {openPid ? (
-                                <div onClick={() => { canChangePlayer(openPid) && setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
-                                    style={{ padding: '13px 0', cursor: 'pointer', color: RED, fontSize: '0.74rem', fontWeight: 600 }}>✕ Empty this slot</div>
+                                <button type="button" disabled={!canChangePlayer(openPid)} onClick={() => { canChangePlayer(openPid) && setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
+                                    style={{ padding: '13px 0', cursor: 'pointer', color: RED, fontSize: '0.74rem', fontWeight: 600 }}>Empty this slot</button>
                             ) : null}
                         </div>
                     ) : null}
@@ -1187,7 +1252,7 @@ function LineupTab({
                     would collapse to ~106px and cut off the points value. */}
                 <Sheet open={showOpp && pro} onClose={() => setShowOpp(false)} title={matchup ? 'vs ' + matchup.oppName : 'Opponent lineup'} desktop={null}>
                     {matchup ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 14px 10px' }}>
+                        <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 14px 10px' }}>
                             <div style={{ fontSize: '0.74rem', color: SILVER, lineHeight: 1.5, marginBottom: '4px' }}>
                                 {/* MFL never exposes platform starters — 0 means "unknown". */}
                                 Their lineup: current {matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—'} · ideal {matchup.oppIdealTotal.toFixed(1)}
@@ -1207,7 +1272,7 @@ function LineupTab({
                                 </div>;
                             })}
                             <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, margin: '14px 0 6px' }}>SLOT-BY-SLOT · you lead {matchup.myEdges} of {matchup.slotCount}</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {matchup.h2h.map((r, i) => {
                                     const me = pmeta(r.myPid), them = pmeta(r.theirPid);
                                     const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
@@ -1237,7 +1302,7 @@ function LineupTab({
                 {/* P6 apply/push sheet — the MFL push card re-homes here on
                     phone (never inline); same handlers, same submit machine. */}
                 <Sheet open={applyOpen} onClose={() => setApplyOpen(false)} title="Working lineup" desktop={null}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 14px 4px' }}>
+                    <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 14px 4px' }}>
                         <div style={{ fontSize: '0.82rem', color: TEXT }}>
                             {!optimizerAvailable ? <span style={{ fontWeight: 700 }}>Lineup planning · projections</span> : pro ? (isOptimal ? <span style={{ color: GREEN, fontWeight: 700 }}>Lineup is optimal</span> : <span style={{ color: GOLD, fontWeight: 700 }}>{benchPts.toFixed(1)} pts below optimal</span>) : <span style={{ fontWeight: 700 }}>Your lineup {workingTotal.toFixed(1)} pts</span>}
                             {pro ? <span style={{ color: SILVER, fontSize: '0.76rem' }}> · yours {workingTotal.toFixed(1)} · optimal {optimalTotal.toFixed(1)}</span> : null}
@@ -1252,12 +1317,12 @@ function LineupTab({
                 </Sheet>
 
                 {/* Apply-Optimal results — the moves it just made (owner ask). */}
-                <Sheet open={!!appliedMoves} onClose={() => setAppliedMoves(null)} title={(appliedMoves ? appliedMoves.length : 0) + ' move' + ((appliedMoves && appliedMoves.length === 1) ? '' : 's') + ' applied'} desktop={null}>
+                <Sheet open={!!appliedMoves} onClose={() => setAppliedMoves(null)} title={(appliedMoves ? appliedMoves.length : 0) + ' move' + ((appliedMoves && appliedMoves.length === 1) ? '' : 's') + ' planned'} desktop={null}>
                     {appliedMoves ? (() => {
                         const totalGain = appliedMoves.reduce((s, m) => s + (m.gain || 0), 0);
                         return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 14px 4px' }}>
-                            <div style={{ fontSize: '0.8rem', color: SILVER, lineHeight: 1.45 }}>Lineup set to optimal — <span style={{ color: GREEN, fontWeight: 700 }}>+{totalGain.toFixed(1)}</span> proj. Here's what changed:</div>
+                        <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 14px 4px' }}>
+                            <div style={{ fontSize: '0.8rem', color: SILVER, lineHeight: 1.45 }}>Local plan updated — <span style={{ color: GREEN, fontWeight: 700 }}>+{totalGain.toFixed(1)}</span> proj. Here's what changed:</div>
                             {appliedMoves.map((m, i) => {
                                 const outN = m.cur ? pmeta(m.cur).name : 'Empty';
                                 const inN = m.opt ? pmeta(m.opt).name : 'Empty';
@@ -1282,10 +1347,10 @@ function LineupTab({
                 {/* P6 action bar — live while the working lineup differs from
                     the platform lineup. APPLY = the same applyOptimal path
                     (Pro); bar tap opens the apply/push sheet. */}
-                <ActionBar visible={dirty && phoneView === 'week'} label="WORKING LINEUP"
+                <ActionBar visible={dirty && phoneView === 'week' && phoneLineupView === 'plan'} label="LOCAL LINEUP PLAN"
                     value={pro && optimizerAvailable ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
-                    tone="good" actionLabel={optimizerAvailable ? "APPLY" : "VIEW"}
-                    onAction={pro && optimizerAvailable ? applyOptimalWithSummary : () => setApplyOpen(true)}
+                    tone="good" actionLabel="REVIEW"
+                    onAction={() => setApplyOpen(true)}
                     onOpen={() => setApplyOpen(true)} />
             </div>
         );

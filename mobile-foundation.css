@@ -1,0 +1,38 @@
+/* Shared phone reading and interaction rules. Desktop keeps its existing layout. */
+@media (max-width: 767px) {
+  .wr-asset-head { gap: 10px !important; flex-wrap: wrap; padding: 14px 12px !important; }
+  .wr-asset-avatar { width: 34px !important; height: 38px !important; }
+  .wr-asset-identity { flex: 1 1 120px !important; }
+  .wr-asset-name { display: block !important; font-size: 16px !important; line-height: 1.35 !important; overflow: visible !important; -webkit-line-clamp: unset !important; overflow-wrap: anywhere; }
+  .wr-asset-tag { font: 14px/1.4 var(--font-body, sans-serif) !important; white-space: normal !important; overflow: visible !important; margin-top: 4px !important; }
+  .wr-asset-slots { max-width: 100%; flex-wrap: wrap; gap: 12px !important; }
+  .wr-asset-row[data-slot-count="2"] > .wr-asset-head > .wr-asset-slots,
+  .wr-asset-row[data-slot-count="3"] > .wr-asset-head > .wr-asset-slots { flex-basis: 100%; padding-left: 44px; justify-content: flex-start; box-sizing: border-box; }
+  .wr-asset-slot { text-align: left !important; flex: 1 1 48px; min-width: 0 !important; }
+  .wr-asset-label { font: 14px/1.35 var(--font-body, sans-serif) !important; text-transform: none !important; letter-spacing: 0 !important; overflow-wrap: anywhere; }
+  .wr-asset-value { font-size: 16px !important; line-height: 1.5; }
+  .wr-asset-row button { min-width: 44px; min-height: 44px; }
+  .wr-filter-pill { font: 500 14px/1.4 var(--font-body, sans-serif) !important; letter-spacing: 0 !important; text-transform: none !important; white-space: normal !important; }
+  .wr-filter-pill b { max-width: none !important; white-space: normal !important; overflow: visible !important; }
+  .tc-phone-filters .wr-filter-pill { flex-direction: column; align-items: flex-start !important; gap: 4px !important; border-radius: var(--card-radius-sm) !important; }
+  .tc-phone-filters .wr-filter-pill b { font-size: 16px; }
+  .wr-seg { gap: 4px !important; scrollbar-width: thin !important; scrollbar-color: var(--gold) transparent; scroll-padding-inline: 4px; padding-bottom: 5px !important; }
+  .wr-seg::-webkit-scrollbar { display: block !important; height: 3px !important; }
+  .wr-seg::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 999px; }
+  .wr-seg > button, .wr-seg > a { min-height: 44px !important; padding: 10px 14px !important; font: 600 14px/1.35 var(--font-body, sans-serif) !important; text-transform: none !important; letter-spacing: 0 !important; }
+  .wr-mobile-section { min-width: 0; margin: 12px 0; border: 1px solid var(--ov-6, rgba(255,255,255,.12)); border-radius: var(--card-radius); background: var(--off-black); }
+  .wr-mobile-section > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; position: relative; padding: 14px 40px 14px 14px; min-height: 48px; box-sizing: border-box; cursor: pointer; list-style: none; font: 600 16px/1.4 var(--font-body, sans-serif); color: var(--white); }
+  .wr-mobile-section > summary::-webkit-details-marker { display: none; }
+  .wr-mobile-section > summary::after { content: '+'; position: absolute; right: 15px; color: var(--gold); font-size: 22px; }
+  .wr-mobile-section[open] > summary::after { content: '−'; }
+  .wr-mobile-section > summary > small { flex-basis: 100%; font: 400 14px/1.4 var(--font-body, sans-serif); color: var(--silver); }
+  .wr-mobile-section-body { min-width: 0; padding: 0 14px 14px; }
+  .wr-mobile-section-body > :first-child { margin-top: 0; }
+  .wr-mobile-section button, .wr-mobile-section select { min-height: 44px; }
+  .wr-mobile-section select, .wr-mobile-section input:not([type=checkbox]):not([type=radio]) { font-size: 16px; max-width: 100%; }
+  .wr-mobile-section :focus-visible, .wr-seg :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+}
+@media(max-width:767px) {
+  .wr-card-list-heading { flex-wrap:wrap; }
+  .wr-card-list-heading > span:not([aria-hidden]) { font:500 14px/1.4 var(--font-body)!important; letter-spacing:0!important; text-transform:none!important; white-space:normal!important; opacity:1!important; }
+}
