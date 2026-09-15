@@ -689,7 +689,8 @@ test('the phone roster can sort, and its presets are column-guarded', () => {
   sourceHas(myTeamSrc, "{ label: 'Sort by', node: (", 'the phone filter sheet needs a sort control');
   sourceHas(myTeamSrc, "{ label: 'Direction', node: (", 'and a direction toggle');
   sourceHas(myTeamSrc, 'onChange={e => sortByColumn(e.target.value)}', 'phone sort must go through sortByColumn so it flattens grouping');
-  sourceHas(myTeamSrc, "label: 'Sort',", 'the active sort belongs on the pill row, not only inside the sheet');
+  sourceHas(myTeamSrc, 'View &amp; sort', 'the phone player list needs a visible sort entry point');
+  sourceHas(myTeamSrc, 'select value={rosterSort.key}', 'the sort selector must reflect the active choice');
   // Reset has to clear the sort too, or "Reset" leaves the board reordered.
   sourceHas(myTeamSrc, "setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); }", 'reset must clear the sort');
   // Same ROSTER_COLUMNS guard the desktop presets carry (a retired column
