@@ -300,6 +300,7 @@
         const [sleeperLeagues, setSleeperLeagues] = useState([]);
         const [activeLeagueId, setActiveLeagueId] = useState(null);
         const [selectedLeague, setSelectedLeague] = useState(null);
+        const [allWireOpen, setAllWireOpen] = useState(false);
         const [proMode, setProMode] = useState(false); // Empire Dashboard mode
         const [leagueQuery, setLeagueQuery] = useState('');
         const [showConnect, setShowConnect] = useState(false); // hub: show platform connect / add-league view
@@ -1120,13 +1121,17 @@
             );
         }
 
+        const allWireOverlay = allWireOpen && typeof window.WrAllLeaguesWire === 'function' ? <window.WrAllLeaguesWire key={sleeperUser?.user_id || sleeperUsername} accountId={sleeperUser?.user_id || sleeperUsername} leagues={sleeperLeagues} onClose={() => setAllWireOpen(false)} onOpenLeague={league => { setAllWireOpen(false); handleSelectLeague(league); }} /> : null;
+
         // Show league detail if selected
         const LeagueDetail = window.LeagueDetail;
         if (selectedLeague) {
             return <>
+                {allWireOverlay}
                 <ErrorBoundary>
                     <LeagueDetail
                         league={selectedLeague}
+                        onOpenAllWire={() => setAllWireOpen(true)}
                         onBack={() => {
                             setSelectedLeague(null);
                             setActiveTab('dashboard');
@@ -1297,6 +1302,7 @@
                         <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>Choose your experience.</h1><p>Your leagues. Your bigger picture. Your next great season.</p></div>
                         <span className="hub-sync-status" role="status">{hubSyncing ? 'Syncing leagues…' : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
+                    {sleeperLeagues.length > 0 && <button type="button" className="hub-resume wr-all-wire-launch" onClick={() => setAllWireOpen(true)}><span className="hub-eyebrow">THE WIRE · ALL YOUR LEAGUES</span><strong>Your leagues. One front page.</strong><span>Recaps, records and rivalries across {sleeperLeagues.length} leagues</span><b aria-hidden="true">→</b></button>}
                     {resume && <button type="button" className="hub-resume" onClick={() => onSelect(resume)}><span className="hub-eyebrow">PICK UP WHERE YOU LEFT OFF</span><strong>Resume {leagueTeamName(resume) || resume.name}</strong><span>{resume.name}</span><b aria-hidden="true">→</b></button>}
                     <nav className="hub-jump-nav" aria-label="Choose your experience">
                         <a href="#hub-leagues"><span>01</span> Your leagues <small>{leagues.length}</small></a>
@@ -1475,6 +1481,7 @@
 
         return (
             <div className="app-container hub-shell">
+                {allWireOverlay}
                 {/* ── PHONE TIER (≤767), hub view only — iPhone plan Phase 2 item 14.
                     (1) .header: the index.html mobile-hub rule (.header{padding:0.6rem 1rem})
                     overrides the base rule's safe-area padding at exactly the tier that

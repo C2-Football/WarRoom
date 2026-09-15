@@ -31,7 +31,7 @@
 //
 // Exposes: window.WrLeagueWire
 // ══════════════════════════════════════════════════════════════════
-function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName }) {
+function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName, onOpenAllWire }) {
 
     const vp = window.WR?.useViewport?.() || {};
     const isPhone = !!vp.isPhone;
@@ -69,6 +69,8 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     const [archive, setArchive] = React.useState({ key: '', status: 'loading', weeks: [] });
     const [editionWeek, setEditionWeek] = React.useState('latest');
     const [historyRevision, setHistoryRevision] = React.useState(0);
+    const [archiveRevision, setArchiveRevision] = React.useState(0);
+    const recheckArchiveRef = React.useRef(false);
     React.useEffect(() => {
         if ((isPhone && !expanded) || !window.App.LeagueLiveScores.supported(currentLeague) || !window.App.LeagueLiveTable?.loadHistory) return undefined;
         let alive = true;
@@ -93,13 +95,14 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         const controller = new window.AbortController();
         const timeout = setTimeout(() => controller.abort(), 90000);
         setPast(old => ({ key: pastKey, status: 'loading', seasons: old.key === pastKey ? old.seasons : [], complete: false }));
-        window.WrWireStories.loadArchive({ league: currentLeague, signal: controller.signal, force: historyRevision > 0,
+        const recheck = recheckArchiveRef.current; recheckArchiveRef.current = false;
+        window.WrWireStories.loadArchive({ league: currentLeague, signal: controller.signal, force: recheck, retry: archiveRevision > 0,
             onProgress: result => { if (alive) setPast({ key: pastKey, status: 'loading', ...result }); } })
             .then(result => { if (alive) setPast({ key: pastKey, status: result.complete ? 'ready' : 'partial', ...result }); })
             .catch(() => { if (alive) setPast(old => ({ ...old, key: pastKey, status: 'partial', complete: false, reason: 'History took too long to load. Retry to check the remaining seasons.' })); })
             .finally(() => clearTimeout(timeout));
         return () => { alive = false; controller.abort(); clearTimeout(timeout); };
-    }, [pastKey, expanded, historyRevision]);
+    }, [pastKey, expanded, archiveRevision]);
     const pastSeasons = past.key === pastKey ? past.seasons : [];
     const historicalEdition = readingSeason === 'current' ? null : pastSeasons.find(s => String(s.league.season) === readingSeason);
     const editionLeague = historicalEdition?.league || currentLeague;
@@ -522,7 +525,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             <button type="button" aria-label="Next update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex + 1) % visible.length)}>›</button>
         </>}
         {expanded && <dialog ref={dialogRef} id="wr-wire-panel" className="wr-journal" aria-labelledby="wr-journal-title" onCancel={close} onClose={close}>
-            <div className="wr-journal-bar"><h2 id="wr-journal-title">The Wire<span>.</span></h2><span>{editionLeague.name || 'Your league'} <span className="wr-journal-dot">•</span> {editionLeague.season}</span><button type="button" onClick={close} aria-label="Close The Wire">Close ×</button></div>
+            <div className="wr-journal-bar"><h2 id="wr-journal-title">The Wire<span>.</span></h2><span>{editionLeague.name || 'Your league'} <span className="wr-journal-dot">•</span> {editionLeague.season}</span><span className="wr-journal-bar-actions">{onOpenAllWire && <button type="button" onClick={() => { close(); onOpenAllWire(); }}>All my leagues</button>}<button type="button" onClick={close} aria-label="Close The Wire">Close ×</button></span></div>
             <nav className="wr-journal-nav" aria-label="Wire sections">{topics.map(([value, label]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => { setTopic(value); setIndex(0); }}>{label}</button>)}</nav>
             {scorePairs.length > 0 && <section className="wr-journal-scorestrip" aria-label={'League scoreboard · Week ' + scoreWeek}>
                 <div className="wr-journal-scorestrip-label"><strong>WEEK {scoreWeek}</strong><span>{scoresFinal ? 'Results' : 'Scoreboard'}</span></div>
@@ -543,7 +546,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                 </details>
                 {!window.App.LeagueLiveScores.supported(currentLeague) ? <p className="wr-journal-notice">Season stories are available for connected Sleeper leagues.</p> : !historicalEdition && archive.key === historyKey && archive.status === 'error' ? <p className="wr-journal-notice" role="status">Completed scores could not load. Refresh the edition to retry.</p> : !historicalEdition && !archiveReady ? <p className="wr-journal-notice" role="status">The newsroom is gathering completed scores…</p> : null}
                 {past.key === pastKey && past.status === 'loading' && <p className="wr-journal-notice" role="status">Opening the history books… {pastSeasons.length} earlier season{pastSeasons.length === 1 ? '' : 's'} loaded. You can read the latest edition now.</p>}
-                {past.key === pastKey && past.status === 'partial' && <p className="wr-journal-notice" role="status">{past.reason} <button type="button" onClick={() => setHistoryRevision(n => n + 1)}>Retry history</button></p>}
+                {past.key === pastKey && past.status === 'partial' && <p className="wr-journal-notice" role="status">{past.reason} <button type="button" onClick={() => setArchiveRevision(n => n + 1)}>Retry history</button></p>}
                 <div className="wr-journal-layout"><main className={'wr-journal-main' + (cards.length ? '' : ' is-single')}>
                     {lead ? storyCard(lead, true) : <article className="wr-journal-empty"><span>THE NEXT CHAPTER</span><h3>{edition.stories.length || teamFilter !== 'all' ? 'A quiet edition here.' : 'The first chapter is still being written.'}</h3><p>{edition.stories.length || teamFilter !== 'all' ? 'Try another section, team, or week to follow a different story.' : 'The schedule is set. Rivalries are waiting. Recaps arrive after the first completed regular-season week.'}</p></article>}
                     {cards.length > 0 && <div className="wr-journal-grid">{cards.map(it => storyCard(it))}</div>}
@@ -563,7 +566,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                     {edition.rivals.length > 0 && <details className="wr-journal-rail-section" open={topic === 'rivalries'}><summary>Rivalry watch <span>This week</span></summary>{edition.rivals.filter(r => teamFilter === 'all' || r.rosterIds.some(rid => sameId(rid, teamFilter))).map(r => <article className="wr-journal-rival" key={r.rosterIds.join(':')}><strong>{r.a} <span>vs.</span> {r.b}</strong><div>{r.winsA}<span>–</span>{r.winsB}{r.ties > 0 && <small> · {r.ties} tied</small>}</div><p>{r.meetings} recorded regular-season meeting{r.meetings === 1 ? '' : 's'}</p></article>)}</details>}
                     {edition.table.length > 0 && <details className="wr-journal-rail-section" open={topic === 'league'}><summary>The chase <span>THROUGH WK {edition.completedThrough}</span></summary><ol className="wr-journal-table">{edition.table.map(t => <li key={t.rid}><span>{t.rank}</span><strong>{editionName(t.rid)}</strong><span>{t.wins}–{t.losses}{t.ties ? '–' + t.ties : ''}</span></li>)}</ol><p className="wr-journal-footnote">Completed results, including median games where enabled. Ordered by wins, half-credit for ties, then points for. Official division seeds and tiebreaks may differ.</p></details>}
                 </aside></div>
-                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} These calculated totals exclude pre-Sleeper seasons and playoffs. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
+                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} These calculated totals exclude pre-Sleeper seasons and playoffs. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Completed older seasons are saved on this device. Refresh edition updates current-season results. <button type="button" onClick={() => { recheckArchiveRef.current = true; setArchiveRevision(n => n + 1); }}>Recheck older seasons</button> to fetch historical corrections.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
             </div>
         </dialog>}
     </section>;

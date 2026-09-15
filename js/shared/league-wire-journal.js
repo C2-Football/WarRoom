@@ -29,11 +29,20 @@
         if (isH2H(league) && [...groups.values()].some(g => g.length !== 2)) return null;
         return [...groups.values()].filter(g => g.length === 2);
     }
-    async function loadArchive({ league, signal, force = false, onProgress = () => {}, fetcher = (...args) => root.fetch(...args), now = Date.now }) {
+    function usableSaved(saved, previous, year) {
+        try {
+            if (saved?.league?.status !== 'complete' || id(saved.league.league_id) !== id(previous) || !(Number(saved.league.season) > 0 && Number(saved.league.season) < year)
+                || !Object.prototype.hasOwnProperty.call(saved.league, 'previous_league_id') || !Array.isArray(saved.league.users) || !saved.league.rosters?.length) return false;
+            const range = bounds(saved.league), weeks = new Map(saved.weeks.map(w => [Number(w.week), w.rows]));
+            return range.end >= range.start && weeks.size === saved.weeks.length && Array.from({ length: range.end - range.start + 1 }, (_, i) => range.start + i).every(w => inspect(weeks.get(w), saved.league));
+        } catch (_) { return false; }
+    }
+    async function loadArchive({ league, signal, force = false, retry = false, onProgress = () => {}, fetcher = (...args) => root.fetch(...args), now = Date.now }) {
         const key = `${league.league_id || league.id}|${league.season}`;
         const cached = cache.get(key);
-        if (!force && cached && now() - cached.at < (cached.complete ? 6 * 3600000 : 60000)) { onProgress(cached); return cached; }
+        if (!force && cached && !(retry && !cached.complete) && now() - cached.at < (cached.complete ? 6 * 3600000 : 60000)) { const reused = { ...cached, fromMemory: true }; onProgress(reused); return reused; }
         const seasons = [], seen = new Set([id(league.league_id || league.id)]);
+        let savedCount = 0;
         const json = async path => {
             if (signal?.aborted) throw new Error('aborted');
             const response = await fetcher('https://api.sleeper.app/v1/league/' + path, { signal });
@@ -49,6 +58,14 @@
                 if (seen.has(id(previous)) || seasons.length >= 25) { reason = 'The linked history ends before the archive can be verified in full.'; break; }
                 seen.add(id(previous));
                 const path = encodeURIComponent(previous);
+                const saved = !force && await root.WrWireArchiveCache?.read(id(previous));
+                if (signal?.aborted) throw new Error('aborted');
+                if (usableSaved(saved, previous, year)) {
+                    seasons.push(saved); savedCount++;
+                    year = Number(saved.league.season); previous = saved.league.previous_league_id;
+                    onProgress({ seasons: seasons.slice(), complete: false, savedCount, reason: 'Reading saved seasons…' });
+                    continue;
+                }
                 const info = await json(path);
                 if (!info || !Number.isFinite(Number(info.season)) || Number(info.season) >= year || !Object.prototype.hasOwnProperty.call(info, 'previous_league_id')) throw new Error('unavailable');
                 const [rosters, users] = await Promise.all([json(path + '/rosters'), json(path + '/users')]);
@@ -58,16 +75,18 @@
                 const result = await root.App.LeagueLiveTable.loadHistory({ league: historical, week: range.end + 1, signal, force, fetcher, now });
                 const byWeek = new Map(result.priorWeeks.map(w => [Number(w.week), w.rows]));
                 for (let w = range.start; w <= range.end; w++) if (!inspect(byWeek.get(w), historical)) throw new Error('unavailable');
-                seasons.push({ league: historical, weeks: result.priorWeeks });
+                const verified = { league: historical, weeks: result.priorWeeks };
+                seasons.push(verified);
+                await root.WrWireArchiveCache?.write(verified);
                 year = Number(info.season); previous = info.previous_league_id;
-                onProgress({ seasons: seasons.slice(), complete: false, reason: 'Loading earlier seasons…' });
+                onProgress({ seasons: seasons.slice(), complete: false, savedCount, reason: 'Loading earlier seasons…' });
             }
             complete = !previous || id(previous) === '0';
         } catch (_) {
             if (signal?.aborted) throw new Error('Archive loading was interrupted.');
             reason = 'Some linked seasons could not be verified. Records cover the loaded seasons only.';
         }
-        const result = { seasons, complete, reason, at: now() };
+        const result = { seasons, complete, reason, savedCount, at: now() };
         cache.set(key, result);
         return result;
     }

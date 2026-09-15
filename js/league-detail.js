@@ -323,7 +323,7 @@
     }
 
     // League Detail Component
-    function LeagueDetail({ league, onBack, sleeperUserId, onOpenSettings, settingsProps = {}, activeTab: propActiveTab, onTabChange }) {
+    function LeagueDetail({ league, onBack, onOpenAllWire, sleeperUserId, onOpenSettings, settingsProps = {}, activeTab: propActiveTab, onTabChange }) {
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
         const [playersData, setPlayersData] = useState({});
@@ -3415,6 +3415,7 @@
                 {typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
+                        onOpenAllWire={onOpenAllWire}
                         currentLeague={currentLeague}
                         standings={standings}
                         transactions={transactions}
