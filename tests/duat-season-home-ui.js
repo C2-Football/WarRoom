@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),Babel=require('@babel/standalone');
 const source=Babel.transform(fs.readFileSync('js/components/duat-season-home.js','utf8'),{presets:['react']}).code;
-function harness(model,phone=false){
+function harness(model,phone=false,props={}){
     const cells=new Map(),calls=[],App={DuatPresentation:{Sigil:({id})=>({type:'span',props:{'data-sigil':id},children:[id]}),art:()=>'/hero.webp'}};
     let path='',cursor=0;
     const React={createElement:(type,props,...children)=>({type,props:props||{},children}),useEffect(){},useRef:()=>({current:null}),useState(initial){const key=path+':'+cursor++;if(!cells.has(key))cells.set(key,initial);return [cells.get(key),value=>cells.set(key,typeof value==='function'?value(cells.get(key)):value)];}};
@@ -12,7 +12,7 @@ function harness(model,phone=false){
         if(typeof tree.type==='function'){const oldPath=path,oldCursor=cursor;path=at;cursor=0;const rendered=tree.type({...tree.props,children:tree.children});path=oldPath;cursor=oldCursor;return expand(rendered,at+'.render');}
         return {...tree,children:expand(tree.children,at+'.children')};
     }
-    const render=()=>expand(React.createElement(App.DuatSeasonHomeView,{model,factionId:'f15',campaignName:'The untouched dynasty',cycle:2,rulerName:'The current ruler',onResume:()=>calls.push('resume'),onExplore:model.allowExplore?view=>calls.push(view):undefined}));
+    const render=()=>expand(React.createElement(App.DuatSeasonHomeView,{model,factionId:'f15',campaignName:'The untouched dynasty',cycle:2,rulerName:'The current ruler',onResume:()=>calls.push('resume'),onExplore:model.allowExplore?view=>calls.push(view):undefined,...props}));
     return {render,calls};
 }
 function nodes(tree){if(Array.isArray(tree))return tree.flatMap(nodes);return tree&&typeof tree==='object'?[tree,...nodes(tree.children)]:[];}
@@ -72,12 +72,66 @@ test('Home puts its single current Resume action before calendar inspection whil
 });
 
 
-test('phone Home keeps Resume before four optional views and preserves all calendar and table details',()=>{
-    const model=fixture(),before=JSON.stringify(model),h=harness(model,true),tree=h.render(),all=nodes(tree);
+test('phone Home has one current-action card and simple realm rows without duplicate identity or hidden detail panels',()=>{
+    const model=fixture(),before=JSON.stringify(model);model.allowExplore=true;
+    const h=harness(model,true,{hasOfferings:true,hasLibrary:true}),tree=h.render(),all=nodes(tree);
+    assert.equal(all.filter(node=>node.props.className==='duat-phone-focus').length,1);
+    assert.equal(all.filter(node=>node.props.className==='duat-phone-realm-row').length,3);
+    assert.equal(all.filter(node=>node.type==='details'||node.type==='table').length,0);
+    assert.match(text(tree),/Historical Replay · Week 5Your kingdom awaits\./);
+    assert(!text(tree).includes('The current ruler'));assert(!text(tree).includes('Faction 15'));assert(!text(tree).includes('Season calendar'));
+    button(tree,'Continue games').props.onClick();
+    const rows=all.filter(node=>node.props.className==='duat-phone-realm-row');rows[0].props.onClick();rows[1].props.onClick();rows[2].props.onClick();
+    assert.deepEqual(h.calls,['resume','resume','rituals','library']);delete model.allowExplore;assert.equal(JSON.stringify(model),before);
+});
+
+test('phone current actions use the saved stage, route through Resume and derive lineup size from campaign rules',()=>{
+    const actions={alliance:'Reveal alliance',lineup:'Prepare army',favors:'Visit offerings',kickoff:'Review kickoff',games:'Continue games',recap:'Review result',conquest:'Open war council',complete:'View season honors'};
+    for(const [stage,label] of Object.entries(actions)){
+        const model=fixture();model.resume.stage=stage;const before=JSON.stringify(model),h=harness(model,true,{startingPlaces:5}),tree=h.render(),all=nodes(tree);
+        const card=all.find(node=>node.props.className==='duat-phone-focus');
+        assert.equal(nodes(card).filter(node=>node.type==='button').length,1);
+        button(card,label).props.onClick();assert.deepEqual(h.calls,['resume']);assert.equal(JSON.stringify(model),before);
+        if(stage==='lineup'){assert.match(text(card),/Set your 5-player army/);assert(!text(card).includes('8-player'));}
+    }
+});
+
+test('phone offerings and library respect availability and exploration gates without exposing campaign details',()=>{
+    const model=fixture({locked:true}),h=harness(model,true,{hasOfferings:true,hasLibrary:true}),tree=h.render();
+    const rows=nodes(tree).filter(node=>node.props.className==='duat-phone-realm-row');
+    assert.equal(rows.length,3);assert.equal(rows[0].props.disabled,false);
+    for(const row of rows.slice(1)){assert.equal(row.props.disabled,true);assert.equal(row.props.onClick,undefined);assert.match(text(row),/Finish your current step to explore/);}
+    assert(!text(tree).includes('The two saved banners'));assert.deepEqual(h.calls,[]);
+    const unavailable=harness(model,true).render();assert.equal(nodes(unavailable).filter(node=>node.props.className==='duat-phone-realm-row').length,1);
+    assert(!text(unavailable).includes('Offerings'));assert(!text(unavailable).includes('Royal Library'));
+});
+
+test('Resurrection Home names the mode and routes to status without claiming live play is ready',()=>{
+    for(const stage of ['lineup','favors','kickoff','games','recap','conquest','complete']){
+        const model=fixture();model.resume.stage=stage;const h=harness(model,true,{modeLabel:'Resurrection'}),tree=h.render();
+        assert.match(text(tree),/Resurrection · Week 5/);assert.match(text(tree),/Weekly play is waiting for the NFL feed/);
+        assert(!text(tree).includes('Historical Replay'));assert(!text(tree).includes('Start Week'));assert(!text(tree).includes('Your army is ready'));
+        button(tree,'View weekly status').props.onClick();assert.deepEqual(h.calls,['resume']);
+    }
+});
+
+test('phone Realm retains all seventeen weeks, complete standings and revealed detail without a duplicate Resume card',()=>{
+    const model=fixture(),before=JSON.stringify(model),h=harness(model,true,{view:'realm'});let tree=h.render(),all=nodes(tree);
     const disclosures=all.filter(node=>node.props.className==='duat-home-disclosure');
     assert.equal(disclosures.length,4);assert(disclosures.every(node=>node.type==='details'&&!node.props.open));
-    assert(all.findIndex(node=>node.props.className==='duat-home-resume')<all.indexOf(disclosures[0]));
+    assert(!all.some(node=>node.props.className==='duat-home-resume'||node.props.className==='duat-phone-focus'));
     assert.equal(all.filter(node=>node.type==='button'&&/^Week \d/.test(node.props['aria-label']||'')).length,17);
     assert(all.some(node=>node.props.className==='duat-home-mobile-record'&&text(node).includes('3–2–1')));
-    button(tree,'Resume Week 5 →').props.onClick();assert.deepEqual(h.calls,['resume']);assert.equal(JSON.stringify(model),before);
+    button(tree,'Full standings · all 16 factions').props.onClick();tree=h.render();
+    assert.equal(nodes(nodes(tree).find(node=>node.type==='tbody')).filter(node=>node.type==='tr').length,16);
+    button(tree,'Week 17 · Championship · Sacred favors').props.onClick();tree=h.render();
+    const detail=nodes(tree).find(node=>node.props.className==='duat-home-schedule-detail');assert.match(text(detail),/Week 17/);assert(!text(detail).includes('pts'));
+    assert.deepEqual(h.calls,[]);assert.equal(JSON.stringify(model),before);
+});
+
+test('desktop retains its original identity and expanded season view even when a phone destination is passed',()=>{
+    const tree=harness(fixture(),false,{view:'realm',hasOfferings:true,hasLibrary:true}).render(),all=nodes(tree);
+    assert.match(text(tree),/The untouched dynasty · SEASON 2/);assert.match(text(tree),/The current ruler leads your walking army/);
+    assert(all.some(node=>node.props.className==='duat-home-resume'));assert(all.some(node=>node.type==='table'));
+    assert(!all.some(node=>node.props.className==='duat-phone-focus'||node.props.className==='duat-home-disclosure'));
 });

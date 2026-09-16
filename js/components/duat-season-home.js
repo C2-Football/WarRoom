@@ -4,6 +4,28 @@
     const App=root.App=root.App||{}, {useState,useEffect,useRef}=React;
     const number=value=>Number(value||0).toFixed(2);
     const statusLabel=value=>({waiting:'Waiting to enter',unbeaten:'Unbeaten',active:'Still in the arena',redemption:'Last life',eliminated:'Eliminated',champion:'Champion',finalist:'Finalist'}[value]||value||'Awaiting the first battle');
+    function DuatPhoneIcon({name,className=''}){
+        const paths={sun:<><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,army:<path d="m8 4 4 2 4-2 5 5-4 3v8H7v-8L3 9l5-5Z"/>,map:<><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Z"/><path d="M9 3v16M15 5v16"/></>,more:<><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,shield:<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/>,library:<><path d="M4 3h14v18H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 14h14M7 7h7M7 11h7"/><path d="M18 6h3v15"/></>,arrow:<path d="m9 5 7 7-7 7M3 12h13"/>,back:<path d="m15 5-7 7 7 7M8 12h13"/>};
+        return <svg className={'duat-phone-icon'+(className?' '+className:'')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{paths[name]||paths.sun}</svg>;
+    }
+    function phoneMove(resume,startingPlaces,modeLabel){
+        const week=resume.week;
+        if(/resurrection/i.test(modeLabel)&&resume.stage!=='alliance')return {eyebrow:'YOUR CURRENT CHAPTER',title:'Your army awaits.',detail:'Weekly play is waiting for the NFL feed.',action:'View weekly status',tag:'Waiting'};
+        const stages={
+            alliance:{eyebrow:'TWO BANNERS. ONE FATE.',title:'Meet your ally.',detail:'Discover the faction fighting beside you.',action:'Reveal alliance'},
+            lineup:{eyebrow:'PREPARE YOUR ARMY',title:'Choose who marches.',detail:`Set your ${startingPlaces}-player army for the week ahead.`,action:'Prepare army'},
+            favors:{eyebrow:'THE RITUAL CHAMBERS',title:'Choose your offerings.',detail:'Spend for an edge, or save your treasury.',action:'Visit offerings'},
+            kickoff:{eyebrow:'BEFORE THE BATTLE',title:'Review your readiness.',detail:`Check your choices before Week ${week} begins.`,action:'Review kickoff'},
+            games:{eyebrow:'THE BATTLE IS UNDERWAY',title:'Follow your army.',detail:`Continue Week ${week} from your saved place.`,action:'Continue games'},
+            recap:{eyebrow:'YOUR WEEKLY RESULT',title:'The week is written.',detail:'See what your army earned against the field.',action:'Review result'},
+            conquest:{eyebrow:'YOUR NEXT MOVE',title:'Your war council awaits.',detail:'Resolve your earned moves before the next week.',action:'Open war council'},
+            complete:{eyebrow:'A SEASON TO REMEMBER',title:'Your season is written.',detail:'Visit the honors and the story your army leaves behind.',action:'View season honors'}
+        };
+        return {...(stages[resume.stage]||{eyebrow:'YOUR NEXT MOVE',title:resume.label,detail:resume.detail,action:'Continue your week'}),tag:'Next step'};
+    }
+    function RealmRow({icon,title,detail,onClick}){
+        return <button type="button" className="duat-phone-realm-row" onClick={onClick} disabled={!onClick}><span className="duat-phone-row-icon"><DuatPhoneIcon name={icon}/></span><span className="duat-phone-row-copy"><strong>{title}</strong><small>{detail}</small></span><DuatPhoneIcon name="arrow"/></button>;
+    }
     function Timeline({timeline,currentWeek,selectedWeek,onSelect}){
         const track=useRef(null);
         useEffect(()=>{const item=track.current?.querySelector('[aria-current="step"]');if(item&&track.current)track.current.scrollLeft=Math.max(0,item.offsetLeft-track.current.offsetLeft-track.current.clientWidth/2+item.clientWidth/2);},[currentWeek]);
@@ -51,18 +73,26 @@
         const phone = root.WR?.useViewport ? root.WR.useViewport().isPhone : false;
         return phone ? <details className="duat-home-disclosure"><summary>{title}</summary>{children}</details> : children;
     }
-    function DuatSeasonHomeView({model,onResume,onExplore,campaignName='',factionId,cycle=1,rulerName=''}){
+    function DuatSeasonHomeView({model,onResume,onExplore,campaignName='',factionId,cycle=1,rulerName='',view='home',modeLabel='Historical Replay',startingPlaces=8,hasOfferings=false,hasLibrary=false}){
         const [selectedWeek,setSelectedWeek]=useState(model.currentWeek),headingRef=useRef(null);
+        const phone=root.WR?.useViewport?root.WR.useViewport().isPhone:false;
         useEffect(()=>{setSelectedWeek(model.currentWeek);},[model.currentWeek,cycle]);
-        useEffect(()=>{headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:'start',behavior:'instant'});},[]);
+        useEffect(()=>{headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:'start',behavior:'instant'});},[view]);
         const own=model.standings.find(row=>row.isMine||row.factionId===factionId),Sigil=App.DuatPresentation.Sigil;
-        return <div className="duat-season-home"><header className="duat-home-heading" ref={headingRef} tabIndex="-1"><div><span className="duat-eyebrow">{campaignName||'YOUR DYNASTY'} · SEASON {cycle}</span><h1>{own?.name||'Your faction'}</h1>{rulerName&&<p>{rulerName} leads your walking army.</p>}</div><Sigil id={factionId}/></header>
-            <section className="duat-home-resume"><div><span className="duat-eyebrow">YOUR NEXT MOVE · WEEK {model.resume.week}</span><h2>{model.resume.label}</h2><p>{model.resume.detail}</p>{own&&<p className="duat-home-your-place">{model.visibleThroughWeek?<><strong>#{own.rank} of {model.standings.length}</strong><span>{own.record} all-play · {number(own.points)} pts</span></>:<span>The standings begin with your first game.</span>}</p>}</div><button className="duat-button primary" onClick={onResume}>{model.resume.stage==='complete'?'View season honors':`Resume Week ${model.resume.week}`} <span aria-hidden="true">→</span></button></section>
+        if(phone&&view!=='realm'){
+            const move=phoneMove(model.resume,startingPlaces,modeLabel),gated='Finish your current step to explore';
+            return <div className="duat-phone-home"><header className="duat-phone-home-heading" ref={headingRef} tabIndex="-1"><span>{modeLabel} · Week {model.resume.week}</span><h1>Your kingdom awaits.</h1></header>
+                <section className="duat-phone-focus" aria-label="Your next move"><div className="duat-phone-focus-meta"><span>{move.eyebrow}</span><span>{move.tag}</span></div><div className="duat-phone-realm-art" aria-hidden="true"><span/><DuatPhoneIcon name="sun"/><span/></div><h2>{move.title}</h2><p>{move.detail}</p><button type="button" className="duat-button primary duat-phone-primary" onClick={onResume}>{move.action}<DuatPhoneIcon name="arrow"/></button></section>
+                <section className="duat-phone-realm-links" aria-labelledby="duat-phone-realm-heading"><h2 id="duat-phone-realm-heading">In your realm</h2><RealmRow icon="shield" title={model.resume.stage==='complete'?'Your season honors':'The coming battle'} detail={model.resume.stage==='complete'?'Your season, remembered':`Week ${model.resume.week} · All-play & readiness`} onClick={onResume}/>{hasOfferings&&<RealmRow icon="sun" title="Offerings" detail={onExplore?'Visit the ritual chambers':gated} onClick={onExplore?()=>onExplore('rituals'):undefined}/>} {hasLibrary&&<RealmRow icon="library" title="Royal Library" detail={onExplore?'Your campaign, recorded':gated} onClick={onExplore?()=>onExplore('library'):undefined}/>}</section>
+            </div>;
+        }
+        return <div className={'duat-season-home'+(phone?' duat-phone-realm':'')}>{phone?<header className="duat-phone-home-heading" ref={headingRef} tabIndex="-1"><span>{modeLabel} · Season {cycle}</span><h1>In your realm.</h1></header>:<header className="duat-home-heading" ref={headingRef} tabIndex="-1"><div><span className="duat-eyebrow">{campaignName||'YOUR DYNASTY'} · SEASON {cycle}</span><h1>{own?.name||'Your faction'}</h1>{rulerName&&<p>{rulerName} leads your walking army.</p>}</div><Sigil id={factionId}/></header>}
+            {!phone&&<section className="duat-home-resume"><div><span className="duat-eyebrow">YOUR NEXT MOVE · WEEK {model.resume.week}</span><h2>{model.resume.label}</h2><p>{model.resume.detail}</p>{own&&<p className="duat-home-your-place">{model.visibleThroughWeek?<><strong>#{own.rank} of {model.standings.length}</strong><span>{own.record} all-play · {number(own.points)} pts</span></>:<span>The standings begin with your first game.</span>}</p>}</div><button className="duat-button primary" onClick={onResume}>{model.resume.stage==='complete'?'View season honors':`Resume Week ${model.resume.week}`} <span aria-hidden="true">→</span></button></section>}
             <SeasonDetail title={"Season calendar · Week "+model.currentWeek}><Timeline timeline={model.timeline} currentWeek={model.currentWeek} selectedWeek={selectedWeek} onSelect={setSelectedWeek}/></SeasonDetail>
             {model.pendingResultWeek&&<p className="duat-home-unseen">Week {model.pendingResultWeek} is waiting in your journey. Results here stay within what you have revealed.</p>}
             <SeasonDetail title={model.outlook?.available?"Playoff hunt · "+model.outlook.heading:"Playoff hunt · opens after Week 4"}><PlayoffHunt outlook={model.outlook} visibleThroughWeek={model.visibleThroughWeek}/></SeasonDetail>
             <div className="duat-home-columns"><SeasonDetail title="Season standings"><Standings model={model} factionId={factionId}/></SeasonDetail><SeasonDetail title={model.tournament.name+" · alliance tournament"}><Tournament tournament={model.tournament} visibleThroughWeek={model.visibleThroughWeek} onExplore={onExplore}/></SeasonDetail></div>
         </div>;
     }
-    App.DuatSeasonHomeView=DuatSeasonHomeView;App.DuatSeasonHomeTimeline=Timeline;
+    App.DuatSeasonHomeView=DuatSeasonHomeView;App.DuatSeasonHomeTimeline=Timeline;App.DuatPhoneIcon=DuatPhoneIcon;
 })(typeof window!=='undefined'?window:globalThis);

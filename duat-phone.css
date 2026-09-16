@@ -167,3 +167,53 @@
 .duat-draft-player > .duat-mystery-explorer { grid-column:1 / -1; width:100%; }
 .duat-mystery-recap article { padding:10px 0; border-bottom:1px solid #7e704d44; }
 @media(max-width:767px) { .duat-mystery-stats { grid-template-columns:1fr; } .duat-mystery-explorer :is(td,th,dt,dd) { font-size:14px; } }
+
+/* The approved phone concept: one clear move, with the realm a tap away. */
+@media(max-width:767px) {
+  .duat-game {
+    --duat-bg:#0b1819; --duat-panel:#132628; --duat-line:#365152;
+    --duat-text:#f3ecda; --duat-muted:#b9c9c4; --duat-gold:#e4c27c; --duat-green:#b9c9c4;
+    --gold:#e4c27c; --text-muted:#b9c9c4; --k-0a0b0d:#132628;
+    --duat-phone-dock-height:calc(77px + var(--sab,env(safe-area-inset-bottom,0px)));
+    background:#0b1819; color:#f3ecda; padding-bottom:0; min-height:100dvh;
+  }
+  .duat-game .duat-main,.duat-game.has-phone-dock .duat-main { padding:8px 20px 26px; scroll-margin-top:88px; }
+  .duat-game.has-phone-dock .duat-main { padding-bottom:calc(var(--duat-phone-dock-height) + 26px); }
+  .duat-game .duat-phone-topbar,.duat-game.has-phone-dock .duat-phone-topbar { display:flex; align-items:center; gap:8px; min-height:72px; padding:calc(12px + var(--sat,env(safe-area-inset-top,0px))) 12px 12px; border:0; background:#0b1819; }
+  .duat-game .duat-phone-back,.duat-game .duat-phone-campaign { display:grid; place-items:center; flex:none; width:44px; height:44px; padding:0; border:0; background:transparent; color:#b9c9c4; }
+  .duat-game .duat-phone-campaign { border-radius:var(--card-radius-lg); background:#1a3133; color:#e4c27c; }
+  .duat-game .duat-phone-brand { display:flex; align-items:center; gap:10px; flex:1; color:#f3ecda; font-size:20px; font-weight:650; letter-spacing:-.025em; }
+  .duat-game .duat-phone-brand > svg { color:#e4c27c; width:25px; height:25px; }
+  .duat-game .duat-phone-header-space { width:44px; }
+  .duat-game .duat-phone-dock { position:fixed; bottom:0; left:0; right:0; z-index:100; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); min-height:var(--duat-phone-dock-height); padding:8px 6px calc(8px + var(--sab,env(safe-area-inset-bottom,0px))); border-top:1px solid #365152; background:#0b1819; }
+  .duat-game .duat-phone-dock > button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height:60px; padding:6px 0; border:0; border-radius:var(--card-radius-sm); background:none; color:#b9c9c4; font-size:14px!important; font-weight:550; line-height:1.25; }
+  .duat-game .duat-phone-dock > button[aria-current] { color:#e4c27c; }
+  .duat-game .duat-phone-dock > button:disabled { opacity:.5; }
+  .duat-game .duat-phone-page-heading { margin:8px 0 24px; }
+  .duat-game .duat-phone-page-heading > span { color:#b9c9c4; font-size:14px; }
+  .duat-game .duat-phone-page-heading :is(h1,h2) { font:500 32px/1.13 Georgia,serif; letter-spacing:-.03em; margin:8px 0 12px; color:#f3ecda; overflow-wrap:anywhere; }
+  .duat-game .duat-phone-page-heading > p { color:#b9c9c4; font-size:16px; line-height:1.5; }
+  .duat-game .duat-phone-destinations { display:grid; margin:20px 0; }
+  .duat-game .duat-phone-destinations > button { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:64px; text-align:left; padding:14px 0; border:0; border-bottom:1px solid #365152; background:none; color:#f3ecda; font-size:16px!important; }
+  .duat-game .duat-phone-destinations > button > svg { color:#b9c9c4; }
+  .duat-game .duat-phone-army > .duat-phone-primary { margin-bottom:20px; }
+  .duat-game .duat-phone-save-actions { display:grid; gap:12px; margin-top:20px; }
+  .duat-game .duat-phone-save-actions > p { font-size:14px; color:#b9c9c4; }
+  .duat-game .duat-phone-more { padding:0 4px 12px; }
+  .duat-game .duat-phone-more .duat-source { font-size:14px; }
+  .duat-game :is(.duat-panel,.duat-home-schedule,.duat-home-hunt,.duat-home-tournament,.duat-territory-detail,.duat-weekly-content,.duat-weekly-next,.duat-kickoff-card) { background:#132628; border-color:#365152; box-shadow:none; border-radius:var(--card-radius-lg); }
+  .duat-game :is(.duat-button,.duat-weekly-next .primary) { border-radius:var(--card-radius-sm); background:#1a3133; border-color:#365152; box-shadow:none; }
+  .duat-game :is(.duat-button.primary,.duat-weekly-next .primary) { background:#e4c27c; color:#0b1819; border-color:#e4c27c; font-size:16px!important; }
+  .duat-game :is(.duat-weekly-heading,.duat-weekly-content) { padding:18px 16px; }
+  .duat-game .duat-weekly-heading { background:none; border:0; padding:12px 0 18px; }
+  .duat-game .duat-weekly-heading h2 { color:#f3ecda; font-size:30px; }
+  .duat-game.has-phone-dock .duat-weekly-next { bottom:var(--duat-phone-dock-height); padding:12px 20px; background:#132628; border-radius:0; border-top:1px solid #365152; }
+  .duat-game.has-phone-dock.has-week-action .duat-main { padding-bottom:calc(var(--duat-week-action-height,160px) + var(--duat-phone-dock-height) + 26px); }
+  .duat-game .duat-back-to-week { margin-bottom:20px; }
+  .duat-game :is(.duat-choice,.duat-first-expedition,.duat-first-journey,.duat-rules-summary,.duat-rules-summary .duat-rule-card) { background:#132628; border-color:#365152; box-shadow:none; }
+  .duat-game .duat-intro { background:none!important; border:0; box-shadow:none; padding:16px 0; min-height:0; }
+  .duat-game .duat-intro h1 { font-size:32px; line-height:1.13; text-shadow:none; }
+  .duat-game :is(input:not([type=checkbox]),select) { background:#0b1819; border-color:#365152; }
+  .duat-game .duat-player.starting { background:#1a3133; }
+  .duat-game .duat-phone-army .duat-player { cursor:default; }
+}

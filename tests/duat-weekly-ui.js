@@ -21,19 +21,19 @@ function nodes(tree){if(Array.isArray(tree))return tree.flatMap(nodes);if(!tree|
 function text(tree){if(Array.isArray(tree))return tree.map(text).join(' ');if(tree==null||typeof tree==='boolean')return '';return typeof tree==='object'?text(tree.children):String(tree);}
 function button(tree,label){const found=nodes(tree).find(node=>node.type==='button'&&text(node).includes(label));assert(found,'Missing button: '+label);return found;}
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function harness({initial=ready(),online=false,host=true,storage=new Map(),storageFails=false}={}){
+async function harness({initial=ready(),online=false,host=true,storage=new Map(),storageFails=false,phone=false}={}){
     let saved=clone(initial),changed=false,cursor=0,effectCursor=0,effects=[],tree;
-    const states=[],deps=[],intervals=[],actions=[];
+    const states=[],deps=[],intervals=[],actions=[],closed=[];
     if(online&&saved.phase==='complete')saved.nextSeasonYears=Engine.nextSeasonYears(saved,data);
     const room={id:'guided-room',revision:0,self:{factionId:'egypt',role:host?'host':'member'},campaign:saved,seats:[{factionId:'egypt',controller:'human',joined:true,ready:false},{factionId:'rome',controller:'human',joined:true,ready:false}],canAdvance:false};
     const React={Fragment:'fragment',createElement:(type,props,...children)=>{assert(type,'The mounted tab must not contain an unloaded component');return {type,props:props||{},children};},useMemo:fn=>fn(),useRef(initial){const i=cursor++;if(!(i in states))states[i]={current:initial};return states[i];},useState(initial){const i=cursor++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return [states[i],value=>{const next=typeof value==='function'?value(states[i]):value;if(next!==states[i]){states[i]=next;changed=true;}}];},useEffect(callback,dependencies){const i=effectCursor++;if(!deps[i]||dependencies.some((v,n)=>v!==deps[i][n]))effects.push(callback);deps[i]=dependencies;}};
     const location=new URL('https://example.test/WarRoom/index.html?duat=1'+(online?'&duat_invite=test':''));
     const store={getItem:key=>storage.get(key)||null,setItem(key,value){if(storageFails)throw Error('Quota exceeded');storage.set(key,value);},removeItem:key=>storage.delete(key)};
     const Empty=()=>null;
-    const App={...globalThis.App,DuatCampaign:{...Engine,applyAction(state,action,archive){actions.push(clone(action));return Engine.applyAction(state,action,archive);}},DuatWeeklyProgress:Progress,DuatWeeklyFlow:Weekly,DuatSeasonHome:Home,DuatSeasonHomeView:function HomeView(){},DuatWorld:World,
+    const App={...globalThis.App,DuatCampaign:{...Engine,applyAction(state,action,archive){actions.push(clone(action));return Engine.applyAction(state,action,archive);}},DuatWeeklyProgress:Progress,DuatWeeklyFlow:Weekly,DuatSeasonHome:Home,DuatSeasonHomeView:function HomeView(){},DuatPhoneIcon:function PhoneIcon(){},DuatWorld:World,
         DuatStorage:{list:()=>[{id:saved.id,name:saved.name,factionId:'egypt',week:saved.week,phase:saved.phase}],read:()=>clone(saved),write:value=>{saved=clone(value);}},
         DuatPresentation:{nameOf:id=>World.factionById(id)?.name||id,identity:id=>World.factionById(id),art:id=>id+'.webp',Sigil(){},World(){},Tournaments(){},Land(){},Pantheon(){},Draft(){},Archaeology(){}},
-        DuatHeptadUI:{RulesControls:Empty,AllianceIntro:Empty,WeeklyRecap:Empty,Games:Empty},DuatRitualsView(){},DuatLibrary(){},
+        DuatHeptadUI:{RulesControls:Empty,AllianceIntro:Empty,WeeklyRecap:Empty,Games:Empty},DuatRitualsView(){},DuatLibrary(){},DuatCouncil(){},
         OD:{getCurrentUserId:()=>online?'viewer':null,getSessionToken:()=>online?'session':null},
         TimeLeaguePlayerCards:{buildPlayerCardIndex:value=>value},
         DuatRemote:{async request(request){
@@ -49,16 +49,17 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
             throw Error('Unexpected remote operation');
         }}
     };
-    const browser={App,location,localStorage:store,sessionStorage:store,addEventListener(){},removeEventListener(){}};
+    const WR={useViewport:()=>({isPhone:phone}),Sheet:function Sheet(){}};
+    const browser={App,WR,location,localStorage:store,sessionStorage:store,addEventListener(){},removeEventListener(){}};
     const sandbox={window:browser,location,sessionStorage:store,React,URLSearchParams,URL,history:{replaceState(){}},crypto:{randomUUID:()=>String(Math.random())},console,
         fetch:async url=>({ok:true,json:async()=>url.includes('manifest')?manifest:cards,text:async()=>csv}),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){},setTimeout:()=>0,clearTimeout(){}};
     vm.runInNewContext(uiSource,sandbox);vm.runInNewContext(source,sandbox);
-    function draw(){for(let pass=0;pass<10;pass++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.DuatGame({onClose(){}});effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('The tab did not settle');}
+    function draw(){for(let pass=0;pass<10;pass++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.DuatGame({onClose(){closed.push('close');}});effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('The tab did not settle');}
     draw();await settle();await settle();draw();
     async function open(resume=true){await button(draw(),online?'Online Fixture':'Guided Fixture').props.onClick();draw();if(resume){const home=nodes(draw()).find(node=>node.type===App.DuatSeasonHomeView);assert(home,'A campaign opens its Season Home first');home.props.onResume();draw();}}
     function frame(){return nodes(draw()).find(node=>node.type===App.DuatWeeklyUI.Frame)?.props;}
     async function primary(){const control=frame().primary;assert(!control.disabled,control.label+' is disabled');await control.onClick();return draw();}
-    return {App,draw,open,frame,primary,actions,storage,room,saved:()=>saved,async poll(){for(const fn of intervals)await fn();return draw();},component(type){return nodes(draw()).find(node=>node.type===type)?.props;}};
+    return {App,WR,draw,open,frame,primary,actions,storage,room,closed,saved:()=>saved,setPhone(value){phone=value;return draw();},async poll(){for(const fn of intervals)await fn();return draw();},component(type){return nodes(draw()).find(node=>node.type===type)?.props;}};
 }
 
 test('the mounted solo tab guides alliance, valid lineup, games, recap and next preparation with one engine advance',async()=>{
@@ -232,4 +233,92 @@ test('Resurrection setup persists its era through the actual create handler with
     assert.equal(page.saved().era.mode,'resurrection');assert.equal(page.saved().era.scoringSeason,new Date().getUTCFullYear());
     assert.equal(page.saved().phase,'draft');assert.equal(page.saved().completedWeeks.length,0);
     assert.match(text(page.draw()),/NFL roster and scoring feed is not connected/);
+});
+
+function phoneDock(page){
+    const dock=nodes(page.draw()).find(node=>node.props['aria-label']==='Duat navigation');assert(dock,'A phone campaign has a labeled navigation dock');return dock;
+}
+function phoneDestination(page,label){
+    const control=nodes(phoneDock(page)).find(node=>node.type==='button'&&text(node).trim().replace(/\s+/g,' ')===label);assert(control,'Missing phone destination: '+label);return control;
+}
+
+test('phone Home opens with four destinations and keeps campaign recovery accessible before the alliance reveal',async()=>{
+    const page=await harness({phone:true});await page.open(false);const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]);
+    assert.deepEqual(nodes(phoneDock(page)).filter(node=>node.type==='button').map(node=>text(node).trim().replace(/\s+/g,' ')),['This week','Army','Realm','More']);
+    assert(page.component(page.App.DuatSeasonHomeView));assert.equal(page.frame(),undefined);
+    const all=nodes(page.draw());assert(!all.some(node=>node.props['aria-label']==='Season navigation'));
+    assert(!all.some(node=>node.props.className==='duat-weekly-explore'||node.props.className==='duat-campaign-footer'||node.props.className==='duat-home-rules'));
+    assert.equal(phoneDestination(page,'Army').props.disabled,true);assert.equal(phoneDestination(page,'Realm').props.disabled,true);
+    assert(!phoneDestination(page,'More').props.disabled);assert.equal(page.component(page.WR.Sheet),undefined);
+    phoneDestination(page,'More').props.onClick();let sheet=page.component(page.WR.Sheet);assert(sheet);assert.equal(sheet.title,'Your campaign');
+    const sheetNode=nodes(page.draw()).find(node=>node.type===page.WR.Sheet);
+    button(sheetNode,'Campaign shelf');button(sheetNode,'Export campaign backup');button(sheetNode,'Return to Dynasty HQ');
+    assert(nodes(sheetNode).some(node=>typeof node.type==='function'&&node.type.name==='RulesSummary'),'The recovery sheet retains campaign rules');
+    sheet.onClose();assert.equal(page.component(page.WR.Sheet),undefined);
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);assert.deepEqual(page.actions,[]);
+    phoneDestination(page,'More').props.onClick();button(nodes(page.draw()).find(node=>node.type===page.WR.Sheet),'Return to Dynasty HQ').props.onClick();assert.deepEqual(page.closed,['close']);assert.equal(page.component(page.WR.Sheet),undefined);assert.equal(JSON.stringify(page.saved()),before);
+});
+
+test('phone More remains reachable during paused games and never acknowledges results or advances the campaign',async()=>{
+    const page=await harness({phone:true});await page.open();await page.primary();await page.primary();await page.primary();assert.equal(page.frame().stage,'games');
+    nodes(page.draw()).find(node=>node.type?.name==='GameDay').props.onProgress(27);
+    const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]),actions=JSON.stringify(page.actions);
+    assert.equal(phoneDestination(page,'Army').props.disabled,true);assert.equal(phoneDestination(page,'Realm').props.disabled,true);
+    phoneDestination(page,'More').props.onClick();assert.equal(page.component(page.WR.Sheet).title,'Your campaign');assert.equal(page.frame().stage,'games');
+    page.component(page.WR.Sheet).onClose();assert.equal(page.component(page.WR.Sheet),undefined);
+    phoneDestination(page,'This week').props.onClick();const home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.model.visibleThroughWeek,0);assert.equal(home.model.resume.stage,'games');home.onResume();
+    assert.equal(nodes(page.draw()).find(node=>node.type?.name==='GameDay').props.initialClock,27);
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);assert.equal(JSON.stringify(page.actions),actions);
+});
+
+test('phone Realm keeps full season details and optional destinations without changing campaign or presentation progress',async()=>{
+    const page=await harness({phone:true,initial:ready({favors:true,conquest:true})});await page.open();await page.primary();assert.equal(page.frame().stage,'lineup');
+    const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]);assert(!phoneDestination(page,'Realm').props.disabled);
+    phoneDestination(page,'Realm').props.onClick();let home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.view,'realm');assert.equal(home.model.timeline.length,17);assert.equal(home.model.standings.length,8);
+    const screen=text(page.draw());for(const destination of ['Royal Council','Royal Library','Conquest'])assert(screen.includes(destination),'Realm retains '+destination);
+    assert(home.onExplore,'Revealed, caught-up preparation can explore');home.onExplore('library');assert.equal(page.component(page.App.DuatLibrary).allianceVisible,true);
+    phoneDestination(page,'Realm').props.onClick();home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.view,'realm');home.onExplore('council');
+    const council=page.component(page.App.DuatCouncil);assert.equal(council.allianceVisible,true);assert.equal(council.visibleThroughWeek,0);
+    phoneDestination(page,'This week').props.onClick();assert.equal(page.component(page.App.DuatSeasonHomeView).view||'home','home');
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);assert.deepEqual(page.actions,[]);
+});
+
+test('phone Army is read-only and a ready member only unreadies through explicit Edit army',async()=>{
+    const page=await harness({phone:true,online:true,host:false});await page.open();await page.primary();await page.primary();await page.primary();assert.equal(page.room.seats[0].ready,true);
+    const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]),actionCount=page.actions.length;
+    phoneDestination(page,'Army').props.onClick();const army=page.component(page.App.DuatWeeklyUI.Preparation);assert(army);assert.equal(army.disabled,true);
+    assert.equal(page.room.seats[0].ready,true);assert.equal(page.actions.length,actionCount);assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);
+    await button(page.draw(),'Edit army').props.onClick();assert.equal(page.room.seats[0].ready,false);assert.equal(page.frame().stage,'lineup');
+    assert.deepEqual(page.actions.slice(actionCount).map(action=>({type:action.type,ready:action.ready})),[{type:'set-ready',ready:false}]);
+    assert.equal(page.actions.filter(action=>action.type==='advance-week'||action.type==='set-lineup').length,0);assert.equal(JSON.stringify(page.saved()),before);
+});
+
+test('phone Army and Realm stay gated while reviewing an older remotely completed week',async()=>{
+    const page=await harness({phone:true,online:true,host:false});await page.open();await page.primary();await page.primary();await page.primary();
+    page.room.campaign=Engine.applyAction(page.room.campaign,{type:'advance-week'},data);page.room.campaign=Engine.applyAction(page.room.campaign,{type:'advance-week'},data);page.room.seats.forEach(seat=>seat.ready=false);page.room.revision++;await page.poll();
+    assert.equal(page.frame().stage,'games');assert.equal(page.frame().week,1);await page.primary();assert.equal(page.frame().stage,'recap');
+    assert.equal(phoneDestination(page,'Army').props.disabled,true);assert.equal(phoneDestination(page,'Realm').props.disabled,true);assert(!phoneDestination(page,'More').props.disabled);
+    phoneDestination(page,'This week').props.onClick();const home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.model.visibleThroughWeek,1);assert.equal(home.model.resume.week,1);assert.equal(home.onExplore,undefined);
+    assert.equal(page.actions.filter(action=>action.type==='advance-week').length,0);
+});
+
+test('phone-only Army and Realm destinations return to Home when the viewport widens without changing the saved turn',async()=>{
+    const page=await harness({phone:true});await page.open();await page.primary();const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]);
+    for(const destination of ['Army','Realm']){
+        page.setPhone(true);phoneDestination(page,destination).props.onClick();assert.equal(page.component(page.App.DuatSeasonHomeView)?.view,destination==='Realm'?'realm':undefined);
+        page.setPhone(false);assert(page.component(page.App.DuatSeasonHomeView),'Desktop retains a visible season destination');
+        assert.equal(page.component(page.App.DuatSeasonHomeView).view||'home','home');assert(!nodes(page.draw()).some(node=>node.props['aria-label']==='Duat navigation'));
+    }
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);assert.deepEqual(page.actions,[]);
+});
+
+test('phone Army cannot edit a week whose revealed result is still being reviewed',async()=>{
+    const page=await harness({phone:true});await page.open();await page.primary();await page.primary();await page.primary();await page.primary();assert.equal(page.frame().stage,'recap');
+    const before=JSON.stringify(page.saved()),progress=JSON.stringify([...page.storage]);phoneDestination(page,'Army').props.onClick();
+    assert.equal(page.component(page.App.DuatWeeklyUI.Preparation).disabled,true);
+    assert(!nodes(page.draw()).some(node=>node.type==='button'&&text(node).includes('Edit army')));
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(JSON.stringify([...page.storage]),progress);
+    phoneDestination(page,'This week').props.onClick();page.component(page.App.DuatSeasonHomeView).onResume();assert.equal(page.frame().stage,'recap');await page.primary();
+    phoneDestination(page,'Army').props.onClick();assert(!button(page.draw(),'Edit army').props.disabled);
+    assert.equal(page.actions.filter(action=>action.type==='advance-week').length,1);
 });
