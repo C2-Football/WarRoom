@@ -1,5 +1,14 @@
 /* The weekly task leads; the realm remains a deliberate choice. */
 .duat-home-mobile-record { display:none; }
+@media (max-width:767px) {
+  .duat-game .duat-topbar { position:sticky; top:0; z-index:100; padding:calc(8px + var(--sat,env(safe-area-inset-top,0px))) 12px 8px; background:#14232b; }
+  .duat-game.has-season-flow .duat-topbar { padding-top:calc(8px + var(--sat,env(safe-area-inset-top,0px))); }
+  .duat-game .duat-back { flex-shrink:0; }
+}
+.duat-first-expedition { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px; margin:0 0 16px; border:1px solid #9c865e; border-radius:var(--card-radius); background:#1b3034; }
+.duat-first-expedition strong { color:#edcc91; font-size:16px; }
+.duat-first-expedition p { color:#d2d8d3; font-size:14px; margin:4px 0 0; }
+.duat-first-expedition .duat-button { flex:0 0 auto; }
 @media (min-width:768px) {
   .duat-phone-disclosure { display:contents; }
   .duat-phone-disclosure > summary { display:none; }
@@ -20,6 +29,8 @@
   .duat-game .duat-intro > p { display:none; }
   .duat-game .duat-intro .duat-eyebrow { font-size:14px!important; letter-spacing:1px; }
   .duat-game .duat-setup-grid { gap:14px; }
+  .duat-first-expedition { align-items:stretch; flex-direction:column; }
+  .duat-first-expedition .duat-button { width:100%; min-height:44px; }
   .duat-setup-grid > form { padding:16px; display:flex; flex-direction:column; }
   .duat-setup-grid > form > .duat-choice-row { margin-bottom:16px; }
   .duat-game .duat-choice-row { gap:8px; }

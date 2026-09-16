@@ -35,10 +35,11 @@ const requiredDuatSources = [
     'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js',
     'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/identity-library.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
     'js/duat/favor-availability.js', 'js/duat/weekly-flow.js', 'js/duat/weekly-progress.js', 'js/duat/season-home.js',
-    'js/duat/session.js', 'js/duat/vendor/lz-string-1.5.0.js', 'js/duat/storage.js', 'js/duat/remote.js',
+    'js/duat/session.js', 'js/duat/storage.js', 'js/duat/remote.js',
     'js/components/duat-faction-marks.js', 'js/components/duat-identity-library.js', 'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/components/duat-weekly-flow.js', 'js/components/duat-season-home.js', 'js/tabs/duat.js',
 ];
 const sharedHelpers = [
+    'js/duat/vendor/lz-string-1.5.0.js',
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',
 ];
@@ -52,6 +53,15 @@ test('the Duat group includes world and presentation exactly once in dependency 
         assert.ok(matches[0] > previous, `${source} must follow its dependencies before any consumer captures them.`);
         assert.ok(fs.existsSync(path.join(root, source)), `${source} must exist for preview and production packaging.`);
         previous = matches[0];
+    }
+    const codecPath = 'js/duat/vendor/lz-string-1.5.0.js';
+    const codecTags = [...html.matchAll(/<script\b[^>]*src="([^"]+)"[^>]*>/g)]
+        .filter(match => match[1].split('?')[0] === codecPath);
+    assert.equal(codecTags.length, 1, 'Both games must share one codec declaration.');
+    assert.ok(!/data-wr-defer|type="text\/(?:babel|wr-deferred)"|\s(?:async|defer)(?:\s|=|>)/.test(codecTags[0][0]), 'The shared codec must initialize eagerly.');
+    for (const consumer of ['js/shared/time-league-storage.js', 'js/duat/storage.js']) {
+        const consumerPosition = html.indexOf('src="' + consumer + '?');
+        assert.ok(consumerPosition > codecTags[0].index, `${consumer} must load after the shared codec.`);
     }
     const firstDuat = html.indexOf(scriptSources[0]);
     for (const source of sharedHelpers) {
@@ -130,14 +140,16 @@ test('actual browser modules initialize the country campaign and presentation wi
 });
 
 function harness({ loaded = false, missingLoader = false } = {}) {
-    const states = [], effectDependencies = [], injected = [];
-    let stateCursor = 0, effectCursor = 0, queuedEffects = [], snapshot, reloads = 0, vaultMode = true;
+    const states = [], refs = [], effectDependencies = [], injected = [], scrolls = [];
+    let stateCursor = 0, refCursor = 0, effectCursor = 0, queuedEffects = [], snapshot, reloads = 0, vaultMode = true;
     function Game() {}
     function ErrorBoundary() {}
     const location = new URL('https://example.test/WarRoom/index.html?duat=1&vault=1&duat_invite=private-code');
     location.reload = () => { reloads++; };
     const browser = {
         location,
+        scrollY: 600,
+        scrollTo(options) { this.scrollY = options.top; scrolls.push(options.top); },
         history: { state: { view: 'hub' }, replaceState(state, unused, url) { this.state = state; location.href = String(url); } },
         dispatchEvent() {},
     };
@@ -153,12 +165,18 @@ function harness({ loaded = false, missingLoader = false } = {}) {
     const context = vm.createContext({
         window: browser, document, React, URL, URLSearchParams, ErrorBoundary,
         selectedLeague: null,
+        timeLeagueMode: true, timeLeagueModuleState: 'ready',
         setTimeout: () => 1, clearTimeout() {},
-        setTimeLeagueMode: value => { vaultMode = value; },
+        setTimeLeagueMode: value => { vaultMode = value; context.timeLeagueMode = value; },
         useState(initial) {
             const index = stateCursor++;
             if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
             return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }];
+        },
+        useRef(initial) {
+            const index = refCursor++;
+            if (!(index in refs)) refs[index] = { current: initial };
+            return refs[index];
         },
         useEffect(callback, dependencies) {
             const index = effectCursor++, previous = effectDependencies[index];
@@ -170,14 +188,14 @@ function harness({ loaded = false, missingLoader = false } = {}) {
     if (!missingLoader) vm.runInContext(loaderSource, context);
     vm.runInContext(componentSource, context);
     function draw() {
-        stateCursor = effectCursor = 0;
+        stateCursor = refCursor = effectCursor = 0;
         queuedEffects = [];
         const tree = context.DuatEntry();
         queuedEffects.forEach(callback => callback());
         return tree;
     }
     return {
-        draw, browser, injected, Game, ErrorBoundary,
+        draw, browser, injected, Game, ErrorBoundary, scrolls,
         snapshot: () => snapshot, reloads: () => reloads, vaultMode: () => vaultMode,
         completeGroup() { browser.DuatGame = Game; injected.forEach(script => script.onload()); },
     };
@@ -312,6 +330,29 @@ test('successful group completion mounts the game and repeat entry does not load
     page.snapshot().openDuat();
     assert.equal(page.injected.length, scriptSources.length);
     assert.equal(page.reloads(), 0);
+});
+
+test('entering, finishing load, and leaving a game reset inherited scroll while ordinary renders retain reading position', async () => {
+    const page = harness();
+    page.draw();
+    assert.equal(page.browser.scrollY, 0, 'Opening from a scrolled hub reveals the game header.');
+    page.completeGroup();
+    await settle();
+    page.browser.scrollY = 450;
+    page.draw();
+    assert.equal(page.browser.scrollY, 0, 'The loaded game starts at its reachable back controls.');
+    const count = page.scrolls.length;
+    page.browser.scrollY = 280;
+    page.draw();
+    assert.equal(page.browser.scrollY, 280, 'Rerendering the same game never resets the reader.');
+    assert.equal(page.scrolls.length, count);
+    page.snapshot().closeDuat();
+    page.draw();
+    assert.equal(page.browser.scrollY, 0, 'Returning to the hub reveals its navigation.');
+    page.browser.scrollY = 510;
+    page.snapshot().openDuat();
+    page.draw();
+    assert.equal(page.browser.scrollY, 0, 'A cached game also starts at the top.');
 });
 
 test('missing loader and completed group without its component expose a recoverable error', async () => {

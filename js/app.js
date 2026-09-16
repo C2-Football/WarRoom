@@ -823,6 +823,16 @@
             window.history.replaceState(window.history.state, '', url);
         };
 
+        // Games replace the hub inside the same document. Do not carry the
+        // hub's scroll position (or a previous game's position) into its header.
+        const gameSurface = !selectedLeague && (duatMode ? 'duat:' + duatModuleState : timeLeagueMode ? 'vault:' + timeLeagueModuleState : '');
+        const previousGameSurface = useRef('');
+        useEffect(() => {
+            if (!gameSurface && !previousGameSurface.current) return;
+            previousGameSurface.current = gameSurface;
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }, [gameSurface]);
+
         // ── Time League invite links ────────────────────────────────
         // The Vault has no URL router of its own (opened via the hub button
         // above, not a route), so a ?tl_invite=<code> link is caught here once

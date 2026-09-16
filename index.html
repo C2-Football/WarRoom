@@ -3035,6 +3035,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/time-league-draft-room.js?v=20260907draftclock1"></script>
 <script src="js/shared/time-league-era-rules.js?v=20260907career1"></script>
 <script src="js/shared/time-league-types.js?v=20260907career1"></script>
+<script src="js/duat/vendor/lz-string-1.5.0.js?v=20260915recovery1"></script>
+<script src="js/shared/time-league-storage.js?v=20260915recovery1"></script>
 <script src="js/shared/time-league-season.js?v=20260908-full-season1"></script>
 <script src="js/shared/time-league-player-cards.js?v=20260908-full-season1"></script>
 <script src="js/shared/time-league-gamecast.js?v=20260908-full-season1"></script>
@@ -3066,8 +3068,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <link rel="stylesheet" href="league-actions-mobile.css?v=20260915audit5">
 <link rel="stylesheet" href="league-analysis-mobile.css?v=20260915audit5">
 <link rel="stylesheet" href="suite-management.css?v=20260915audit5">
-<link rel="stylesheet" href="time-league-mobile.css?v=20260915audit5">
-<link rel="stylesheet" href="duat-phone.css?v=20260915audit5">
+<link rel="stylesheet" href="time-league-mobile.css?v=20260915recovery1">
+<link rel="stylesheet" href="duat-phone.css?v=20260915recovery1">
 <script type="text/babel" data-wr-defer="duat" src="js/duat/rules.js?v=20260908dynasty1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/world.js?v=20260908dynasty1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/provinces.js?v=20260908dynasty1"></script>
@@ -3086,7 +3088,6 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="duat" src="js/duat/season-home.js?v=20260909home1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/map.js?v=20260909guided1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/session.js?v=20260908dynasty1"></script>
-<script type="text/babel" data-wr-defer="duat" src="js/duat/vendor/lz-string-1.5.0.js?v=20260908dynasty1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/storage.js?v=20260908dynasty1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/duat/remote.js?v=20260908dynasty1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/components/duat-faction-marks.js?v=20260909identity1"></script>
@@ -3097,7 +3098,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="duat" src="js/components/duat-heptad.js?v=20260909identity1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/components/duat-weekly-flow.js?v=20260909mobile1"></script>
 <script type="text/babel" data-wr-defer="duat" src="js/components/duat-season-home.js?v=20260915audit5"></script>
-<script type="text/babel" data-wr-defer="duat" src="js/tabs/duat.js?v=20260915audit5"></script>
+<script type="text/babel" data-wr-defer="duat" src="js/tabs/duat.js?v=20260915recovery1"></script>
 <script src="js/shared/playoff-odds.js?v=20260805ch1"></script>
 <script src="js/shared/faab-engine.js?v=20260805ch3"></script>
 <script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
@@ -3256,8 +3257,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-standings-panel.js?v=20260910release1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-activity-panel.js?v=20260910release1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-gamecast-panel.js?v=20260915audit5"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-week-gates.js?v=20260910release1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/tabs/time-league.js?v=20260915audit5"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-week-gates.js?v=20260915recovery1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/tabs/time-league.js?v=20260915recovery1"></script>
 <script src="js/tutorial.js?v=20260503tutorial1"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication.
      Only consumed by alex-insights' Strategy sub-view, so it rides the same
@@ -3266,7 +3267,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 7. League detail: coordinator shell, depends on all above -->
     <script type="text/babel" src="js/league-detail.js?v=20260915audit5"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
-<script type="text/babel" src="js/app.js?v=20260915audit5"></script>
+<script type="text/babel" src="js/app.js?v=20260915recovery1"></script>
 
 <!-- All JSX code extracted to js/ modules. Only bootstrap remains. -->
 <script>

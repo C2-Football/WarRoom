@@ -40,6 +40,11 @@ reset(); tree = recapGate({ onlineMeta: { role: 'member', seatTeamId: league.tea
 reset(); tree = recapGate({ league: { ...league, settings: { ...league.settings, advancementMode: 'majority' } }, onlineMeta: { role: 'member', seatTeamId: league.teams[0].teamId } });
 button(tree, 'Vote to end week').props.onClick(); assert.equal(called.type, 'vote-advance');
 reset(); tree = recapGate({ saving: true }); assert(button(tree, 'Saving…').props.disabled);
+reset(); tree = recapGate({ saveError: true, onRetrySave: () => { called = 'retry'; } });
+assert(!button(tree, 'Saving…'), 'A failed save is never presented as an in-flight save');
+assert(!button(tree, 'Retry save').props.disabled, 'The failed-save dock provides an available recovery action');
+button(tree, 'Retry save').props.onClick(); assert.equal(called, 'retry');
+assert(text(tree).includes('Save needs attention'));
 reset();const cast=()=>render(()=>WrTimeLeagueGamecastPanel({league,cards,logIndex:new Map(),onUpdate:()=>{},autoPlayWeek:1}));cast();effects[0]();tree=cast();assert.equal(state[2],true);assert.equal(state[3],300);assert(state[0].live);assert.equal(state[0].weekData.week,1);
 state[1]=35;effects[0]();assert.equal(state[1],35,'Autoplay must not rewind same week on rerender');
 reset(); cast(); effects[0](); tree=cast();

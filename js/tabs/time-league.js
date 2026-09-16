@@ -21,6 +21,7 @@
     const Engine = window.App.TimeLeagueEngine;
     const EraRules = window.App.TimeLeagueEraRules;
     const Remote = window.App.TimeLeagueRemote;
+    const Storage = window.App.TimeLeagueStorage;
 
     const UI_PREFS_KEY = 'wr-time-league-ui-v1';
     const REGULAR_SEASON_WEEKS = 14;
@@ -70,13 +71,17 @@
         try { window.localStorage.setItem(Types.TIME_LEAGUE_INDEX_KEY, JSON.stringify(entries)); } catch { /* in-memory only */ }
     }
     function readLeague(leagueId) {
-        try { return Engine.normalizeTimeLeague(JSON.parse(window.localStorage.getItem(Types.timeLeagueStorageKey(leagueId)) ?? 'null')); }
+        try {
+            const raw = window.localStorage.getItem(Types.timeLeagueStorageKey(leagueId));
+            return Engine.normalizeTimeLeague(Storage ? Storage.decode(raw) : JSON.parse(raw ?? 'null'));
+        }
         catch { return null; }
     }
     function writeLeague(state) {
-        window.localStorage.setItem(Types.timeLeagueStorageKey(state.leagueId), JSON.stringify(state));
+        window.localStorage.setItem(Types.timeLeagueStorageKey(state.leagueId), Storage ? Storage.encode(state) : JSON.stringify(state));
     }
     function writeLeagueSnapshot(state, entries) {
+        if (Storage) return Storage.writeSnapshot(state, entries);
         // Save the discoverable shelf first and the authoritative game last.
         // A failed game write leaves the previous game untouched; roll back
         // the shelf so a failed creation cannot leave a phantom league.
@@ -1229,7 +1234,7 @@
                 }
                 pendingLocalSave.current = safe;
                 pendingSaveTime.current = stamp;
-                setStorageError('This move could not be saved on this device. Your previous save is intact. Allow site storage or free some space, then retry.');
+                setStorageError('This move could not be saved on this device. Your previous save is intact. Retry, or keep your previous save to go back.');
                 return false;
             }
             pendingLocalSave.current = null;
@@ -1586,7 +1591,7 @@
                                 onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: openFriends }, 'Friends & invites'),
                                 reportBug && h('button', { type: 'button', className: 'tl-btn', onClick: event => { event.currentTarget.closest('details')?.removeAttribute('open'); reportBug(); } }, 'Report a bug'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
-                                h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: onClose }, 'Back to dashboard'))))),
+                                h('button', { type: 'button', className: 'tl-btn', onClick: () => { if (!storageError || keepPreviousSave()) onClose(); } }, storageError ? 'Keep previous save & go back' : 'Back to dashboard'))))),
                 conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                         h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
@@ -1632,9 +1637,9 @@
 
                 activeTab === 'activity' && ActivityPanel ? (league.phase === 'draft' && !draftRevealed
                     ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
-                    : h(ActivityPanel, { league })) : null,
-                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, league, onlineMeta, saving: saving || Boolean(storageError), playback, messageAction: mailAction,
-                    dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab })))));
+                    : h(ActivityPanel, { league })) : null),
+                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, league, onlineMeta, saving, saveError: Boolean(storageError), onRetrySave: retryLocalSave, playback, messageAction: mailAction,
+                    dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab }))));
     }
 
     window.TimeLeague = TimeLeagueMode;
