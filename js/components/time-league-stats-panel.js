@@ -5,6 +5,8 @@
     function WrTimeLeagueStatsPanel({ league, cards, logIndex, eraFactors, throughWeek, onNavigate }) {
         cards = window.App.TimeLeagueEngine.cardsFor(league, cards);
         const Stats = window.App.TimeLeaguePlayerStats;
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
+        const yearLabel = entry => concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : entry.drawnSeason;
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const pageSize = phone ? 20 : 50;
         const [profileId, setProfileId] = React.useState('');
@@ -36,7 +38,7 @@
         const filtered = Stats.filterAndSort(rows, { search, position, team, sort, ascending });
         const change = setter => event => { setter(event.target.value); setLimit(pageSize); };
         const sortBy = key => { setAscending(sort === key ? !ascending : ['name', 'position', 'teamName'].includes(key)); setSort(key); };
-        const columns = [['name', 'Player'], ['points', 'FPTS'], ['games', 'Vault GP'], ['average', 'PPG'], ['teamName', 'Team'], ['position', 'Pos'], ['seasonPoints', 'SZN']];
+        const columns = [['name', 'Player'], ['points', 'FPTS'], ['games', 'Vault GP'], ['average', 'PPG'], ['teamName', 'Team'], ['position', 'Pos'], ...(!concealed ? [['seasonPoints', 'SZN']] : [])];
         const statFields = playerPosition => playerPosition === 'K' ? [['fgm', 'FG'], ['xpm', 'XP']] : playerPosition === 'DEF' ? [['sack', 'Sacks'], ['int', 'INT']]
             : playerPosition === 'QB' ? [['passYd', 'Pass yd'], ['passTd', 'Pass TD'], ['passInt', 'INT'], ['rushYd', 'Rush yd']]
                 : [['rushYd', 'Rush yd'], ['rushTd', 'Rush TD'], ['rec', 'Rec'], ['recYd', 'Rec yd'], ['recTd', 'Rec TD']];
@@ -47,29 +49,29 @@
                 h('input', { className: 'tl-input', type: 'search', placeholder: 'Search players…', value: search, onChange: change(setSearch), 'aria-label': 'Search player stats' }),
                 h('select', { className: 'tl-select', value: team, onChange: change(setTeam), 'aria-label': 'Filter stats by team' }, h('option', { value: 'ALL' }, 'All teams'), h('option', { value: 'fa' }, 'Free agents'), league.teams.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
             h('div', { className: 'tl-stats-positions', 'aria-label': 'Filter stats by position' }, ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', ...(league.settings.rosterSlots.FLEX ? ['FLEX'] : []), ...(league.settings.rosterSlots.SUPER_FLEX ? ['SUPER_FLEX'] : [])].map(value => h('button', { key: value, type: 'button', className: `tl-btn${position === value ? ' primary' : ''}`, 'aria-pressed': position === value, onClick: () => { setPosition(value); setLimit(pageSize); } }, value === 'DEF' ? 'D/ST' : value === 'SUPER_FLEX' ? 'Super flex' : value === 'ALL' ? 'All' : value))),
-            h(phone ? 'details' : 'div', { className: 'tl-stats-glossary' }, phone && h('summary', null, 'What these scores mean'), h('p', { className: 'tl-hint' }, `${effectivePeriod === 'ytd' ? `Through ${weeks.length ? `Week ${weeks.at(-1)}` : 'preseason'}` : `Week ${effectivePeriod}`} · FPTS and Vault GP cover completed Vault weeks, including bench production. SZN is ${league.settings.gameDeckVersion === 1 ? 'the recorded NFL regular-season total' : 'the Weeks 1–14 archive total'} with reference scoring. Free-agent editions match this week’s waiver wire.`)),
+            h(phone ? 'details' : 'div', { className: 'tl-stats-glossary' }, phone && h('summary', null, 'What these scores mean'), h('p', { className: 'tl-hint' }, `${effectivePeriod === 'ytd' ? `Through ${weeks.length ? `Week ${weeks.at(-1)}` : 'preseason'}` : `Week ${effectivePeriod}`} · FPTS and Vault GP cover completed Vault weeks, including bench production. ${concealed ? 'The hidden year is confirmed in the final recap. Candidate history is available from your roster.' : `SZN is ${league.settings.gameDeckVersion === 1 ? 'the recorded NFL regular-season total' : 'the Weeks 1–14 archive total'} with reference scoring.`} Free-agent editions match this week’s waiver wire.`)),
             !logIndex || (league.settings.eraAdjusted && !eraFactors?.size) ? h('p', { role: 'status', className: 'tl-hint' }, 'Some historical data is still loading. Unavailable totals show —.') : null,
             phone ? h('div', { className: 'tl-stats-mobile' },
                 h('div', { className: 'tl-stats-mobile-sort' },
                     h('label', null, 'Sort players', h('select', { className: 'tl-select', value: sort, onChange: event => sortBy(event.target.value) }, columns.map(([key, label]) => h('option', { key, value: key }, label)))),
                     h('button', { className: 'tl-btn', type: 'button', onClick: () => setAscending(value => !value), 'aria-label': 'Reverse player sort order' }, ascending ? 'Low to high ↑' : 'High to low ↓')),
                 filtered.slice(0, limit).map(row => h('details', { className: 'tl-stats-mobile-row', key: `${row.teamId}:${row.identity}:${row.drawnSeason}` },
-                    h('summary', null, h('span', null, h('strong', null, row.name), h('small', null, `${row.position === 'DEF' ? 'D/ST' : row.position} · ${row.drawnSeason} · Details`)), h('span', { className: 'tabular' }, h('strong', null, fmt(row.points)), h('small', null, 'FPTS'))),
+                    h('summary', null, h('span', null, h('strong', null, row.name), h('small', null, `${row.position === 'DEF' ? 'D/ST' : row.position} · ${yearLabel(row)} · Details`)), h('span', { className: 'tabular' }, h('strong', null, fmt(row.points)), h('small', null, 'FPTS'))),
                     h('div', { className: 'tl-stats-mobile-detail' }, teamLink(row), h('dl', null,
-                        [['Vault games', row.games ?? '—'], ['Points per game', fmt(row.average)], ['Recorded season · reference scoring', fmt(row.seasonPoints)], ...statFields(row.position).filter(([key]) => row.stats[key] != null).map(([key, label]) => [label, row.stats[key]])].map(([label, value]) => h('div', { key: label }, h('dt', null, label), h('dd', null, value)))))))) :
+                        [['Vault games', row.games ?? '—'], ['Points per game', fmt(row.average)], ...(!concealed ? [['Recorded season · reference scoring', fmt(row.seasonPoints)]] : []), ...statFields(row.position).filter(([key]) => row.stats[key] != null).map(([key, label]) => [label, row.stats[key]])].map(([label, value]) => h('div', { key: label }, h('dt', null, label), h('dd', null, value)))))))) :
             h('div', { className: 'tl-stats-scroll', tabIndex: 0, 'aria-label': 'Player statistics table. Scroll for additional columns.' }, h('table', { className: 'tl-stats-table' },
                 h('thead', null, h('tr', null, columns.map(([key, label]) => h('th', { key, scope: 'col', 'aria-sort': sort === key ? ascending ? 'ascending' : 'descending' : 'none' }, h('button', { type: 'button', onClick: () => sortBy(key) }, label, sort === key ? ascending ? ' ↑' : ' ↓' : ''))))),
                 h('tbody', null, filtered.slice(0, limit).map((row, index) => h('tr', { key: `${row.teamId}:${row.identity}:${row.drawnSeason}` },
-                    h('td', null, h('div', { className: 'tl-stats-player' }, h('small', null, index + 1), h('span', null, h('strong', null, row.name), h('small', null, `${row.position === 'DEF' ? 'D/ST' : row.position} · ${row.drawnSeason}`), teamLink(row),
+                    h('td', null, h('div', { className: 'tl-stats-player' }, h('small', null, index + 1), h('span', null, h('strong', null, row.name), h('small', null, `${row.position === 'DEF' ? 'D/ST' : row.position} · ${yearLabel(row)}`), teamLink(row),
                         h('span', { className: 'tl-stats-details' }, statFields(row.position).filter(([key]) => row.stats[key] != null).map(([key, label]) => h('span', { key }, `${label} ${row.stats[key]}`)))))),
-                    h('td', { className: 'tl-stats-points tabular' }, fmt(row.points)), h('td', null, row.games ?? '—'), h('td', { className: 'tabular' }, fmt(row.average)), h('td', null, teamLink(row)), h('td', null, row.position === 'DEF' ? 'D/ST' : row.position), h('td', { className: 'tabular' }, fmt(row.seasonPoints))))))),
+                    h('td', { className: 'tl-stats-points tabular' }, fmt(row.points)), h('td', null, row.games ?? '—'), h('td', { className: 'tabular' }, fmt(row.average)), h('td', null, teamLink(row)), h('td', null, row.position === 'DEF' ? 'D/ST' : row.position), !concealed && h('td', { className: 'tabular' }, fmt(row.seasonPoints))))))),
             !filtered.length ? h('p', { className: 'tl-empty' }, league.seasonsRevealed ? 'No players match these filters.' : 'Player stats open after the draft reveal.') : null,
             h('dialog', { ref: profileDialog, className: 'tl-action-dialog tl-team-profile-dialog', 'aria-label': profileTeam ? profileTeam.name + ' team profile' : 'Team profile', onCancel: event => { event.preventDefault(); closeProfile(); }, onClose: closeProfile },
                 profileTeam && h(React.Fragment, null,
                     h('header', { className: 'tl-action-dialog-head' }, h('h2', null, profileTeam.name), h('button', { type: 'button', className: 'tl-btn', onClick: closeProfile }, 'Close')),
                     window.WrTimeLeagueStandingsPanel && h(window.WrTimeLeagueStandingsPanel, { key: profileId, league: { ...league, finalizedWeeks: league.finalizedWeeks.filter(row => weeks.includes(row.week)) }, profileTeamId: profileId, profileOnly: true, onCloseProfile: closeProfile },
                     h('section', { className: 'tl-card' }, h('h3', null, 'Roster'),
-                        profileTeam.roster.map(entry => h('div', { key: entry.entryId, className: 'tl-profile-roster-row' }, h('strong', null, entry.name), h('span', null, entry.position + ' · ' + entry.drawnSeason + ' · ' + entry.slot))))))),
+                        profileTeam.roster.map(entry => h('div', { key: entry.entryId, className: 'tl-profile-roster-row' }, h('strong', null, entry.name), h('span', null, entry.position + ' · ' + yearLabel(entry) + ' · ' + entry.slot))))))),
             h('div', { className: 'tl-stats-footer' }, h('small', null, `${Math.min(limit, filtered.length)} of ${filtered.length} players`), filtered.length > limit ? h('button', { className: 'tl-btn', onClick: () => setLimit(value => value + pageSize) }, 'Show more') : null,
                 onNavigate ? h('button', { className: 'tl-btn', onClick: () => onNavigate('waivers') }, 'Open free agents →') : null));
     }

@@ -12,7 +12,7 @@ global.React = {
 global.TimeLeagueHelmetIcon = () => null;
 for (const module of ['standings', 'home', 'team']) require('../js/components/time-league-' + module + '-panel.js');
 const E = App.TimeLeagueEngine, S = App.TimeLeagueSeason;
-let league = E.createTimeLeague({ name: 'UI smoke', seed: 'ui', createdAt: '2026-01-01', settings: { rosterSlots: { QB: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 4, scoring: { passTd: 4, reception: .5, rushRecYd: .1, passingYd: .04, turnover: -2 } }, seats: Array.from({ length: 4 }, (_, i) => ({ name: 'Team ' + i, manager: i ? 'ai' : 'human' })) });
+let league = E.createTimeLeague({ name: 'UI smoke', seed: 'ui', createdAt: '2026-01-01', settings: { hiddenYears: false, rosterSlots: { QB: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 4, scoring: { passTd: 4, reception: .5, rushRecYd: .1, passingYd: .04, turnover: -2 } }, seats: Array.from({ length: 4 }, (_, i) => ({ name: 'Team ' + i, manager: i ? 'ai' : 'human' })) });
 league = { ...league, phase: 'season', weekStage: 'lineup', seasonsRevealed: true, currentWeek: 7 };
 const render = fn => { cursor = 0; return fn(); };
 const home = JSON.stringify(render(() => WrTimeLeagueHomePanel({ league, onNavigate: () => {} })));

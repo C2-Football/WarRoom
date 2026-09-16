@@ -39,7 +39,10 @@
                 : h('button', { type: 'button', className: 'tl-btn primary', disabled: busy || !playback.nextQuarter, onClick: playback.nextQuarter }, 'Next quarter');
             secondary = currentTab === 'gameday' && h('button', { type: 'button', className: 'tl-btn', disabled: busy || !playback.toggle, onClick: playback.toggle }, playback.playing ? 'Pause' : 'Resume');
         } else if (complete) {
-            primary = go(currentTab === 'home' ? 'gameday' : 'home', currentTab === 'home' ? 'Season recap' : 'View champion');
+            primary = league.settings.hiddenYears && !league.yearsRevealed
+                ? h('button', { type: 'button', className: 'tl-btn primary', disabled, onClick: () => onAction({ type: 'reveal-years' }) }, 'Reveal the years')
+                : go(currentTab === 'home' ? 'gameday' : 'home', currentTab === 'home' ? 'Season recap' : 'View champion');
+            if (league.settings.hiddenYears && !league.yearsRevealed) secondary = go('roster', 'My players');
         } else {
             primary = needsScreen ? go(stage.tab, stage.open)
                 : h('button', { type: 'button', className: 'tl-btn primary', disabled: disabled || (mode === 'majority' ? voted : !host), onClick: advance },

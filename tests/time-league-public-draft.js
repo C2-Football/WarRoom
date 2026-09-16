@@ -21,7 +21,7 @@ const cards = new Map(['QB', 'RB'].flatMap(position => Array.from({ length: 8 },
 function create(format) {
     return E.createTimeLeague({ name: `Public ${format}`, seed: `private-server-seed-${format}`, createdAt: stamp(0),
         seats: [{ name: 'Host', manager: 'human' }, { name: 'Friend', manager: 'human' }],
-        settings: { draftFormat: format, rosterSlots: { QB: 1, RB: 1, BN: 1 }, maxQuarterbacks: 2,
+        settings: { hiddenYears: false, draftFormat: format, rosterSlots: { QB: 1, RB: 1, BN: 1 }, maxQuarterbacks: 2,
             scoring: { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 },
             draftPickSeconds: 15, draftAiSeconds: 2, regularSeasonWeeks: 12,
             eraRules: { mode: 'position-roulette', decades: [], positionDecades: { QB: '1980s', RB: '1990s' } } } });

@@ -224,6 +224,7 @@
         const [bonuses, setBonuses] = useState([['passYd',300],['passYd',400],['rushYd',100],['rushYd',200],['recYd',100],['recYd',200]].map(([stat, threshold]) => ({ stat, threshold, points: 0 })));
         const [customExtended, setCustomExtended] = useState(null);
         const [qbLimit, setQbLimit] = useState(window.TimeLeagueUtils.MAX_QUARTERBACKS);
+        const [hiddenYears, setHiddenYears] = useState(true);
         const origin = playMode === 'friends' ? 'online' : 'local';
         const rosterOption = ROSTER_PRESET_OPTIONS.find((option) => option.id === rosterPreset) ?? ROSTER_PRESET_OPTIONS[1];
         const scoringOption = SCORING_PRESET_OPTIONS.find((option) => option.id === scoringPreset) ?? SCORING_PRESET_OPTIONS[0];
@@ -244,8 +245,8 @@
             advancementMode: playMode === 'friends' ? advancementMode : 'commissioner', gateHours,
             playoffTeams: seats.length >= playoffTeams ? playoffTeams : 2,
             maxQuarterbacks: Math.max(qbLimit, (customSlots || rosterOption.slots).QB || 0),
-            eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
-        }), [draftFormat, draftOrderMode, orderedSeats, draftPickSeconds, draftAiSeconds, draftAuctionBudget, playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
+            eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty, hiddenYears,
+        }), [draftFormat, draftOrderMode, orderedSeats, draftPickSeconds, draftAiSeconds, draftAuctionBudget, playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty, hiddenYears]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((seat) => seat.manager === 'human').length;
         const signedIn = onlineIndexState !== 'signed-out' && Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -391,6 +392,10 @@
                     h('select', { className: 'tl-select', value: settings.playoffTeams, onChange: event => setPlayoffTeams(Number(event.target.value)) },
                         h('option', { value: 0 }, 'Standings champion'), h('option', { value: 2 }, 'Top 2 · Championship final'), h('option', { value: 4, disabled: seats.length < 4 }, 'Top 4 · 12 games + playoffs'), h('option', { value: 8, disabled: seats.length < 8 }, 'Top 8 · 11 games + playoffs')),
                     h('p', { className: 'tl-hint' }, `${settings.regularSeasonWeeks} regular-season games · 14 weeks total. Higher seed wins a playoff tie. Missing game logs score zero.`)),
+                h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'PLAYER YEARS'),
+                    h('select', { className: 'tl-select', 'aria-label': 'Player year visibility', value: hiddenYears ? 'hidden' : 'revealed', onChange: event => setHiddenYears(event.target.value === 'hidden') },
+                        h('option', { value: 'hidden' }, 'Hidden years · investigate the games'), h('option', { value: 'revealed' }, 'Classic · reveal years after the draft')),
+                    h('p', { className: 'tl-hint' }, hiddenYears ? 'Draft a player and decade. One fixed year stays hidden until your final recap. Completed game logs can identify it sooner; AI managers use the same clues.' : 'The drawn year and current-game star clue become visible when the draft ends.')),
                 playMode === 'friends' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'WEEKLY ADVANCEMENT'), h('select', { className: 'tl-select', value: advancementMode, onChange: event => setAdvancementMode(event.target.value) }, h('option', { value: 'commissioner' }, 'Commissioner advances'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Timed gates')), advancementMode === 'timed' && h('input', { className: 'tl-input', type: 'number', min: 1, max: 168, value: gateHours, onChange: event => setGateHours(Math.max(1, Math.min(168, Number(event.target.value) || 24))), 'aria-label': 'Hours per gate' }), h('p', { className: 'tl-hint' }, 'Four stops each week: claims, final roster decisions, game day, and final results. The commissioner can override any gate.', advancementMode === 'timed' && ' Deadlines are checked while a manager has the room open and resume on return.'))),
 
             h(SetupStep, { id: 'vault-setup-2', title: 'Your team', summary: seats[0].name || 'Choose a name & helmet', first: false },

@@ -59,7 +59,7 @@ const makeCard = (id, position, years, peak = 100) => ({ identity: id, name: `${
     bio: { college: 'Archive College' }, seasons: years.map((season, index) => ({ season, games: 14, points: peak - index * 4, passYd: 1000, passTd: 10, passInt: 2, rushYd: 200, rushTd: 1, rec: 10, recYd: 100, recTd: 1 })) });
 const cards = new Map(Array.from({ length: 8 }, (_, i) => [`p${i}`, makeCard(`p${i}`, 'RB', [1980 + i], 100 + i)]));
 let league = Engine.createTimeLeague({ name: 'Grid test', seed: 'grid', createdAt: '2026-01-01',
-    settings: { rosterSlots: { RB: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 0, eraRules: { mode: 'any-era', decades: [] } },
+    settings: { hiddenYears: false, rosterSlots: { RB: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 0, eraRules: { mode: 'any-era', decades: [] } },
     seats: [{ name: 'Alpha', manager: 'human' }, { name: 'Beta', manager: 'ai' }] });
 if (Engine.startDraft) league = Engine.startDraft(league, '2026-01-01T00:00:00.000Z');
 // The pinned banner follows the next seat, including the snake-round turn.
@@ -130,7 +130,7 @@ assert.ok(mount({ league, cards, onUpdate: () => {} })(), 'Fallback renders whil
 const liveCards = new Map(['RB', 'RB', 'RB', 'WR', 'RB', 'TE', 'QB', ...Array(13).fill('WR')].map((position, index) =>
     [`live${index}`, makeCard(`live${index}`, position, [2000], 200 - index)]));
 let liveLeague = Engine.createTimeLeague({ name: 'Room watch', seed: 'room-watch', createdAt: '2026-01-01',
-    settings: { rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, BN: 4 }, eraRules: { mode: 'any-era', decades: [] } },
+    settings: { hiddenYears: false, rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, BN: 4 }, eraRules: { mode: 'any-era', decades: [] } },
     seats: [{ name: 'Alpha', manager: 'human' }, { name: 'Beta', manager: 'ai' }] });
 const liveRender = mount({ league: liveLeague, cards: liveCards, onUpdate() {} });
 const roomActivity = page => find(page, node => node.props['aria-label'] === 'Current draft turn')[0];
@@ -170,7 +170,7 @@ const rouletteCards = new Map([
 rouletteCards.get('q4').peak = 9999;
 rouletteCards.get('q4').seasons[0].points = 9999;
 let roulette = Engine.createTimeLeague({ name: 'Sealed archive', seed: 'sealed', createdAt: '2026-01-01',
-    settings: { rosterSlots: { QB: 1, RB: 1, BN: 1 }, eraRules: { mode: 'position-roulette', decades: [], positionDecades: { QB: '1980s', RB: '1990s' } } },
+    settings: { hiddenYears: false, rosterSlots: { QB: 1, RB: 1, BN: 1 }, eraRules: { mode: 'position-roulette', decades: [], positionDecades: { QB: '1980s', RB: '1990s' } } },
     seats: [{ name: 'Human', manager: 'human' }, { name: 'Rival', manager: 'ai' }] });
 roulette = { ...roulette, draftClock: { ...roulette.draftClock, status: 'running' }, teams: roulette.teams.map((team, index) => index ? team : { ...team, queue: ['r0'] }) };
 let writes = 0; const readiness = []; const actions = [];
@@ -384,7 +384,7 @@ for (const draftFormat of ['snake', 'linear', 'auction']) {
 const turnCards = new Map(Array.from({ length: 12 }, (_, index) => [`turn-${index}`, makeCard(`turn-${index}`, 'RB', [1984], 200 - index)]));
 const turnLeague = Engine.createTimeLeague({ name: 'Your next turn', seed: 'turn-countdown', createdAt: '2026-09-08T12:00:00Z',
     seats: [{ name: 'First Human', manager: 'human' }, { name: 'Second Human', manager: 'human' }, { name: 'Rival', manager: 'ai' }],
-    settings: { rosterSlots: { RB: 1, BN: 2 }, regularSeasonWeeks: 12, draftOrderMode: 'manual', draftTeamOrder: ['t3', 't2', 't1'],
+    settings: { hiddenYears: false, rosterSlots: { RB: 1, BN: 2 }, regularSeasonWeeks: 12, draftOrderMode: 'manual', draftTeamOrder: ['t3', 't2', 't1'],
         eraRules: { mode: 'any-era', decades: [] }, draftFormat: 'snake' } });
 const turnLabel = page => text(find(page, node => node.props.className === 'tl-draft-turn-label')[0]);
 const turnDetail = page => text(find(page, node => node.props.className === 'tl-draft-turn-detail')[0]);

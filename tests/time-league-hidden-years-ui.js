@@ -1,0 +1,73 @@
+'use strict';
+const assert = require('node:assert/strict');
+global.window = globalThis; window.App = {};
+for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'hidden-years', 'player-stats', 'player-cards', 'ui', 'ai', 'gamecast']) require('../js/shared/time-league-' + name + '.js');
+let cursor = 0, state = [];
+global.React = { Fragment: 'fragment', useRef: value => ({ current: value }), useEffect: () => {}, useMemo: fn => fn(), useCallback: fn => fn,
+    useState: value => { const id = cursor++; if (!(id in state)) state[id] = typeof value === 'function' ? value() : value; return [state[id], next => { state[id] = typeof next === 'function' ? next(state[id]) : next; }]; },
+    createElement: (type, props, ...children) => typeof type === 'function' ? type({ ...props, children }) : ({ type, props: props || {}, children }) };
+window.WR = { useViewport: () => ({ isPhone: true }) };
+require('../js/components/time-league-team-panel.js'); require('../js/components/time-league-stats-panel.js');
+for (const name of ['draft', 'gamecast', 'standings', 'home']) require('../js/components/time-league-' + name + '-panel.js');
+require('../js/components/time-league-ceremony.js');
+const E = App.TimeLeagueEngine, S = App.TimeLeagueSeason;
+const scoring = { passTd: 4, reception: .5, rushRecYd: .1, passingYd: .04, turnover: -2 };
+const entries = Array.from({ length: 4 }, (_, i) => ({ entryId: `e${i + 1}`, editionId: `e${i + 1}`, hiddenDecade: '1990s', identity: `p${i + 1}`,
+    name: ['Steve Young', 'Joe Montana', 'Dan Marino', 'Free Quarterback'][i], position: 'QB', slot: i === 1 ? 'BN' : 'QB', drawnSeason: 1993, acquiredVia: 'draft', acquiredWeek: 1 }));
+const cards = new Map(entries.map(entry => [entry.identity, { ...entry, peak: 100, seasons: [1992, 1993, 1994].map(season => ({ season, games: 2, points: 24, passYd: 300, passTd: 3, rushYd: 0, rushTd: 0, rec: 0, recYd: 0, recTd: 0 })) }]));
+const logs = S.buildGameLogIndex(entries.flatMap(entry => [1992, 1993, 1994].flatMap(season => [1, 2].map(week => ({ identity: entry.identity, name: entry.name, position: 'QB', season, week, stats: { ...S.emptyStatLine(), passYd: week * 100, passTd: week } })))));
+let league = E.createTimeLeague({ name: 'Hidden roster', seed: 'hidden-ui', createdAt: '2026-09-15T12:00:00Z', seats: [{ name: 'Home', manager: 'human' }, { name: 'Away', manager: 'human' }],
+    settings: { gameDeckVersion: 1, hiddenYears: true, regularSeasonWeeks: 12, maxQuarterbacks: 3, rosterSlots: { QB: 1, BN: 1 }, scoring, waiversEnabled: true, tradesEnabled: true, eraRules: { mode: 'selected-decades', decades: ['1990s'] } } });
+league = { ...league, phase: 'season', currentWeek: 2, weekStage: 'claims', seasonsRevealed: true, teams: league.teams.map((team, i) => ({ ...team, roster: i ? [entries[2]] : entries.slice(0, 2) })),
+    finalizedWeeks: [{ week: 1, results: [], matchups: [], headlines: [], playerProduction: entries.slice(0, 3).map(entry => ({ ...entry, points: 8, factor: 1, stats: { ...S.emptyStatLine(), passYd: 100, passTd: 1 } })) }] };
+const walk = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.children)];
+const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node) ? node.map(text).join(' ') : text(node.children);
+const classes = (tree, cls) => walk(tree).filter(node => node.props.className?.split(' ').includes(cls));
+const render = section => { cursor = 0; return WrTimeLeagueTeamPanel({ league, cards, logIndex: logs, section, activeTeamId: 't1', onUpdate: async () => true }); };
+let tree = render('roster');
+const rows = classes(tree, 'tl-lineup-row');
+assert(rows.every(row => !text(row).includes('1993')), 'The true year does not appear in local roster rows');
+assert(rows.every(row => text(row).includes('1990s · hidden year')));
+assert.equal(classes(tree, 'tl-player-signals').length, 2);
+assert(text(tree).includes('8.0') && text(tree).includes('3 possible years'));
+assert(text(rows).includes('Avg pts / game') && !text(rows).includes('Archive est. / game'), 'Observed game averages take priority over archive estimates');
+assert(!text(tree).includes('★★★'), 'No actual-game stars leak through the local roster');
+walk(tree).find(node => node.props['aria-label'] === "Explore Steve Young's history").props.onClick(); tree = render('roster');
+const dossier = classes(tree, 'tl-roster-dossier')[0];
+assert(text(dossier).includes('1992') && text(dossier).includes('1993') && text(dossier).includes('1994'), 'Every matching candidate is available to explore');
+assert(text(dossier).includes('Completed game log') && text(dossier).includes('Vault W1 · 8.0 pts'));
+assert(!text(dossier).includes('Your edition: 1993'));
+walk(tree).find(node => node.props['aria-label'] === 'Move Steve Young').props.onClick(); tree = render('roster');
+const sheet = classes(tree, 'tl-roster-move-sheet')[0];
+assert(text(sheet).includes('8.0') && text(sheet).includes('3 possible years')); assert(!text(sheet).includes('1993'));
+state = []; tree = render('waivers');
+assert(text(tree).includes('1990s · hidden year')); assert(!text(tree).includes('1993 season'));
+assert(text(tree).includes('Archive est. / game') && text(tree).includes('Across possible years'), 'Unplayed waiver players show an explicitly labeled comparable PPG estimate inline');
+walk(tree).find(node => node.props['aria-label'] === 'Claim Free Quarterback').props.onClick(); tree = render('waivers');
+assert(classes(tree, 'tl-hidden-year-research').length, 'The waiver decision includes the candidate-year explorer');
+assert(text(tree).includes('one hidden year'));
+state = []; tree = render('trades');
+assert(text(tree).includes('EST. PTS / GAME')); assert(!text(tree).includes('1993 season'));
+state = []; cursor = 0; tree = WrTimeLeagueStatsPanel({ league, cards, logIndex: logs });
+assert(text(tree).includes('1990s · hidden year')); assert(!text(tree).includes('1993'));
+assert(!text(tree).includes('Recorded season · reference scoring'), 'The stats page does not substitute the true season total for observed points');
+state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, onUpdate() {} });
+assert(text(tree).includes('Draft complete · years hidden'));
+assert(!text(tree).includes('1993') && !text(tree).includes('Your grade'), 'The draft recap cannot grade or reveal actual editions');
+state = []; cursor = 0; tree = WrTimeLeagueGamecastPanel({ league, cards, logIndex: logs, onUpdate() {} });
+assert(text(tree).includes('1990s · hidden year') && !text(tree).includes('1993'), 'Pregame lineups preserve hidden years');
+const shownWeek = { week: 13, results: league.teams.map(team => ({ teamId: team.teamId, total: team.teamId === 't1' ? 24 : 8, starters: team.roster.map(entry => ({ ...entry, points: 8, stats: { passYd: 100, passTd: 1 } })) })),
+    matchups: [{ home: 't1', away: 't2', homePoints: 24, awayPoints: 8, winner: 't1' }], headlines: [] };
+const finale = { ...league, phase: 'complete', currentWeek: 14, championTeamId: 't1', finalizedWeeks: [shownWeek] };
+state = []; cursor = 0; tree = WrTimeLeagueHomePanel({ league: finale, onNavigate() {} });
+assert(text(tree).includes('1990s · hidden year') && !text(tree).includes('1993'), 'Home leaders and championship MVP stay concealed before acknowledgement');
+state = []; cursor = 0; tree = WrTimeLeagueGamecastPanel({ league: finale, cards, logIndex: logs, onUpdate() {} });
+const boxButton = walk(tree).find(node => node.type === 'button' && text(node) === 'BOX SCORE');
+assert(boxButton, 'The archived final game has a box score');
+boxButton.props.onClick(); cursor = 0; tree = WrTimeLeagueGamecastPanel({ league: finale, cards, logIndex: logs, onUpdate() {} });
+assert(text(classes(tree, 'tl-box-scores')).includes('1990s') && !text(classes(tree, 'tl-box-scores')).includes('1993'), 'Archived box scores omit true years');
+league = { ...league, phase: 'complete', currentWeek: 13, yearsRevealed: false };
+state = []; tree = render('roster'); assert(!text(classes(tree, 'tl-lineup-row')).includes('1993'), 'The final replay does not reveal years before acknowledgement');
+league = { ...league, yearsRevealed: true };
+state = []; tree = render('roster'); assert(text(classes(tree, 'tl-lineup-row')).includes('1993'), 'The acknowledged recap reveals the fixed true year');
+console.log('PASS: hidden-year roster, candidate explorer, completed log, substitution, waivers, trade comparison, stats and explicit finale reveal.');

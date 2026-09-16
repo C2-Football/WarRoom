@@ -158,7 +158,7 @@
         // add lost points, or invent future recovery dates. Old replays opt out.
         const quietGame = { QB: 12, RB: 8, WR: 8, TE: 6 }[entry.position];
         if (simulatedAvailability && entry.points > 0 && entry.points <= quietGame) {
-            const availabilityRandom = createSeededRandom(`${seed}:availability:${week}:${entry.identity || entry.entryId}:${entry.drawnSeason}`);
+            const availabilityRandom = createSeededRandom(`${seed}:availability:${week}:${entry.identity || entry.entryId}:${entry.editionId || entry.drawnSeason}`);
             if (availabilityRandom() < 0.12) {
                 const exitAt = 20 + availabilityRandom() * 20;
                 const last = events[events.length - 1].t;

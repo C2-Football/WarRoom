@@ -97,6 +97,7 @@ jobs:
           endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
 
           pending = {
+              "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
               '20260909000000': 'supabase/migrations/20260909000000_security_audit_fixes.sql',
               '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
               '20260907193000': 'supabase/migrations/20260907193000_time_league_multiplayer.sql',
@@ -173,6 +174,7 @@ jobs:
           import json, urllib.request, os, sys
           token = os.environ.get('SUPABASE_ACCESS_TOKEN', '')
           expected = {
+              "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
               '20260909000000': 'supabase/migrations/20260909000000_security_audit_fixes.sql',
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
               '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',

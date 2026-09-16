@@ -132,6 +132,10 @@
         const [boardView, setBoardView] = useState(null);
         const [historyLimit, setHistoryLimit] = useState(6);
         const recap = Boolean(league.seasonsRevealed);
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
+        const eligibleSeasons = card => league.settings.hiddenYears && window.App.TimeLeagueHiddenYears
+            ? window.App.TimeLeagueHiddenYears.eligibleSeasons(league, card)
+            : EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position);
         const showBoardGrid = boardView?.leagueId === league.leagueId && boardView.recap === recap ? boardView.grid : recap;
         const [pinnedRosterId, setPinnedRosterId] = useState(null);
         const [note, setNote] = useState('');
@@ -166,8 +170,8 @@
         const eraRestricted = eraRules.mode !== 'any-era' && (eraRules.decades.length > 0 || Boolean(eraRules.positionDecades));
 
         const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card) => {
-            const seasons = EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position);
-            return { card, peak: peakOf(seasons), draw: spanOf(seasons) };
+            const seasons = eligibleSeasons(card);
+            return { card, peak: peakOf(seasons), draw: concealed && seasons.length ? `${EraRules.decadeOf(seasons[0].season)} · ${seasons.length} possible year${seasons.length === 1 ? '' : 's'}` : spanOf(seasons) };
         }).sort((left, right) => right.peak - left.peak || left.card.identity.localeCompare(right.card.identity))
             .map((entry, index) => ({ ...entry, rank: index + 1 })), [cards, eraRules, league]);
         const positionFilters = useMemo(() => {
@@ -361,7 +365,7 @@
         const teamName = (teamId) => league.teams.find((t) => t.teamId === teamId)?.name ?? teamId;
 
         const reveal = useMemo(() => {
-            if (!league.seasonsRevealed) return null;
+            if (!league.seasonsRevealed || concealed) return null;
             const entryById = new Map(league.teams.flatMap((t) => t.roster.map((e) => [e.entryId, e])));
             const teams = league.teams.map((team) => {
                 const picks = league.draftPicks.filter((p) => p.teamId === team.teamId).sort((l, r) => l.overall - r.overall).map((pick) => {
@@ -513,7 +517,7 @@
         const canDraftSelected = Boolean(selectedCard && myTurn && !draftBlockReason(selectedCard));
         const selectedQueued = Boolean(selectedCard && humanTeam?.queue.includes(selectedCard.identity));
         const scoutCard = selectedCard ? archiveCards.get(selectedCard.identity) || selectedCard : null;
-        const eligibleScoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
+        const eligibleScoutSeasons = selectedCard ? eligibleSeasons(selectedCard) : [];
         const fullScoutByYear = new Map((scoutCard?.seasons || []).map(season => [season.season, season]));
         // New-archive exclusions must not hide editions that remain draftable
         // in an existing league. Preserve those rows with their legacy scope.
@@ -586,14 +590,14 @@
                 activeLanded ? h(React.Fragment, null,
                     h('div', { className: 'tl-era-feature-heading' },
                         h('div', null, h('span', { className: 'tl-label' }, `${activeEra.position} · TOP THREE`), h('h3', null, activeEra.detail?.label ?? activeEra.decade)),
-                        h('span', { className: 'tl-era-coverage' }, availableYears(available.filter(({ card }) => card.position === activeEra.position).flatMap(({ card }) => EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position))))),
+                        h('span', { className: 'tl-era-coverage' }, availableYears(available.filter(({ card }) => card.position === activeEra.position).flatMap(({ card }) => eligibleSeasons(card))))),
                     h('div', { className: 'tl-era-shortlist', 'aria-label': `${activeEra.position} top three` },
                         (topThreeByPosition[activeEra.position] || []).map(({ card }, index) => h('button', {
                             key: card.identity, type: 'button', className: 'tl-era-headliner',
                             'aria-label': `Scout ${card.name} in the ${activeEra.detail?.label ?? activeEra.decade}`,
                             onClick: event => openScout(card, event),
                         }, h('span', { className: 'tl-era-headliner-rank' }, String(index + 1).padStart(2, '0')),
-                        h('span', null, h('strong', null, card.name), h('small', null, availableYears(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)))),
+                        h('span', null, h('strong', null, card.name), h('small', null, availableYears(eligibleSeasons(card)))),
                         h('span', { className: 'tl-era-scout-link', 'aria-hidden': true }, 'Scout ›')))),
                     activeEra.pool === 0 && h('p', { className: 'tl-empty' }, 'No players remain at this position.'))
                 : h('div', { className: 'tl-era-invitation' },
@@ -690,6 +694,17 @@
                             h('td', null, draftPickLabel(pick)), h('td', null, teamName(pick.teamId)),
                             h('td', null, pick.name), h('td', null, h('span', { className: `tl-pos-badge tl-pos-${pick.position}` }, pick.position)),
                             h('td', null, pick.madeBy === 'ai' ? 'AI' : 'HU')))))));
+
+        if (league.seasonsRevealed && concealed) {
+            return h('div', { className: 'tl-draft-recap' },
+                h('section', { className: 'tl-card tl-recap-summary', 'aria-label': 'Draft summary' },
+                    h('div', { className: 'tl-recap-heading' }, h('strong', null, 'Draft complete · years hidden'), h('small', null, `${league.draftPicks.length} picks · ${league.teams.length} teams`)),
+                    h('p', { className: 'tl-hint' }, 'Every player has one fixed year in the advertised decade. Explore their possible seasons from My team; completed games add clues. The final recap reveals the years.')),
+                draftLog,
+                h('div', { className: 'tl-draft-grade-grid' }, league.teams.map(team => h('details', { key: team.teamId, className: 'tl-card tl-draft-grade' },
+                    h('summary', { className: 'tl-draft-class-summary' }, h('strong', null, team.name), h('small', null, `${team.roster.length} players · hidden years`)),
+                    h('div', { className: 'tl-draft-class-body' }, team.roster.map(entry => h('p', { key: entry.entryId }, h('strong', null, entry.name), ` · ${entry.position} · ${window.App.TimeLeagueHiddenYears.label(league, entry, cards)}`)))))));
+        }
 
         if (league.seasonsRevealed && reveal) {
             const myClass = reveal.teams.find(({ team }) => team.teamId === humanTeam?.teamId);

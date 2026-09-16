@@ -11,7 +11,7 @@ function harness(phone){let cells=[],cursor=0;const calls=[];
  const React={Fragment:'fragment',createElement:(type,props,...children)=>({type,props:props||{},children})};
  const useState=initial=>{const i=cursor++;if(!(i in cells))cells[i]=initial;return [cells[i],v=>cells[i]=typeof v==='function'?v(cells[i]):v];};
  const window={WR:{useViewport:()=>({isPhone:phone})}};
- vm.runInNewContext(source,{window,React,useState,useMemo:f=>f(),useEffect(){},Engine,art:()=>'',nameOf:id=>id,Sigil:()=>null,number:n=>String(n)});
+ vm.runInNewContext(source,{window,App:{},React,useState,useMemo:f=>f(),useEffect(){},Engine,art:()=>'',nameOf:id=>id,Sigil:()=>null,number:n=>String(n)});
  const render=extra=>{cursor=0;return window.Draft({campaign,factionId:'egypt',data:{},online:false,host:true,canAdvance:true,busy:false,onAction:a=>calls.push(a),...extra});};
  return {render,calls};
 }

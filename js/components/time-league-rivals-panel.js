@@ -149,7 +149,7 @@
             if (!onSend || pending || sendingRef.current || !active || !draft.text.trim()) return;
             const messageId = draft.messageId || window.crypto?.randomUUID?.() || `mail_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
             const replyToId = draft.messageId ? draft.replyToId : active.messages.find(message => message.toTeamId === teamId)?.id;
-            const payload = { toTeamId: active.team.teamId, text: draft.text.trim(), tone: draft.tone, messageId, ...(replyToId ? { replyToId } : {}) };
+            const payload = { toTeamId: active.team.teamId, text: draft.text.trim(), tone: draft.tone, messageId, ...(Number.isInteger(throughWeek) ? { seenThroughWeek: throughWeek } : {}), ...(replyToId ? { replyToId } : {}) };
             setDrafts(previous => ({ ...previous, [draftKey]: { ...draft, messageId, replyToId } }));
             sendingRef.current = true;
             setSending(true); setError(null);
@@ -189,6 +189,11 @@
                     h('span', { className: 'tl-relationship-marker', style: { left: `${affinity / 12 * 100}%` } })),
                 h('div', { className: 'tl-relationship-labels', 'aria-hidden': true }, h('span', null, 'Hot rival'), h('span', null, 'Neutral'), h('span', null, 'Friend'))) : null,
                 h('div', { className: 'tl-chat-history', role: 'log', 'aria-label': `Conversation with ${active.team.name}`, 'aria-live': 'polite', 'aria-relevant': 'additions text' },
+                    active.profile ? h('details', { className: 'tl-rival-profile' }, h('summary', null, `At the other desk · ${active.strategy?.label || 'Their approach'}`),
+                        h('p', null, active.strategy?.reason), h('dl', null,
+                            h('dt', null, 'Wants'), h('dd', null, active.profile.goal),
+                            h('dt', null, 'Worries about'), h('dd', null, active.profile.fear),
+                            h('dt', null, 'How they operate'), h('dd', null, active.profile.tell)), h('p', null, active.profile.principle)) : null,
                     !active.messages.length ? h('div', { className: 'tl-chat-empty' }, avatar(active.team), h('strong', null, `Say something to ${active.team.name}`), h('p', null, active.team.manager === 'ai' ? 'Keep it friendly or add a little fuel to the rivalry.' : 'Your conversation starts here.')) : null,
                     [...active.messages].reverse().map((message, index, rows) => h(React.Fragment, { key: message.id },
                         !index || rows[index - 1].week !== message.week ? h('div', { className: 'tl-chat-divider' }, `Week ${message.week}`) : null,

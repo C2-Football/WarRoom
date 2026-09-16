@@ -18,7 +18,7 @@ function fixture(input={}){
  const query=async(sql,args=[])=>(await db.query(sql,args)).rows;
  try{
   await db.exec("create role anon;create role authenticated;create role service_role;create table app_users(id uuid primary key);create function gen_random_bytes(n integer) returns bytea language sql as $$select substring(decode(repeat(md5(random()::text),n),'hex') from 1 for n)$$;");
-  for(const name of ['20260908160000_duat_campaigns.sql','20260908180000_duat_draft_campaigns.sql','20260908210000_duat_campaign_settings.sql','20260908230000_duat_dynasties.sql']){const sql=fs.readFileSync(path.join(root,'supabase/migrations',name),'utf8');await db.exec(sql);await db.exec(sql);}
+  for(const name of ['20260908160000_duat_campaigns.sql','20260908180000_duat_draft_campaigns.sql','20260908210000_duat_campaign_settings.sql','20260908230000_duat_dynasties.sql','20260916010000_duat_hidden_years.sql']){const sql=fs.readFileSync(path.join(root,'supabase/migrations',name),'utf8');await db.exec(sql);await db.exec(sql);}
   const users=(await query('insert into app_users select gen_random_uuid() from generate_series(1,5) returning id')).map(r=>r.id);
   const create=async(input={})=>(await query('select create_duat_campaign($1,$2) id',[users[0],fixture(input)]))[0].id;
   const row=async id=>(await query('select * from duat_campaigns where id=$1',[id]))[0];
@@ -90,7 +90,7 @@ function fixture(input={}){
   const engine={...Legacy,expansionOptions:value=>value||{conquest:'original',world:'provinces',heptad:true},createCampaign:fixture,requiredYears:state=>state.seasons,unresolvedClaims:state=>state.actionableClaims||[],draftTurn:state=>state.draft.queue[state.draft.cursor],
    projectCampaign:(state,viewer,data)=>({id:state.id,version:state.version,name:state.name,phase:state.phase,week:state.week,dynastySeason:state.dynastySeason,viewer,ritualCandidates:data?[{id:'safe-candidate',name:'Known prior player'}]:[],nextSeasonYears:state.phase==='complete'?data?.years:undefined}),
    applyAction:(state,action)=>{engineCalls++;if(action.type==='next-season')return{...state,phase:'draft',week:1,seasons:[...new Set([...state.seasons,action.season||2021])],dynastySeason:state.dynastySeason+1,dynasty:{...state.dynasty,cycle:state.dynastySeason+1},draft:{...state.draft,status:'waiting'}};if(action.type==='claim'||action.type==='attack')return{...state,actionableClaims:[]};return copy(state);}};
-  const sandbox={Request,Response,URL,crypto:webcrypto,console,createClient:()=>admin,handleOptions:()=>null,json:(_req,body,status=200)=>new Response(JSON.stringify(body),{status}),requireActiveAppSession:async(_db,req)=>req.headers.get('x-test-user')?{userId:req.headers.get('x-test-user')}:null,availableSeasons:allYears,loadData:async years=>{loadedYears.push(years);return{years};},App:{DuatRules:require('../js/duat/rules.js'),DuatWorld:require('../js/duat/world.js'),DuatCampaign:engine},Deno:{env:{get:()=>''},serve:fn=>sandbox.handler=fn}};
+  const sandbox={Request,Response,URL,crypto:webcrypto,console,createClient:()=>admin,handleOptions:()=>null,json:(_req,body,status=200)=>new Response(JSON.stringify(body),{status}),requireActiveAppSession:async(_db,req)=>req.headers.get('x-test-user')?{userId:req.headers.get('x-test-user')}:null,availableSeasons:allYears,loadData:async years=>{loadedYears.push(years);return{years};},App:{DuatMystery:{enabled:state=>state.era?.hiddenYears===true},DuatRules:require('../js/duat/rules.js'),DuatWorld:require('../js/duat/world.js'),DuatCampaign:engine},Deno:{env:{get:()=>''},serve:fn=>sandbox.handler=fn}};
   let source=fs.readFileSync(path.join(root,'supabase/functions/duat/index.ts'),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function','async function');source=require('@babel/standalone').transform(source,{filename:'duat.ts',presets:['typescript']}).code;vm.runInNewContext(source,sandbox);
   const api=async(user,body)=>{const response=await sandbox.handler(new Request('https://qa.invalid/duat',{method:'POST',headers:user?{'x-test-user':user}:{},body:JSON.stringify(body)}));return{status:response.status,...await response.json()};};
   const load=async(id,user=users[0])=>(await api(user,{op:'load',roomId:id})).room;
@@ -133,7 +133,7 @@ function fixture(input={}){
    assert.equal(runtime.availableSeasons.length,24);
    const archive=await runtime.loadData(runtime.availableSeasons);assert(archive.cards.size>1000);assert(archive.logIndex.size>90000);
    await assert.rejects(()=>runtime.loadData([2025,2025]),/unique complete/);await assert.rejects(()=>runtime.loadData([]),/unique complete/);
-   for(const name of ['DuatProvinces','DuatIdentityLibrary','DuatLore','DuatRituals','DuatHeptad'])assert(runtime.App[name],name+' must be bundled');
+   for(const name of ['DuatProvinces','DuatIdentityLibrary','DuatLore','DuatRituals','DuatHeptad','DuatMystery','DuatPersonalities','DuatCouncilState','DuatStrategy'])assert(runtime.App[name],name+' must be bundled');
    const browserLore=require('../js/duat/lore.js');
    assert.deepEqual(runtime.App.DuatIdentityLibrary,require('../js/duat/identity-library.js'));
    for(const faction of browserLore.FACTIONS){
@@ -145,9 +145,9 @@ function fixture(input={}){
     }
    }
    sandbox.App=runtime.App;sandbox.loadData=runtime.loadData;sandbox.availableSeasons=runtime.availableSeasons;
-   const made=await api(users[0],{op:'create',input:{version:4,name:'Real sourcebook dynasty',seasons:[2025],settings:{leagueSize:8,mummyCount:1,bench:1,conquest:false,favors:true,favorBudget:500},hostFactionId:ids[0],humanFactionIds:ids.slice(0,2),factionIds:ids,expansionSettings:{conquestMode:'original',worldScale:'provinces'}}});
+   const made=await api(users[0],{op:'create',input:{version:4,name:'Real sourcebook dynasty',era:{mode:'historical',hiddenYears:true},seasons:[2025],settings:{leagueSize:8,mummyCount:1,bench:1,conquest:false,favors:true,favorBudget:500},hostFactionId:ids[0],humanFactionIds:ids.slice(0,2),factionIds:ids,expansionSettings:{conquestMode:'original',worldScale:'provinces'}}});
    assert.equal(made.ok,true,made.error);const id=made.room.id;let room=made.room;
-   assert.equal(room.campaign.expansionVersion,1);assert.equal(room.campaign.seed,undefined);
+   assert.equal(room.campaign.expansionVersion,1);assert.equal(room.campaign.seed,undefined);assert.equal(room.campaign.hiddenYears,undefined);
    assert.equal((await api(users[1],{op:'claim',code:room.seats.find(s=>s.factionId===ids[1]).inviteCode})).ok,true);
    const must=async(user,intent)=>{const result=await action(id,user,intent);assert.equal(result.ok,true,result.error);return result.room;};
    const ready=async()=>{await must(users[0],{type:'set-ready',ready:true});await must(users[1],{type:'set-ready',ready:true});};
@@ -163,6 +163,17 @@ function fixture(input={}){
    await draft();assert.equal(room.campaign.phase,'season');assert.equal(room.campaign.week,1);
    const walking=room.campaign.factions.find(f=>f.id===ids[0]).activeArmyId;
    room=await must(users[0],{type:'name-ruler',armyId:walking,name:'The River Crown'});assert.equal(room.campaign.factions.find(f=>f.id===ids[0]).armies.find(a=>a.id===walking).rulerName,'The River Crown');
+   const councilAction={type:'address-ruler',messageId:'online-council-exchange-001',targetFactionId:ids[2],intent:'respect',seenThroughWeek:0};
+   room=await must(users[0],councilAction);assert.equal(room.campaign.council.messages.length,1);const replyText=room.campaign.council.messages[0].text;
+   assert.equal((await load(id,users[1])).campaign.council.messages.length,0,'Private ruler exchanges stay with their manager');
+   const beforeCouncil=(await row(id)).state,newCouncilAction={...councilAction,messageId:'online-council-exchange-002',factionId:ids[0]},forgedCouncil=runtime.App.DuatCampaign.applyAction(beforeCouncil,newCouncilAction,archive);
+   forgedCouncil.council.messages[0].text='Rewritten history';
+   await assert.rejects(()=>commit(id,users[0],room.revision,'rewrite-council',newCouncilAction,forgedCouncil),/Append only/);
+   const crossed=copy(beforeCouncil);crossed.factions[0].favorBalance+=10;
+   await assert.rejects(()=>commit(id,users[0],room.revision,'rewrite-game',councilAction,crossed),/only update their saved exchanges/);
+   room=await must(users[0],councilAction);assert.equal(room.campaign.council.messages.length,1);assert.equal(room.campaign.council.messages[0].text,replyText);
+   assert.equal((await action(id,users[0],{...councilAction,intent:'challenge'})).ok,false);
+   assert.equal((await action(id,users[0],{...councilAction,messageId:'online-human-impostor',targetFactionId:ids[1]})).ok,false);
    room=await must(users[0],{type:'ritual',ritualId:'summon-mahdi',position:'WR'});
    assert(room.campaign.factions.find(f=>f.id===ids[0]).rituals.pendingMahdi);
    assert.equal((await load(id,users[1])).campaign.factions.find(f=>f.id===ids[0]).rituals,null);
@@ -189,6 +200,16 @@ function fixture(input={}){
    }
    assert.equal(room.campaign.completedWeeks.length,17);assert.equal(room.campaign.dynastySeason,1);assert(room.campaign.nextSeasonYears.length>0);
    assert.equal(room.campaign.completedWeeks.find(w=>w.week===5).factions.find(f=>f.factionId===ids[0]).favorCost,10);
+   assert.equal(room.campaign.hiddenYears,undefined);assert.equal(room.campaign.hiddenYearRevealAvailable,true);
+   assert.equal(JSON.stringify(room.campaign).includes('revealedSeason'),false,'Final simulation alone cannot disclose the mystery before the recap');
+   const privateFinal=(await row(id)).state, assignmentId=Object.keys(privateFinal.hiddenYears.assignments)[0];
+   const changed=copy(privateFinal);changed.hiddenYears.assignments[assignmentId].season+=1;
+   await assert.rejects(()=>commit(id,users[0],room.revision,'tamper-secret',{type:'reveal-years'},changed),/fixed hidden|assignment|immutable/i);
+   room=await must(users[0],{type:'reveal-years'});
+   assert.equal(room.campaign.hiddenYears,undefined);assert.equal(room.campaign.hiddenYearRevealAvailable,false);
+   const visibleResults=room.campaign.completedWeeks.flatMap(w=>w.factions.flatMap(f=>f.players));
+   assert(visibleResults.every(p=>p.revealedSeason===privateFinal.hiddenYears.assignments[p.id].season));
+   assert.equal(JSON.stringify((await load(id,users[1])).campaign).includes('revealedSeason'),false,'One manager cannot reveal another manager recap');
    const nextYear=room.campaign.nextSeasonYears[0];await ready();room=await must(users[0],{type:'next-season',season:nextYear});
    assert.equal(room.campaign.dynastySeason,2);assert.equal(room.campaign.phase,'draft');assert(room.seats.filter(s=>s.controller==='human').every(s=>!s.ready));
    assert(runtime.App.DuatCampaign.validateCampaign((await row(id)).state));

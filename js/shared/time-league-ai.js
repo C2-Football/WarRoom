@@ -6,9 +6,11 @@
 //
 // Ported from The Duat's app/time-league-ai.ts.
 // ══════════════════════════════════════════════════════════════════
+/* global module, require */
 (function (root) {
     'use strict';
     const App = root.App = root.App || {};
+    if (!App.TimeLeagueStrategy && typeof module !== 'undefined' && module.exports) require('./time-league-strategy.js');
     const { findOpenRosterSlot } = App.TimeLeagueDraftRoom;
     const { createSeededRandom, ROSTER_SLOT_IDS, SLOT_ELIGIBILITY } = App.TimeLeagueRoster;
     const {
@@ -21,12 +23,20 @@
     const STARTER_SLOTS = ROSTER_SLOT_IDS.filter((slot) => slot !== "BN" && slot !== "IR" && slot !== "TAXI");
 
     const personaFor = (team) => AI_PERSONAS[team?.aiPersona] || AI_PERSONAS.steward;
+    const strategyFor = (state, team) => App.TimeLeagueStrategy?.forTeam(state, team) || { aggressionDelta: 0, patienceDelta: 0, riskDelta: 0, spendMultiplier: 1, depthWeight: .2, tradeThresholdDelta: 0, reason: '' };
+    const adaptivePersona = (state, team) => {
+        const base = personaFor(team), strategy = strategyFor(state, team);
+        return { ...base, aggression: Math.max(0, Math.min(100, base.aggression + strategy.aggressionDelta)),
+            patience: Math.max(0, Math.min(100, base.patience + strategy.patienceDelta)),
+            riskTolerance: Math.max(0, Math.min(100, base.riskTolerance + strategy.riskDelta * (.3 + base.riskTolerance / 100))) };
+    };
+    const hidden = state => state?.settings?.hiddenYears === true && state.yearsRevealed !== true;
     const relationshipFor = (state, owner, other) => App.TimeLeagueRivals?.relationshipFor(state, owner, other) || { heat: 0, tradePremium: 0 };
     const hottestRival = (state, owner) => App.TimeLeagueRivals?.hottestRelationship(state, owner) || { heat: 0, aggressionDelta: 0 };
     // A provoked manager spends and negotiates more assertively. These bounded
     // effects use past correspondence only, never hidden bids or future scores.
     const waiverPersona = (state, team) => {
-        const base = personaFor(team), rivalry = hottestRival(state, team.teamId);
+        const base = adaptivePersona(state, team), rivalry = hottestRival(state, team.teamId);
         return { ...base, aggression: Math.min(100, base.aggression + rivalry.aggressionDelta), patience: Math.max(0, base.patience - rivalry.aggressionDelta) };
     };
 
@@ -78,22 +88,32 @@
         return card.peak;
     }
 
-    const entryValue = (cards, entry) => entryValueFromCard(cards.get(entry.identity), entry.drawnSeason);
-    const bestName = (cards, entries, fallback) =>
-        [...entries].sort((left, right) => entryValue(cards, right) - entryValue(cards, left))[0]?.name ?? fallback;
+    const observedRead = (state, cards, entry, logIndex) => {
+        const visible = entry.editionId ? entry : { identity: entry.identity, name: entry.name, position: entry.position, hiddenDecade: entry.hiddenDecade, editionId: `mystery:${entry.identity}` };
+        const read = App.TimeLeagueHiddenYears?.read(state, visible, cards, logIndex);
+        if (read) return read;
+        // A missing helper cannot give an AI permission to inspect the draw.
+        const seasons = App.TimeLeagueEraRules.filterSeasonsForEra(cards.get(entry.identity)?.seasons || [], state.settings.eraRules, entry.position);
+        const values = seasons.map(row => row.points / Math.max(1, row.games || 16));
+        return { estimatedAverage: values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0, spread: values.length ? Math.max(...values) - Math.min(...values) : 0 };
+    };
+    const entryValue = (cards, entry, state) => hidden(state) ? Math.max(0, observedRead(state, cards, entry).estimatedAverage || 0) * 16 : entryValueFromCard(cards.get(entry.identity), entry.drawnSeason);
+    const bestName = (cards, entries, fallback, state) =>
+        [...entries].sort((left, right) => entryValue(cards, right, state) - entryValue(cards, left, state))[0]?.name ?? fallback;
 
     const starterEligible = (settings, position) =>
         STARTER_SLOTS.some((slot) => (settings.rosterSlots[slot] ?? 0) > 0 && SLOT_ELIGIBILITY[slot].includes(position));
 
     function draftValue(state, card, persona) {
-        const seasons = App.TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
+        const seasons = hidden(state) && App.TimeLeagueHiddenYears ? App.TimeLeagueHiddenYears.eligibleSeasons(state, card)
+            : App.TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
         if (!seasons.length) return 0;
         const mean = seasons.reduce((sum, season) => sum + season.points, 0) / seasons.length;
         const peak = Math.max(...seasons.map(season => season.points));
         return (mean * (1 - persona.peakWeight) + peak * persona.peakWeight) * (persona.positionBias[card.position] || 1);
     }
-    const tradeValue = (cards, entries, persona) => entries.reduce((sum, entry) =>
-        sum + entryValue(cards, entry) * (1 + ((persona.positionBias[entry.position] || 1) - 1) * 0.5), 0);
+    const tradeValue = (cards, entries, persona, state) => entries.reduce((sum, entry) =>
+        sum + entryValue(cards, entry, state) * (1 + ((persona.positionBias[entry.position] || 1) - 1) * 0.5), 0);
 
     function aiDraftChoice(state, cards) {
         cards = App.TimeLeagueEngine.cardsFor(state, cards);
@@ -141,7 +161,8 @@
         if (!card) return state;
         const board = eraEligibleCards(state, cards);
         const visibleValue = player => {
-            const seasons = App.TimeLeagueEraRules.filterSeasonsForEra(player.seasons, state.settings.eraRules, player.position);
+            const seasons = hidden(state) && App.TimeLeagueHiddenYears ? App.TimeLeagueHiddenYears.eligibleSeasons(state, player)
+                : App.TimeLeagueEraRules.filterSeasonsForEra(player.seasons, state.settings.eraRules, player.position);
             return seasons.length ? seasons.reduce((sum, season) => sum + season.points, 0) / seasons.length : 0;
         };
         const peak = Math.max(1, ...board.map(visibleValue));
@@ -167,6 +188,16 @@
         cards = App.TimeLeagueEngine.cardsFor(state, cards);
         return state.teams.reduce((next, team) => {
             if (team.manager !== "ai") return next;
+            if (hidden(next)) {
+                const persona = adaptivePersona(next, team);
+                const value = entry => {
+                    const read = observedRead(next, cards, entry, logIndex);
+                    return Math.max(0, (read.estimatedAverage || 0) + (read.spread || 0) * (persona.riskTolerance - 50) / 500);
+                };
+                const plan = tradeLineup(team.roster, next.settings, value);
+                return { ...next, teams: next.teams.map(item => item.teamId !== team.teamId ? item : { ...item, roster: item.roster.map(entry =>
+                    ['IR', 'TAXI'].includes(entry.slot) ? entry : { ...entry, slot: plan.starterSlots.get(entry.entryId) || 'BN' }) }) };
+            }
             let prepared = autoFillLineup(next, team.teamId, cards);
             if (!logIndex || state.phase !== 'season') return prepared;
             // Availability is already visible to managers. A rival should not
@@ -195,14 +226,22 @@
         const difficulty = difficultyFor(state);
         // freeAgents already drops era-ineligible cards, so the wire an AI reads
         // is exactly the wire a human sees.
-        const pool = freeAgents(state, cards);
+        const pool = freeAgents(state, cards), mystery = hidden(state), values = new Map();
+        // A waiver batch changes pending claims, not the observed games. Compute
+        // each public valuation once and reuse one standings read per manager.
+        const valueOf = entry => {
+            const key = entry.identity;
+            if (!values.has(key)) values.set(key, entryValue(cards, entry, state));
+            return values.get(key);
+        };
         return state.teams.reduce((next, team) => {
             if (team.manager !== "ai") return next;
             if (next.pendingClaims.some((claim) => claim.teamId === team.teamId && claim.week === next.currentWeek)) return next;
             if (faab && (team.faabRemaining ?? 0) <= 0) return next;
+            const draftPersona = adaptivePersona(next, team);
             const weakest = team.roster.reduce((low, entry) => {
                 if (!starterEligible(next.settings, entry.position)) return low;
-                const value = entryValue(cards, entry);
+                const value = valueOf(entry);
                 return value < low ? value : low;
             }, Number.POSITIVE_INFINITY);
             const bar = (Number.isFinite(weakest) ? weakest : 0) * waiverMargin(waiverPersona(next, team), difficulty);
@@ -213,7 +252,7 @@
             const drop = needsDrop
                 ? team.roster
                     .filter((entry) => entry.slot === "BN")
-                    .sort((left, right) => entryValue(cards, left) - entryValue(cards, right) || left.entryId.localeCompare(right.entryId))[0]
+                    .sort((left, right) => valueOf(left) - valueOf(right) || left.entryId.localeCompare(right.entryId))[0]
                 : undefined;
             if (needsDrop && !drop) return next;
             const quarterbacks = team.roster.filter((entry) => entry.position === "QB").length;
@@ -221,8 +260,9 @@
                 card.seasons.length > 0
                 && starterEligible(next.settings, card.position)
                 && !(card.position === "QB" && quarterbacks >= next.settings.maxQuarterbacks)
-                && card.peak >= bar
-            )).sort((left, right) => draftValue(next, right, personaFor(team)) - draftValue(next, left, personaFor(team)) || left.identity.localeCompare(right.identity))[0];
+                && (mystery ? valueOf(card) : card.peak) >= bar
+            )).sort((left, right) => (mystery ? valueOf(right) - valueOf(left)
+                : draftValue(next, right, draftPersona) - draftValue(next, left, draftPersona)) || left.identity.localeCompare(right.identity))[0];
             if (!target) return next;
             let bidAmount;
             if (faab) {
@@ -231,7 +271,7 @@
                 const noise = createSeededRandom(`${state.seed}:aibid:${state.currentWeek}:${team.teamId}`)();
                 // Aggressive personas spend a bigger slice of what's left; a touch
                 // of noise keeps two same-persona teams from bidding identically.
-                const aggressionFactor = (0.08 + (persona.aggression / 100) * 0.25 + noise * 0.05) * difficulty.bidMult;
+                const aggressionFactor = (0.08 + (persona.aggression / 100) * 0.25 + noise * 0.05) * difficulty.bidMult * strategyFor(next, team).spendMultiplier;
                 bidAmount = Math.max(1, Math.min(remaining, Math.round(remaining * aggressionFactor)));
             }
             return submitWaiverClaim(next, {
@@ -250,14 +290,16 @@
         const from = state.teams.find((team) => team.teamId === trade.fromTeamId);
         const to = state.teams.find((team) => team.teamId === trade.toTeamId);
         if (!from || !to || trade.status !== "pending") return state;
-        const persona = personaFor(to);
+        const persona = adaptivePersona(state, to), strategy = strategyFor(state, to);
         const incoming = trade.giveEntryIds.flatMap((id) => from.roster.find((entry) => entry.entryId === id) ?? []);
         const outgoing = trade.receiveEntryIds.flatMap((id) => to.roster.find((entry) => entry.entryId === id) ?? []);
         const complete = incoming.length === trade.giveEntryIds.length && outgoing.length === trade.receiveEntryIds.length;
-        const accept = complete && tradeValue(cards, incoming, persona) >= tradeValue(cards, outgoing, persona) * (acceptThreshold(persona, difficultyFor(state)) + relationshipFor(state, to.teamId, from.teamId).tradePremium);
-        const inName = bestName(cards, incoming, "That package");
-        const outName = bestName(cards, outgoing, "my starter");
-        const note = accept ? `${persona.accept} ${inName} for ${outName}.` : `${persona.reject} ${outName} stays for now.`;
+        const after = [...to.roster.filter(entry => !trade.receiveEntryIds.includes(entry.entryId)), ...incoming.map(entry => ({ ...entry, slot: 'BN' }))];
+        const legal = tradeLineup(after, state.settings, entry => entryValue(cards, entry, state)).legal;
+        const accept = complete && legal && tradeValue(cards, incoming, persona, state) >= tradeValue(cards, outgoing, persona, state) * (acceptThreshold(persona, difficultyFor(state)) + strategy.tradeThresholdDelta + relationshipFor(state, to.teamId, from.teamId).tradePremium);
+        const inName = bestName(cards, incoming, "That package", state);
+        const outName = bestName(cards, outgoing, "my starter", state);
+        const note = (accept ? `${persona.accept} ${inName} for ${outName}.` : `${persona.reject} ${outName} stays for now.`) + (strategy.reason ? ` ${strategy.reason}` : '');
         const resolved = respondToTrade(state, trade.tradeId, accept, note, createdAt);
         return resolved === state ? state : pushActivity(resolved, "trade", `${to.name} — ${persona.label}: "${note}"`, createdAt);
     }
@@ -278,7 +320,7 @@
     // leaving ordinary twelve-player rosters with no trade candidates at all.
     // The supported eligibility sets are nested or disjoint. Filling narrower
     // sets first, in value order, finds their best lineup without combinatorics.
-    function tradeLineup(roster, settings, valueOf) {
+    function tradeLineup(roster, settings, valueOf, depthWeight = .2) {
         const remaining = roster.filter(entry => entry.slot !== 'IR' && entry.slot !== 'TAXI')
             .slice().sort((a, b) => valueOf(b) - valueOf(a) || a.entryId.localeCompare(b.entryId));
         const slots = STARTER_SLOTS.slice().sort((a, b) => SLOT_ELIGIBILITY[a].length - SLOT_ELIGIBILITY[b].length);
@@ -294,13 +336,14 @@
             }
         }
         return { starters, filled, required, starterSlots,
-            total: starters + remaining.reduce((sum, entry) => sum + valueOf(entry) * 0.2, 0),
+            total: starters + remaining.reduce((sum, entry) => sum + valueOf(entry) * depthWeight, 0),
             legal: filled === required && remaining.length <= (settings.rosterSlots.BN || 0)
                 && roster.filter(entry => entry.position === 'QB').length <= settings.maxQuarterbacks
                 && ['IR', 'TAXI'].every(slot => roster.filter(entry => entry.slot === slot).length <= (settings.rosterSlots[slot] || 0)) };
     }
 
-    function tradeEntryAverage(cards, entry) {
+    function tradeEntryAverage(cards, entry, state) {
+        if (hidden(state)) return Math.max(0, observedRead(state, cards, entry).estimatedAverage || 0);
         // Only the publicly revealed edition's archive average. Never consult
         // game decks, hidden availability, unused games or future scoring.
         const season = cards.get(entry.identity)?.seasons.find(item => item.season === entry.drawnSeason);
@@ -318,9 +361,10 @@
             || !['claims', 'lineup'].includes(state.weekStage) || state.publicSnapshotVersion === 1) return state;
         cards = App.TimeLeagueEngine.cardsFor(state, cards);
         if (!cards?.size) return state;
-        const values = new Map(state.teams.flatMap(team => team.roster).map(entry => [entry.entryId, tradeEntryAverage(cards, entry)]));
+        const values = new Map(state.teams.flatMap(team => team.roster).map(entry => [entry.entryId, tradeEntryAverage(cards, entry, state)]));
         const valueOf = entry => values.get(entry.entryId) || 0;
-        const before = new Map(state.teams.map(team => [team.teamId, tradeLineup(team.roster, state.settings, valueOf)]));
+        const strategies = new Map(state.teams.map(team => [team.teamId, strategyFor(state, team)]));
+        const before = new Map(state.teams.map(team => [team.teamId, tradeLineup(team.roster, state.settings, valueOf, strategies.get(team.teamId).depthWeight)]));
         const locked = new Set(state.trades.filter(trade => trade.status === 'pending').flatMap(trade => [...trade.giveEntryIds, ...trade.receiveEntryIds]));
         // One offer per human per week, including rejected offers. An unanswered
         // or deferred offer stays in their inbox instead of spawning new mail.
@@ -330,7 +374,7 @@
         const eligible = team => team.roster.filter(entry => !locked.has(entry.entryId) && entry.slot !== 'IR' && entry.slot !== 'TAXI' && valueOf(entry) > 0);
         const candidates = [];
         for (const proposer of state.teams.filter(team => team.manager === 'ai')) {
-            const persona = personaFor(proposer);
+            const persona = adaptivePersona(state, proposer);
             const partners = options.humanOnly ? humans : [...humans, ...state.teams.filter(team => team.manager === 'ai' && team.teamId > proposer.teamId)];
             for (const partner of partners) {
                 if (proposer.teamId === partner.teamId) continue;
@@ -340,18 +384,19 @@
                     // opening bid that only improves the AI's side of the deal.
                     const ratio = valueOf(give) / valueOf(receive);
                     if (ratio < 0.75 || ratio > 1 / 0.75) continue;
-                    const mine = tradeLineup([...proposer.roster.filter(entry => entry !== give), { ...receive, slot: 'BN' }], state.settings, valueOf);
-                    const theirs = tradeLineup([...partner.roster.filter(entry => entry !== receive), { ...give, slot: 'BN' }], state.settings, valueOf);
+                    const mine = tradeLineup([...proposer.roster.filter(entry => entry !== give), { ...receive, slot: 'BN' }], state.settings, valueOf, strategies.get(proposer.teamId).depthWeight);
+                    const theirs = tradeLineup([...partner.roster.filter(entry => entry !== receive), { ...give, slot: 'BN' }], state.settings, valueOf, strategies.get(partner.teamId).depthWeight);
                     if (!mine.legal || !theirs.legal) continue;
                     const myGain = mine.total - before.get(proposer.teamId).total;
                     const theirGain = theirs.total - before.get(partner.teamId).total;
                     const myStarterGain = mine.starters - before.get(proposer.teamId).starters;
                     const theirStarterGain = theirs.starters - before.get(partner.teamId).starters;
-                    const premium = Math.max(0, difficultyFor(state).thresholdDelta + relationshipFor(state, proposer.teamId, partner.teamId).tradePremium);
+                    const premium = Math.max(0, difficultyFor(state).thresholdDelta + strategies.get(proposer.teamId).tradeThresholdDelta + relationshipFor(state, proposer.teamId, partner.teamId).tradePremium);
                     if (myGain < Math.max(0.1, valueOf(give) * premium) || theirGain < 0.1 || myStarterGain < 0 || theirStarterGain < 0) continue;
                     const tie = createSeededRandom(`${state.seed}:trade-fit:${state.currentWeek}:${give.entryId}:${receive.entryId}`)();
                     candidates.push({ proposer, partner, persona, give, receive, myStarterGain, theirStarterGain,
-                        rank: Math.min(myGain, theirGain) * 2 + myGain + theirGain + tie * 0.01 });
+                        rank: Math.min(myGain, theirGain) * 2 + myGain * (1 + strategies.get(proposer.teamId).urgency * .35)
+                            + theirGain + (persona.positionBias[receive.position] || 1) * .15 + tie * .01 });
                 }
             }
         }
@@ -368,8 +413,9 @@
             if (engagedTeams.has(proposer.teamId) || locked.has(give.entryId) || locked.has(receive.entryId) || offeredTo.has(partner.teamId)) continue;
             if (partner.manager === 'ai' && (aiDeals >= 1 || engagedTeams.has(partner.teamId))) continue;
             const note = `${persona.pitch} You get ${give.name} (${give.position}) for ${receive.name} (${receive.position}). `
-                + `Best-lineup archive average: +${theirStarterGain.toFixed(1)} pts/game for you, +${myStarterGain.toFixed(1)} for ${proposer.name}. `
-                + 'Both rosters can field a legal lineup. Archive comparison, not a game forecast.';
+                + `Best-lineup ${hidden(state) ? 'visible-evidence estimate' : 'archive average'}: +${theirStarterGain.toFixed(1)} pts/game for you, +${myStarterGain.toFixed(1)} for ${proposer.name}. `
+                + `Both rosters can field a legal lineup. ${hidden(state) ? 'An estimate from observed games and possible years.' : 'Archive comparison, not a game forecast.'} `
+                + strategies.get(proposer.teamId).reason;
             const proposed = proposeTrade(next, { fromTeamId: proposer.teamId, toTeamId: partner.teamId, giveEntryIds: [give.entryId], receiveEntryIds: [receive.entryId], note }, createdAt);
             if (proposed === next || proposed.trades.length !== next.trades.length + 1) continue;
             next = proposed;
@@ -393,9 +439,8 @@
 
     const api = {
         AI_PERSONAS, AI_DIFFICULTY_LABELS, entryValueFromCard, aiDraftChoice, aiAuctionStep, aiPrepareWeek, aiSubmitWaiverClaims,
-        aiRespondToTrades, aiGenerateTrades,
+        aiRespondToTrades, aiGenerateTrades, strategyFor, adaptivePersona,
     };
     App.TimeLeagueAI = api;
-    /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

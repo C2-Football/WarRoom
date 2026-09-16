@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 global.window = globalThis;
 global.App = {};
-for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'actions', 'draft-clock', 'public-state']) {
+for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'hidden-years', 'ai', 'actions', 'draft-clock', 'public-state']) {
     require(`../js/shared/time-league-${name}.js`);
 }
 const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeagueDraftClock: Clock, TimeLeaguePublicState: Public } = App;

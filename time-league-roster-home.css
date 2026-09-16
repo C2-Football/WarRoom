@@ -22,6 +22,15 @@
 .tl-player-signals .tl-player-signal-context { margin-top:2px; font-size:10px; }
 .tl-player-signals .tl-week-stars { color:#ffe189; font-size:15px; letter-spacing:1px; overflow-wrap:anywhere; }
 .tl-player-signals .no-game .tl-week-stars { color:#ffb7a6; font-size:13px; letter-spacing:0; }
+.tl-hidden-year-research { margin:16px 0; min-width:0; }
+.tl-hidden-year-research h3 { margin:18px 0 8px; font-size:17px; line-height:1.3; }
+.tl-hidden-year-research details { border-top:1px solid var(--border); padding:0 2px; }
+.tl-hidden-year-research summary { padding:14px 0; cursor:pointer; line-height:1.45; font-size:14px; font-weight:600; }
+.tl-hidden-year-research details[open] { padding-bottom:14px; }
+.tl-hidden-year-research .tl-archive-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(95px,1fr)); gap:12px; }
+.tl-hidden-year-research .tl-archive-stat { min-width:0; }
+.tl-hidden-year-research .tl-archive-stat small { display:block; overflow-wrap:anywhere; }
+.tl-hidden-year-research .tl-archive-stat strong { display:block; margin-top:3px; font-size:17px; font-variant-numeric:tabular-nums; }
 .tl-roster-signals { grid-column:2 / -1; margin-top:0; padding:0 0 6px; }
 .tl-roster-current-player { border:1px solid #8af0cf60; border-radius:12px; background:#8af0cf0b; padding:12px; margin-top:16px; }
 .tl-roster-current-player > small { display:block; font-size:10px; letter-spacing:.08em; color:#aebfd5; margin-bottom:6px; }
@@ -162,4 +171,9 @@
     .tl-update-results { grid-template-columns:minmax(0,1fr); }
     .tl-update-match { padding:10px 12px; }
     .tl-update-links .tl-btn { flex:1; }
+}
+
+.tl-roster-dossier { scroll-margin-top: calc(90px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) {
+    .tl-roster-dossier .tl-dossier-title { position: sticky; top: calc(68px + env(safe-area-inset-top, 0px)); z-index: 2; padding: 8px 0; background: var(--tl-surface, #1b2b36); }
 }

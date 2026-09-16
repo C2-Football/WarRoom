@@ -1,0 +1,26 @@
+.duat-council{min-width:0;max-width:960px;margin-inline:auto;overflow:hidden}
+.duat-council-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.duat-council-heading h2{font-size:clamp(1.15rem,2.6vw,1.6rem);margin:4px 0 16px}
+.duat-council-fiction{font-size:12px;color:var(--duat-muted,#b0b9bd);max-width:100px;text-align:right}
+.duat-council-select{display:grid;gap:7px;font-size:13px;font-weight:700;color:var(--duat-muted,#b0b9bd)}
+.duat-council-select select{display:block;width:100%;min-width:0;min-height:44px;border:1px solid #507177;border-radius:10px;background:#102630;color:#f3f1e7;padding:9px 12px;font:inherit;font-size:16px;text-overflow:ellipsis}
+.duat-council-ruler{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0 12px}
+.duat-council-ruler>div{min-width:0}.duat-council-ruler h3{font-size:20px;margin:0 0 4px;overflow-wrap:anywhere}.duat-council-ruler p{font-size:13px;color:var(--duat-muted,#b0b9bd);margin:0}
+.duat-council-stance{border:1px solid #647251;background:#bcbf6520;color:#e0d59b;border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.4;max-width:170px}
+.duat-council-conversation{max-height:330px;overflow-y:auto;overscroll-behavior:contain;scroll-padding:12px;border:1px solid #47656d;border-radius:12px;padding:12px;background:#081b2380;display:flex;flex-direction:column;gap:10px}
+.duat-council-speech{max-width:90%;padding:11px 13px;border-left:2px solid #d3b469;background:#b0b9bd0b;border-radius:0 10px 10px 0;overflow-wrap:anywhere}
+.duat-council-speech>span{font-size:12px;font-weight:700;color:#d9bd7a}.duat-council-speech p{font-size:15px;line-height:1.55;color:#eeeae0;margin:5px 0 0}
+.duat-council-speech.is-you{align-self:flex-end;border-left:0;border-right:2px solid #78d0ba;background:#78d0ba0c;border-radius:10px 0 0 10px}.duat-council-speech.is-you>span{color:#9bddcc}
+.duat-council-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.duat-council-choices .duat-button{min-width:0;min-height:44px;white-space:normal;line-height:1.3;padding:9px 10px;font-size:14px}
+.duat-council-boundary,.duat-council-status,.duat-council-fiction-note{font-size:12px!important;line-height:1.5;color:var(--duat-muted,#b0b9bd);margin:10px 0!important}
+.duat-council-error{font-size:14px;color:#ffbab2;padding:8px 10px;background:#a042342b;border-radius:8px}
+.duat-council-profile,.duat-council-memory{border-top:1px solid #435c65;margin-top:12px;padding-top:2px}
+.duat-council-profile summary,.duat-council-memory summary{padding:13px 0;cursor:pointer;font-size:14px;font-weight:700;min-height:44px;box-sizing:border-box}
+.duat-council-profile-body,.duat-council-memory{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.duat-council-profile dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.duat-council-profile dl>div{min-width:0}.duat-council-profile dt{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#d9bd7a;margin-bottom:4px}.duat-council-profile dd{margin:0}
+.duat-council-provenance{font-size:13px;color:#c7d0d0}.duat-council-sources{padding-left:20px;font-size:13px}.duat-council-sources a{color:#97d6cc;text-decoration:underline;text-underline-offset:3px}.duat-council-memory ul{padding-left:20px}.duat-council-memory li+li{margin-top:8px}.duat-council-memory>p{font-size:12px;color:var(--duat-muted,#b0b9bd)}
+.duat-council-human{font-size:14px;line-height:1.55;padding:12px;background:#ffffff06;border-radius:10px}
+@media(max-width:560px){.duat-council{padding:14px!important}.duat-council-ruler{display:block}.duat-council-stance{display:inline-block;max-width:none;margin-top:8px}.duat-council-ruler h3{font-size:19px}.duat-council-conversation{max-height:280px;padding:8px}.duat-council-speech{max-width:94%;padding:9px 10px}.duat-council-profile dl{grid-template-columns:1fr}.duat-council-heading h2{margin-bottom:12px}.duat-council-choices .duat-button{font-size:13px}.duat-council-heading{gap:8px}}
+.duat-council-strategy{display:grid;gap:3px;padding:9px 11px;border-left:2px solid #7bb7ad;background:#7bb7ad0c;font-size:13px;line-height:1.5;margin:0 0 12px}.duat-council-strategy strong{color:#a6d6c7}.duat-council-strategy span{color:var(--duat-muted,#b0b9bd)}
+@media(max-width:560px){.duat-game.is-council-view .duat-campaign-heading,.duat-game.is-council-view .duat-season-navigation{display:none}.duat-game.is-council-view .duat-weekly-explore{margin-block:0 10px}.duat-game.is-council-view .duat-back-to-week{margin-block:0 12px}.duat-game.is-council-view .duat-council{margin-top:0}}
+@media(max-width:560px){.duat-game.is-council-view .duat-weekly-explore{display:none}.duat-council-heading h2{font-size:18px}.duat-council-fiction{max-width:80px}}

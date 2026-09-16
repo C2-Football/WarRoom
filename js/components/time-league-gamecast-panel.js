@@ -22,7 +22,7 @@
 
     // Use the lineup that played this week, including during archived replays.
     // Saved results are deliberately hidden until their scoring moments arrive.
-    function LiveLineups({ row, teams, rosterSlots, weekData, landed, final, currentPlay }) {
+    function LiveLineups({ league, row, teams, rosterSlots, weekData, landed, final, currentPlay }) {
         if (!row) return null;
         const ids = row.mineIsHome ? [row.home, row.away] : [row.away, row.home];
         const sides = ids.map(teamId => {
@@ -54,7 +54,7 @@
         const player = (entry, side) => h('div', { className: `tl-live-player is-${side}${entry?.scoring ? ' is-scoring' : ''}`, 'data-entry-id': entry?.entryId },
             h('div', { className: 'tl-live-player-name' },
                 h('strong', null, entry?.name || 'Empty slot'),
-                entry && h('small', null, `${entry.drawnSeason} · ${entry.position}`),
+                entry && h('small', null, `${league.settings.hiddenYears && !league.yearsRevealed ? window.App.TimeLeagueHiddenYears.label(league, entry) : entry.drawnSeason} · ${entry.position}`),
                 entry?.availabilityUpdate && h('small', { className: 'tl-live-availability', role: 'status' },
                     entry.availabilityUpdate.status === 'out' ? 'OUT · VAULT SIMULATION' : 'NO RECORDED APPEARANCE')),
             h('strong', { className: 'tl-live-player-points tabular' }, entry ? entry.points.toFixed(2) : '—'),
@@ -68,7 +68,7 @@
                 player(item.entries[1], 'right'))));
     }
 
-    function BoxScores({ week, teamName }) {
+    function BoxScores({ league, week, teamName }) {
         const resultOf = new Map(week.results.map((r) => [r.teamId, r]));
         return h('div', { className: 'tl-box-scores', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 12 } },
             week.matchups.map((matchup) => h('div', { key: `${matchup.home}:${matchup.away}`, style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } },
@@ -76,9 +76,9 @@
                     const result = resultOf.get(teamId);
                     return h('div', { key: teamId, tabIndex: 0, role: 'region', 'aria-label': `${teamName(teamId)} box score, scroll for more columns`, style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                         h('thead', null, h('tr', null,
-                            h('th', null, teamName(teamId) + (matchup.winner === teamId ? ' ◆' : '')), h('th', { className: 'num' }, 'YR'), h('th', { className: 'num' }, (result?.total ?? 0).toFixed(2)))),
+                            h('th', null, teamName(teamId) + (matchup.winner === teamId ? ' ◆' : '')), h('th', { className: 'num' }, league.settings.hiddenYears && !league.yearsRevealed ? 'DECADE' : 'YR'), h('th', { className: 'num' }, (result?.total ?? 0).toFixed(2)))),
                         h('tbody', null, (result?.starters ?? []).map((starter) => h('tr', { key: starter.entryId },
-                            h('td', null, `${starter.slot} · ${starter.name}`), h('td', { className: 'num' }, starter.drawnSeason), h('td', { className: 'num' }, starter.points.toFixed(2)))))));
+                            h('td', null, `${starter.slot} · ${starter.name}`), h('td', { className: 'num' }, league.settings.hiddenYears && !league.yearsRevealed ? starter.hiddenDecade || 'Hidden' : starter.drawnSeason), h('td', { className: 'num' }, starter.points.toFixed(2)))))));
                 }))));
     }
 
@@ -317,7 +317,7 @@
             quarterScore: playback ? h(QuarterScore, { row: myRow, teams: league.teams, timeline: playback.timeline, landed, clock }) : null,
             progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING',
             clockLabel: playback ? Gamecast.clockLabel(clock) : savedFinal ? 'FINAL' : `WK ${weekLabel}` }) : spotlight;
-        const lineups = h(LiveLineups, { row: myRow, teams: league.teams, rosterSlots: league.settings.rosterSlots,
+        const lineups = h(LiveLineups, { league, row: myRow, teams: league.teams, rosterSlots: league.settings.rosterSlots,
             weekData: playback?.weekData || savedFinal, landed, final: done || Boolean(savedFinal), currentPlay });
         if (playback) {
             return h('div', null,
@@ -379,7 +379,7 @@
                     h('span', { style: { flex: 1, fontSize: 12, color: 'var(--text-secondary)' } }, week.headlines[0] ?? ''),
                     h('button', { className: 'tl-btn icon', onClick: () => replayWeek(week) }, 'REPLAY'),
                     h('button', { className: 'tl-btn icon', onClick: () => setBoxWeek(boxWeek === week.week ? null : week.week) }, boxWeek === week.week ? 'HIDE BOX' : 'BOX SCORE'))),
-                boxWeekData && h(BoxScores, { week: boxWeekData, teamName })));
+                boxWeekData && h(BoxScores, { league, week: boxWeekData, teamName })));
     }
 
     window.WrTimeLeagueGamecastPanel = WrTimeLeagueGamecastPanel;

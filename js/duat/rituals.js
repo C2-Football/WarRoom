@@ -78,7 +78,7 @@
     }
     function cleanPlayer(p) {
         if(!p || typeof p.id!=='string'||!p.id || typeof p.identity!=='string'||!p.identity || !['QB','RB','WR','TE'].includes(p.position) || !Number.isInteger(p.season))fail('RITUAL_POOL','The ritual player pool is invalid.');
-        return {id:p.id,identity:p.identity,name:String(p.name),position:p.position,season:p.season,referencePoints:Number.isFinite(p.referencePoints)?p.referencePoints:0,referenceSeason:Number.isInteger(p.referenceSeason)&&p.referenceSeason<p.season?p.referenceSeason:null};
+        return {id:p.id,identity:p.identity,name:String(p.name),position:p.position,season:p.season,referencePoints:Number.isFinite(p.referencePoints)?p.referencePoints:0,referenceSeason:Number.isInteger(p.referenceSeason)&&p.referenceSeason<p.season?p.referenceSeason:null,...(Number.isInteger(p.decade)&&Array.isArray(p.candidateYears)?{decade:p.decade,candidateYears:[...p.candidateYears],mysteryCycle:p.mysteryCycle}:{})};
     }
     function playerPool(state,factionId,pool,options={}) {
         const faction=state.factions.find(f=>f.id===factionId); if(!faction)fail('UNKNOWN_FACTION','Choose a faction in this campaign.');

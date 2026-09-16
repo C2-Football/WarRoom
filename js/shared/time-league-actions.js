@@ -39,6 +39,11 @@
             if (Date.parse(stamp) < start + (state.settings.draftAiSeconds || 2) * 1000) deny('The next AI decision is not due yet.');
         };
         switch (action.type) {
+        case 'reveal-years':
+            if (!state.settings.hiddenYears || state.phase !== 'complete') deny('The hidden years open in the final season recap.');
+            if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can open the year reveal.');
+            next = { ...state, yearsRevealed: true, yearReveals: [...new Set([...(state.yearReveals || []), own])] };
+            break;
         case 'rival-message':
             ownTeam();
             if (!App.TimeLeagueRivals) deny('Owner messages are still loading.');

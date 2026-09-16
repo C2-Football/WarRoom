@@ -152,3 +152,18 @@
   .duat-game .duat-draft-search :is(input,select) { width:100%; min-width:0; font-size:16px!important; }
   .duat-game .duat-drafted-army .duat-army-player { display:flex; width:100%; }
 }
+/* The archive opens beside the card; no hidden-year detail is needed to draft. */
+.duat-mystery-explorer { margin:8px 0; border:1px solid #7e704d77; border-radius:var(--card-radius); padding:0 12px; min-width:0; }
+.duat-mystery-explorer > summary { min-height:44px; padding:10px 0; cursor:pointer; color:#edcc91; }
+.duat-mystery-explorer > div { padding-bottom:12px; }
+.duat-mystery-explorer select { display:block; width:100%; margin:8px 0 12px; }
+.duat-mystery-explorer .duat-table-wrap { max-width:100%; overflow:auto; }
+.duat-mystery-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.duat-mystery-stats > div { display:flex; justify-content:space-between; gap:8px; }
+.duat-mystery-stats dd { margin:0; font-weight:700; }
+.duat-mystery-option { display:flex; align-items:flex-start; gap:10px; margin:14px 0; }
+.duat-mystery-option input { flex:0 0 auto; }
+.duat-mystery-option small { display:block; margin-top:6px; line-height:1.5; }
+.duat-draft-player > .duat-mystery-explorer { grid-column:1 / -1; width:100%; }
+.duat-mystery-recap article { padding:10px 0; border-bottom:1px solid #7e704d44; }
+@media(max-width:767px) { .duat-mystery-stats { grid-template-columns:1fr; } .duat-mystery-explorer :is(td,th,dt,dd) { font-size:14px; } }

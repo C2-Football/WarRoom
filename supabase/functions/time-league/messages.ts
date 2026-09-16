@@ -31,7 +31,7 @@ export async function sendPrivateMessage(admin: any, userId: string, row: any, m
     if (action.replyToId !== undefined && (typeof action.replyToId !== 'string' || !action.replyToId || action.replyToId.length > 160)) throw new Error('Choose a message from this conversation.');
     if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new Error('Reload this league before sending.');
     const input = { teamId: member.seat_team_id, toTeamId: recipient.teamId, text: action.text.trim(), tone: action.tone || 'neutral', messageId: action.messageId,
-        ...(action.replyToId ? { replyToId: action.replyToId } : {}) };
+        ...(action.replyToId ? { replyToId: action.replyToId } : {}), ...(Number.isInteger(action.seenThroughWeek) ? { seenThroughWeek: action.seenThroughWeek } : {}) };
     const history = await loadPrivateMessages(admin, userId, row.id, input.messageId, input.replyToId);
     const next = rivals.sendMessage({ ...withoutPrivateMessages(row.state), rivalMessages: history }, input, stamp);
     const message = next.rivalMessages.find((item: any) => item.id === `chat:${input.messageId}`);

@@ -2,9 +2,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 global.window = globalThis; window.App = {};
-for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'rivals', 'ai', 'actions', 'gamecast', 'player-stats']) require(`../js/shared/time-league-${name}.js`);
+for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'hidden-years', 'strategy', 'rivals', 'ai', 'actions', 'gamecast', 'player-stats']) require(`../js/shared/time-league-${name}.js`);
 const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeagueAI: AI, TimeLeaguePlayerCards: P, TimeLeagueSeason: S, TimeLeagueGamecast: G } = App;
-const fullSeason = process.argv.includes('--full-season');
+const fullSeason = process.argv.includes('--full-season') || process.argv.includes('--hidden-years');
+const hiddenYears = process.argv.includes('--hidden-years');
 const fullDataDir = process.env.VAULT_DATA_DIR || 'data/time-league';
 const data = {
     cards: P.buildPlayerCardIndex(JSON.parse(fs.readFileSync(fullSeason ? `${fullDataDir}/player-cards.json` : 'data/time-league/legacy-player-cards.json'))),
@@ -18,6 +19,7 @@ let state = E.normalizeTimeLeague(E.createTimeLeague({
     seats: [{ name: 'Human', manager: 'human' }, ...Array.from({ length: 11 }, (_, i) => E.defaultAiSeat(i + 1))],
     settings: {
         gameDeckVersion: fullSeason ? 1 : 0,
+        hiddenYears,
         rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPER_FLEX: 1, K: 1, DEF: 1, BN: 3 }, maxQuarterbacks: 3,
         regularSeasonWeeks: 12, playoffTeams: 4, scoring: { passTd: 4, reception: .5, rushRecYd: .1, passingYd: .04, turnover: -2 },
         eraRules: { mode: 'position-roulette', decades: [] }, waiversEnabled: true, waiverMode: 'faab', faabBudget: 100,
@@ -99,7 +101,7 @@ while (state.phase === 'season' && gates++ < 60) {
             const statCents = team.starters.reduce((sum, entry) => sum + Math.round(App.TimeLeaguePlayerStats.totals(state, entry, data.logIndex, data.eraFactors, [week]).points * 100), 0);
             assert.equal(statCents, Math.round(team.total * 100), 'The stats page and gamecast agree on every scored player');
             const owner = state.teams.find(item => item.teamId === team.teamId);
-            if (owner.manager === 'ai') for (const starter of team.starters.filter(entry => !entry.stats)) {
+            if (owner.manager === 'ai' && !hiddenYears) for (const starter of team.starters.filter(entry => !entry.stats)) {
                 assert(!owner.roster.some(entry => entry.slot === 'BN' && App.TimeLeagueRoster.SLOT_ELIGIBILITY[starter.slot].includes(entry.position)
                     && Boolean(S.resolveGameLog(state, entry, week, data.logIndex, 14))), `${owner.name} cannot start a no-game player with an available legal bench replacement in Week ${week}`);
             }
@@ -123,4 +125,4 @@ assert.equal(new Set(state.finalizedWeeks.map(week => week.week)).size, 14);
 assert.throws(() => A.applyOnlineAction(state, { type: 'week' }, host, data, stamp), /planning/);
 assert(state.teams.every(team => team.faabRemaining >= 0 && team.faabRemaining <= 100));
 if (fullSeason) assert(lateSourceGames > 0, 'The completed league must include real source performances beyond NFL Week 14');
-console.log(`PASS: ${fullSeason ? 'Full-season shuffled draw' : 'Legacy calendar'} — ${actions} saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.`);
+console.log(`PASS: ${hiddenYears ? 'Fixed hidden years with saved candidate pools' : fullSeason ? 'Full-season shuffled draw' : 'Legacy calendar'} — ${actions} saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.`);

@@ -6,10 +6,10 @@
     const api = factory(get('./campaign.js', 'DuatCampaign'), get('./rules.js', 'DuatRules'),
         get('./army-generation.js', 'DuatArmies'), get('./conquest.js', 'DuatConquest'),
         get('./world.js', 'DuatWorld'), get('./lore.js', 'DuatLore'), get('./favors.js', 'DuatFavors'),
-        get('./rituals.js', 'DuatRituals'), get('./heptad.js', 'DuatHeptad'), root.App.TimeLeagueSeason);
+        get('./rituals.js', 'DuatRituals'), get('./heptad.js', 'DuatHeptad'), root.App.TimeLeagueSeason, get('./mystery.js','DuatMystery'),get('./strategy.js','DuatStrategy'),get('./council-state.js','DuatCouncilState'));
     root.App.DuatCampaign = api;
     if (common) module.exports = api;
-})(typeof window !== 'undefined' ? window : globalThis, function(Legacy, Rules, Armies, Conquest, World, Lore, Favors, Rituals, Heptad, Season) {
+})(typeof window !== 'undefined' ? window : globalThis, function(Legacy, Rules, Armies, Conquest, World, Lore, Favors, Rituals, Heptad, Season, Mystery, Strategy, CouncilState) {
     'use strict';
     const copy = value => JSON.parse(JSON.stringify(value));
     const round = value => Math.round(value * 100) / 100;
@@ -31,12 +31,14 @@
         return value;
     }
     function eraOptions(input = {}, createdAt) {
-        if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key=>!['mode','scoringSeason'].includes(key))) fail('INVALID_ERA','Choose a supported campaign era.');
+        if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key=>!['mode','scoringSeason','hiddenYears'].includes(key))) fail('INVALID_ERA','Choose a supported campaign era.');
         const mode=input.mode||'historical';
         if(!['historical','resurrection'].includes(mode))fail('INVALID_ERA','Choose Historical Replay or Original Duat Resurrection.');
+        if(input.hiddenYears!==undefined&&typeof input.hiddenYears!=='boolean')fail('INVALID_ERA','Choose whether Historical Replay keeps scoring years hidden.');
+        if(mode==='resurrection'&&input.hiddenYears)fail('INVALID_ERA','Resurrection uses the current NFL season, not hidden historical years.');
         if(mode==='historical') {
             if(input.scoringSeason!=null)fail('INVALID_ERA','Historical Replay scores each army in its own year.');
-            return {mode:'historical',scoringSeason:null};
+            return {mode:'historical',scoringSeason:null,...(input.hiddenYears===true?{hiddenYears:true}:{})};
         }
         const scoringSeason=input.scoringSeason??new Date(createdAt).getUTCFullYear();
         if(!Number.isInteger(scoringSeason)||scoringSeason<2002||scoringSeason>2100)fail('INVALID_ERA','Choose a valid NFL scoring season.');
@@ -97,6 +99,7 @@
         const state = Legacy.createCampaign({...input,version:3},data);
         state.version = 4;
         if(input.era!==undefined){state.era=eraOptions(input.era,input.createdAt);if(isResurrection(state)&&state.seasons.some(year=>year>=state.era.scoringSeason))fail('INVALID_ERA','Resurrection armies must be drafted from years before their NFL scoring season.');}
+        if(Mystery.enabled(state))state.hiddenYears={version:1,assignments:{},revealedByFaction:{}};
         state.expansionVersion = 1; state.expansionSettings = expansionOptions(input.expansionSettings);
         state.dynastySeason = 1; state.dynasty = {cycle:1,seasons:[],retiredRulers:[],journal:[],honors:{},usedYears:[...state.seasons]};
         state.treasuryLedger = []; state.pinnacle = null;
@@ -108,7 +111,7 @@
         // The world extension supplies province data; country saves retain their map.
         if (Conquest.createDynastyConquest) state.conquest = Conquest.createDynastyConquest({season:1,
             factionIds:state.factions.map(f=>f.id),seed:state.seed+':world',...state.expansionSettings});
-        validateCampaign(state);
+        validateCampaign(state,data);
         return state;
     }
     function draftTurn(state) {
@@ -117,7 +120,8 @@
     }
     function unusedPool(state, data, season) {
         const used = new Set(state.factions.flatMap(f=>livingArmies(f).flatMap(a=>a.players.map(p=>p.id))));
-        return Legacy.draftPool(data,season,state.scoring).filter(player=>!used.has(player.id));
+        const mystery=Mystery.enabled(state),pool=mystery?Mystery.pool(state,data,season):Legacy.draftPool(data,season,state.scoring);
+        return pool.filter(player=>!used.has(player.id)).map(player=>mystery?Mystery.snapshotCard(state,player,data):player);
     }
     function draftCandidates(state, data, options = {}) {
         if (!modern(state)) return Legacy.draftCandidates(state,data,options);
@@ -129,7 +133,7 @@
         const query = String(options.query||'').trim().toLowerCase();
         const counts = Object.fromEntries(['QB','RB','WR','TE'].map(p=>[p,pool.filter(card=>card.position===p).length]));
         return pool.filter(player=> {
-            if (options.position && player.position!==options.position || query && !player.name.toLowerCase().includes(query)) return false;
+            if (options.position && player.position!==options.position || options.decade && player.decade!==Number(options.decade) || query && !player.name.toLowerCase().includes(query)) return false;
             if (settingsOf(state).roster==='duat' && player.position==='QB' && army.players.filter(p=>p.position==='QB').length>=2) return false;
             const needs = Legacy.shortages([...army.players,player],slots);
             if (Object.values(needs).reduce((a,b)=>a+b,0)>size-army.players.length-1) return false;
@@ -145,6 +149,7 @@
     function savePick(state, player, createdAt) {
         const turn = draftTurn(state), faction = factionOf(state,turn.factionId), army = faction.armies.find(a=>a.id===turn.armyId);
         army.players.push(copy(player));
+        Mystery.assign(state,player);
         state.draft.picks.push({...turn,playerId:player.id,playerName:player.name,position:player.position});
         state.draft.cursor++;
         if (state.draft.cursor===state.draft.totalPicks) {
@@ -229,6 +234,7 @@
         if(!settingsOf(state).favors||!Rules.SACRED_WEEKS.includes(state.week))return [];
         let remaining=faction.favorBalance;
         const ranked=[...faction.lineup].sort((a,b)=>Legacy.estimatePlayer(state,faction.id,b).points-Legacy.estimatePlayer(state,faction.id,a).points);
+        if(Strategy?.favorPlan){const planned=Strategy.favorPlan(state,faction,ranked);return Favors.validateDeclarations({declarations:planned,playerResults:planningPlayers(faction),history:Legacy.historyFor(state,faction.id),week:state.week,balance:faction.favorBalance,expansionVersion:1});}
         const result=[];
         for(const playerId of ranked.slice(0,state.week>=14?3:1)) {
             const favorId=state.week>=15&&remaining>=60?'kratos-3':state.week>=10&&remaining>=40?'kratos-2':'kratos-1';
@@ -243,7 +249,7 @@
             standings:Legacy.computeStandings(state),heptad:copy(state.heptad),alliances:copy(state.alliances),pinnacle:copy(state.pinnacle),
             landTotals:Object.fromEntries(state.factions.map(f=>[f.id,Object.values(state.conquest.owners).filter(id=>id===f.id).length])),
             rulers:state.factions.map(f=>({factionId:f.id,...copy(activeArmy(f))})),completedAt:createdAt,
-            completedWeeks:state.completedWeeks.map(week=>({...copy(week),factions:week.factions.map(f=>({...copy(f),players:f.players.map(p=>{const {stats:_stats,...rest}=p;return rest;})}))}))};
+            completedWeeks:state.completedWeeks.map(week=>({...copy(week),factions:week.factions.map(f=>({...copy(f),players:f.players.map(p=>{if(Mystery.enabled(state))return {...p,stats:p.stats?Mystery.numericStats(p.stats):null};const {stats:_stats,...rest}=p;return rest;})}))}))};
         state.dynasty.seasons.push(season);
         if(Lore.honors)state.dynasty.honors=Lore.honors(state.dynasty.seasons);
     }
@@ -260,9 +266,11 @@
         const results=state.factions.map(faction=> {
             const army=activeArmy(faction), before=faction.favorBalance;
             const raw=army.players.map(player=> {
-                const log=data.logIndex.get(Season.gameLogKey(player.identity,player.season||army.season,state.week));
+                const scoringYear=Mystery.scoringSeason(state,player,army.season);
+                if(!covered.has(scoringYear))fail('INCOMPLETE_DATA','Every fixed scoring year needs recorded NFL data through Week 17.');
+                const log=data.logIndex.get(Season.gameLogKey(player.identity,scoringYear,state.week));
                 const points=log?Season.scoreStatLine(log.stats,state.scoring,{}):0;
-                return {...player,starter:faction.lineup.includes(player.id),basePoints:points,effectivePoints:points,stats:log?copy(log.stats):null,hasRecordedGame:Boolean(log)};
+                return {...player,starter:faction.lineup.includes(player.id),basePoints:points,effectivePoints:points,stats:log?(Mystery.enabled(state)?Mystery.numericStats(log.stats):copy(log.stats)):null,hasRecordedGame:Boolean(log)};
             });
             const applied=Favors.applyFavors({declarations:faction.declaredFavors||[],playerResults:raw,
                 history:Legacy.historyFor(state,faction.id),week:state.week,balance:before,seed:state.seed+':'+state.dynastySeason+':'+faction.id,expansionVersion:1});
@@ -351,17 +359,19 @@
     }
     function applyAction(state,action,data) {
         if(!modern(state))return Legacy.applyAction(state,action,data);
-        validateCampaign(state);
+        validateCampaign(state,data);
         if(!action||typeof action.type!=='string')fail('INVALID_ACTION','Choose a dynasty action.');
         let next=copy(state);const createdAt=action.createdAt||state.updatedAt;
         if(typeof createdAt!=='string'||!Number.isFinite(Date.parse(createdAt)))fail('INVALID_TIME','Use a valid action time.');
-        if(isResurrection(state)&&!['start-draft','draft-pick','reveal-next','name-ruler','name-alliance'].includes(action.type))fail('LIVE_FEED_REQUIRED',resurrectionStatus(state).message);
+        if(isResurrection(state)&&!['start-draft','draft-pick','reveal-next','name-ruler','name-alliance','address-ruler'].includes(action.type))fail('LIVE_FEED_REQUIRED',resurrectionStatus(state).message);
         const actor=action.factionId||state.hostFactionId;
         if(!state.humanFactionIds.includes(actor))fail('NOT_YOUR_FACTION','Only a human manager can submit this action.');
         const hostActions=['start-draft','reveal-next','advance-week','next-season'];
         if(hostActions.includes(action.type)&&actor!==state.hostFactionId)fail('HOST_REQUIRED','Only the host can advance the dynasty.');
         const faction=factionOf(next,actor);
-        if(action.type==='next-season')nextSeason(next,data,action,createdAt);
+        if(action.type==='address-ruler')next=CouncilState.apply(next,action,actor);
+        else if(action.type==='reveal-years')Mystery.reveal(next,actor);
+        else if(action.type==='next-season')nextSeason(next,data,action,createdAt);
         else if(action.type==='name-ruler') {
             if(!['draft','reveal'].includes(state.phase)&&!(state.phase==='season'&&state.week===1))fail('NAME_LOCKED','Rulers can be named before Week 1 is played.');
             const army=faction.armies.find(a=>a.id===action.armyId&&!a.destroyed);
@@ -418,9 +428,11 @@
             } else fail('INVALID_ACTION','Choose a supported dynasty action.');
         }
         next.updatedAt=createdAt;
-        validateCampaign(next);
+        Mystery.assignRosters(next);
+        validateCampaign(next,data);
         return next;
     }
+    function estimatePlayer(state,factionId,playerId){const value=Legacy.estimatePlayer(state,factionId,playerId);if(!Mystery.enabled(state))return value;const player=activeArmy(factionOf(state,factionId))?.players.find(p=>p.id===playerId);return {...value,label:(state.completedWeeks||[]).some(w=>w.factions.some(f=>f.factionId===factionId&&f.players.some(p=>p.id===playerId)))?value.label:player?.decade+'s archive average'};}
     function projectCampaign(state,viewerFactionId,data) {
         if(!modern(state))return Legacy.projectCampaign(state,viewerFactionId,data);
         factionOf(state,viewerFactionId);const projected=copy(state);delete projected.seed;delete projected.conquest.seed;
@@ -440,14 +452,17 @@
         projected.archaeology.progress=Legacy.revealProgress(state);
         if(data&&settingsOf(state).favors&&['season','complete'].includes(state.phase))projected.ritualCandidates=ritualCandidates(state,data,viewerFactionId);
         if(state.phase==='complete'&&data)projected.nextSeasonYears=nextSeasonYears(state,data);
-        return projected;
+        if(projected.council!==undefined)projected.council=CouncilState.project(projected.council,viewerFactionId);
+        return Mystery.project(projected,viewerFactionId);
     }
-    function validateCampaign(state) {
+    function validateCampaign(state,data) {
         if(!modern(state))return Legacy.validateCampaign(state);
         try {
+            Mystery.validate(state,data);
             const invalid=message=>fail('INVALID_CAMPAIGN',message), settings=settingsOf(state), size=Legacy.rosterSize(state);
-            if(state.era!==undefined){const era=eraOptions(state.era,state.createdAt);if(JSON.stringify(era)!==JSON.stringify(state.era))invalid('Invalid campaign era.');if(isResurrection(state)&&(state.seasons.some(year=>year>=era.scoringSeason)||state.completedWeeks.length||state.dynastySeason!==1))invalid('Resurrection requires a connected live engine before results or succession can be saved.');}
+            if(state.era!==undefined){const era=eraOptions(state.era,state.createdAt);if(Object.keys(era).length!==Object.keys(state.era).length||Object.keys(era).some(key=>era[key]!==state.era[key]))invalid('Invalid campaign era.');if(isResurrection(state)&&(state.seasons.some(year=>year>=era.scoringSeason)||state.completedWeeks.length||state.dynastySeason!==1))invalid('Resurrection requires a connected live engine before results or succession can be saved.');}
             const finite=n=>typeof n==='number'&&Number.isFinite(n), ids=state.factions?.map(f=>f.id)||[];
+            if(state.council!==undefined)CouncilState.normalize(state.council,ids);
             const text=value=>typeof value==='string'&&value.trim().length>0&&value.length<=240;
             const nameKey=value=>value.normalize('NFKC').trim().replace(/\s+/gu,' ').toLocaleLowerCase();
             const sameFields=(actual,expected)=>actual&&Object.keys(expected).every(key=>actual[key]===expected[key]);
@@ -482,7 +497,7 @@
             const expectedQueue=buildQueue(draft.plans,draft.order,size);
             if(expectedQueue.length!==draft.queue.length||draft.queue.some((turn,index)=>!sameFields(turn,expectedQueue[index])||Object.keys(turn).length!==Object.keys(expectedQueue[index]).length))invalid('Draft queue does not follow the planned snake order.');
             for(const [index,pick]of draft.picks.entries()) {
-                if(!sameFields(pick,expectedQueue[index])||!text(pick.playerId)||!pick.playerId.endsWith(':'+pick.season)||!text(pick.playerName)||!['QB','RB','WR','TE'].includes(pick.position)||draftedCards.has(pick.playerId))invalid('Invalid draft receipt.');
+                if(!sameFields(pick,expectedQueue[index])||!text(pick.playerId)||!(Mystery.enabled(state)?Boolean(state.hiddenYears.assignments[pick.playerId])&&pick.playerId.includes(':veil:'):pick.playerId.endsWith(':'+pick.season))||!text(pick.playerName)||!['QB','RB','WR','TE'].includes(pick.position)||draftedCards.has(pick.playerId))invalid('Invalid draft receipt.');
                 draftedCards.add(pick.playerId);
             }
             if(!archaeology||!exact(archaeology.order)||!Array.isArray(archaeology.revealedFactionIds)||archaeology.revealedFactionIds.some((id,i)=>id!==archaeology.order[i]))invalid('Invalid archaeology order.');
@@ -515,7 +530,7 @@
                     if(!state.seasons.includes(army.season)||!Number.isInteger(army.rollBand?.min)||!Number.isInteger(army.rollBand?.max)||army.rollBand.min<1||army.rollBand.max>20||army.rollBand.max<army.rollBand.min)invalid('Invalid ruler roll band.');
                     for(const p of army.players) {
                         const season=p.season||army.season;
-                        if(typeof p.identity!=='string'||!p.identity||p.id!==p.identity+':'+season||typeof p.name!=='string'||!p.name||!['QB','RB','WR','TE'].includes(p.position)||used.has(p.id)||!finite(p.referencePoints)||!state.seasons.includes(season)||p.referenceSeason!==null&&(!Number.isInteger(p.referenceSeason)||p.referenceSeason>=season))invalid('Invalid or duplicated player.');
+                        if(typeof p.identity!=='string'||!p.identity||!(Mystery.enabled(state)?Mystery.isCard(p):p.id===p.identity+':'+season)||typeof p.name!=='string'||!p.name||!['QB','RB','WR','TE'].includes(p.position)||used.has(p.id)||!finite(p.referencePoints)||!state.seasons.includes(season)||p.referenceSeason!==null&&(!Number.isInteger(p.referenceSeason)||p.referenceSeason>=season))invalid('Invalid or duplicated player.');
                         used.add(p.id);
                     }
                     if(army.id===faction.activeArmyId&&Legacy.bestLineup(army.players,Legacy.slotsOf(faction)).length!==Legacy.slotsOf(faction).length)invalid('The walking ruler cannot fill its lineup.');
@@ -601,6 +616,6 @@
             return true;
         } catch(error){if(error.code==='INVALID_CAMPAIGN')throw error;fail('INVALID_CAMPAIGN','This dynasty save is malformed: '+error.message);}
     }
-    return {...Legacy,createCampaign,applyAction,validateCampaign,projectCampaign,draftTurn,draftCandidates,
+    return {...Legacy,createCampaign,applyAction,validateCampaign,projectCampaign,draftTurn,draftCandidates,estimatePlayer,
         eraOptions,isResurrection,resurrectionStatus,expansionOptions,nextSeasonYears,requiredYears,ritualCandidates,unresolvedClaims,livingArmies};
 });

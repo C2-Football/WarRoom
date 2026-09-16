@@ -134,9 +134,9 @@
         const decades = new Set();
         let preNinetyEntries = 0;
         for (const entry of (team?.roster ?? [])) {
-            const decade = EraRules.decadeOf(entry.drawnSeason);
+            const decade = league.settings.hiddenYears && !league.yearsRevealed ? entry.hiddenDecade : EraRules.decadeOf(entry.drawnSeason);
             if (decade) decades.add(decade);
-            if (entry.drawnSeason < 1990) preNinetyEntries += 1;
+            if (decade && parseInt(decade, 10) < 1990) preNinetyEntries += 1;
         }
 
         const tradesAccepted = league.trades.filter((t) => t.status === 'accepted' && (t.fromTeamId === teamId || t.toTeamId === teamId)).length;

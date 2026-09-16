@@ -1314,7 +1314,7 @@
             const current = leagueRef.current;
             if (!current || gateBusy.current) return false;
             const cast = gamecastRef.current;
-            if (current.weekStage === 'postgame' && cast?.leagueId === current.leagueId && !cast.done && ['advance-week', 'vote-advance', 'timed-advance'].includes(action.type)) return false;
+            if (current.weekStage === 'postgame' && cast?.leagueId === current.leagueId && !cast.done && ['advance-week', 'vote-advance', 'timed-advance', 'reveal-years'].includes(action.type)) return false;
             gateBusy.current = true;
             try {
                 const own = onlineRef.current?.seatTeamId || current.teams.find(team => team.teamId === activeTeamId && team.manager === 'human')?.teamId || current.teams.find(team => team.manager === 'human')?.teamId;
@@ -1548,7 +1548,7 @@
             ? ['draft', 'messages', 'career', 'community', 'activity']
             : ['home', 'gameday', 'roster', 'waivers', 'stats', 'trades', 'achievements', 'draft', 'messages', 'career', 'community', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
-        const addPlayoffCounts = league.phase === 'complete' && !Engine.playoffCount(league)
+        const addPlayoffCounts = league.phase === 'complete' && !league.seasonExtensionLocked && !league.yearsRevealed && !Object.values(league.yearReveals || {}).some(Boolean) && !Engine.playoffCount(league)
             ? [2, 4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 14) : [];
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId

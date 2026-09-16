@@ -352,6 +352,9 @@
 
     function completedProduction(league, entry, week) {
         const archived = league.finalizedWeeks?.find(row => row.week === week);
+        if (league.settings.hiddenYears && entry.editionId) return archived?.playerProduction?.find(row => row.editionId === entry.editionId)
+            || archived?.results?.flatMap(row => row.starters || []).find(row => row.editionId === entry.editionId)
+            || league.playerReports?.[entry.editionId]?.completed?.find(row => row.week === week) || null;
         return archived?.playerProduction?.find(row => row.identity === entry.identity && row.drawnSeason === entry.drawnSeason)
             || archived?.results?.flatMap(row => row.starters || []).find(row => row.identity === entry.identity && row.drawnSeason === entry.drawnSeason)
             || league.playerReports?.[editionKey(entry)]?.completed?.find(row => row.week === week) || null;
@@ -377,6 +380,13 @@
     // Only the current report is actionable. Later dates are deliberately
     // indistinguishable, even when a historical archive has missing records.
     function rosterOutlook(entry, currentWeek, weeks, index, scoring, factors, league) {
+        if (league?.settings.hiddenYears && league.yearsRevealed !== true) {
+            const observed = App.TimeLeagueHiddenYears?.observationRows(league, entry) || [];
+            const played = observed.filter(row => row.available), remaining = Math.max(0, weeks - currentWeek + 1);
+            const average = played.length ? played.reduce((sum, row) => sum + row.points, 0) / played.length : null;
+            return { remaining, average, estimatedRemaining: average == null ? null : average * remaining, signal: 'Based on completed games',
+                schedule: Array.from({ length: weeks }, (_, i) => { const found = observed.find(row => row.week === i + 1); return { week: i + 1, played: Boolean(found), available: found?.available ?? null, points: found?.points ?? null }; }) };
+        }
         if (usesGameDeck(league) && league.publicSnapshotVersion === 1) {
             const report = league.playerReports?.[editionKey(entry)];
             if (!report || report.week !== currentWeek) return null;
@@ -408,6 +418,7 @@
     }
 
     function weeklyStarOutlook(entry, currentWeek, weeks, index, scoring, factors, league) {
+        if (league?.settings.hiddenYears && league.yearsRevealed !== true) return null;
         if (usesGameDeck(league) && league.publicSnapshotVersion === 1) {
             const report = league.playerReports?.[editionKey(entry)];
             if (!report || report.week !== currentWeek) return null;

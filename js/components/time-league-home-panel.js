@@ -16,9 +16,9 @@
         const decades = new Set();
         let oldest = null;
         for (const entry of entries) {
-            const decade = EraRules.decadeOf(entry.drawnSeason);
+            const decade = league.settings.hiddenYears && !league.yearsRevealed ? entry.hiddenDecade : EraRules.decadeOf(entry.drawnSeason);
             if (decade) decades.add(decade);
-            if (!oldest || entry.drawnSeason < oldest.drawnSeason) oldest = entry;
+            if (!oldest || String(decade) < String(oldest.hiddenDecade || EraRules.decadeOf(oldest.drawnSeason))) oldest = entry;
         }
         return { decades: [...decades].sort(), oldest };
     }
@@ -171,7 +171,7 @@
                         h('span', { className: 'tl-pill info' }, lastFinalized ? `Week ${lastFinalized.week} final` : 'Season opener')),
                     weeklyLeaders && h('div', { className: 'tl-update-highlights' },
                         weeklyLeaders.topTeam && h('div', null, h('small', null, 'High score'), h('strong', null, `${weeklyLeaders.topTeam.total.toFixed(1)} pts`), h('span', null, teamName(weeklyLeaders.topTeam.teamId))),
-                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
+                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? window.App.TimeLeagueHiddenYears.label(league, weeklyLeaders.topPlayer) : weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
                         weeklyLeaders.closest && h('div', null, h('small', null, 'Closest game'), h('strong', null, weeklyLeaders.closest.homePoints === weeklyLeaders.closest.awayPoints ? 'Tie game' : `${Math.abs(weeklyLeaders.closest.homePoints-weeklyLeaders.closest.awayPoints).toFixed(1)}-point margin`), h('span', null, `${teamName(weeklyLeaders.closest.home)} vs. ${teamName(weeklyLeaders.closest.away)}`))),
                     lastFinalized ? h('div', { className: 'tl-update-results', 'aria-label': `Week ${lastFinalized.week} results` },
                         lastFinalized.matchups.map(match => h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' },

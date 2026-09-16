@@ -1,8 +1,9 @@
-/* global module */
+/* global module, require */
 // Conversations combine completed events with authored replies. Hidden bids and future scores never enter the chat.
 (function (root) {
     'use strict';
     const App = root.App = root.App || {};
+    if (typeof module !== 'undefined' && module.exports && !App.TimeLeagueStrategy) require('./time-league-strategy.js');
     const voices = {
         warlord: { label: 'The Warlord', win: ['That is how you take a week.', 'I came for the win. I got it.'], loss: ['You took this round. Enjoy the quiet while it lasts.', 'That one stings. I am coming back with a better lineup.'], tie: ['A draw settles nothing. We finish this next time.'], eliminated: ['Your playoff run ends here. I am not stopping yet.'], knockedOut: ['You ended my run. Make that win count.'], offer: ['I see a deal. Bring your best answer.', 'Your roster has something I want. Here is my opening offer.'], accepted: ['Deal done. Now let us see who made the better move.'], rejected: ['No deal. I will find another way to win.'], delayed: ['Next week, then. This offer cannot wait forever.'], waiverWin: ['I got {player}. You will need a second option.'], waiverLoss: ['You beat me to {player}. I had plans for that player.'] },
         archivist: { label: 'The Archivist', win: ['Another result for the ledger. Preparation paid off.', 'The result is in. I will keep the same discipline.'], loss: ['The ledger records a loss. Time to review my assumptions.', 'You earned the result. I have some notes to revisit.'], tie: ['Precisely level. An unusually inconclusive entry.'], eliminated: ['Your season closes here. My next chapter is still unwritten.'], knockedOut: ['You closed the book on my season. A well-earned result.'], offer: ['I think this exchange improves both rosters. Have a look.', 'I have reviewed our rosters. This is the deal I can justify.'], accepted: ['Terms agreed. The ledger is updated.'], rejected: ['No agreement. I will revisit the market.'], delayed: ['Filed for next week. We can revisit the terms then.'], waiverWin: ['{player} joins my roster. Our competing claims are settled.'], waiverLoss: ['Your claim secured {player}. I will revise my shortlist.'] },
@@ -384,7 +385,13 @@
         const context = contextOf(prior);
         const opener = context && (contextOpeners[recipient.aiPersona] || contextOpeners.steward)[context];
         const lines = voice[tone];
-        const pool = opener ? [...lines, ...lines.map(line => `${opener} ${line}`)] : lines;
+        const basePool = opener ? [...lines, ...lines.map(line => `${opener} ${line}`)] : lines;
+        const visible = Number.isInteger(input.seenThroughWeek) ? Math.min(Math.max(0, input.seenThroughWeek), progressionWeek - 1) : Math.max(0, progressionWeek - (state.weekStage === 'postgame' ? 2 : 1));
+        const strategy = App.TimeLeagueStrategy;
+        const stance = strategy?.forTeam(state, recipient, visible);
+        const memory = strategy?.memoryFor(state, toTeamId, teamId, visible);
+        const suffix = [ stance?.completedWeeks >= 3 ? strategy.stanceLine(state, recipient, visible) : '', memory?.text || ''].filter(Boolean).join(' ');
+        const pool = basePool.map(line => [line, suffix].filter(Boolean).join(' ').slice(0, 500));
         // Only this pair's prior replies influence variety. Exhaust fresh lines
         // before repeating; retries return above without advancing the selection.
         const recent = history.filter(row => row.fromTeamId === toTeamId && row.toTeamId === teamId).slice(-(pool.length - 1));
@@ -399,7 +406,9 @@
         const messages = messagesFor(state, teamId, options);
         return (state.teams || []).filter(team => team.teamId !== teamId).map(team => {
             const thread = messages.filter(message => message.fromTeamId === team.teamId || message.toTeamId === team.teamId);
-            return { team, messages: thread, latest: thread[0] || null, relationship: team.manager === 'ai' ? relationshipFor(state, team.teamId, teamId) : null };
+            return { team, messages: thread, latest: thread[0] || null, relationship: team.manager === 'ai' ? relationshipFor(state, team.teamId, teamId) : null,
+                profile: team.manager === 'ai' ? App.TimeLeagueStrategy?.profileFor(team) : null,
+                strategy: team.manager === 'ai' ? App.TimeLeagueStrategy?.forTeam(state, team, options.throughWeek ?? Math.max(0, (state.currentWeek || 1) - (state.weekStage === 'postgame' ? 2 : 1))) : null };
         }).sort((a, b) => (b.latest?.week || 0) - (a.latest?.week || 0) || (b.latest?.sequence || 0) - (a.latest?.sequence || 0) || a.team.name.localeCompare(b.team.name));
     }
     App.TimeLeagueRivals = { messagesFor, threadsFor, sendMessage, normalizeMessages, normalizeRelationships, relationshipFor, hottestRelationship, voices, QUICK_REPLIES, quickRepliesFor, TONES };

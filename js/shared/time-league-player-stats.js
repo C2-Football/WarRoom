@@ -11,6 +11,15 @@
         const S = App.TimeLeagueSeason;
         let points = 0, games = 0;
         const stats = {};
+        if (league.settings.hiddenYears && league.yearsRevealed !== true && App.TimeLeagueHiddenYears) {
+            const rows = App.TimeLeagueHiddenYears.observationRows(league, entry).filter(row => weeks.includes(row.week));
+            for (const row of rows) {
+                if (!row.available) continue;
+                points += row.points; games++;
+                for (const [key, value] of Object.entries({ ...row.stats, ...row.stats.extra })) if (typeof value === 'number') stats[key] = (stats[key] || 0) + value;
+            }
+            return { points: round(points), games, average: games ? round(points / games) : 0, stats };
+        }
         for (const week of weeks) {
             const saved = S.completedProduction(league, entry, week);
             const log = S.resolveGameLog(league, entry, week, logIndex, App.TimeLeagueEngine.seasonEndWeek(league));
@@ -32,6 +41,11 @@
     // game within this player's archive; it is not a win or play probability.
     function signals(league, entry, logIndex, eraFactors, throughWeek = Infinity) {
         const hidden = { average: null, games: null, points: null, currentStars: null, currentAvailable: null };
+        if (league.settings.hiddenYears && league.yearsRevealed !== true) {
+            if (!league.seasonsRevealed) return { ...hidden, status: 'sealed' };
+            const result = totals(league, entry, logIndex, eraFactors, completedWeeks(league, throughWeek));
+            return { ...hidden, average: result.games ? result.average : null, games: result.games, points: result.points, status: 'hidden-year' };
+        }
         if (!league.seasonsRevealed || !Number.isInteger(entry?.drawnSeason)) return { ...hidden, status: 'sealed' };
         const production = totals(league, entry, logIndex, eraFactors, completedWeeks(league, throughWeek));
         const result = { ...hidden, points: production.points, games: production.games,
@@ -55,11 +69,13 @@
         const weeks = period === 'ytd' ? done : done.filter(week => week === Number(period));
         const owned = league.teams.flatMap(team => team.roster.map(entry => ({ ...entry, teamId: team.teamId, teamName: team.name })));
         const free = E.freeAgents(league, cards).flatMap(card => {
+            if (league.settings.hiddenYears && league.yearsRevealed !== true) return [{ identity: card.identity, name: card.name, position: card.position,
+                editionId: `mystery:${card.identity}`, hiddenDecade: App.TimeLeagueHiddenYears?.decadeFor(league, card, cards), teamId: 'fa', teamName: 'Free agent' }];
             const drawnSeason = E.waiverSeason(league, card);
             return drawnSeason == null ? [] : [{ identity: card.identity, name: card.name, position: card.position, drawnSeason, teamId: 'fa', teamName: 'Free agent' }];
         });
         return [...owned, ...free].map(entry => ({ ...entry, ...totals(league, entry, logIndex, eraFactors, weeks),
-            seasonPoints: cards.get(entry.identity)?.seasons.find(season => season.season === entry.drawnSeason)?.points ?? null }));
+            seasonPoints: league.settings.hiddenYears && league.yearsRevealed !== true ? null : cards.get(entry.identity)?.seasons.find(season => season.season === entry.drawnSeason)?.points ?? null }));
     }
     function filterAndSort(rows, { search = '', position = 'ALL', team = 'ALL', sort = 'points', ascending = false } = {}) {
         const allowed = position === 'FLEX' ? ['RB', 'WR', 'TE'] : position === 'SUPER_FLEX' ? ['QB', 'RB', 'WR', 'TE'] : [position];

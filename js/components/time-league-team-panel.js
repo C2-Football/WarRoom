@@ -25,13 +25,22 @@
 
     // The same completed-game denominator and current-week clue travel with a
     // player through the roster, replacement chooser, and free-agent wire.
-    function PlayerSignals({ league, entry, logIndex, eraFactors, throughWeek, className = '' }) {
+    function PlayerSignals({ league, entry, cards, logIndex, eraFactors, throughWeek, className = '' }) {
         const read = window.App.TimeLeaguePlayerStats?.signals?.(league, entry, logIndex, eraFactors, throughWeek)
             || { average: null, games: null, currentStars: null, currentAvailable: null, status: league.seasonsRevealed ? 'unavailable' : 'sealed' };
-        const average = Number.isFinite(read.average) ? fmt1(read.average) : '—';
-        const averageLabel = read.status === 'sealed' ? 'Sealed edition' : read.games === 0 ? 'No games yet' : read.games == null ? 'Stats unavailable' : `${read.games} game${read.games === 1 ? '' : 's'}`;
+        const research = read.status === 'hidden-year' ? window.App.TimeLeagueHiddenYears?.read(league, entry, cards, logIndex, throughWeek, eraFactors) : null;
+        const estimated = read.average == null && Number.isFinite(research?.estimatedAverage);
+        const average = Number.isFinite(read.average) ? fmt1(read.average) : estimated ? fmt1(research.estimatedAverage) : '—';
+        const averageLabel = estimated ? 'Across possible years' : read.status === 'sealed' ? 'Sealed edition' : read.games === 0 ? 'No games yet' : read.games == null ? 'Stats unavailable' : `${read.games} game${read.games === 1 ? '' : 's'}`;
+        const averageTitle = estimated
+            ? `Archive estimate across the possible years. ${research.candidates.every(row => row.basis === 'league scoring') ? 'Your league scoring' : 'Reference scoring'}; no completed Vault games yet.`
+            : `Average points per recorded completed Vault game in your league scoring, including bench games and observed games before acquisition. ${averageLabel}.`;
         let outlook = 'Unavailable', outlookLabel = `W${league.currentWeek} game rating`, outlookTitle = 'The current game report is unavailable.';
         if (read.status === 'sealed') { outlook = 'Sealed'; outlookTitle = 'Game ratings open after the season reveal.'; }
+        else if (read.status === 'hidden-year') {
+            outlook = research ? `${research.candidateYears.length} possible year${research.candidateYears.length === 1 ? '' : 's'}` : 'Year hidden';
+            outlookLabel = 'Archive clues'; outlookTitle = 'Only completed games can narrow the possible years. The fixed year is revealed in the final recap.';
+        }
         else if (read.status === 'complete') { outlook = 'Complete'; outlookLabel = 'Vault season'; outlookTitle = 'This Vault season is complete.'; }
         else if (read.status === 'awaiting-week') { outlook = 'Awaiting next week'; outlookTitle = 'Advance the week to reveal its availability and game rating.'; }
         else if (read.currentAvailable === false) { outlook = 'No recorded game'; outlookLabel = `W${league.currentWeek} · 0 pts`; outlookTitle = 'No recorded game this Vault week: zero points. Later weeks remain sealed.'; }
@@ -40,12 +49,45 @@
             outlookTitle = `${read.currentStars} of 5 stars this week. Stars rank this game within the player’s historical season; they are not a probability.`;
         } else if (read.currentAvailable === true) { outlook = 'Game available'; outlookTitle = 'A recorded game is available this week; its rating is unavailable.'; }
         return h('span', { className: `tl-player-signals ${className}`.trim() },
-            h('span', { className: 'tl-player-average', title: `Average points per completed Vault game in your league scoring, including bench games and games before acquisition. ${averageLabel}.` },
-                h('small', null, 'Avg pts / game'), h('strong', { className: 'tabular' }, average), h('small', { className: 'tl-player-signal-context' }, averageLabel)),
+            h('span', { className: 'tl-player-average', title: averageTitle },
+                h('small', null, estimated ? 'Archive est. / game' : 'Avg pts / game'), h('strong', { className: 'tabular' }, average), h('small', { className: 'tl-player-signal-context' }, averageLabel)),
             h('span', { className: `tl-player-outlook${read.currentAvailable === false ? ' no-game' : ''}`, title: outlookTitle },
                 h('small', null, outlookLabel), h('strong', { className: 'tl-week-stars', 'aria-label': outlookTitle }, outlook),
                 read.currentStars != null && read.currentAvailable === true && h('small', { className: 'tl-player-signal-context' }, 'Available')));
     }
+
+    function HiddenYearResearch({ league, entry, cards, logIndex, eraFactors, throughWeek }) {
+        const H = window.App.TimeLeagueHiddenYears;
+        if (!H) return null;
+        const read = H.read(league, entry, cards, logIndex, throughWeek, eraFactors);
+        const fields = entry.position === 'QB' ? [['passYd', 'Pass yd'], ['passTd', 'Pass TD'], ['passInt', 'INT'], ['rushYd', 'Rush yd']]
+            : [['rushYd', 'Rush yd'], ['rushTd', 'Rush TD'], ['rec', 'Rec'], ['recYd', 'Rec yd'], ['recTd', 'Rec TD']];
+        const statGrid = stats => h('div', { className: 'tl-archive-stats' },
+            Object.entries({ ...stats, ...stats?.extra }).filter(([key, value]) => key !== 'extra' && typeof value === 'number').map(([key, value]) =>
+                h('div', { className: 'tl-archive-stat', key }, h('small', null, fields.find(([id]) => id === key)?.[1] || key), h('strong', null, value))));
+        return h('section', { className: 'tl-hidden-year-research', 'aria-label': `${entry.name || 'Player'} hidden-year research` },
+            h('h3', null, `${read.decade || 'Eligible'} archive · ${read.candidateYears.length} possible year${read.candidateYears.length === 1 ? '' : 's'}`),
+            h('p', { className: 'tl-hint' }, 'Your player has one fixed year. Its games are shuffled without repeats. Compare the completed stat lines with the candidate seasons; an exact match can identify a year early.'),
+            !read.evidenceComplete && h('p', { className: 'tl-hint' }, 'Complete game records are not available for every candidate. Missing records never rule a year out.'),
+            !read.candidates.length && h('p', { role: 'status', className: 'tl-hint' }, 'No candidate in the loaded archive matches every recorded game. The evidence may be incomplete; no replacement year has been invented.'),
+            h('div', { className: 'tl-hidden-year-candidates' }, read.candidates.map(row => {
+                const archive = logIndex ? Season.sourceGames({ identity: entry.identity, drawnSeason: row.season }, Season.dataIndexFor(league, logIndex)) : [];
+                return h('details', { key: row.season },
+                h('summary', null, `${row.season} · ${row.average == null ? '—' : fmt1(row.average)} pts/game · ${row.games ?? '—'} recorded games`),
+                h('p', { className: 'tl-hint' }, `${Number.isFinite(row.points) ? fmt1(row.points) : 'Unavailable'} season points · ${row.basis}. This is a possible historical season, not your confirmed year.`),
+                h('div', { className: 'tl-archive-stats' }, fields.filter(([key]) => row[key] != null).map(([key, label]) => h('div', { className: 'tl-archive-stat', key }, h('small', null, label), h('strong', null, row[key])))),
+                archive.length > 0 && h('details', { className: 'tl-candidate-game-archive' }, h('summary', null, `${row.season} game archive · ${archive.length} records`),
+                    h('p', { className: 'tl-hint' }, 'Historical NFL weeks for this candidate season. They do not disclose your shuffled Vault order.'),
+                    archive.map(game => h('details', { key: game.week }, h('summary', null, `NFL W${game.week}`), statGrid(game.stats)))));
+            })),
+            h('h3', null, 'Completed game log'),
+            !read.observed.length ? h('p', { className: 'tl-hint' }, 'The first completed game begins your trail of evidence.') :
+                h('div', { className: 'tl-hidden-year-game-log' }, read.observed.map(row => h('details', { key: row.week },
+                    h('summary', null, `Vault W${row.week} · ${fmt1(row.points)} pts${row.available ? '' : ' · No recorded game'}`),
+                    row.available ? statGrid(row.stats)
+                        : h('p', { className: 'tl-hint' }, 'No recorded game scored zero. This does not establish an injury or a historical calendar date.')))));
+    }
+    window.WrTimeLeagueHiddenYearResearch = HiddenYearResearch;
 
     /** Mirrors War Room's real trade-engine.js fairnessGrade thresholds (reconai-shared/trade-engine.js:171-181). */
     function fairnessGrade(giveValue, receiveValue) {
@@ -90,8 +132,9 @@
         const moveRef = React.useRef(null);
         const moveTrigger = React.useRef(null);
         const dossierRef=React.useRef(null);
-        React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
-        const revealed = league.seasonsRevealed;
+        React.useEffect(()=>{if(selectedId&&dossierRef.current){dossierRef.current.focus({preventScroll:true});dossierRef.current.scrollIntoView?.({block:'start',behavior:'auto'});}},[selectedId]);
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
+        const revealed = league.seasonsRevealed && !concealed;
         const editable = team.manager === 'human' && league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
         React.useEffect(() => {
             if (moveChoice?.entryId && !team.roster.some(entry => entry.entryId === moveChoice.entryId)) setMoveChoice(null);
@@ -128,7 +171,7 @@
         ])), [team.roster, revealed, league, logIndex, eraFactors]);
         const ytd = useMemo(() => {
             const Stats = window.App.TimeLeaguePlayerStats;
-            return new Map(team.roster.map(entry => [entry.entryId, revealed && Stats ? Stats.totals(league, entry, logIndex, eraFactors, Stats.completedWeeks(league, throughWeek)).points : null]));
+            return new Map(team.roster.map(entry => [entry.entryId, league.seasonsRevealed && Stats ? Stats.totals(league, entry, logIndex, eraFactors, Stats.completedWeeks(league, throughWeek)).points : null]));
         }, [team.roster, revealed, league, throughWeek, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const weeksRemaining = Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1);
@@ -152,22 +195,22 @@
             onDrop: (event) => { event.preventDefault(); const id = draggedId; setDraggedId(null); if (id) moveEntry(id, slot, targetEntryId); },
         });
         const entryRow = (entry, slotLabel) => {
-            const seasonRecord = cards.get(entry.identity)?.seasons.find(season => season.season === entry.drawnSeason);
+            const seasonRecord = revealed ? cards.get(entry.identity)?.seasons.find(season => season.season === entry.drawnSeason) : null;
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
             return h('div', { key: entry.entryId, className: 'tl-lineup-row' + (draggedId === entry.entryId ? ' is-dragging' : ''), draggable: editable, onDragStart: (event) => { setDraggedId(entry.entryId); event.dataTransfer.setData('text/plain', entry.entryId); event.dataTransfer.effectAllowed = 'move'; }, onDragEnd: () => setDraggedId(null), ...dropProps(entry.slot, entry.entryId), style: { gridTemplateColumns: LINEUP_GRID } },
                 h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
                 h('button', { type:'button', className: 'tl-lineup-player tl-roster-player-link', onClick:()=>setSelectedId(entry.entryId), 'aria-label':`Explore ${entry.name}'s history`, 'aria-pressed':selectedId===entry.entryId },
                     h('span', { className: 'name' }, entry.name),
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
-                    revealed
-                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${weeksRemaining} Vault weeks left`)
+                    league.seasonsRevealed
+                        ? h('span', { className: 'meta' }, `${concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : entry.drawnSeason} · ${weeksRemaining} Vault weeks left`)
                         : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
                 h('span', { className: 'tl-lineup-pts tabular', title: seasonRecord?.sourceWeekKind ? 'Recorded NFL regular-season total, using reference scoring; separate from your Vault season' : 'Weeks 1–14 archive total, using reference scoring', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('span', { className: 'tl-lineup-pts tl-lineup-ytd tabular', title: 'Player points through completed Vault weeks, including bench games' }, ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId)), h('small', null, 'YTD PTS')),
                 h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
                     onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'),
-                h(PlayerSignals, { league, entry, logIndex, eraFactors, throughWeek, className: 'tl-roster-signals' }));
+                h(PlayerSignals, { league, cards, entry, logIndex, eraFactors, throughWeek, className: 'tl-roster-signals' }));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
             h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
@@ -199,7 +242,8 @@
             h(React.Fragment,null,
                 h('div',{className:'tl-dossier-kicker'},'THE VAULT · PLAYER ARCHIVE'),
                 h('div',{className:'tl-dossier-title'},h('span',{className:`tl-pos-badge tl-pos-${selected.position}`},selected.position),h('h2',null,selected.name),h('button',{type:'button',className:'tl-btn',onClick:()=>setSelectedId(null),'aria-label':'Close player history'},'Close')),
-                h('p',{className:'tl-hint'},revealed?`Your edition: ${selected.drawnSeason} · Looking back before this season`:'Your edition is sealed. Season-specific history unlocks at the reveal.'),
+                h('p',{className:'tl-hint'},concealed ? 'Investigate your player’s year using only the games you have completed.' : revealed?`Your edition: ${selected.drawnSeason} · Looking back before this season`:'Your edition is sealed. Season-specific history unlocks at the reveal.'),
+                concealed && h(HiddenYearResearch, { league, entry: selected, cards, logIndex, eraFactors, throughWeek }),
                 h('div',{className:'tl-archive-bio'},[['College',card?.bio?.college],['Born',card?.bio?.birthDate],['Size',[card?.bio?.height,card?.bio?.weight].filter(Boolean).join(' · ')],['NFL draft',[card?.bio?.draftYear,card?.bio?.draftTeam].filter(Boolean).join(' · ')]].filter(([,value])=>value).map(([label,value])=>stat(label,value))),
                 !card?.bio&&h('p',{className:'tl-hint'},'Biography is not available in the historical archive for this player.'),
                 selectedSeason && h('div', { className: 'tl-archive-stats tl-archive-season-scope' },
@@ -248,10 +292,10 @@
                 onClick: () => isSwap ? moveEntry(movingEntry.entryId, candidate.slot, candidate.entryId) : moveEntry(candidate.entryId, destination) },
                 h('span', { className: `tl-pos-badge tl-pos-${candidate.position}` }, candidate.position),
                 h('span', { className: 'tl-roster-candidate-player' }, h('strong', null, candidate.name),
-                    h('small', null, `${revealed ? `${candidate.drawnSeason} · ` : 'Sealed edition · '}${slotName(candidate.slot)} → ${slotName(destination)}`),
+                    h('small', null, `${concealed ? `${window.App.TimeLeagueHiddenYears?.label(league, candidate, cards) || 'Hidden year'} · ` : revealed ? `${candidate.drawnSeason} · ` : 'Sealed edition · '}${slotName(candidate.slot)} → ${slotName(destination)}`),
                     isSwap && h('small', null, `${movingEntry.name} → ${slotName(candidate.slot)}`)),
                 h('span', { className: 'tl-roster-candidate-action' }, isSwap ? 'Swap ↔' : 'Start →'),
-                h(PlayerSignals, { league, entry: candidate, logIndex, eraFactors, throughWeek, className: 'tl-candidate-signals' }));
+                h(PlayerSignals, { league, cards, entry: candidate, logIndex, eraFactors, throughWeek, className: 'tl-candidate-signals' }));
         };
         const moveSheet = moveChoice && (movingEntry || moveChoice.slot) && h('div', { className: 'tl-roster-move-backdrop', onClick: event => { if (event.target === event.currentTarget) closeMove(); } },
             h('section', { className: 'tl-roster-move-sheet', role: 'dialog', 'aria-modal': true, 'aria-label': movingEntry ? `Move ${movingEntry.name}` : `Fill ${slotName(moveChoice.slot)}`, ref: moveRef, tabIndex: -1, onKeyDown: onMoveKeys },
@@ -261,7 +305,7 @@
                     h(React.Fragment, null,
                         h('p', { className: 'tl-hint' }, movingEntry ? `Choose a player to swap with ${movingEntry.name}. Both moves happen together.` : 'Choose an eligible player from your roster. Their current slot is shown below.'),
                         movingEntry && h('div', { className: 'tl-roster-current-player' }, h('small', null, 'CURRENT PLAYER'), h('strong', null, `${movingEntry.name} · ${slotName(movingEntry.slot)}`),
-                            h(PlayerSignals, { league, entry: movingEntry, logIndex, eraFactors, throughWeek })),
+                            h(PlayerSignals, { league, cards, entry: movingEntry, logIndex, eraFactors, throughWeek })),
                         h('div', { className: 'tl-roster-candidates' }, (movingEntry ? replacements : openCandidates).map(candidate => candidateButton(candidate, Boolean(movingEntry)))),
                         (movingEntry ? !replacements.length : !openCandidates.length) && h('p', { className: 'tl-empty' }, movingEntry ? 'No compatible players to swap with.' : 'No eligible players on your roster for this slot.'),
                         emptyTargets.length > 0 && h('div', { className: 'tl-roster-empty-targets' }, h('h3', null, 'Move into an open slot'), emptyTargets.map(slot => h('button', {
@@ -295,16 +339,17 @@
                         occupants.length ? occupants.map((entry) => entryRow(entry, slot)) : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, `No entries stashed at ${slot}.`));
                 })),
             dossier,
-            h('details', { className: 'tl-roster-help' }, h('summary', null, 'Lineup tips & star ratings'),
+            h('details', { className: 'tl-roster-help' }, h('summary', null, concealed ? 'Lineup tips & hidden years' : 'Lineup tips & star ratings'),
                 h('p', null, 'Tap Move to see named replacements, or drag a player onto a compatible slot or teammate.'),
                 h('p', null, 'Avg pts / game uses completed Vault games in your league scoring, including bench games and games before acquisition. Weeks with no recorded game are excluded. The same average appears on waivers and lineup choices.'),
-                h('p', null, 'Stars compare this week with the player’s own historical season. Best three games earn 5 stars; worst three earn 1. No-game weeks are excluded.'),
-                h('p', null, 'Stars are a game rating, not the probability of playing or winning. Only the current week’s clue is shown.'),
+                h('p', null, concealed ? 'The average uses completed games. Candidate seasons are possibilities, and exact stat lines may identify the fixed year before the final recap.' : 'Stars compare this week with the player’s own historical season. Best three games earn 5 stars; worst three earn 1. No-game weeks are excluded.'),
+                !concealed && h('p', null, 'Stars are a game rating, not the probability of playing or winning. Only the current week’s clue is shown.'),
                 h('p', null, 'No recorded game means zero points this Vault week. The archive does not identify an injury or predict a return date. Future weeks stay sealed.')),
             moveSheet);
     }
 
     function WaiversSection({ league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors, throughWeek }) {
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const rowCap = phone ? 20 : WIRE_ROW_CAP;
         const [query, setQuery] = useState('');
@@ -330,7 +375,7 @@
         const closeClaim = () => { if (!filing) { setClaimOpen(false); claimTrigger.current?.focus?.({ preventScroll: true }); } };
 
         const pool = useMemo(() => Engine.freeAgents(league, cards), [league, cards]);
-        const previews = useMemo(() => new Map(pool.map(card => [card.identity, Engine.waiverPreview(league, card, logIndex, eraFactors)])), [pool, league, logIndex, eraFactors]);
+        const previews = useMemo(() => new Map(pool.map(card => [card.identity, Engine.waiverPreview(league, card, logIndex, eraFactors, league.currentWeek, throughWeek)])), [pool, league, logIndex, eraFactors, throughWeek]);
         const estimatedPreviews = league.settings.gameDeckVersion === 1;
         React.useEffect(() => {
             if (waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot]) { setPos(waiverSlot); setVisibleCount(rowCap); }
@@ -356,7 +401,8 @@
         const shown = filtered.slice(0, visibleCount);
         const target = targetIdentity ? cards.get(targetIdentity) : undefined;
         const targetPreview = previews.get(targetIdentity);
-        const waiverEntry = card => ({ identity: card.identity, position: card.position, drawnSeason: previews.get(card.identity)?.drawnSeason });
+        const waiverEntry = card => ({ identity: card.identity, name: card.name, position: card.position, drawnSeason: previews.get(card.identity)?.drawnSeason,
+            ...(concealed ? { editionId: previews.get(card.identity)?.editionId || `mystery:${card.identity}`, hiddenDecade: previews.get(card.identity)?.hiddenDecade } : {}) });
         const previewPoints = value => value == null ? '—' : fmt1(value);
         const alreadyClaimed = Boolean(target) && league.pendingClaims.some((c) => c.teamId === team.teamId && c.addIdentity === targetIdentity);
         const benchCap = league.settings.rosterSlots.BN ?? 0;
@@ -371,6 +417,10 @@
         const opponent = matchup && league.teams.find(item => item.teamId === matchup.find(id => id !== team.teamId));
         const matchupLabel = opponent ? 'Vault W' + league.currentWeek + ' vs ' + opponent.name : 'Vault W' + league.currentWeek + ' · Matchup not scheduled';
         const dropRead = entry => {
+            if (concealed) {
+                const read = window.App.TimeLeagueHiddenYears?.read(league, entry, cards, logIndex, throughWeek, eraFactors);
+                return { remaining: read?.estimatedAverage == null ? null : read.estimatedAverage * Math.max(0, endWeek - league.currentWeek + 1) };
+            }
             const outlook = Season.rosterOutlook(entry, league.currentWeek, endWeek, logIndex, league.settings.scoring, factors, league);
             return { remaining: outlook?.estimatedRemaining };
         };
@@ -411,7 +461,7 @@
                     h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(rowCap); } })),
                 h('nav', { className: 'tl-waiver-filters', 'aria-label': 'Free agent positions' },
                     ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(rowCap); } }, slotName(position)))),
-                h('p', { className: 'tl-waiver-reference' }, league.phase === 'complete' ? 'Season complete. No points remain to play.' : `Avg pts per completed game · W${league.currentWeek} game rating`),
+                h('p', { className: 'tl-waiver-reference' }, league.phase === 'complete' ? 'Season complete. No points remain to play.' : concealed ? 'Compare possible years and completed games · each awarded player keeps one fixed year' : `Avg pts per completed game · W${league.currentWeek} game rating`),
                 (!logIndex || (league.settings.eraAdjusted && !eraFactors?.size)) && h('p', { className: 'tl-hint', role: 'status' }, 'Scoring data is unavailable. Point totals will appear when it loads.'),
                 shown.length === 0 ? h('p', { className: 'tl-empty' }, 'No players match these filters.') :
                     h('div', { className: 'tl-waiver-table-scroll' }, h('table', { className: 'tl-waiver-table' },
@@ -421,18 +471,18 @@
                             const selected = card.identity === targetIdentity;
                             return h('tr', { key: card.identity, className: selected ? 'is-selected' : '' },
                                 h('td', { className: 'tl-waiver-rank' }, index + 1),
-                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${card.position} · ${preview?.drawnSeason ?? '—'} season`),
-                                    h(PlayerSignals, { league, entry: waiverEntry(card), logIndex, eraFactors, throughWeek }),
+                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${card.position} · ${concealed ? window.App.TimeLeagueHiddenYears?.label(league, waiverEntry(card), cards) || 'Hidden year' : `${preview?.drawnSeason ?? '—'} season`}`),
+                                    h(PlayerSignals, { league, cards, entry: waiverEntry(card), logIndex, eraFactors, throughWeek }),
                                     h('small', { className: 'tl-waiver-mobile-points' }, previewPoints(preview?.remainingPoints) + (preview?.estimated ? ' est. pts left' : ' pts left'))),
                                 h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
-                                h('td', { className: 'tl-waiver-score tabular' }, previewPoints(preview?.remainingPoints), h('small', null, `${previewPoints(preview?.totalPoints)} total`)),
+                                h('td', { className: 'tl-waiver-score tabular' }, previewPoints(preview?.remainingPoints), !concealed && h('small', null, `${previewPoints(preview?.totalPoints)} total`)),
                                 h('td', null, h('button', { className: `tl-btn${selected ? ' primary' : ''}`, disabled: !wireOpen || filing, 'aria-label': `Claim ${card.name}`, 'aria-pressed': selected, onClick: event => chooseTarget(card.identity, event) }, selected ? 'Edit claim' : '+ Claim')));
                         })))),
                 h('div', { className: 'tl-waiver-market-foot' }, h('span', null, `${shown.length} of ${filtered.length} shown`),
                     filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + rowCap) }, 'Show more')),
                 h('details', { className: 'tl-waiver-scoring-help' }, h('summary', null, 'How player scores work'),
-                    h('p', null, 'Avg pts / game uses completed Vault games in your league scoring, including games before acquisition. Stars rate the current game against that player’s historical season; they are not a probability.'),
-                    h('p', null, estimatedPreviews
+                    h('p', null, concealed ? 'Avg pts / game uses completed games observed for this edition. Before an edition plays, the candidate-year archive provides a comparison without identifying its year.' : 'Avg pts / game uses completed Vault games in your league scoring, including games before acquisition. Stars rate the current game against that player’s historical season; they are not a probability.'),
+                    h('p', null, concealed ? 'Estimates use the visible game average or all possible years in the archive. Before any recorded games, the archive comparison uses reference scoring if league-scoring data is unavailable. Future games and availability remain unknown.' : estimatedPreviews
                         ? `Estimated points left use the recorded-season average across W${league.currentWeek}–W${Engine.seasonEndWeek(league)}. Future weekly scores and availability stay sealed. Totals use your league scoring.`
                         : `Points left cover W${league.currentWeek}–W${Engine.seasonEndWeek(league)}, if started each week. Totals use your league scoring${Engine.playoffCount(league) ? ' and include playoff weeks' : ''}.`))),
             h('aside', { className: 'tl-waiver-command' },
@@ -445,17 +495,18 @@
                     h('header', { className: 'tl-action-dialog-head' }, h('h2', null, target ? 'Claim ' + target.name : 'Waiver claim'), h('button', { type: 'button', className: 'tl-btn', disabled: filing, onClick: closeClaim }, 'Close')),
 
                     claimMessage ? h('p', { role: 'status' }, claimMessage) : null,
-                    h('p',{className:'tl-hint'},'The displayed season is the one you receive if your claim wins. Editions refresh each waiver week.'),
+                    h('p',{className:'tl-hint'},concealed ? 'A winning claim fixes one hidden year from the displayed decade. It stays with the player for the rest of this season.' : 'The displayed season is the one you receive if your claim wins. Editions refresh each waiver week.'),
                     !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens after the first game day.' : league.phase === 'complete' ? 'Season complete — no more claims.' : 'Advance from the postgame recap to open waiver planning.')),
                     benchCap <= 0 && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'No bench configured — choose a drop that opens an eligible starting slot.')),
                     target ? h(React.Fragment, null,
                         h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' } },
                             h('span', { className: `tl-pos-badge tl-pos-${target.position}` }, target.position),
-                            h('span', { style: { flex: 1 } }, h('strong', { style: { display: 'block', fontSize: 12.5 } }, target.name), h('small', { style: { color: 'var(--text-muted)' } }, `${targetPreview?.drawnSeason ?? '—'} SEASON`))),
-                        h(PlayerSignals, { league, entry: waiverEntry(target), logIndex, eraFactors, throughWeek, className: 'tl-waiver-target-signals' }),
+                            h('span', { style: { flex: 1 } }, h('strong', { style: { display: 'block', fontSize: 12.5 } }, target.name), h('small', { style: { color: 'var(--text-muted)' } }, concealed ? window.App.TimeLeagueHiddenYears?.label(league, waiverEntry(target), cards) || 'Hidden year' : `${targetPreview?.drawnSeason ?? '—'} SEASON`))),
+                        h(PlayerSignals, { league, cards, entry: waiverEntry(target), logIndex, eraFactors, throughWeek, className: 'tl-waiver-target-signals' }),
+                        concealed && h(HiddenYearResearch, { league, entry: waiverEntry(target), cards, logIndex, eraFactors, throughWeek }),
                         h('div', { className: 'tl-waiver-preview' },
                             h('div', null, h('small', null, targetPreview?.estimated ? 'Estimated points left' : 'Points left'), h('strong', null, previewPoints(targetPreview?.remainingPoints))),
-                            h('div', null, h('small', null, league.settings.gameDeckVersion === 1 ? 'Recorded season total' : `W1–${Engine.seasonEndWeek(league)} total`), h('strong', null, previewPoints(targetPreview?.totalPoints))),
+                            !concealed && h('div', null, h('small', null, league.settings.gameDeckVersion === 1 ? 'Recorded season total' : `W1–${Engine.seasonEndWeek(league)} total`), h('strong', null, previewPoints(targetPreview?.totalPoints))),
                             h('div', null, h('small', null, 'Vault weeks left'), h('strong', null, Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1)))),
                         h('p', { className: 'tl-hint' }, matchupLabel),
                         h('fieldset', { className: 'tl-waiver-drop-list', disabled: filing },
@@ -466,9 +517,9 @@
                                 const eligible = Boolean(Engine.waiverLandingSlot(league, team, target.position, entry.entryId));
                                 return h('button', { key: entry.entryId, type: 'button', className: 'tl-waiver-drop-option' + (entry.entryId === dropEntryId ? ' is-selected' : ''),
                                     'aria-label': 'Drop ' + entry.name, 'aria-pressed': entry.entryId === dropEntryId, disabled: !eligible, onClick: () => setDropEntryId(entry.entryId) },
-                                    h('span', null, h('strong', null, entry.name), h('small', null, entry.position + ' · ' + entry.drawnSeason + ' · ' + entry.slot)),
+                                    h('span', null, h('strong', null, entry.name), h('small', null, entry.position + ' · ' + (concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : entry.drawnSeason) + ' · ' + entry.slot)),
                                     h('span', null, h('b', null, previewPoints(read.remaining)), h('small', null, 'Est. pts left · recent pace')),
-                                    h(PlayerSignals, { league, entry, logIndex, eraFactors, throughWeek }),
+                                    h(PlayerSignals, { league, cards, entry, logIndex, eraFactors, throughWeek }),
                                     !eligible && h('small', { className: 'tl-waiver-drop-ineligible' }, 'Does not open a matching slot'));
                             })),
                         h('p', { className: 'tl-hint' }, estimatedPreviews ? 'Roster estimates use completed-game pace; free-agent estimates use recorded-season average. Future NFL game assignments stay sealed.' : 'Roster estimates use completed-game pace. Free-agent points left use the remaining archive weeks.'),
@@ -505,7 +556,7 @@
                 team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' }))));
     }
 
-    function TradesSection({ league, cards, team, apply }) {
+    function TradesSection({ league, cards, team, apply, logIndex, eraFactors, throughWeek }) {
         const others = league.teams.filter((t) => t.teamId !== team.teamId);
         const [counterpartyId, setCounterpartyId] = useState(others.length ? others[0].teamId : '');
         const [giveIds, setGiveIds] = useState([]);
@@ -530,10 +581,11 @@
                 h('p', { style: { marginTop: 8, fontSize: 12.5, color: 'var(--text-secondary)' } }, "Trades are switched off in this league's settings. The desk never opens."));
         }
         const revealed = league.seasonsRevealed;
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const deskOpen = league.phase === 'season' && league.weekStage === 'claims';
         const responseOpen = league.phase === 'season' && league.weekStage === 'lineup';
         const counterparty = league.teams.find((t) => t.teamId === counterpartyId);
-        const valueOf = (entry) => AI.entryValueFromCard(cards.get(entry.identity), revealed ? entry.drawnSeason : undefined);
+        const valueOf = (entry) => concealed ? window.App.TimeLeagueHiddenYears?.read(league, entry, cards, logIndex, throughWeek, eraFactors).estimatedAverage ?? 0 : AI.entryValueFromCard(cards.get(entry.identity), revealed ? entry.drawnSeason : undefined);
         const give = giveIds.filter((id) => team.roster.some((e) => e.entryId === id));
         const receive = counterparty ? receiveIds.filter((id) => counterparty.roster.some((e) => e.entryId === id)) : [];
         const giveValue = give.reduce((sum, id) => sum + (entryById.has(id) ? valueOf(entryById.get(id)) : 0), 0);
@@ -548,7 +600,7 @@
             h('input', { type: 'checkbox', checked, onChange: onToggle, disabled: !deskOpen || sending, 'aria-label': `Select ${entry.name}` }),
             h('span', { className: `tl-pos ${entry.position}` }, entry.position),
             h('span', { className: 'tl-trade-player-name' }, h('strong', null, entry.name),
-                h('small', null, `${revealed ? entry.drawnSeason + ' season' : 'Sealed season'} · ${entry.slot}`)),
+                h('small', null, `${concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : revealed ? entry.drawnSeason + ' season' : 'Sealed season'} · ${entry.slot}`)),
             h('span', { className: 'tabular' }, fmt1(valueOf(entry))));
         const teamById = (id) => league.teams.find((t) => t.teamId === id);
         const names = (ids) => ids.map((id) => entryById.get(id)?.name ?? id).join(', ') || '—';
@@ -568,9 +620,9 @@
         };
         const side = (label, owner, ids, total, onToggle) => h('section', { className: 'tl-trade-side' },
             h('div', { className: 'tl-trade-side-head' }, h('div', null, h('small', null, label), h('h3', null, owner?.name || 'Choose a partner')),
-                h('div', { className: 'tl-trade-total' }, h('strong', { className: 'tabular' }, fmt1(total)), h('small', null, revealed ? 'SEASON PTS' : 'REFERENCE PTS'))),
+                h('div', { className: 'tl-trade-total' }, h('strong', { className: 'tabular' }, fmt1(total)), h('small', null, concealed ? 'EST. PTS / GAME' : revealed ? 'SEASON PTS' : 'REFERENCE PTS'))),
             h('div', { className: 'tl-trade-package' }, ids.length ? ids.map(id => h('button', { key: id, className: 'tl-trade-chip', disabled: sending, onClick: () => onToggle(id), 'aria-label': `Remove ${entryById.get(id)?.name}` }, entryById.get(id)?.name, ' ×')) : h('span', null, 'Select players below to build this side.')),
-            h('div', { className: 'tl-trade-list-label' }, h('span', null, `ROSTER · ${owner?.roster.length || 0} PLAYERS`), h('span', null, revealed ? 'SEASON PTS' : 'REFERENCE PTS')),
+            h('div', { className: 'tl-trade-list-label' }, h('span', null, `ROSTER · ${owner?.roster.length || 0} PLAYERS`), h('span', null, concealed ? 'EST. PTS / GAME' : revealed ? 'SEASON PTS' : 'REFERENCE PTS')),
             h('div', { className: 'tl-trade-player-list' }, owner && visibleRoster(owner.roster).map(entry => pickRow(entry, ids.includes(entry.entryId), () => onToggle(entry.entryId))),
                 (!owner || !visibleRoster(owner.roster).length) && h('p', { className: 'tl-empty' }, 'No players match these filters.')));
 
@@ -595,7 +647,7 @@
                 h('div', { className: 'tl-trade-verdict' },
                     h('strong', null, balanced ? grade.label : 'Build both sides'),
                     h('span', null, `${give.length} for ${receive.length} · ${balanced ? `${receiveValue - giveValue >= 0 ? '+' : ''}${fmt1(receiveValue - giveValue)} points to your side` : 'Equal-count swaps keep roster sizes fixed.'}`),
-                    h('small', null, 'Archived season points are a comparison, not a forecast or acceptance guarantee.')),
+                    h('small', null, concealed ? 'Estimates use completed games or the candidate-year archive. They do not consult a hidden year or guarantee acceptance.' : 'Archived season points are a comparison, not a forecast or acceptance guarantee.')),
                 h('div', { className: 'tl-trade-submit' },
                     h('input', { className: 'tl-input', 'aria-label': 'Trade offer note', placeholder: 'Add a note to your offer…', value: note, disabled: sending, onChange: e => setNote(e.target.value) }),
                     h('button', { className: 'tl-btn', disabled: sending || (!give.length && !receive.length), onClick: () => { setGiveIds([]); setReceiveIds([]); } }, 'Clear'),
@@ -702,7 +754,7 @@
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Join a manager seat to open your roster.'))
                 : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats })
                     : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors, throughWeek })
-                        : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply })
+                        : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply, logIndex, eraFactors, throughWeek })
                             : h(AchievementsSection, { key: team.teamId, league, team }));
     }
 

@@ -104,11 +104,34 @@
     /** Seasons this card may still be drawn from under the league's era rules. */
     const cardsFor = (state, cards) => state.settings.gameDeckVersion !== 1 && cards?.legacyCards ? cards.legacyCards : cards;
     const cardFor = (state, card) => state.settings.gameDeckVersion !== 1 && card?.legacyCard ? card.legacyCard : card;
-    const eraSeasons = (state, card) => filterSeasonsForEra(cardFor(state, card).seasons, state.settings.eraRules, card.position);
+    const eraSeasons = (state, card) => state.settings.hiddenYears && App.TimeLeagueHiddenYears
+        ? App.TimeLeagueHiddenYears.eligibleSeasons(state, cardFor(state, card))
+        : filterSeasonsForEra(cardFor(state, card).seasons, state.settings.eraRules, card.position);
+    const hiddenMetadata = (state, entry) => state.settings.hiddenYears ? { editionId: `mystery:${entry.identity}`,
+        hiddenDecade: App.TimeLeagueEraRules.decadeOf(entry.drawnSeason) } : {};
+    const assignedHiddenYear = (state, identity) => {
+        if (!state.settings.hiddenYears) return null;
+        const saved = state.hiddenYearAssignments?.[identity];
+        if (Number.isInteger(saved)) return saved;
+        const entry = state.teams.flatMap(team => team.roster).find(row => row.identity === identity)
+            || (state.finalizedWeeks || []).flatMap(week => week.playerProduction || week.results.flatMap(row => row.starters)).find(row => row.identity === identity);
+        return Number.isInteger(entry?.drawnSeason) ? entry.drawnSeason : null;
+    };
+    function lockHiddenYear(state, entry, card) {
+        if (!state.settings.hiddenYears) return {};
+        const candidates = state.hiddenYearCandidates?.[entry.identity] || (card ? eraSeasons(state, card).map(row => row.season) : []);
+        return {
+            hiddenYearAssignments: { ...state.hiddenYearAssignments, [entry.identity]: entry.drawnSeason },
+            hiddenYearDecades: { ...state.hiddenYearDecades, [entry.identity]: entry.hiddenDecade || App.TimeLeagueEraRules.decadeOf(entry.drawnSeason) },
+            hiddenYearCandidates: { ...state.hiddenYearCandidates, ...(candidates.length ? { [entry.identity]: [...new Set(candidates)].sort((a, b) => a - b) } : {}) },
+        };
+    }
 
     // The wire and the award use the same weekly draw, independent of claimant.
     const waiverSeason = (state, card, week = state.currentWeek) => {
         if (!card) return null;
+        const assigned = assignedHiddenYear(state, card.identity);
+        if (assigned !== null) return assigned;
         // Online editions are allocated by the server. A public snapshot must
         // never invent an edition by running the solo RNG with an absent seed.
         const allocation = state.publicSnapshotVersion === 1 ? state.waiverEditions : state.privateDraws?.waiver;
@@ -116,10 +139,17 @@
             const season = allocation?.week === week ? allocation.seasons?.[card.identity] : null;
             return Number.isInteger(season) && eraSeasons(state, card).some(row => row.season === season) ? season : null;
         }
-        return drawSeasonFrom(eraSeasons(state, card), `${state.seed}:waiver:${card.identity}:${week}`);
+        return drawSeasonFrom(eraSeasons(state, card), state.settings.hiddenYears ? `${state.seed}:hidden-year:${card.identity}` : `${state.seed}:waiver:${card.identity}:${week}`);
     };
 
-    function waiverPreview(state, card, logIndex, eraFactors, week = state.currentWeek) {
+    function waiverPreview(state, card, logIndex, eraFactors, week = state.currentWeek, throughWeek = Infinity) {
+        if (state.settings.hiddenYears && state.yearsRevealed !== true) {
+            const entry = { identity: card.identity, position: card.position, editionId: `mystery:${card.identity}` };
+            const read = App.TimeLeagueHiddenYears?.read(state, entry, cardsFor(state, new Map([[card.identity, card]])), logIndex, throughWeek, eraFactors);
+            const remainingWeeks = Math.max(0, seasonEndWeek(state) - week + 1);
+            return { drawnSeason: null, editionId: entry.editionId, hiddenDecade: read?.decade || null, startWeek: week, endWeek: seasonEndWeek(state), totalPoints: null,
+                remainingPoints: read?.estimatedAverage == null ? null : round2(read.estimatedAverage * remainingWeeks), remainingWeeks, estimated: true, hiddenYear: true };
+        }
         const drawnSeason = waiverSeason(state, card, week);
         if (drawnSeason === null) return null;
         const endWeek = seasonEndWeek(state);
@@ -398,6 +428,7 @@
             ...draftSettings(input.settings, true),
             draftOrderMode, draftTeamOrder: teamOrder,
             gameDeckVersion: input.settings.gameDeckVersion === 0 ? 0 : 1,
+            hiddenYears: input.settings.gameDeckVersion !== 0 && input.settings.hiddenYears !== false,
             playoffTeams: input.settings.playoffTeams || 0,
             advancementMode: input.settings.advancementMode || 'commissioner',
             gateHours: input.settings.gateHours || 24,
@@ -502,9 +533,9 @@
             team.roster.map((entry) => entry.position),
         );
         const allocated = state.privateDraws?.draft;
-        const drawnSeason = state.privateDraws
+        const drawnSeason = assignedHiddenYear(state, card.identity) ?? (state.privateDraws
             ? (allocated?.overall === seat.overall && eraSeasons(state, card).some(row => row.season === allocated.seasons?.[card.identity]) ? allocated.seasons[card.identity] : null)
-            : drawSeasonFrom(eraSeasons(state, card), `${state.seed}:draw:${card.identity}:${seat.overall}`);
+            : drawSeasonFrom(eraSeasons(state, card), state.settings.hiddenYears ? `${state.seed}:hidden-year:${card.identity}` : `${state.seed}:draw:${card.identity}:${seat.overall}`));
         if (!open || drawnSeason === null) return state;
         const entry = {
             entryId: `e${seat.overall}`,
@@ -516,6 +547,7 @@
             acquiredVia: "draft",
             acquiredWeek: state.currentWeek,
         };
+        Object.assign(entry, hiddenMetadata(state, entry));
         const pick = {
             overall: seat.overall,
             round: seat.round,
@@ -532,9 +564,10 @@
         const complete = state.draftPicks.length + 1 >= state.draftOrder.length;
         const events = appendEvents(state.activity);
         events.push(state.currentWeek, "draft", opts.auctionAward ? `Auction — ${team.name} wins ${card.name}, ${card.position} for $${state.draftAuction.nomination.highBid}` : `R${seat.round}.${String(pickInRound).padStart(2, "0")} — ${team.name} selects ${card.name}, ${card.position}`, opts.createdAt);
-        if (complete) events.push(state.currentWeek, "league", "Draft complete — mystery seasons revealed", opts.createdAt);
+        if (complete) events.push(state.currentWeek, "league", state.settings.hiddenYears ? "Draft complete — the decades are known; discover each hidden year through its games" : "Draft complete — mystery seasons revealed", opts.createdAt);
         return {
             ...state,
+            ...lockHiddenYear(state, entry, card),
             phase: complete ? "season" : state.phase,
             draftClock: complete ? { ...state.draftClock, status: "paused", deadlineAt: null, remainingMs: 0 } : restartedClock(state, opts.createdAt),
             seasonsRevealed: complete || state.seasonsRevealed,
@@ -582,7 +615,9 @@
             const room = (state.settings.rosterSlots[slot] ?? 0) - team.roster.filter((item) => item.slot === slot).length;
             if (room > 0) open.set(slot, room);
         }
-        const seasonPoints = (entry) => cards.get(entry.identity)?.seasons.find((item) => item.season === entry.drawnSeason)?.points ?? 0;
+        const seasonPoints = (entry) => state.settings.hiddenYears && state.yearsRevealed !== true
+            ? App.TimeLeagueHiddenYears?.read(state, entry, cards).estimatedAverage ?? 0
+            : cards.get(entry.identity)?.seasons.find((item) => item.season === entry.drawnSeason)?.points ?? 0;
         const bench = team.roster
             .filter((item) => item.slot === "BN")
             .sort((left, right) => seasonPoints(right) - seasonPoints(left) || left.entryId.localeCompare(right.entryId));
@@ -643,6 +678,8 @@
         return winners.length >= 2 ? winners.slice(0, winners.length / 2).map((seed, index) => [seed, winners[winners.length - 1 - index]]) : [];
     }
     function startPlayoffs(state, count) {
+        // A revealed edition cannot become secret again in an added postseason.
+        if (state.settings.hiddenYears && (state.seasonExtensionLocked || state.yearsRevealed || state.yearReveals?.length)) return state;
         if (state.phase !== 'complete' || playoffCount(state) || ![2,4,8].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + Math.log2(count) > 14) return state;
         const { championTeamId: _champion, ...rest } = state;
         return { ...rest, settings: { ...state.settings, playoffTeams: count }, phase: 'season', weekStage: 'postgame' };
@@ -666,6 +703,7 @@
                     name: entry.name,
                     position: entry.position,
                     drawnSeason: entry.drawnSeason,
+                    ...(state.settings.hiddenYears ? { editionId: entry.editionId, hiddenDecade: entry.hiddenDecade } : {}),
                     slot: entry.slot,
                     points: round2(raw * factor),
                     factor,
@@ -830,6 +868,7 @@
     function processWaivers(state, cards, createdAt) {
         cards = cardsFor(state, cards);
         if (!state.pendingClaims.length) return state;
+        let hiddenBook = {};
         const faab = state.settings.waiverMode === "faab";
         const priority = computeStandings(state).map((standing) => standing.teamId).reverse();
         const rank = new Map(priority.map((teamId, index) => [teamId, index]));
@@ -892,6 +931,9 @@
                 acquiredVia: "waiver",
                 acquiredWeek: week,
             };
+            Object.assign(entry, hiddenMetadata(state, entry));
+            if (dropEntry) hiddenBook = lockHiddenYear({ ...state, ...hiddenBook }, dropEntry, cards.get(dropEntry.identity));
+            hiddenBook = lockHiddenYear({ ...state, ...hiddenBook }, entry, card);
             entryNumber += 1;
             teams = teams.map((item) => (item.teamId === team.teamId ? {
                 ...item,
@@ -903,7 +945,7 @@
             if (dropEntry) taken.delete(dropEntry.identity);
             events.push(week, "waiver", `Waivers W${week} — ${team.name} lands ${card.name}${faab ? ` ($${bidAmount})` : ""}${dropEntry ? `, drops ${dropEntry.name}` : ""}`, createdAt);
         }
-        return { ...state, teams, pendingClaims: [], waiverResults: [...(state.waiverResults || []), ...awards], activity: events.list() };
+        return { ...state, ...hiddenBook, teams, pendingClaims: [], waiverResults: [...(state.waiverResults || []), ...awards], activity: events.list() };
     }
 
     function proposeTrade(state, offer, createdAt) {
@@ -1050,6 +1092,7 @@
             scoring,
             ...draftSettings(value, false),
             gameDeckVersion: value.gameDeckVersion === 1 ? 1 : 0,
+            hiddenYears: value.gameDeckVersion === 1 && value.hiddenYears === true,
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
             playoffTeams: [2,4,8].includes(value.playoffTeams) && regularSeasonWeeks + Math.log2(value.playoffTeams) <= 18 ? value.playoffTeams : 0,
             advancementMode: ['majority', 'timed'].includes(value.advancementMode) ? value.advancementMode : 'commissioner',
@@ -1081,7 +1124,9 @@
         const acquiredWeek = readNumber(value.acquiredWeek);
         if (!entryId || !identity || !name || !position || (!sealed && drawnSeason === null) || acquiredWeek === null) return null;
         const acquiredVia = value.acquiredVia === "waiver" || value.acquiredVia === "trade" ? value.acquiredVia : "draft";
-        return { entryId, identity, name, position, ...(!sealed ? { drawnSeason } : {}), slot: readSlot(value.slot), acquiredVia, acquiredWeek };
+        return { entryId, identity, name, position, ...(!sealed ? { drawnSeason } : {}), slot: readSlot(value.slot), acquiredVia, acquiredWeek,
+            ...(typeof value.editionId === 'string' && value.editionId.length <= 240 ? { editionId: value.editionId } : {}),
+            ...(App.TimeLeagueEraRules.ERA_DECADES.some(row => row.id === value.hiddenDecade) ? { hiddenDecade: value.hiddenDecade } : {}) };
     };
 
     const readTeam = (value, sealed = false) => {
@@ -1169,7 +1214,7 @@
         return stats;
     };
 
-    const readSnapshot = (value) => {
+    const readSnapshot = (value, concealed = false) => {
         if (!isRecord(value)) return null;
         const entryId = readString(value.entryId);
         const identity = readString(value.identity);
@@ -1179,19 +1224,21 @@
         const points = readNumber(value.points);
         const factor = readNumber(value.factor);
         const stats = value.stats == null ? null : readStats(value.stats);
-        if (!entryId || !identity || !name || !position || drawnSeason === null || points === null || factor === null) return null;
+        if (!entryId || !identity || !name || !position || (!concealed && (drawnSeason === null || factor === null)) || points === null) return null;
         if (value.stats != null && stats === null) return null;
-        return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), points, factor, stats,
+        return { entryId, identity, name, position, ...(!concealed ? { drawnSeason, factor } : {}), slot: readSlot(value.slot), points, stats,
+            ...(typeof value.editionId === 'string' && value.editionId.length <= 240 ? { editionId: value.editionId } : {}),
+            ...(App.TimeLeagueEraRules.ERA_DECADES.some(row => row.id === value.hiddenDecade) ? { hiddenDecade: value.hiddenDecade } : {}),
             ...(['recorded', 'no-record'].includes(value.availability) ? { availability: value.availability } : {}),
-            ...(Number.isInteger(value.sourceWeek) ? { sourceWeek: value.sourceWeek } : {}),
-            ...Object.fromEntries(['source', 'sourceGameId', 'coverage'].filter(key => typeof value[key] === 'string').map(key => [key, value[key]])) };
+            ...(!concealed && Number.isInteger(value.sourceWeek) ? { sourceWeek: value.sourceWeek } : {}),
+            ...(!concealed ? Object.fromEntries(['source', 'sourceGameId', 'coverage'].filter(key => typeof value[key] === 'string').map(key => [key, value[key]])) : {}) };
     };
 
-    const readTeamResult = (value) => {
+    const readTeamResult = (value, concealed = false) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
         const total = readNumber(value.total);
-        const starters = readArray(value.starters, readSnapshot);
+        const starters = readArray(value.starters, row => readSnapshot(row, concealed));
         return teamId && total !== null && starters ? { teamId, total, starters } : null;
     };
 
@@ -1206,13 +1253,13 @@
         return { home, away, homePoints, awayPoints, winner };
     };
 
-    const readFinalizedWeek = (value) => {
+    const readFinalizedWeek = (value, concealed = false) => {
         if (!isRecord(value)) return null;
         const week = readNumber(value.week);
-        const results = readArray(value.results, readTeamResult);
+        const results = readArray(value.results, row => readTeamResult(row, concealed));
         const matchups = readArray(value.matchups, readMatchup);
         const headlines = readArray(value.headlines, readString);
-        const production = value.playerProduction === undefined ? undefined : readArray(value.playerProduction, readSnapshot);
+        const production = value.playerProduction === undefined ? undefined : readArray(value.playerProduction, row => readSnapshot(row, concealed));
         if (value.playerProduction !== undefined && !production) return null;
         return week !== null && results && matchups && headlines ? { week, results, matchups, headlines, ...(production ? { playerProduction: production } : {}) } : null;
     };
@@ -1260,20 +1307,32 @@
         return { id, week, kind, message, createdAt };
     };
 
+    function readHiddenBooks(raw, publicView, sealed) {
+        if (publicView && sealed) return {};
+        const entries = value => isRecord(value) ? Object.entries(value).slice(0, 5000).filter(([id]) => id.length > 0 && id.length <= 220) : [];
+        const year = value => Number.isInteger(value) && value >= 1900 && value <= 2200;
+        const hiddenYearDecades = Object.fromEntries(entries(raw.hiddenYearDecades).filter(([, value]) => App.TimeLeagueEraRules.ERA_DECADES.some(row => row.id === value)));
+        const hiddenYearCandidates = Object.fromEntries(entries(raw.hiddenYearCandidates).filter(([id, value]) => Array.isArray(value) && value.length > 0 && value.length <= 10
+            && value.every(value => year(value) && App.TimeLeagueEraRules.decadeOf(value) === hiddenYearDecades[id])).map(([id, value]) => [id, [...new Set(value)].sort((a, b) => a - b)]));
+        return { hiddenYearDecades, hiddenYearCandidates,
+            ...(!publicView ? { hiddenYearAssignments: Object.fromEntries(entries(raw.hiddenYearAssignments).filter(([, value]) => year(value))) } : {}) };
+    }
+
     function normalizeLeagueShape(raw, publicView = false) {
         if (!isRecord(raw) || raw.version !== 1 || (publicView ? raw.publicSnapshotVersion !== 1 : raw.publicSnapshotVersion !== undefined)) return null;
         const sealed = publicView && raw.phase === 'draft';
+        const hiddenEntries = publicView && raw.settings?.hiddenYears === true && !(raw.phase === 'complete' && raw.yearsRevealed === true);
         const leagueId = readString(raw.leagueId);
         const name = readString(raw.name);
         const seed = readString(raw.seed);
         const createdAt = readString(raw.createdAt);
         const phase = raw.phase === "draft" || raw.phase === "season" || raw.phase === "complete" ? raw.phase : null;
         const settings = readSettings(raw.settings);
-        const teams = readArray(raw.teams, team => readTeam(team, sealed));
+        const teams = readArray(raw.teams, team => readTeam(team, sealed || hiddenEntries));
         const draftOrder = readArray(raw.draftOrder, readSeat);
         const draftPicks = readArray(raw.draftPicks, readPick);
         const schedule = readArray(raw.schedule, readScheduleWeek);
-        const finalizedWeeks = readArray(raw.finalizedWeeks, readFinalizedWeek);
+        const finalizedWeeks = readArray(raw.finalizedWeeks, row => readFinalizedWeek(row, hiddenEntries));
         const pendingClaims = readArray(raw.pendingClaims, readClaim);
         const trades = readArray(raw.trades, readTrade);
         const activity = readArray(raw.activity, readActivityEvent);
@@ -1304,6 +1363,9 @@
             draftClock: normalizeDraftClock(raw.draftClock, settings),
             draftAuction: normalizeAuction(raw.draftAuction, teams, draftPicks),
             seasonsRevealed: !sealed && raw.seasonsRevealed === true,
+            ...(settings.hiddenYears ? { yearsRevealed: phase === 'complete' && raw.yearsRevealed === true,
+                ...readHiddenBooks(raw, publicView, sealed),
+                ...(!publicView ? { yearReveals: Array.isArray(raw.yearReveals) ? [...new Set(raw.yearReveals.filter(id => teams.some(t => t.teamId === id && t.manager === 'human')))] : [] } : {}) } : {}),
             currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
             weekStage: ['postgame', 'claims', 'lineup', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
             gateStartedAt: typeof raw.gateStartedAt === 'string' && Number.isFinite(Date.parse(raw.gateStartedAt)) ? raw.gateStartedAt : createdAt,
@@ -1339,14 +1401,19 @@
         const editions = raw.waiverEditions;
         const seasons = isRecord(editions?.seasons) ? Object.fromEntries(Object.entries(editions.seasons).filter(([identity, season]) => identity && Number.isInteger(season) && season >= 1970 && season <= 2100)) : {};
         return { ...safe, publicSnapshotVersion: 1, draftVisibility: { allPositions, revealedPositions },
-            ...(safe.seasonsRevealed && raw.playerReports ? { playerReports: App.TimeLeaguePublicState?.sanitizePlayerReports(raw.playerReports, safe.currentWeek) || {} } : {}),
+            ...(safe.phase === 'draft' && safe.settings.eraRules.mode === 'position-roulette' ? { teams: safe.teams.map(team => ({ ...team, roster: team.roster.map(entry => {
+                if (revealedPositions.includes(entry.position)) return entry;
+                const { hiddenDecade: _hidden, ...rest } = entry; return rest;
+            }) })) } : {}),
+            ...(safe.seasonsRevealed && raw.playerReports ? { playerReports: App.TimeLeaguePublicState?.sanitizePlayerReports(raw.playerReports, safe.currentWeek, safe.settings.hiddenYears && safe.yearsRevealed !== true) || {} } : {}),
+            ...(safe.settings.hiddenYears ? { seasonExtensionLocked: raw.seasonExtensionLocked === true } : {}),
             ...(typeof raw.draftAutomation?.auctionPending === 'boolean' ? { draftAutomation: { auctionPending: raw.draftAutomation.auctionPending } } : {}),
-            ...(safe.seasonsRevealed && editions?.week === safe.currentWeek ? { waiverEditions: { week: editions.week, seasons } } : {}),
+            ...(safe.seasonsRevealed && !(safe.settings.hiddenYears && safe.yearsRevealed !== true) && editions?.week === safe.currentWeek ? { waiverEditions: { week: editions.week, seasons } } : {}),
         };
     }
 
     const api = {
-        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder, cardsFor,
+        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder, cardsFor, assignedHiddenYear,
         AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,

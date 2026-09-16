@@ -14,7 +14,7 @@
     const PICK = fields('overall round teamId entryId identity name position madeBy auctionPrice');
     const TEAM = fields('teamId name manager aiPersona primaryColor secondaryColor backdrop faabRemaining draftBudgetRemaining');
     const HELMET = fields('assetId artworkMode shell color shellColor accentColor decal monogram facemask facemaskColor stripe stripeStyle stripeColor paintStyle visor');
-    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget draftOrderMode gameDeckVersion');
+    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget draftOrderMode gameDeckVersion hiddenYears');
     const STATS = fields('passYd passTd passInt rushYd rushTd rec recYd recTd fumblesLost twoPointConversions');
 
     function draftVisibility(state, seatTeamId) {
@@ -83,19 +83,27 @@
         });
     }
 
-    function publicWeeks(state) {
+    function publicWeeks(state, hidden = false) {
+        const snapshotFields = hidden ? fields('entryId editionId hiddenDecade identity name position slot points availability') : fields('entryId editionId hiddenDecade identity name position drawnSeason slot points factor availability sourceWeek source sourceGameId coverage');
         return list(state.finalizedWeeks).map(week => ({ week: week.week,
             results: list(week.results).map(result => ({ teamId: result.teamId, total: result.total,
-                starters: list(result.starters).map(entry => ({ ...pick(entry, fields('entryId identity name position drawnSeason slot points factor availability sourceWeek source sourceGameId coverage')),
+                starters: list(result.starters).map(entry => ({ ...pick(entry, snapshotFields),
                     stats: entry.stats ? { ...pick(entry.stats, STATS), ...(entry.stats.extra ? { extra: numbers(entry.stats.extra) } : {}) } : null })) })),
             matchups: list(week.matchups).map(match => pick(match, fields('home away homePoints awayPoints winner'))), headlines: strings(week.headlines),
-            ...(week.playerProduction ? { playerProduction: list(week.playerProduction).map(entry => ({ ...pick(entry, fields('entryId identity name position drawnSeason slot points factor availability')), stats: entry.stats ? { ...pick(entry.stats, STATS), ...(entry.stats.extra ? { extra: numbers(entry.stats.extra) } : {}) } : null })) } : {}) }));
+            ...(week.playerProduction ? { playerProduction: list(week.playerProduction).map(entry => ({ ...pick(entry, snapshotFields), stats: entry.stats ? { ...pick(entry.stats, STATS), ...(entry.stats.extra ? { extra: numbers(entry.stats.extra) } : {}) } : null })) } : {}) }));
     }
 
-    function sanitizePlayerReports(reports, currentWeek) {
+    function sanitizePlayerReports(reports, currentWeek, hidden = false) {
         const result = {};
         for (const [key, report] of Object.entries(reports || {}).slice(0, 5000)) {
             if (!report || typeof report !== 'object') continue;
+            if (hidden) {
+                if (!/^(e\d+|wire:\d+:.+|mystery:.+)$/.test(key)) continue;
+                result[key] = { ...pick(report, fields('week remaining average estimatedRemaining')), currentAvailable: null, currentStars: null, maxRemainingStars: null,
+                    completed: list(report.completed).filter(row => Number.isInteger(row.week) && row.week < currentWeek).map(row => ({ ...pick(row, fields('week points')),
+                        stats: row.stats ? { ...pick(row.stats, STATS), ...(row.stats.extra ? { extra: numbers(row.stats.extra) } : {}) } : null })) };
+                continue;
+            }
             result[key] = {
                 ...pick(report, fields('week remaining average estimatedRemaining signal currentAvailable currentStars maxRemainingStars')),
                 completed: list(report.completed).filter(row => Number.isInteger(row.week) && row.week < currentWeek).map(row => ({
@@ -107,7 +115,17 @@
         return result;
     }
 
-    function playerReports(state, cards, logIndex, factors) {
+    function playerReports(state, cards, logIndex, factors, hidden = false) {
+        if (hidden) {
+            const H = App.TimeLeagueHiddenYears, remaining = Math.max(0, App.TimeLeagueEngine.seasonEndWeek(state) - state.currentWeek + 1);
+            if (!H) return {};
+            return Object.fromEntries(state.teams.flatMap(team => team.roster).filter(entry => entry.editionId).map(entry => {
+                const completed = H.observationRows(state, entry), games = completed.filter(row => row.available);
+                const average = games.length ? games.reduce((sum, row) => sum + row.points, 0) / games.length : null;
+                return [entry.editionId, { week: state.currentWeek, remaining, average, estimatedRemaining: average == null ? null : average * remaining,
+                    currentAvailable: null, currentStars: null, maxRemainingStars: null, completed }];
+            }));
+        }
         if (!logIndex?.size) return {};
         const S = App.TimeLeagueSeason, E = App.TimeLeagueEngine;
         const end = E.seasonEndWeek(state);
@@ -144,6 +162,8 @@
     function projectPublicState(state, seatTeamId, privateMessages = [], cards = new Map(), stamp = new Date().toISOString(), data = {}) {
         if (!state.teams.some(team => team.teamId === seatTeamId && team.manager === 'human')) throw new Error('You do not have a manager seat in this league.');
         const sealed = state.phase === 'draft' || state.seasonsRevealed !== true;
+        const yearsRevealed = state.phase === 'complete' && (state.yearReveals || []).includes(seatTeamId);
+        const hidden = state.settings.hiddenYears === true && !yearsRevealed;
         const visibility = draftVisibility(state, seatTeamId);
         const result = {
             ...pick(state, fields('version leagueId name createdAt phase currentWeek weekStage gateStartedAt championTeamId')),
@@ -151,7 +171,7 @@
             draftVisibility: visibility,
             settings: publicSettings(state, visibility),
             teams: state.teams.map(team => ({ ...pick(team, TEAM), helmet: pick(team.helmet, HELMET),
-                roster: list(team.roster).map(entry => pick(entry, sealed ? ENTRY : [...ENTRY, 'drawnSeason'])),
+                roster: list(team.roster).map(entry => pick(entry, [...ENTRY, 'editionId', ...(!sealed || state.settings.eraRules.mode !== 'position-roulette' || visibility.revealedPositions.includes(entry.position) ? ['hiddenDecade'] : []), ...(!sealed && !hidden ? ['drawnSeason'] : [])])),
                 queue: team.teamId === seatTeamId ? strings(team.queue) : [] })),
             draftOrder: list(state.draftOrder).map(seat => pick(seat, fields('overall round teamId'))),
             draftClock: pick(state.draftClock, fields('status startedAt deadlineAt remainingMs')),
@@ -159,9 +179,14 @@
                 ? pick(state.draftAuction.nomination, fields('identity name position nominatedBy highTeamId highBid')) : null },
             draftPicks: list(state.draftPicks).map(drafted => pick(drafted, PICK)),
             seasonsRevealed: !sealed,
+            ...(state.settings.hiddenYears ? { yearsRevealed, seasonExtensionLocked: Boolean(state.yearsRevealed || state.yearReveals?.length) } : {}),
+            ...(state.settings.hiddenYears && !sealed ? {
+                hiddenYearDecades: { ...state.hiddenYearDecades },
+                hiddenYearCandidates: Object.fromEntries(Object.entries(state.hiddenYearCandidates || {}).map(([id, years]) => [id, [...years]])),
+            } : {}),
             gateVotes: strings(state.gateVotes),
             schedule: list(state.schedule).map(week => ({ week: week.week, pairs: list(week.pairs).map(pair => strings(pair)) })),
-            finalizedWeeks: sealed ? [] : publicWeeks(state),
+            finalizedWeeks: sealed ? [] : publicWeeks(state, hidden),
             pendingClaims: sealed ? [] : list(state.pendingClaims).filter(claim => claim.teamId === seatTeamId)
                 .map(claim => pick(claim, fields('claimId teamId addIdentity addName addPosition dropEntryId week bidAmount'))),
             waiverResults: sealed ? [] : list(state.waiverResults).map(item => ({ ...pick(item, fields('week identity name winnerTeamId')), contenderTeamIds: strings(item.contenderTeamIds) })),
@@ -173,8 +198,8 @@
             rivalRelationships: list(state.rivalRelationships).filter(item => item.otherTeamId === seatTeamId)
                 .map(item => pick(item, fields('ownerTeamId otherTeamId heat updatedWeek'))),
         };
-        if (!sealed && state.settings.gameDeckVersion === 1) result.playerReports = sanitizePlayerReports(playerReports(state, cards, data.logIndex, data.eraFactors), state.currentWeek);
-        if (!sealed) result.waiverEditions = { week: state.currentWeek, seasons: Object.fromEntries(App.TimeLeagueEngine.freeAgents(state, cards)
+        if (!sealed && state.settings.gameDeckVersion === 1) result.playerReports = sanitizePlayerReports(playerReports(state, cards, data.logIndex, data.eraFactors, hidden), state.currentWeek, hidden);
+        if (!sealed && !hidden) result.waiverEditions = { week: state.currentWeek, seasons: Object.fromEntries(App.TimeLeagueEngine.freeAgents(state, cards)
             .map(card => [card.identity, App.TimeLeagueEngine.waiverSeason(state, card, state.currentWeek)])
             .filter(([, season]) => Number.isInteger(season))) };
         if (state.phase === 'draft' && state.settings.draftFormat === 'auction') result.draftAutomation = {

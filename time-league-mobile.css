@@ -234,3 +234,11 @@
   .tl-root.tl-play .tl-helmet-trigger { min-width:44px; flex-shrink:0; }
   .tl-root.tl-play .tl-helmet-picker { flex-shrink:0; }
 }
+
+/* A manager's character stays inside the scrollable conversation. */
+.tl-rival-profile { margin: 0 0 14px; padding: 12px; border: 1px solid var(--tl-border, #48566d); border-radius: 12px; font-size: 14px; line-height: 1.5; }
+.tl-rival-profile summary { cursor: pointer; font-weight: 700; min-height: 24px; }
+.tl-rival-profile p { margin: 8px 0; }
+.tl-rival-profile dl { margin: 10px 0; }
+.tl-rival-profile dt { font-weight: 700; margin-top: 8px; }
+.tl-rival-profile dd { margin: 0; }

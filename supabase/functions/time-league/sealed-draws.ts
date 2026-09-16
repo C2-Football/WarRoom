@@ -13,18 +13,23 @@ async function editionMap(state: any, cards: Cards, secret: string, kind: 'draft
     // secret and maps never enter saved engine state or a transport response.
     const candidates = (kind === 'draft' ? app().TimeLeagueEngine.eraEligibleCards(state, cards) : app().TimeLeagueEngine.freeAgents(state, cards)) as any[];
     const eligible = candidates.map(card => ({ identity: card.identity,
-        seasons: app().TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position).map((row: any) => row.season) }));
-    const cacheKey = JSON.stringify([secret, state.leagueId, kind, context, eligible]);
+        seasons: (state.settings.hiddenYears ? app().TimeLeagueHiddenYears.eligibleSeasons(state, card)
+            : app().TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position)).map((row: any) => row.season) }));
+    const cacheKey = JSON.stringify([secret, state.leagueId, kind, context, eligible, state.hiddenYearAssignments]);
     const found = cache.get(cacheKey);
     if (found) return { ...found };
     const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     const pairs = await Promise.all(eligible.filter(card => card.seasons.length > 0).map(async card => {
+        const assigned = app().TimeLeagueEngine.assignedHiddenYear(state, card.identity);
+        if (assigned !== null) return [card.identity, assigned] as [string, number];
         const count = card.seasons.length;
         const limit = Math.floor(0x100000000 / count) * count;
         // Rejection sampling avoids modulo bias. A rejection is exceedingly
         // unlikely with these short season lists; every retry is separated too.
         for (let attempt = 0; attempt < 8; attempt++) {
-            const message = JSON.stringify(['vault-edition-v1', kind, state.leagueId, context, card.identity, attempt]);
+            const message = JSON.stringify(state.settings.hiddenYears
+                ? ['vault-hidden-year-v1', state.leagueId, card.identity, attempt]
+                : ['vault-edition-v1', kind, state.leagueId, context, card.identity, attempt]);
             const digest = new DataView(await crypto.subtle.sign('HMAC', key, encoder.encode(message)));
             for (let offset = 0; offset < digest.byteLength; offset += 4) {
                 const value = digest.getUint32(offset, false);

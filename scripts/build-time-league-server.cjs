@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const root = path.resolve(__dirname, '..');
-const modules = ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'player-stats', 'rivals', 'ai', 'actions', 'public-state'];
+const modules = ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'hidden-years', 'player-stats', 'strategy', 'rivals', 'ai', 'actions', 'public-state'];
 const source = modules.map(name => fs.readFileSync(path.join(root, `js/shared/time-league-${name}.js`), 'utf8')).join('\n');
 const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
 const read = file => fs.readFileSync(path.join(root, 'data/time-league', file), 'utf8');

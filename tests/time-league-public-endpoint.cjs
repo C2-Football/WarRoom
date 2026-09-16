@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { createHmac, webcrypto } = require('node:crypto');
 const Babel = require('@babel/standalone');
 global.App = {};
-for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'rivals', 'ai', 'actions', 'public-state']) require(`../js/shared/time-league-${name}.js`);
+for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'hidden-years', 'rivals', 'ai', 'actions', 'public-state']) require(`../js/shared/time-league-${name}.js`);
 const { TimeLeagueEngine: E, TimeLeagueAI: AI, TimeLeagueSeason: S, TimeLeaguePublicState: P } = App;
 const secret = '3205fdd1-c6a7-42ed-93df-9db417404304';
 const stamp = '2026-09-08T00:00:00.000Z';
@@ -56,6 +56,24 @@ async function loadTs(file) {
     const gameCard = { identity: 'player:QB:decktest', name: 'Deck Test', position: 'QB', peak: 17,
         seasons: [{ season: 2003, games: 17, points: 17, scheduledGames: 17, sourceWeeks: Array.from({ length: 18 }, (_, i) => i + 1).filter(week => week !== 13) }] };
     const gameCards = new Map([[gameCard.identity, gameCard]]);
+    const mysteryCard = { ...gameCard, seasons: [2003, 2004].map(season => ({ ...gameCard.seasons[0], season })) };
+    const mysteryCards = new Map([[mysteryCard.identity, mysteryCard]]);
+    const mysteryState = { ...modernState, settings: { ...modernState.settings, hiddenYears: true, eraRules: { mode: 'any-era', decades: [] } } };
+    const mysteryDraft = await sealed.prepareSealedDraws(mysteryState, mysteryCards, secret);
+    const fixedYear = mysteryDraft.privateDraws.draft.seasons[mysteryCard.identity];
+    for (const currentWeek of [1, 5, 14]) {
+        const mysteryWire = await sealed.prepareSealedDraws({ ...mysteryState, phase: 'season', currentWeek }, mysteryCards, secret);
+        assert.equal(mysteryWire.privateDraws.waiver.seasons[mysteryCard.identity], fixedYear, 'Draft and every waiver window keep the same private hidden year');
+        assert(!JSON.stringify(P.projectPublicState(mysteryWire, 't1', [], mysteryCards)).includes('drawnSeason'));
+    }
+    const mysteryPicked = E.applyDraftPick(mysteryDraft, mysteryCard, { madeBy: 'human', createdAt: stamp });
+    const mysteryReleased = E.normalizeTimeLeague({ ...mysteryPicked, phase: 'season', seasonsRevealed: true, teams: mysteryPicked.teams.map(team => ({ ...team, roster: [] })) });
+    const enlargedMysteryCards = new Map([[mysteryCard.identity, { ...mysteryCard, seasons: [...mysteryCard.seasons, ...[2005, 2011].map(season => ({ ...gameCard.seasons[0], season }))] }]]);
+    const repeatedMystery = await sealed.prepareSealedDraws(mysteryReleased, enlargedMysteryCards, secret);
+    assert.equal(repeatedMystery.privateDraws.waiver.seasons[mysteryCard.identity], fixedYear, 'The durable private assignment prevents HMAC modulo changes after archive expansion');
+    const publicMystery = P.projectPublicState(repeatedMystery, 't1', [], enlargedMysteryCards);
+    assert(!Object.hasOwn(publicMystery, 'hiddenYearAssignments')); assert(!Object.hasOwn(E.normalizePublicTimeLeague(publicMystery), 'hiddenYearAssignments'));
+    assert.deepEqual(publicMystery.hiddenYearCandidates[mysteryCard.identity], [2003, 2004], 'Both original candidate years stay public after a drop without incorporating new archive years');
     const gameEntry = { identity: gameCard.identity, name: gameCard.name, position: gameCard.position, drawnSeason: 2003,
         entryId: 'p1', slot: 'QB', acquiredVia: 'draft', acquiredWeek: 1 };
     const gameState = { ...modernState, phase: 'season', seasonsRevealed: true,

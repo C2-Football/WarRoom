@@ -3,7 +3,7 @@ import { handleOptions, json, requireActiveAppSession } from '../_shared/securit
 import { App, loadData, availableSeasons } from './runtime.js';
 
 const ACTION_FIELDS: Record<string, string[]> = {
-    'set-ready': ['ready'], 'start-draft': [], 'draft-pick': ['playerId'], 'reveal-next': [],
+    'address-ruler': ['messageId', 'targetFactionId', 'intent', 'seenThroughWeek'], 'reveal-years': [], 'set-ready': ['ready'], 'start-draft': [], 'draft-pick': ['playerId'], 'reveal-next': [],
     'reveal-rulers': [], 'set-lineup': ['playerIds'],
     'declare-favor': ['favorId', 'playerId', 'sourceWeek'], 'clear-favor': ['playerId'],
     'claim': ['territoryId'], 'attack': ['territoryId'], 'fortify': ['territoryId'], 'advance-week': [],
@@ -11,7 +11,7 @@ const ACTION_FIELDS: Record<string, string[]> = {
     'ritual': ['ritualId', 'playerId', 'replacementId', 'armyId', 'position', 'wager', 'confirmed'],
     'propose-pinnacle': ['week'], 'approve-pinnacle': [], 'decline-pinnacle': [], 'next-season': ['season'],
 };
-const SOURCEBOOK_ACTIONS = ['name-ruler', 'name-alliance', 'ritual', 'propose-pinnacle', 'approve-pinnacle', 'decline-pinnacle', 'next-season'];
+const SOURCEBOOK_ACTIONS = ['address-ruler', 'reveal-years', 'name-ruler', 'name-alliance', 'ritual', 'propose-pinnacle', 'approve-pinnacle', 'decline-pinnacle', 'next-season'];
 const HOST_ACTIONS = ['start-draft', 'reveal-next', 'reveal-rulers', 'advance-week', 'next-season'];
 const READY_LOCKED_ACTIONS = ['set-lineup', 'declare-favor', 'clear-favor', 'name-ruler', 'name-alliance', 'ritual', 'propose-pinnacle', 'approve-pinnacle', 'decline-pinnacle'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,13 +36,14 @@ function canonicalAction(value: any, factionId: string): any {
     if (action.position !== undefined && !['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX'].includes(action.position)) reject('Choose a supported position.');
     if (action.wager !== undefined && ![10, 25, 50, 75, 100].includes(action.wager)) reject('Choose a supported Ebisu wager.');
     for (const key of ['sourceWeek', 'week']) if (action[key] !== undefined && (!Number.isInteger(action[key]) || action[key] < 1 || action[key] > 17)) reject('Choose a valid campaign week.');
+    if (action.type === 'address-ruler' && (typeof action.messageId !== 'string' || !action.messageId.trim() || action.messageId.length > 120 || typeof action.targetFactionId !== 'string' || action.targetFactionId.length > 120 || !['respect', 'counsel', 'challenge', 'alliance'].includes(action.intent) || !Number.isInteger(action.seenThroughWeek) || action.seenThroughWeek < 0 || action.seenThroughWeek > 17)) reject('Choose a valid ruler conversation.');
     if (action.season !== undefined && (!Number.isInteger(action.season) || !availableSeasons.includes(action.season))) reject('Choose a complete historical year.');
     return action;
 }
 function sourcebook(state: any): boolean { return state.version === 4 && state.expansionVersion === 1; }
 function dataYears(state: any, allYears = false): number[] {
     if (!sourcebook(state)) return state.seasons;
-    return allYears ? availableSeasons : App.DuatCampaign.requiredYears(state);
+    return allYears || App.DuatMystery.enabled(state) ? availableSeasons : App.DuatCampaign.requiredYears(state);
 }
 function sameIntent(left: any, right: any): boolean {
     const sort = (value: any): any => Array.isArray(value) ? value.map(sort)
@@ -119,7 +120,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
             const humanFactionIds = [...new Set([input.hostFactionId, ...invited])];
             const campaign = App.DuatCampaign.createCampaign({ version, era, settings, scoring, expansionSettings, id: crypto.randomUUID(), name: input.name.trim(),
                 seed: crypto.randomUUID(), createdAt: new Date().toISOString(), seasons: input.seasons,
-                hostFactionId: input.hostFactionId, humanFactionIds, factionIds: selected }, await loadData(input.seasons));
+                hostFactionId: input.hostFactionId, humanFactionIds, factionIds: selected }, await loadData(era?.hiddenYears ? availableSeasons : input.seasons));
             const { data: roomId, error } = await admin.rpc('create_duat_campaign', { p_user_id: session.userId, p_state: campaign });
             if (error) throw error;
             return json(req, { ok: true, room: await projectRoom(await authorizedRoom(admin, roomId, session.userId)) });
@@ -155,7 +156,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         }
         if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision !== row.revision) return json(req, { ok: false, conflict: true, revision: row.revision, error: 'The campaign changed. Reload before retrying.' }, 409);
         if (!sourcebook(row.state) && SOURCEBOOK_ACTIONS.includes(action.type)) reject('This action requires a sourcebook dynasty.');
-        if (row.state.phase === 'complete' && (!sourcebook(row.state) || !['set-ready', 'next-season', 'ritual', 'claim', 'attack'].includes(action.type))) reject('This campaign is complete.');
+        if (row.state.phase === 'complete' && (!sourcebook(row.state) || !['set-ready', 'next-season', 'ritual', 'claim', 'attack', 'reveal-years', 'address-ruler'].includes(action.type))) reject('This campaign is complete.');
         if (HOST_ACTIONS.includes(action.type)) {
             if (member.role !== 'host') reject('Only the host can advance the campaign.', 403);
             if (members.some((seat: any) => !seat.user_id || !seat.joined_at || !seat.ready)) reject('Every human faction must join and be ready.');
