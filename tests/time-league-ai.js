@@ -310,7 +310,7 @@ test('AI offers reach human managers and remain pending until their response', (
         cards.set(id, { identity: id, name: id, position, peak: points, seasons: [{ season: 2000, points }] });
         return { entryId: id, identity: id, name: id, position, drawnSeason: 2000, slot };
     };
-    state = { ...state, phase: 'season', teams: state.teams.map((team, index) => ({ ...team, roster: index === 0
+    state = { ...state, phase: 'season', seasonsRevealed: true, teams: state.teams.map((team, index) => ({ ...team, roster: index === 0
         ? [make('a1','WR',100,'WR'), make('a2','WR',80,'BN'), make('a3','RB',20,'RB')]
         : [make('h1','RB',100,'RB'), make('h2','RB',90,'BN'), make('h3','WR',20,'WR')] })) };
     const next = AI.aiGenerateTrades(state, cards, '2026-01-01T00:00:00Z');
@@ -334,6 +334,154 @@ test('aiRespondToTrades resolves every pending offer addressed to an AI team', (
     state = Engine.proposeTrade(state, { fromTeamId: teamA.teamId, toTeamId: teamB.teamId, giveEntryIds: [give.entryId], receiveEntryIds: [receive.entryId], note: '' }, '2026-01-01T00:00:00Z');
     const next = AI.aiRespondToTrades(state, cards, '2026-01-01T00:00:00Z');
     assert.notStrictEqual(next.trades[0].status, 'pending');
+});
+
+// Actual archive, standard mobile preset: each FLEX is one seat, not a
+// requirement for an extra RB, WR and TE at the same time.
+require('../js/shared/time-league-player-cards.js');
+const Actions = require('../js/shared/time-league-actions.js');
+const fs = require('fs');
+let realCards;
+const realDraft = (count = 6) => {
+    realCards ||= App.TimeLeaguePlayerCards.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/player-cards.json')));
+    let state = Engine.createTimeLeague({ name: 'Trade fit regression', seed: 'phone-quota-week-nine', createdAt: '2026-09-15T12:00:00Z',
+        seats: [{ name: 'You', manager: 'human' }, ...Array.from({ length: count - 1 }, (_, i) => Engine.defaultAiSeat(i + 1))],
+        settings: baseSettings({ gameDeckVersion: 1, rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 3 },
+            maxQuarterbacks: 2, regularSeasonWeeks: 12, playoffTeams: 4, eraRules: { mode: 'position-roulette', decades: [] } }) });
+    for (let guard = 0; state.phase === 'draft' && guard < 200; guard++) {
+        const choice = AI.aiDraftChoice(state, realCards);
+        assert(choice, 'A legal real-data draft choice exists');
+        state = Engine.applyDraftPick(state, choice, { madeBy: 'ai', createdAt: state.createdAt });
+    }
+    assert.equal(state.draftPicks.length, count * 12);
+    return { ...state, currentWeek: 10, weekStage: 'claims' };
+};
+let sixTeamSave;
+test('a resumed six-team 72-pick season receives a fair useful offer without restarting or changing its roster', () => {
+    const state = sixTeamSave = realDraft();
+    const saved = JSON.stringify(state);
+    const next = AI.aiGenerateTrades(state, realCards, state.createdAt, { humanOnly: true });
+    assert.equal(JSON.stringify(state), saved, 'The old save is immutable');
+    assert.equal(next.trades.length, 1, 'A real standard roster must produce a human offer');
+    assert.deepStrictEqual(next.teams, state.teams, 'No human trade or lineup change is automatic');
+    const offer = next.trades[0];
+    assert.equal(offer.toTeamId, 't1'); assert.equal(offer.status, 'pending');
+    assert(/Best-lineup archive average: \+[0-9.]+ pts\/game for you/.test(offer.note));
+    assert(/not a game forecast/.test(offer.note));
+    const restored = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(next)));
+    assert.equal(restored.trades[0].note, offer.note, 'The reason survives save/reload');
+    const accepted = Engine.respondToTrade({ ...restored, weekStage: 'lineup' }, offer.tradeId, true, '', state.createdAt);
+    assert.equal(accepted.trades[0].status, 'accepted', 'The recommended exchange is executable');
+    for (const team of accepted.teams) {
+        assert.equal(team.roster.length, 12);
+        assert(team.roster.filter(entry => entry.position === 'QB').length <= 2);
+    }
+});
+
+test('pending, deferred and rejected recommendations never spam the same week or repeat the same package', () => {
+    const state = sixTeamSave;
+    const next = AI.aiGenerateTrades(state, realCards, state.createdAt, { humanOnly: true });
+    assert.strictEqual(AI.aiGenerateTrades(next, realCards, state.createdAt, { humanOnly: true }), next);
+    const deferred = Engine.deferTrade(next, next.trades[0].tradeId);
+    assert.strictEqual(AI.aiGenerateTrades({ ...deferred, currentWeek: 11 }, realCards, state.createdAt, { humanOnly: true }).trades.length, 1);
+    const rejected = Engine.respondToTrade(next, next.trades[0].tradeId, false, '', state.createdAt);
+    assert.strictEqual(AI.aiGenerateTrades(rejected, realCards, state.createdAt, { humanOnly: true }), rejected);
+    const later = AI.aiGenerateTrades({ ...rejected, currentWeek: 11 }, realCards, state.createdAt, { humanOnly: true });
+    for (const trade of later.trades.slice(1)) assert.notDeepStrictEqual([trade.giveEntryIds, trade.receiveEntryIds], [next.trades[0].giveEntryIds, next.trades[0].receiveEntryIds]);
+});
+
+test('online existing saves refresh only at a planning gate for a real human manager', () => {
+    const state = sixTeamSave, member = { seat_team_id: 't1', role: 'member' };
+    const refreshed = Actions.applyOnlineAction(state, { type: 'refresh-trade-offers' }, member, { cards: realCards }, state.createdAt);
+    assert.equal(refreshed.trades.length, 1);
+    assert.deepStrictEqual(refreshed.teams, state.teams);
+    const retry = Actions.applyOnlineAction(refreshed, { type: 'refresh-trade-offers' }, member, { cards: realCards }, state.createdAt);
+    assert.deepStrictEqual(retry, refreshed);
+    assert.throws(() => Actions.applyOnlineAction(state, { type: 'refresh-trade-offers' }, { seat_team_id: 'stranger', role: 'member' }, { cards: realCards }, state.createdAt), /league manager/);
+    for (const weekStage of ['ready', 'postgame']) assert.throws(() => Actions.applyOnlineAction({ ...state, weekStage }, { type: 'refresh-trade-offers' }, member, { cards: realCards }, state.createdAt), /weekly planning/);
+});
+
+test('AI suggestions ignore sealed editions, public snapshots and every private future-game field', () => {
+    const state = sixTeamSave;
+    const inaccessibleCards = { get size() { throw new Error('The sealed archive was read'); } };
+    for (const extra of [{ seasonsRevealed: false }, { phase: 'draft' }, { publicSnapshotVersion: 1 }, { weekStage: 'postgame' }]) {
+        const blocked = { ...state, ...extra };
+        assert.strictEqual(AI.aiGenerateTrades(blocked, inaccessibleCards, state.createdAt), blocked);
+    }
+    const guarded = { ...state };
+    for (const key of ['playerReports', 'privateDraws', 'gameDecks', 'availabilityPlan']) Object.defineProperty(guarded, key, { get() { throw new Error('Read hidden future data: ' + key); } });
+    assert(AI.aiGenerateTrades(guarded, realCards, state.createdAt, { humanOnly: true }).trades.length > 0);
+    const noTrades = { ...state, settings: { ...state.settings, tradesEnabled: false } };
+    assert.strictEqual(AI.aiGenerateTrades(noTrades, realCards, state.createdAt), noTrades);
+});
+
+test('legacy editions use their own archive and cap-bound quarterbacks never receive illegal recommendations', () => {
+    const state = { ...sixTeamSave, settings: { ...sixTeamSave.settings, gameDeckVersion: 0 } };
+    const cards = new Map(); cards.legacyCards = realCards;
+    const next = AI.aiGenerateTrades(state, cards, state.createdAt, { humanOnly: true });
+    assert.equal(next.trades.length, 1, 'Legacy saves are eligible at their current week');
+    const capOne = { ...state, settings: { ...state.settings, maxQuarterbacks: 1 } };
+    const capped = AI.aiGenerateTrades(capOne, cards, state.createdAt, { humanOnly: true });
+    for (const trade of capped.trades) {
+        const accepted = Engine.respondToTrade(capped, trade.tradeId, true, '', state.createdAt);
+        assert.equal(accepted.trades.find(item => item.tradeId === trade.tradeId).status, 'accepted');
+        assert(accepted.teams.filter(team => [trade.fromTeamId, trade.toTeamId].includes(team.teamId)).every(team => team.roster.filter(entry => entry.position === 'QB').length <= 1));
+    }
+});
+
+test('a tempting quarterback-for-depth recommendation is rejected when the recipient is already at its QB cap', () => {
+    const cards = new Map();
+    const make = (id, position, points, slot) => {
+        cards.set(id, card(id, id, position, [{ season: 2000, points }]));
+        return { entryId: id, identity: id, name: id, position, drawnSeason: 2000, slot, acquiredVia: 'draft', acquiredWeek: 0 };
+    };
+    let state = Engine.createTimeLeague({ name: 'QB limit', seed: 'cap', createdAt: '2026-01-01T00:00:00Z',
+        settings: baseSettings({ rosterSlots: { QB: 1, RB: 1, WR: 1, BN: 2 }, maxQuarterbacks: 2 }),
+        seats: [{ name: 'AI', manager: 'ai', aiPersona: 'steward' }, { name: 'Human', manager: 'human' }] });
+    state = { ...state, phase: 'season', seasonsRevealed: true, teams: state.teams.map((team, index) => ({ ...team, roster: index === 0
+        ? [make('a-q1', 'QB', 10, 'QB'), make('a-q2', 'QB', 5, 'BN'), make('a-r1', 'RB', 100, 'RB'), make('a-r2', 'RB', 90, 'BN'), make('a-w', 'WR', 10, 'WR')]
+        : [make('h-q1', 'QB', 200, 'QB'), make('h-q2', 'QB', 90, 'BN'), make('h-r', 'RB', 10, 'RB'), make('h-w1', 'WR', 100, 'WR'), make('h-w2', 'WR', 5, 'BN')] })) };
+    const relaxed = { ...state, settings: { ...state.settings, maxQuarterbacks: 3 } };
+    assert.equal(AI.aiGenerateTrades(relaxed, cards, state.createdAt).trades.length, 1, 'The roster fit qualifies when the recipient has QB room');
+    assert.strictEqual(AI.aiGenerateTrades(state, cards, state.createdAt), state, 'The identical tempting deal is suppressed at the real QB cap');
+});
+
+test('one AI cannot promise away a required position across separate human offers', () => {
+    const cards = new Map();
+    const make = (id, position, points, slot) => {
+        cards.set(id, card(id, id, position, [{ season: 2000, points }]));
+        return { entryId: id, identity: id, name: id, position, drawnSeason: 2000, slot, acquiredVia: 'draft', acquiredWeek: 0 };
+    };
+    let state = Engine.createTimeLeague({ name: 'Two human desks', seed: 'multi-human', createdAt: '2026-01-01T00:00:00Z',
+        settings: baseSettings({ rosterSlots: { RB: 1, WR: 1, BN: 1 } }),
+        seats: [{ name: 'AI', manager: 'ai', aiPersona: 'steward' }, { name: 'Human 1', manager: 'human' }, { name: 'Human 2', manager: 'human' }] });
+    state = { ...state, phase: 'season', seasonsRevealed: true, teams: state.teams.map((team, index) => ({ ...team, roster: index === 0
+        ? [make('a-r1', 'RB', 100, 'RB'), make('a-r2', 'RB', 90, 'BN'), make('a-w', 'WR', 10, 'WR')]
+        : [make(`h${index}-r`, 'RB', 10, 'RB'), make(`h${index}-w1`, 'WR', 100, 'WR'), make(`h${index}-w2`, 'WR', 90, 'BN')] })) };
+    const next = AI.aiGenerateTrades(state, cards, state.createdAt, { humanOnly: true });
+    assert.equal(next.trades.length, 1, 'One AI can commit its roster to only one human at a time');
+    assert.strictEqual(AI.aiGenerateTrades(next, cards, state.createdAt, { humanOnly: true }), next, 'A retry cannot offer the second RB to the other human');
+    const accepted = Engine.respondToTrade(next, next.trades[0].tradeId, true, '', state.createdAt);
+    assert.equal(accepted.trades[0].status, 'accepted');
+    const prepared = AI.aiPrepareWeek(accepted, cards);
+    assert.equal(Engine.lineupProblems(prepared, 't1').length, 0, 'Accepting every generated offer leaves the AI able to start RB and WR');
+    assert.strictEqual(AI.aiGenerateTrades({ ...next, currentWeek: 2 }, cards, state.createdAt, { humanOnly: true }).trades.length, 1, 'The existing pending commitment also protects next week');
+});
+
+test('twelve-team candidate search stays bounded and reserves pending human deals from rival trades', () => {
+    const state = realDraft(12);
+    const started = performance.now();
+    const next = AI.aiGenerateTrades(state, realCards, state.createdAt);
+    const elapsed = performance.now() - started;
+    assert(next.trades.some(trade => trade.toTeamId === 't1' && trade.status === 'pending'));
+    assert(next.trades.length <= 2);
+    for (const trade of next.trades.filter(item => item.status === 'accepted')) {
+        for (const id of [trade.fromTeamId, trade.toTeamId]) assert.equal(Engine.lineupProblems(next, id).length, 0, 'AI trades retain legal occupied starter slots');
+    }
+    assert(elapsed < 1500, `Trade search took ${elapsed.toFixed(1)}ms; no combinatorial roster search is allowed`);
+    const humanOffer = next.trades.find(trade => trade.toTeamId === 't1');
+    assert.deepStrictEqual(next.teams.find(team => team.teamId === humanOffer.fromTeamId), state.teams.find(team => team.teamId === humanOffer.fromTeamId), 'An automatic rival deal cannot invalidate the pending human offer fit');
+    console.log(`      12-team trade search: ${elapsed.toFixed(1)}ms`);
 });
 
 console.log('');

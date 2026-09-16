@@ -27,6 +27,26 @@
         }
         return { points: round(points), games, average: games ? round(points / games) : 0, stats };
     }
+    // The same recorded-game average is comparable on a roster, the wire and
+    // a substitution sheet. A weekly star clue ranks the assigned historical
+    // game within this player's archive; it is not a win or play probability.
+    function signals(league, entry, logIndex, eraFactors, throughWeek = Infinity) {
+        const hidden = { average: null, games: null, points: null, currentStars: null, currentAvailable: null };
+        if (!league.seasonsRevealed || !Number.isInteger(entry?.drawnSeason)) return { ...hidden, status: 'sealed' };
+        const production = totals(league, entry, logIndex, eraFactors, completedWeeks(league, throughWeek));
+        const result = { ...hidden, points: production.points, games: production.games,
+            average: production.games > 0 && Number.isFinite(production.average) ? production.average : null };
+        const endWeek = App.TimeLeagueEngine.seasonEndWeek(league);
+        if (league.phase === 'complete' || league.currentWeek > endWeek) return { ...result, status: 'complete' };
+        if (league.weekStage === 'postgame' || throughWeek < league.currentWeek - 1) return { ...result, status: 'awaiting-week' };
+        const rating = App.TimeLeagueSeason.weeklyStarOutlook(entry, league.currentWeek, endWeek, logIndex,
+            league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null, league);
+        const current = rating?.schedule?.find(row => row.week === league.currentWeek);
+        const available = current?.available;
+        if (typeof available !== 'boolean') return { ...result, status: 'unavailable' };
+        return { ...result, status: 'ready', currentAvailable: available,
+            currentStars: available && Number.isInteger(rating.stars) && rating.stars >= 1 && rating.stars <= 5 ? rating.stars : null };
+    }
     function players(league, cards, logIndex, eraFactors, throughWeek = Infinity, period = 'ytd') {
         if (!league.seasonsRevealed) return [];
         const E = App.TimeLeagueEngine;
@@ -51,5 +71,5 @@
             return (ascending ? difference : -difference) || a.name.localeCompare(b.name);
         });
     }
-    App.TimeLeaguePlayerStats = { completedWeeks, totals, players, filterAndSort };
+    App.TimeLeaguePlayerStats = { completedWeeks, totals, signals, players, filterAndSort };
 })(typeof window !== 'undefined' ? window : globalThis);

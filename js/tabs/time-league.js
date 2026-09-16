@@ -1211,9 +1211,12 @@
                         if (!options.background) setConflictNotice(null);
                         return result.row?.state || true;
                     }
-                    if (!(options.background && result.conflict)) setConflictNotice(result.conflict ? 'Someone else acted first. Your move was not saved; review the updated room and try again.' : result.error);
-                    try { acceptRow(await Remote.loadOnlineLeague(meta.rowId)); } catch (error) { setConnectionError(error.message); }
+                    if (!options.optional && !(options.background && result.conflict)) setConflictNotice(result.conflict ? 'Someone else acted first. Your move was not saved; review the updated room and try again.' : result.error);
+                    try { acceptRow(await Remote.loadOnlineLeague(meta.rowId)); } catch (error) { if (!options.optional) setConnectionError(error.message); }
                     return false;
+                } catch (error) {
+                    if (options.optional) return false;
+                    throw error;
                 } finally { writeBusy.current = false; setSaving(false); }
             }
             const retryingLocalSave = pendingLocalSave.current === next;
@@ -1249,6 +1252,27 @@
             setLeague(safe);
             return true;
         }, [persistLeague, acceptRow, cards]);
+
+        // Resume old saves at their current planning gate. This only adds an
+        // offer to the inbox; accepting it remains the manager's decision.
+        const tradeRefreshKey = useRef(null);
+        useEffect(() => {
+            if (!league || !cards?.size || saving || storageError || !league.seasonsRevealed
+                || league.phase !== 'season' || !league.settings.tradesEnabled || !['claims', 'lineup'].includes(league.weekStage)) return;
+            const current = leagueRef.current;
+            if (!current || pendingLocalSave.current || writeBusy.current) return;
+            const key = `${onlineMeta?.rowId || current.leagueId}:${current.currentWeek}:${current.weekStage}`;
+            if (tradeRefreshKey.current === key) return;
+            tradeRefreshKey.current = key;
+            if (onlineRef.current) {
+                // Public snapshots have neither a seed nor private game decks.
+                // Only the authoritative server generates online offers.
+                handleUpdate(current, { type: 'refresh-trade-offers' }, { background: true, optional: true });
+            } else {
+                const next = window.App.TimeLeagueAI.aiGenerateTrades(current, cards, new Date().toISOString(), { humanOnly: true });
+                if (next !== current) handleUpdate(next);
+            }
+        }, [league?.leagueId, league?.currentWeek, league?.weekStage, league?.seasonsRevealed, onlineMeta?.rowId, cards, saving, storageError, handleUpdate]);
 
         const retryLocalSave = useCallback(async () => {
             let pending = pendingLocalSave.current;
@@ -1638,7 +1662,7 @@
                 activeTab === 'activity' && ActivityPanel ? (league.phase === 'draft' && !draftRevealed
                     ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
                     : h(ActivityPanel, { league })) : null),
-                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, league, onlineMeta, saving, saveError: Boolean(storageError), onRetrySave: retryLocalSave, playback, messageAction: mailAction,
+                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, teamId: responseTeam, league, onlineMeta, saving, saveError: Boolean(storageError), onRetrySave: retryLocalSave, playback, messageAction: mailAction,
                     dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab }))));
     }
 

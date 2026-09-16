@@ -2,7 +2,7 @@
 'use strict';
 const assert = require('assert');
 global.window = globalThis; global.App = {};
-for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui']) require('../js/shared/time-league-' + module + '.js');
+for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui', 'player-stats']) require('../js/shared/time-league-' + module + '.js');
 let states = [], cursor = 0;
 global.React = {
     createElement: (type, props, ...children) => typeof type === 'function' ? type({ ...props, children }) : ({ type, props, children }),
@@ -29,7 +29,7 @@ states = [];
 const roster = () => render(() => WrTimeLeagueTeamPanel({ league, cards, section: 'roster', activeTeamId: league.teams[0].teamId, onSelectTeam: () => {}, onUpdate: (next, action) => { applied = { next, action }; }, logIndex: index }));
 const walk = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.children)];
 let tree = roster();
-assert(JSON.stringify(tree).includes('Archive ceiling:')); assert(JSON.stringify(tree).includes('No recorded game means zero points this Vault week.')); assert(JSON.stringify(tree).includes('Future weeks stay sealed.'));
+assert(JSON.stringify(tree).includes('Avg pts / game')); assert(JSON.stringify(tree).includes('W7 game rating')); assert(JSON.stringify(tree).includes('No recorded game means zero points this Vault week.')); assert(JSON.stringify(tree).includes('Future weeks stay sealed.'));
 let rows = walk(tree).filter(node => node.props?.draggable);
 assert.equal(rows.length, 2);
 rows[1].props.onDragStart({ dataTransfer: { setData: () => {} } });

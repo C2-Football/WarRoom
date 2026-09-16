@@ -19,7 +19,6 @@
     const AI_PERSONAS = App.TimeLeagueEngine.AI_PERSONAS;
 
     const STARTER_SLOTS = ROSTER_SLOT_IDS.filter((slot) => slot !== "BN" && slot !== "IR" && slot !== "TAXI");
-    const NEED_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF", "DL", "LB", "DB"];
 
     const personaFor = (team) => AI_PERSONAS[team?.aiPersona] || AI_PERSONAS.steward;
     const relationshipFor = (state, owner, other) => App.TimeLeagueRivals?.relationshipFor(state, owner, other) || { heat: 0, tradePremium: 0 };
@@ -274,97 +273,119 @@
         }, state);
     }
 
-    /** Total starter seats a position can occupy; FLEX-style slots count for every eligible position. */
-    const positionDemand = (settings, position) =>
-        STARTER_SLOTS.reduce((demand, slot) => {
-            const count = settings.rosterSlots[slot] ?? 0;
-            return demand + (count > 0 && SLOT_ELIGIBILITY[slot].includes(position) ? count : 0);
-        }, 0);
-
-    const teamNeed = (team, settings, cards) => {
-        let need = null;
-        let low = Number.POSITIVE_INFINITY;
-        for (const position of NEED_ORDER) {
-            if (positionDemand(settings, position) <= 0) continue;
-            const best = team.roster.reduce((max, entry) => (entry.position === position ? Math.max(max, entryValue(cards, entry)) : max), 0);
-            if (best < low) {
-                low = best;
-                need = position;
+    // Score the best legal lineup, counting each FLEX seat once. The old
+    // position-surplus test counted every FLEX against every eligible position,
+    // leaving ordinary twelve-player rosters with no trade candidates at all.
+    // The supported eligibility sets are nested or disjoint. Filling narrower
+    // sets first, in value order, finds their best lineup without combinatorics.
+    function tradeLineup(roster, settings, valueOf) {
+        const remaining = roster.filter(entry => entry.slot !== 'IR' && entry.slot !== 'TAXI')
+            .slice().sort((a, b) => valueOf(b) - valueOf(a) || a.entryId.localeCompare(b.entryId));
+        const slots = STARTER_SLOTS.slice().sort((a, b) => SLOT_ELIGIBILITY[a].length - SLOT_ELIGIBILITY[b].length);
+        let starters = 0, filled = 0, required = 0;
+        const starterSlots = new Map();
+        for (const slot of slots) {
+            required += settings.rosterSlots[slot] || 0;
+            for (let n = 0; n < (settings.rosterSlots[slot] || 0); n++) {
+                const index = remaining.findIndex(entry => SLOT_ELIGIBILITY[slot].includes(entry.position));
+                if (index < 0) continue;
+                const entry = remaining.splice(index, 1)[0];
+                starterSlots.set(entry.entryId, slot); starters += valueOf(entry); filled++;
             }
         }
-        return need;
-    };
+        return { starters, filled, required, starterSlots,
+            total: starters + remaining.reduce((sum, entry) => sum + valueOf(entry) * 0.2, 0),
+            legal: filled === required && remaining.length <= (settings.rosterSlots.BN || 0)
+                && roster.filter(entry => entry.position === 'QB').length <= settings.maxQuarterbacks
+                && ['IR', 'TAXI'].every(slot => roster.filter(entry => entry.slot === slot).length <= (settings.rosterSlots[slot] || 0)) };
+    }
 
-    const surplusEntries = (team, settings, cards, position, locked) =>
-        team.roster
-            .filter((entry) => entry.position === position && !locked.has(entry.entryId))
-            .sort((left, right) => entryValue(cards, right) - entryValue(cards, left) || left.entryId.localeCompare(right.entryId))
-            .slice(positionDemand(settings, position));
+    function tradeEntryAverage(cards, entry) {
+        // Only the publicly revealed edition's archive average. Never consult
+        // game decks, hidden availability, unused games or future scoring.
+        const season = cards.get(entry.identity)?.seasons.find(item => item.season === entry.drawnSeason);
+        if (!season || !Number.isFinite(season.points)) return 0;
+        return Math.max(0, season.points / Math.max(1, Number(season.games) || 16));
+    }
 
-    const sameIdSet = (left, right) => {
-        if (left.length !== right.length) return false;
-        const sortedLeft = [...left].sort();
-        const sortedRight = [...right].sort();
-        return sortedLeft.every((id, index) => id === sortedRight[index]);
-    };
+    const sameIdSet = (left, right) => left.length === right.length && left.every(id => right.includes(id));
+    const alreadyOffered = (trades, from, to, give, receive) => trades.some(trade =>
+        trade.fromTeamId === from && trade.toTeamId === to
+        && sameIdSet(trade.giveEntryIds, [give.entryId]) && sameIdSet(trade.receiveEntryIds, [receive.entryId]));
 
-    const isDuplicatePending = (trades, fromTeamId, toTeamId, giveIds, receiveIds) =>
-        trades.some((trade) => (
-            trade.status === "pending"
-            && trade.fromTeamId === fromTeamId
-            && trade.toTeamId === toTeamId
-            && sameIdSet(trade.giveEntryIds, giveIds)
-            && sameIdSet(trade.receiveEntryIds, receiveIds)
-        ));
-
-    function aiGenerateTrades(state, cards, createdAt) {
+    function aiGenerateTrades(state, cards, createdAt, options = {}) {
+        if (state.phase !== 'season' || !state.settings.tradesEnabled || state.seasonsRevealed !== true
+            || !['claims', 'lineup'].includes(state.weekStage) || state.publicSnapshotVersion === 1) return state;
         cards = App.TimeLeagueEngine.cardsFor(state, cards);
-        if (state.phase !== "season" || !state.settings.tradesEnabled) return state;
-        const random = createSeededRandom(`${state.seed}:aitrade:${state.currentWeek}`);
-        const difficulty = difficultyFor(state);
-        const quota = random() < 0.6 ? 1 : 2;
-        let next = state;
-        let made = 0;
-        const initiative = team => {
-            const persona = personaFor(team);
-            return hottestRival(state, team.teamId).heat * 20 + persona.aggression * 0.3 + (100 - persona.patience) * 0.15
-                + (team.aiPersona === 'broker' ? 18 : 0) + createSeededRandom(`${state.seed}:trade-desk:${state.currentWeek}:${team.teamId}`)() * 100;
-        };
-        for (const seat of [...state.teams].sort((a, b) => initiative(b) - initiative(a))) {
-            if (made >= quota) break;
-            if (seat.manager !== "ai") continue;
-            const proposer = next.teams.find((team) => team.teamId === seat.teamId);
-            if (!proposer) continue;
+        if (!cards?.size) return state;
+        const values = new Map(state.teams.flatMap(team => team.roster).map(entry => [entry.entryId, tradeEntryAverage(cards, entry)]));
+        const valueOf = entry => values.get(entry.entryId) || 0;
+        const before = new Map(state.teams.map(team => [team.teamId, tradeLineup(team.roster, state.settings, valueOf)]));
+        const locked = new Set(state.trades.filter(trade => trade.status === 'pending').flatMap(trade => [...trade.giveEntryIds, ...trade.receiveEntryIds]));
+        // One offer per human per week, including rejected offers. An unanswered
+        // or deferred offer stays in their inbox instead of spawning new mail.
+        const humans = state.teams.filter(team => team.manager === 'human' && !state.trades.some(trade =>
+            trade.toTeamId === team.teamId && state.teams.some(owner => owner.teamId === trade.fromTeamId && owner.manager === 'ai')
+            && (trade.status === 'pending' || trade.week === state.currentWeek)));
+        const eligible = team => team.roster.filter(entry => !locked.has(entry.entryId) && entry.slot !== 'IR' && entry.slot !== 'TAXI' && valueOf(entry) > 0);
+        const candidates = [];
+        for (const proposer of state.teams.filter(team => team.manager === 'ai')) {
             const persona = personaFor(proposer);
-            // Entries already committed to a pending offer are off the table.
-            const locked = new Set(next.trades.filter((trade) => trade.status === "pending").flatMap((trade) => [...trade.giveEntryIds, ...trade.receiveEntryIds]));
-            const myNeed = teamNeed(proposer, next.settings, cards);
-            if (!myNeed) continue;
-            for (const partner of [...next.teams].sort((a, b) => Number(b.manager === "human") - Number(a.manager === "human") || relationshipFor(next, proposer.teamId, b.teamId).heat - relationshipFor(next, proposer.teamId, a.teamId).heat)) {
-                if (partner.teamId === proposer.teamId) continue;
-                const theirNeed = teamNeed(partner, next.settings, cards);
-                if (!theirNeed || theirNeed === myNeed) continue;
-                const givePool = surplusEntries(proposer, next.settings, cards, theirNeed, locked);
-                const receivePool = surplusEntries(partner, next.settings, cards, myNeed, locked);
-                if (!givePool.length || !receivePool.length) continue;
-                const two = givePool.length > 1 && receivePool.length > 1 && random() < 0.35;
-                const give = givePool.slice(0, two ? 2 : 1);
-                const receive = receivePool.slice(0, two ? 2 : 1);
-                if (tradeValue(cards, receive, persona) < tradeValue(cards, give, persona) * (acceptThreshold(persona, difficulty) + relationshipFor(next, proposer.teamId, partner.teamId).tradePremium)) continue;
-                const giveIds = give.map((entry) => entry.entryId);
-                const receiveIds = receive.map((entry) => entry.entryId);
-                if (isDuplicatePending(next.trades, proposer.teamId, partner.teamId, giveIds, receiveIds)) continue;
-                const giveNames = give.map((entry) => entry.name).join(" + ");
-                const receiveNames = receive.map((entry) => entry.name).join(" + ");
-                const note = `${persona.pitch} ${giveNames} for ${receiveNames}. You get ${theirNeed}; I get ${myNeed}.`;
-                const before = next.trades.length;
-                next = proposeTrade(next, { fromTeamId: proposer.teamId, toTeamId: partner.teamId, giveEntryIds: giveIds, receiveEntryIds: receiveIds, note }, createdAt);
-                if (next.trades.length === before) continue;
-                made += 1;
-                next = pushActivity(next, "trade", `${proposer.name} — ${persona.label}: "${note}"`, createdAt);
-                const placed = next.trades[next.trades.length - 1];
-                if (partner.manager === "ai") next = resolveAiTrade(next, placed, cards, createdAt);
-                break;
+            const partners = options.humanOnly ? humans : [...humans, ...state.teams.filter(team => team.manager === 'ai' && team.teamId > proposer.teamId)];
+            for (const partner of partners) {
+                if (proposer.teamId === partner.teamId) continue;
+                for (const give of eligible(proposer)) for (const receive of eligible(partner)) {
+                    if (give.position === receive.position || alreadyOffered(state.trades, proposer.teamId, partner.teamId, give, receive)) continue;
+                    // Fit can justify a modest value difference, never a lopsided
+                    // opening bid that only improves the AI's side of the deal.
+                    const ratio = valueOf(give) / valueOf(receive);
+                    if (ratio < 0.75 || ratio > 1 / 0.75) continue;
+                    const mine = tradeLineup([...proposer.roster.filter(entry => entry !== give), { ...receive, slot: 'BN' }], state.settings, valueOf);
+                    const theirs = tradeLineup([...partner.roster.filter(entry => entry !== receive), { ...give, slot: 'BN' }], state.settings, valueOf);
+                    if (!mine.legal || !theirs.legal) continue;
+                    const myGain = mine.total - before.get(proposer.teamId).total;
+                    const theirGain = theirs.total - before.get(partner.teamId).total;
+                    const myStarterGain = mine.starters - before.get(proposer.teamId).starters;
+                    const theirStarterGain = theirs.starters - before.get(partner.teamId).starters;
+                    const premium = Math.max(0, difficultyFor(state).thresholdDelta + relationshipFor(state, proposer.teamId, partner.teamId).tradePremium);
+                    if (myGain < Math.max(0.1, valueOf(give) * premium) || theirGain < 0.1 || myStarterGain < 0 || theirStarterGain < 0) continue;
+                    const tie = createSeededRandom(`${state.seed}:trade-fit:${state.currentWeek}:${give.entryId}:${receive.entryId}`)();
+                    candidates.push({ proposer, partner, persona, give, receive, myStarterGain, theirStarterGain,
+                        rank: Math.min(myGain, theirGain) * 2 + myGain + theirGain + tie * 0.01 });
+                }
+            }
+        }
+        candidates.sort((a, b) => Number(b.partner.manager === 'human') - Number(a.partner.manager === 'human') || b.rank - a.rank);
+        let next = state, aiDeals = state.trades.filter(trade => trade.week === state.currentWeek
+            && state.teams.find(team => team.teamId === trade.fromTeamId)?.manager === 'ai'
+            && state.teams.find(team => team.teamId === trade.toTeamId)?.manager === 'ai').length;
+        const offeredTo = new Set();
+        const engagedTeams = new Set(next.trades.filter(trade => trade.status === 'pending').flatMap(trade => [trade.fromTeamId, trade.toTeamId]));
+        for (const candidate of candidates) {
+            const { proposer, partner, persona, give, receive, myStarterGain, theirStarterGain } = candidate;
+            // Asset-level locks are insufficient: two individually legal
+            // offers can promise away both players covering the same slot.
+            if (engagedTeams.has(proposer.teamId) || locked.has(give.entryId) || locked.has(receive.entryId) || offeredTo.has(partner.teamId)) continue;
+            if (partner.manager === 'ai' && (aiDeals >= 1 || engagedTeams.has(partner.teamId))) continue;
+            const note = `${persona.pitch} You get ${give.name} (${give.position}) for ${receive.name} (${receive.position}). `
+                + `Best-lineup archive average: +${theirStarterGain.toFixed(1)} pts/game for you, +${myStarterGain.toFixed(1)} for ${proposer.name}. `
+                + 'Both rosters can field a legal lineup. Archive comparison, not a game forecast.';
+            const proposed = proposeTrade(next, { fromTeamId: proposer.teamId, toTeamId: partner.teamId, giveEntryIds: [give.entryId], receiveEntryIds: [receive.entryId], note }, createdAt);
+            if (proposed === next || proposed.trades.length !== next.trades.length + 1) continue;
+            next = proposed;
+            offeredTo.add(partner.teamId); locked.add(give.entryId); locked.add(receive.entryId);
+            engagedTeams.add(proposer.teamId); engagedTeams.add(partner.teamId);
+            if (partner.manager === 'ai') {
+                // Both sides already passed the same roster-fit and fairness
+                // checks. Human recipients always make their own decision.
+                next = respondToTrade(next, next.trades[next.trades.length - 1].tradeId, true, note, createdAt);
+                next = { ...next, teams: next.teams.map(team => {
+                    if (![proposer.teamId, partner.teamId].includes(team.teamId)) return team;
+                    const lineup = tradeLineup(team.roster, next.settings, valueOf);
+                    return { ...team, roster: team.roster.map(entry => entry.slot === 'IR' || entry.slot === 'TAXI' ? entry
+                        : { ...entry, slot: lineup.starterSlots.get(entry.entryId) || 'BN' }) };
+                }) };
+                aiDeals++;
             }
         }
         return next;

@@ -29,6 +29,12 @@ reset();let tree=gates({role:'member',seatTeamId:league.teams[0].teamId});
 button(tree,'Vote to advance').props.onClick();assert.equal(called.type,'vote-advance');assert(!button(tree,'Commissioner override'));
 reset();tree=gates({role:'commissioner',seatTeamId:league.teams[0].teamId});
 walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(button(tree,'Commissioner override'));
+// Incoming offers are reachable from the user's roster, without opening More.
+const withOffer = { ...league, trades: [{ tradeId: 'tr1', fromTeamId: league.teams[1].teamId, toTeamId: league.teams[0].teamId, status: 'pending' }] };
+reset(); tree = render(() => WrTimeLeagueWeekGates({ league: withOffer, teamId: league.teams[0].teamId, currentTab: 'roster', dataReady: true, onNavigate: tab => { called = tab; } }));
+button(tree, '1 trade offer').props.onClick(); assert.equal(called, 'trades');
+reset(); tree = render(() => WrTimeLeagueWeekGates({ league: withOffer, teamId: league.teams[1].teamId, currentTab: 'roster', dataReady: true, onNavigate() {} }));
+assert(!button(tree, '1 trade offer'), 'The inbox count belongs only to the active manager');
 league={...league,settings:{...league.settings,advancementMode:'timed'}};reset();tree=gates({role:'commissioner'});assert(text(tree).includes('Deadline:'));walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(text(tree).includes('Time per stage'));
 const week={week:1,headlines:[],results:league.teams.map(team=>({teamId:team.teamId,total:0,starters:[],bench:[]})),matchups:[{home:league.teams[0].teamId,away:league.teams[1].teamId,homePoints:0,awayPoints:0,winner:null}]};
 league={...league,currentWeek:2,weekStage:'postgame',finalizedWeeks:[week]};

@@ -15,6 +15,27 @@
 .tl-hunt-bracket small,.tl-hunt-bracket strong { display:block; margin:4px 0; }
 @media(max-width:640px) { .tl-hunt-field { grid-template-columns:1fr; } .tl-week-stars { font-size:11px; letter-spacing:1px; } }
 .tl-stars-ceiling { display:block; flex-basis:100%; color:var(--text-muted); font-size:10px; margin-top:2px; }
+.tl-player-signals { display:grid; grid-template-columns:minmax(84px,.8fr) minmax(112px,1.2fr); gap:10px; max-width:350px; margin-top:9px; text-align:left; }
+.tl-player-signals > span { display:block; min-width:0; }
+.tl-player-signals small { display:block; font-size:11px; font-weight:500; line-height:1.35; color:#aebfd5; }
+.tl-player-signals strong { display:block; margin:3px 0 0; font-size:18px; font-weight:700; line-height:1.25; color:#8af0cf; font-variant-numeric:tabular-nums; }
+.tl-player-signals .tl-player-signal-context { margin-top:2px; font-size:10px; }
+.tl-player-signals .tl-week-stars { color:#ffe189; font-size:15px; letter-spacing:1px; overflow-wrap:anywhere; }
+.tl-player-signals .no-game .tl-week-stars { color:#ffb7a6; font-size:13px; letter-spacing:0; }
+.tl-roster-signals { grid-column:2 / -1; margin-top:0; padding:0 0 6px; }
+.tl-roster-current-player { border:1px solid #8af0cf60; border-radius:12px; background:#8af0cf0b; padding:12px; margin-top:16px; }
+.tl-roster-current-player > small { display:block; font-size:10px; letter-spacing:.08em; color:#aebfd5; margin-bottom:6px; }
+.tl-roster-current-player > strong { font-size:15px; }
+.tl-candidate-signals { grid-column:2 / -1; margin-top:0; }
+.tl-waiver-drop-option > .tl-player-signals { grid-column:1 / -1; }
+.tl-waiver-drop-ineligible { grid-column:1 / -1; }
+.tl-waiver-target-signals { padding:10px 0; }
+.tl-waiver-table .tl-player-signals .tl-player-average strong { font-size:18px; }
+.tl-waiver-list-count { margin:0 0 10px; color:#b2c4dc; font-size:12px; }
+.tl-waiver-scoring-help { color:#aebfd5; font-size:12px; margin-top:10px; }
+.tl-waiver-scoring-help summary { cursor:pointer; min-height:44px; display:flex; align-items:center; }
+.tl-waiver-scoring-help p { margin:0 0 10px; line-height:1.5; }
+.tl-trade-offer-reason { margin:10px 0 12px; padding:10px 12px; border-left:3px solid #8af0cf; background:#8af0cf0b; color:#d9e6f7; font-size:14px; line-height:1.5; }
 .tl-hunt-team.cut-line { border-top:1px dashed var(--gold,#ffe189); }
 
 /* A roster is the primary surface; scouting opens only after selecting a player. */

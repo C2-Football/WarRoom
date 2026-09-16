@@ -36,6 +36,7 @@ for (const pos of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']) cards.set('free:' + pos,
 const logs = new Map();
 for (const item of entries) for (let week = 1; week <= 14; week++) logs.set(S.gameLogKey(item.identity, 1994, week), { stats: { ...S.emptyStatLine(), passYd: week * 10, rushYd: week * 10 } });
 league = { ...league, phase: 'season', weekStage: 'lineup', currentWeek: 3, seasonsRevealed: true,
+    finalizedWeeks: [{ week: 1, results: [], matchups: [] }, { week: 2, results: [], matchups: [] }],
     teams: league.teams.map((team, index) => ({ ...team, roster: index ? [entry('foreign', 'Not Your Player', 'QB', 'QB')] : entries })) };
 let applied = [], saveResult = true, browsedSlot = null, selectedTeam;
 const render = (extra = {}) => {
@@ -49,6 +50,10 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
 
 (async () => {
     assert(byClass(render(), 'tl-lineup-ytd').length === entries.length, 'Starters and bench each show a YTD points column');
+    const signals = byClass(render(), 'tl-roster-signals');
+    assert.equal(signals.length, entries.length, 'Every starter and bench player has an always-visible metric group');
+    assert(signals.every(row => text(row).includes('Avg pts / game') && text(row).includes('2.1') && text(row).includes('W3 game rating')));
+    assert.equal(byClass(render(), 'tl-roster-mobile-detail').length, 0, 'Primary player signals never require opening a details element');
     let tree = render({ activeTeamId: league.teams[1].teamId });
     assert(text(tree).includes('Steve Young'));
     assert(!text(tree).includes('Not Your Player'));
@@ -63,6 +68,8 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert.deepEqual(choices(tree), ['Swap Steve Young with Joe Montana', 'Swap Steve Young with Ken Stabler']);
     assert(text(byClass(tree, 'tl-roster-move-sheet')).includes('1994 · Bench'));
     assert(text(byClass(tree, 'tl-roster-move-sheet')).includes('of 5 stars this week'));
+    assert(text(byClass(tree, 'tl-roster-current-player')).includes('Steve Young') && text(byClass(tree, 'tl-roster-current-player')).includes('2.1'), 'The current player remains visible for direct comparison');
+    assert(byClass(tree, 'tl-candidate-signals').every(row => text(row).includes('2.1') && text(row).includes('W3 game rating')), 'Each replacement shows the same average and game rating without another click');
     await button(tree, 'Swap Steve Young with Ken Stabler').props.onClick();
     let last = applied.at(-1);
     assert.equal(last.action.targetEntryId, 'stabler');
@@ -141,6 +148,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     league = { ...league, seasonsRevealed: true };
     tree = render();
     assert(text(byClass(tree, 'tl-roster-dossier')).includes('1993'));
+    assert(text(byClass(tree, 'tl-roster-dossier')).includes('Archive ceiling:'), 'Best unused archive clue remains available in player history');
     assert(!text(byClass(tree, 'tl-roster-dossier')).includes('1995'), 'Player archive still stops before the drawn season');
     const removedLogs = [];
     for (let week = 4; week <= 11; week++) {
@@ -166,7 +174,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert(!scope.includes('NFL GP'), 'Recorded games are not claimed to be verified official participation');
     const currentKey = S.gameLogKey(entries[0].identity, 1994, 3), currentLog = logs.get(currentKey);
     logs.delete(currentKey); tree = render();
-    assert(text(byClass(tree, 'tl-lineup-player')).includes('No recorded game'));
+    assert(text(byClass(tree, 'tl-roster-signals')).includes('No recorded game'));
     assert(byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed')).every(node => !node.props.className.includes('missing')), 'A missing current game never reveals future absences');
     logs.set(currentKey, currentLog);
     cards.set(entries[0].identity, youngCard);
@@ -211,6 +219,10 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert(!text(wire).includes('Free QB') && !text(wire).includes('Free K') && !text(wire).includes('Free DEF'));
     assert(text(wire).includes('1994 season') && !text(wire).includes('CAREER BEST'), 'The wire names the actual weekly edition');
     assert(!text(wire).includes('G LEFT'), 'Free agency does not disclose future game counts');
+    const waiverSignals = byClass(wire, 'tl-player-signals');
+    assert.equal(waiverSignals.length, 3);
+    assert(waiverSignals.every(row => text(row).includes('Avg pts / game') && text(row).includes('W3 game rating')), 'Free agents carry directly visible comparable game average and rating');
+    assert(text(waiverSignals).includes('100.0') && text(waiverSignals).includes('No games yet'), 'Waiver averages use completed games, with no-game players shown honestly');
     assert.deepEqual(byClass(wire, 'tl-waiver-score').map(node => node.children[0]), ['20.0', '5.0', '-2.0'], 'Free agents rank by points still playable, including negative scores');
     assert(text(byClass(wire, 'tl-waiver-score')[0]).includes('120.0 total'), 'Already-played points only appear in the season total');
     button(tree, 'Claim Free WR').props.onClick(); tree = render({ section: 'waivers' });
@@ -220,6 +232,8 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert.equal(claimDialog.type, 'dialog', 'Claim selection opens a modal instead of a builder below the wire');
     assert(!walk(tree).some(node => node.type === 'select' && node.props['aria-label'] === 'Drop entry'));
     assert.equal(byClass(tree, 'tl-waiver-drop-option').filter(node => node.props['aria-label']).length, entries.length);
+    assert.equal(byClass(tree, 'tl-waiver-target-signals').length, 1, 'The add target retains its average and game rating beside drop candidates');
+    assert(byClass(tree, 'tl-waiver-drop-option').filter(node => node.props['aria-label']).every(row => byClass(row, 'tl-player-signals').length === 1), 'Every drop choice carries the same always-visible player signals');
     assert(text(byClass(tree, 'tl-waiver-drop-option')).includes('Est. pts left') && text(byClass(tree, 'tl-waiver-drop-option')).includes('W3'), 'Drop choices carry remaining points and weekly outlook');
     assert(text(claimDialog).includes('Vault W3 vs'), 'The claim includes the actual current Vault opponent');
     const roomySettings = league.settings;

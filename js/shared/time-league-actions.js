@@ -154,6 +154,11 @@
             if (action.decision === 'delay') next = E.deferTrade(state, action.tradeId);
             else next = E.respondToTrade(state, action.tradeId, action.accept === true, '', stamp);
             break;
+        case 'refresh-trade-offers':
+            if (state.phase !== 'season' || !['claims', 'lineup'].includes(state.weekStage)) deny('Trade suggestions open during weekly planning.');
+            if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can refresh trade offers.');
+            next = AI.aiGenerateTrades(state, cards, stamp, { humanOnly: true });
+            break;
         case 'ping-ai':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.fromTeamId === own && t.status === 'pending' && state.teams.some(team => team.teamId === t.toTeamId && team.manager === 'ai'))) deny('No pending offer to an AI manager.');
@@ -176,7 +181,7 @@
         case 'advance-week':
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'postgame') deny('Review the current week first.');
-            next = { ...AI.aiGenerateTrades(state, cards, stamp), weekStage: 'claims' };
+            next = AI.aiGenerateTrades({ ...state, weekStage: 'claims' }, cards, stamp);
             break;
         case 'process-claims': {
             commissioner();
@@ -205,7 +210,7 @@
         }
         default: deny('Unknown game action.');
         }
-        if (next === state && action.type !== 'auto-lineup') deny('That move is no longer legal. Refresh and try again.');
+        if (next === state && !['auto-lineup', 'refresh-trade-offers'].includes(action.type)) deny('That move is no longer legal. Refresh and try again.');
         if (state.phase === 'draft' && next.phase === 'season') next = AI.aiGenerateTrades(next, cards, stamp);
         if (next.weekStage !== state.weekStage || next.phase !== state.phase) next = { ...next, gateStartedAt: stamp, gateVotes: [] };
         const taken = E.draftedIdentities(next);

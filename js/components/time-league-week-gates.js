@@ -8,7 +8,7 @@
         { id: 'postgame', title: 'Week recap', action: 'advance-week', button: 'End week', tab: 'home', open: 'Week recap' },
     ];
 
-    function WeekGates({ league, onlineMeta, saving, saveError, onRetrySave, dataReady, onAction, onNavigate, currentTab, playback, messageAction }) {
+    function WeekGates({ league, onlineMeta, saving, saveError, onRetrySave, dataReady, onAction, onNavigate, currentTab, teamId, playback, messageAction }) {
         const [showSettings, setShowSettings] = React.useState(false);
         if (!['season', 'complete'].includes(league.phase)) return null;
         const stage = STAGES.find(row => row.id === league.weekStage) || STAGES[2];
@@ -16,6 +16,9 @@
         const complete = league.phase === 'complete';
         const host = !onlineMeta || onlineMeta.role === 'commissioner';
         const humans = league.teams.filter(team => team.manager === 'human');
+        const own = onlineMeta?.seatTeamId || teamId || humans[0]?.teamId;
+        const incomingOffers = (league.trades || []).filter(trade => trade.status === 'pending' && trade.toTeamId === own && !(trade.deferredUntilWeek > league.currentWeek)).length;
+        const tradeLabel = incomingOffers ? `${incomingOffers} trade offer${incomingOffers === 1 ? '' : 's'}` : stage.id === 'lineup' ? 'Trade decisions' : 'Trades';
         const mode = onlineMeta ? league.settings.advancementMode || 'commissioner' : 'commissioner';
         const votes = (league.gateVotes || []).filter(id => humans.some(team => team.teamId === id));
         const majority = Math.floor(humans.length / 2) + 1;
@@ -42,10 +45,10 @@
                 : h('button', { type: 'button', className: 'tl-btn primary', disabled: disabled || (mode === 'majority' ? voted : !host), onClick: advance },
                     saving ? 'Saving…' : mode === 'majority' ? voted ? 'Vote recorded' : stage.id === 'postgame' ? 'Vote to end week' : 'Vote to advance' : host ? stage.button : 'Waiting for commissioner');
             secondary = stage.id === 'postgame' ? (currentTab === 'home' ? go('gameday', 'Box scores') : null)
-                : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : 'Trades')
-                    : stage.id === 'lineup' ? go('trades', 'Trade decisions') : null;
+                : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : tradeLabel)
+                    : stage.id === 'lineup' ? go('trades', tradeLabel) : null;
         }
-        if (!saveError && !live && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
+        if (!saveError && !live && !incomingOffers && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
         const title = saveError ? 'Save needs attention' : live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.id === 'postgame' ? `Week ${week} recap` : stage.title;
         const status = !live && !complete && onlineMeta ? mode === 'majority' ? `${votes.length}/${majority} votes` : mode === 'timed' ? `Deadline: ${deadline.toLocaleString()}` : host ? 'Commissioner' : 'Commissioner advances' : '';
 

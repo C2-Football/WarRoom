@@ -23,6 +23,30 @@
     const nowIso = () => new Date().toISOString();
     const cardSeasonPoints = (cards, entry) => cards.get(entry.identity)?.seasons.find((s) => s.season === entry.drawnSeason)?.points ?? 0;
 
+    // The same completed-game denominator and current-week clue travel with a
+    // player through the roster, replacement chooser, and free-agent wire.
+    function PlayerSignals({ league, entry, logIndex, eraFactors, throughWeek, className = '' }) {
+        const read = window.App.TimeLeaguePlayerStats?.signals?.(league, entry, logIndex, eraFactors, throughWeek)
+            || { average: null, games: null, currentStars: null, currentAvailable: null, status: league.seasonsRevealed ? 'unavailable' : 'sealed' };
+        const average = Number.isFinite(read.average) ? fmt1(read.average) : '—';
+        const averageLabel = read.status === 'sealed' ? 'Sealed edition' : read.games === 0 ? 'No games yet' : read.games == null ? 'Stats unavailable' : `${read.games} game${read.games === 1 ? '' : 's'}`;
+        let outlook = 'Unavailable', outlookLabel = `W${league.currentWeek} game rating`, outlookTitle = 'The current game report is unavailable.';
+        if (read.status === 'sealed') { outlook = 'Sealed'; outlookTitle = 'Game ratings open after the season reveal.'; }
+        else if (read.status === 'complete') { outlook = 'Complete'; outlookLabel = 'Vault season'; outlookTitle = 'This Vault season is complete.'; }
+        else if (read.status === 'awaiting-week') { outlook = 'Awaiting next week'; outlookTitle = 'Advance the week to reveal its availability and game rating.'; }
+        else if (read.currentAvailable === false) { outlook = 'No recorded game'; outlookLabel = `W${league.currentWeek} · 0 pts`; outlookTitle = 'No recorded game this Vault week: zero points. Later weeks remain sealed.'; }
+        else if (read.currentStars != null) {
+            outlook = '★'.repeat(read.currentStars) + '☆'.repeat(5 - read.currentStars);
+            outlookTitle = `${read.currentStars} of 5 stars this week. Stars rank this game within the player’s historical season; they are not a probability.`;
+        } else if (read.currentAvailable === true) { outlook = 'Game available'; outlookTitle = 'A recorded game is available this week; its rating is unavailable.'; }
+        return h('span', { className: `tl-player-signals ${className}`.trim() },
+            h('span', { className: 'tl-player-average', title: `Average points per completed Vault game in your league scoring, including bench games and games before acquisition. ${averageLabel}.` },
+                h('small', null, 'Avg pts / game'), h('strong', { className: 'tabular' }, average), h('small', { className: 'tl-player-signal-context' }, averageLabel)),
+            h('span', { className: `tl-player-outlook${read.currentAvailable === false ? ' no-game' : ''}`, title: outlookTitle },
+                h('small', null, outlookLabel), h('strong', { className: 'tl-week-stars', 'aria-label': outlookTitle }, outlook),
+                read.currentStars != null && read.currentAvailable === true && h('small', { className: 'tl-player-signal-context' }, 'Available')));
+    }
+
     /** Mirrors War Room's real trade-engine.js fairnessGrade thresholds (reconai-shared/trade-engine.js:171-181). */
     function fairnessGrade(giveValue, receiveValue) {
         if (giveValue <= 0 && receiveValue <= 0) return { grade: '—', label: 'Build an offer', tone: '' };
@@ -108,14 +132,6 @@
         }, [team.roster, revealed, league, throughWeek, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const weeksRemaining = Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1);
-        const ratingClue = rating => {
-            const current = rating?.schedule?.find(row => row.week === league.currentWeek);
-            const stars = league.weekStage === 'postgame' ? null : rating?.stars;
-            if (stars != null) return { text: '★'.repeat(stars) + '☆'.repeat(5 - stars), label: `${stars} of 5 stars this week`, title: `Week ${league.currentWeek}: ${stars} of 5 stars.` };
-            if (!weeksRemaining) return { text: 'Season complete', label: 'Season complete', title: 'Season complete.' };
-            if (current?.available === false && league.weekStage !== 'postgame') return { text: 'No recorded game', label: 'No recorded game this week', title: 'No recorded game this Vault week: zero points. Later weeks remain sealed.' };
-            return { text: 'Awaiting next week', label: 'Awaiting next week', title: 'Advance the week to reveal its availability and star clue.' };
-        };
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveEntry = async (entryId, slot, targetEntryId) => {
             if (!editable || moving) { setMoveNotice('Lineups open during the waiver and roster gates.'); return; }
@@ -137,8 +153,6 @@
         });
         const entryRow = (entry, slotLabel) => {
             const seasonRecord = cards.get(entry.identity)?.seasons.find(season => season.season === entry.drawnSeason);
-            const rating = revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null, league) : null;
-            const clue = ratingClue(rating);
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
             return h('div', { key: entry.entryId, className: 'tl-lineup-row' + (draggedId === entry.entryId ? ' is-dragging' : ''), draggable: editable, onDragStart: (event) => { setDraggedId(entry.entryId); event.dataTransfer.setData('text/plain', entry.entryId); event.dataTransfer.effectAllowed = 'move'; }, onDragEnd: () => setDraggedId(null), ...dropProps(entry.slot, entry.entryId), style: { gridTemplateColumns: LINEUP_GRID } },
                 h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
@@ -147,17 +161,13 @@
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
                     revealed
                         ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${weeksRemaining} Vault weeks left`)
-                        : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED'),
-                    rating && h('span', { className: 'tl-week-stars', title: clue.title, 'aria-label': clue.label }, clue.text), rating && rating.maxRemainingStars !== null && h('small', { className: 'tl-stars-ceiling', title: 'Best unused archived game. It may fall outside this Vault season.' }, `Archive ceiling: ${rating.maxRemainingStars}★`)),
+                        : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
                 h('span', { className: 'tl-lineup-pts tabular', title: seasonRecord?.sourceWeekKind ? 'Recorded NFL regular-season total, using reference scoring; separate from your Vault season' : 'Weeks 1–14 archive total, using reference scoring', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('span', { className: 'tl-lineup-pts tl-lineup-ytd tabular', title: 'Player points through completed Vault weeks, including bench games' }, ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId)), h('small', null, 'YTD PTS')),
                 h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
                     onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'),
-                h('details', { className: 'tl-roster-mobile-detail' }, h('summary', null, `${ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId))} YTD pts · Details`),
-                    h('p', null, `${revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—'} SZN pts · recorded archive total with reference scoring.`),
-                    h('p', null, 'YTD covers completed Vault weeks, including bench games.'),
-                    rating && h('p', null, clue.label), rating && rating.maxRemainingStars !== null && h('p', null, `Archive ceiling: ${rating.maxRemainingStars} stars. Best unused archived game; it may fall outside this Vault season.`)));
+                h(PlayerSignals, { league, entry, logIndex, eraFactors, throughWeek, className: 'tl-roster-signals' }));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
             h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
@@ -206,6 +216,7 @@
                         stat('Vault weeks left', weeksRemaining),
                         stat('Recent form', outlooks.get(selected.entryId).signal),
                         stat('Remaining pace estimate', outlooks.get(selected.entryId).estimatedRemaining === null ? 'Needs a completed game' : `${fmt1(outlooks.get(selected.entryId).estimatedRemaining)} pts`)),
+                    selectedRating?.maxRemainingStars != null && h('p', { className: 'tl-hint' }, `Archive ceiling: ${selectedRating.maxRemainingStars} stars. Best unused archived game; it may fall outside this Vault season.`),
                     h('p', { className: 'tl-hint' }, 'Pace uses completed games and the Vault weeks left. It is an estimate, not a promise of availability. Form compares the last three completed games with earlier games.'),
                     h('div', { className: 'tl-outlook-weeks' }, outlooks.get(selected.entryId).schedule.map(row => {
                         const current = row.week === league.currentWeek;
@@ -231,8 +242,6 @@
             (league.settings.rosterSlots[slot] ?? 0) > team.roster.filter(entry => entry.slot === slot).length &&
             Engine.setEntrySlot(league, team.teamId, movingEntry.entryId, slot) !== league) : [];
         const candidateButton = (candidate, isSwap) => {
-            const rating = revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(candidate, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null, league) : null;
-            const clue = ratingClue(rating);
             const destination = isSwap ? movingEntry.slot : moveChoice.slot;
             return h('button', { type: 'button', key: candidate.entryId, className: 'tl-roster-candidate', disabled: !editable || moving,
                 'aria-label': isSwap ? `Swap ${movingEntry.name} with ${candidate.name}` : `Start ${candidate.name} at ${slotName(destination)}`,
@@ -241,10 +250,8 @@
                 h('span', { className: 'tl-roster-candidate-player' }, h('strong', null, candidate.name),
                     h('small', null, `${revealed ? `${candidate.drawnSeason} · ` : 'Sealed edition · '}${slotName(candidate.slot)} → ${slotName(destination)}`),
                     isSwap && h('small', null, `${movingEntry.name} → ${slotName(candidate.slot)}`)),
-                h('span', { className: 'tl-roster-candidate-rating' }, rating ? h(React.Fragment, null,
-                    h('strong', { 'aria-label': clue.label }, rating.stars == null ? '—' : clue.text),
-                    h('small', null, rating.stars == null ? clue.text : `Week ${league.currentWeek}`)) : h('small', null, revealed ? 'No weekly clue' : 'Sealed'),
-                    h('span', { className: 'tl-roster-candidate-action' }, isSwap ? 'Swap ↔' : 'Start →')));
+                h('span', { className: 'tl-roster-candidate-action' }, isSwap ? 'Swap ↔' : 'Start →'),
+                h(PlayerSignals, { league, entry: candidate, logIndex, eraFactors, throughWeek, className: 'tl-candidate-signals' }));
         };
         const moveSheet = moveChoice && (movingEntry || moveChoice.slot) && h('div', { className: 'tl-roster-move-backdrop', onClick: event => { if (event.target === event.currentTarget) closeMove(); } },
             h('section', { className: 'tl-roster-move-sheet', role: 'dialog', 'aria-modal': true, 'aria-label': movingEntry ? `Move ${movingEntry.name}` : `Fill ${slotName(moveChoice.slot)}`, ref: moveRef, tabIndex: -1, onKeyDown: onMoveKeys },
@@ -253,6 +260,8 @@
                 !editable ? h('p', { className: 'tl-hint' }, 'Lineups are locked until the next roster gate.') :
                     h(React.Fragment, null,
                         h('p', { className: 'tl-hint' }, movingEntry ? `Choose a player to swap with ${movingEntry.name}. Both moves happen together.` : 'Choose an eligible player from your roster. Their current slot is shown below.'),
+                        movingEntry && h('div', { className: 'tl-roster-current-player' }, h('small', null, 'CURRENT PLAYER'), h('strong', null, `${movingEntry.name} · ${slotName(movingEntry.slot)}`),
+                            h(PlayerSignals, { league, entry: movingEntry, logIndex, eraFactors, throughWeek })),
                         h('div', { className: 'tl-roster-candidates' }, (movingEntry ? replacements : openCandidates).map(candidate => candidateButton(candidate, Boolean(movingEntry)))),
                         (movingEntry ? !replacements.length : !openCandidates.length) && h('p', { className: 'tl-empty' }, movingEntry ? 'No compatible players to swap with.' : 'No eligible players on your roster for this slot.'),
                         emptyTargets.length > 0 && h('div', { className: 'tl-roster-empty-targets' }, h('h3', null, 'Move into an open slot'), emptyTargets.map(slot => h('button', {
@@ -288,12 +297,14 @@
             dossier,
             h('details', { className: 'tl-roster-help' }, h('summary', null, 'Lineup tips & star ratings'),
                 h('p', null, 'Tap Move to see named replacements, or drag a player onto a compatible slot or teammate.'),
+                h('p', null, 'Avg pts / game uses completed Vault games in your league scoring, including bench games and games before acquisition. Weeks with no recorded game are excluded. The same average appears on waivers and lineup choices.'),
                 h('p', null, 'Stars compare this week with the player’s own historical season. Best three games earn 5 stars; worst three earn 1. No-game weeks are excluded.'),
+                h('p', null, 'Stars are a game rating, not the probability of playing or winning. Only the current week’s clue is shown.'),
                 h('p', null, 'No recorded game means zero points this Vault week. The archive does not identify an injury or predict a return date. Future weeks stay sealed.')),
             moveSheet);
     }
 
-    function WaiversSection({ league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors }) {
+    function WaiversSection({ league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors, throughWeek }) {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const rowCap = phone ? 20 : WIRE_ROW_CAP;
         const [query, setQuery] = useState('');
@@ -345,6 +356,7 @@
         const shown = filtered.slice(0, visibleCount);
         const target = targetIdentity ? cards.get(targetIdentity) : undefined;
         const targetPreview = previews.get(targetIdentity);
+        const waiverEntry = card => ({ identity: card.identity, position: card.position, drawnSeason: previews.get(card.identity)?.drawnSeason });
         const previewPoints = value => value == null ? '—' : fmt1(value);
         const alreadyClaimed = Boolean(target) && league.pendingClaims.some((c) => c.teamId === team.teamId && c.addIdentity === targetIdentity);
         const benchCap = league.settings.rosterSlots.BN ?? 0;
@@ -360,10 +372,7 @@
         const matchupLabel = opponent ? 'Vault W' + league.currentWeek + ' vs ' + opponent.name : 'Vault W' + league.currentWeek + ' · Matchup not scheduled';
         const dropRead = entry => {
             const outlook = Season.rosterOutlook(entry, league.currentWeek, endWeek, logIndex, league.settings.scoring, factors, league);
-            const rating = Season.weeklyStarOutlook?.(entry, league.currentWeek, endWeek, logIndex, league.settings.scoring, factors, league);
-            const week = outlook?.schedule?.find(row => row.week === league.currentWeek);
-            return { remaining: outlook?.estimatedRemaining,
-                week: rating?.stars != null ? '★'.repeat(rating.stars) + '☆'.repeat(5 - rating.stars) : week?.available === false ? 'No recorded game' : 'Outlook unavailable' };
+            return { remaining: outlook?.estimatedRemaining };
         };
 
         const mine = league.pendingClaims.filter((c) => c.teamId === team.teamId);
@@ -393,19 +402,16 @@
 
         return h('div', { className: 'tl-waiver-desk' },
             h('header', { className: 'tl-waiver-heading' },
-                h('div', null, h('span', { className: 'tl-label' }, 'FREE AGENCY'), h('h2', null, 'Find your next difference-maker')),
+                h('h2', null, 'Free agents'),
                 h('span', { className: 'tl-pill' }, wireOpen ? `W${league.currentWeek} · CLAIMS OPEN` : league.phase === 'draft' ? 'OPENS AFTER DRAFT' : league.phase === 'season' ? `W${league.currentWeek} · CLAIMS CLOSED` : 'SEASON COMPLETE')),
             h('div', { className: 'tl-waiver-layout' },
             h('section', { className: 'tl-card tl-waiver-market' },
-                h('div', { className: 'tl-card-title' }, h('span', null, 'Market explorer'), h('small', null, `${filtered.length} available players`)),
+                h('p', { className: 'tl-waiver-list-count' }, `${filtered.length} players · ${estimatedPreviews ? 'Est. points left' : 'Points left'} ↓`),
                 h('div', { className: 'tl-waiver-search' },
-                    h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(rowCap); } }),
-                    h('span', { className: 'tl-label' }, estimatedPreviews ? 'SORT · EST. POINTS LEFT ↓' : 'SORT · POINTS LEFT ↓')),
+                    h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(rowCap); } })),
                 h('nav', { className: 'tl-waiver-filters', 'aria-label': 'Free agent positions' },
                     ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(rowCap); } }, slotName(position)))),
-                h('p', { className: 'tl-waiver-reference' }, league.phase === 'complete' ? 'Season complete. No points remain to play.' : estimatedPreviews
-                    ? `This week’s editions · Estimated points left use the recorded-season average across W${league.currentWeek}–W${Engine.seasonEndWeek(league)}. Weekly scores and availability stay sealed. Totals use your league scoring.`
-                    : `This week’s editions · Points left cover W${league.currentWeek}–W${Engine.seasonEndWeek(league)}, if started each week. Totals use your league scoring${Engine.playoffCount(league) ? ' and include playoff weeks' : ''}.`),
+                h('p', { className: 'tl-waiver-reference' }, league.phase === 'complete' ? 'Season complete. No points remain to play.' : `Avg pts per completed game · W${league.currentWeek} game rating`),
                 (!logIndex || (league.settings.eraAdjusted && !eraFactors?.size)) && h('p', { className: 'tl-hint', role: 'status' }, 'Scoring data is unavailable. Point totals will appear when it loads.'),
                 shown.length === 0 ? h('p', { className: 'tl-empty' }, 'No players match these filters.') :
                     h('div', { className: 'tl-waiver-table-scroll' }, h('table', { className: 'tl-waiver-table' },
@@ -415,13 +421,20 @@
                             const selected = card.identity === targetIdentity;
                             return h('tr', { key: card.identity, className: selected ? 'is-selected' : '' },
                                 h('td', { className: 'tl-waiver-rank' }, index + 1),
-                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${card.position} · ${preview?.drawnSeason ?? '—'} season`), h('small', { className: 'tl-waiver-mobile-points' }, previewPoints(preview?.remainingPoints) + (preview?.estimated ? ' est. pts left' : ' pts left')), h('details', { className: 'tl-waiver-mobile-detail' }, h('summary', null, 'Score detail'), h('p', null, `${previewPoints(preview?.totalPoints)} total · ${previewPoints(preview?.remainingPoints)} ${preview?.estimated ? 'estimated ' : ''}points left. Totals use your league scoring.`))),
+                                h('td', null, h('strong', null, card.name), h('small', { className: 'tl-waiver-edition' }, `${card.position} · ${preview?.drawnSeason ?? '—'} season`),
+                                    h(PlayerSignals, { league, entry: waiverEntry(card), logIndex, eraFactors, throughWeek }),
+                                    h('small', { className: 'tl-waiver-mobile-points' }, previewPoints(preview?.remainingPoints) + (preview?.estimated ? ' est. pts left' : ' pts left'))),
                                 h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
                                 h('td', { className: 'tl-waiver-score tabular' }, previewPoints(preview?.remainingPoints), h('small', null, `${previewPoints(preview?.totalPoints)} total`)),
                                 h('td', null, h('button', { className: `tl-btn${selected ? ' primary' : ''}`, disabled: !wireOpen || filing, 'aria-label': `Claim ${card.name}`, 'aria-pressed': selected, onClick: event => chooseTarget(card.identity, event) }, selected ? 'Edit claim' : '+ Claim')));
                         })))),
                 h('div', { className: 'tl-waiver-market-foot' }, h('span', null, `${shown.length} of ${filtered.length} shown`),
-                    filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + rowCap) }, 'Show more'))),
+                    filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + rowCap) }, 'Show more')),
+                h('details', { className: 'tl-waiver-scoring-help' }, h('summary', null, 'How player scores work'),
+                    h('p', null, 'Avg pts / game uses completed Vault games in your league scoring, including games before acquisition. Stars rate the current game against that player’s historical season; they are not a probability.'),
+                    h('p', null, estimatedPreviews
+                        ? `Estimated points left use the recorded-season average across W${league.currentWeek}–W${Engine.seasonEndWeek(league)}. Future weekly scores and availability stay sealed. Totals use your league scoring.`
+                        : `Points left cover W${league.currentWeek}–W${Engine.seasonEndWeek(league)}, if started each week. Totals use your league scoring${Engine.playoffCount(league) ? ' and include playoff weeks' : ''}.`))),
             h('aside', { className: 'tl-waiver-command' },
                 h('div', { style: { display: 'grid', gridTemplateColumns: faab ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Priority'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, myPriority ? `#${myPriority}` : '—')),
@@ -439,6 +452,7 @@
                         h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' } },
                             h('span', { className: `tl-pos-badge tl-pos-${target.position}` }, target.position),
                             h('span', { style: { flex: 1 } }, h('strong', { style: { display: 'block', fontSize: 12.5 } }, target.name), h('small', { style: { color: 'var(--text-muted)' } }, `${targetPreview?.drawnSeason ?? '—'} SEASON`))),
+                        h(PlayerSignals, { league, entry: waiverEntry(target), logIndex, eraFactors, throughWeek, className: 'tl-waiver-target-signals' }),
                         h('div', { className: 'tl-waiver-preview' },
                             h('div', null, h('small', null, targetPreview?.estimated ? 'Estimated points left' : 'Points left'), h('strong', null, previewPoints(targetPreview?.remainingPoints))),
                             h('div', null, h('small', null, league.settings.gameDeckVersion === 1 ? 'Recorded season total' : `W1–${Engine.seasonEndWeek(league)} total`), h('strong', null, previewPoints(targetPreview?.totalPoints))),
@@ -454,7 +468,8 @@
                                     'aria-label': 'Drop ' + entry.name, 'aria-pressed': entry.entryId === dropEntryId, disabled: !eligible, onClick: () => setDropEntryId(entry.entryId) },
                                     h('span', null, h('strong', null, entry.name), h('small', null, entry.position + ' · ' + entry.drawnSeason + ' · ' + entry.slot)),
                                     h('span', null, h('b', null, previewPoints(read.remaining)), h('small', null, 'Est. pts left · recent pace')),
-                                    h('span', null, h('b', null, 'W' + league.currentWeek + ' · ' + read.week), h('small', null, eligible ? 'Eligible replacement' : 'Does not open a matching slot')));
+                                    h(PlayerSignals, { league, entry, logIndex, eraFactors, throughWeek }),
+                                    !eligible && h('small', { className: 'tl-waiver-drop-ineligible' }, 'Does not open a matching slot'));
                             })),
                         h('p', { className: 'tl-hint' }, estimatedPreviews ? 'Roster estimates use completed-game pace; free-agent estimates use recorded-season average. Future NFL game assignments stay sealed.' : 'Roster estimates use completed-game pace. Free-agent points left use the remaining archive weeks.'),
                         faab && h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 } },
@@ -603,7 +618,8 @@
                             h('p', { style: { fontSize: 12, margin: '2px 0', color: 'var(--text-secondary)' } }, h('b', { style: { color: 'var(--white)' } }, from?.name ?? trade.fromTeamId), ` sends ${names(trade.giveEntryIds)}`),
                             h('p', { style: { fontSize: 12, margin: '2px 0 6px', color: 'var(--text-secondary)' } }, h('b', { style: { color: 'var(--white)' } }, to?.name ?? trade.toTeamId), ` sends ${names(trade.receiveEntryIds)}`),
                             trade.deferredUntilWeek > league.currentWeek && h('p', { className: 'tl-hint' }, `Delayed until Week ${trade.deferredUntilWeek}`),
-                            trade.note && h('p', { style: { fontSize: 11.5, fontStyle: 'italic', color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: '0 0 6px' } }, `"${trade.note}"`),
+                            trade.note && h('p', { className: 'tl-trade-offer-reason' }, trade.note),
+                            incoming && deskOpen && !canRespond && !deferred && h('p', { className: 'tl-hint' }, 'Trade decisions open after waivers settle.'),
                             toAi && !canRespond && !deferred && h('p', { className: 'tl-hint' }, deskOpen
                                 ? 'The GM will respond after the waiver batch runs, during Decisions & lineup.'
                                 : 'Trade responses are closed at this stage.'),
@@ -617,7 +633,9 @@
                                     canRespond && h('button', { className: 'tl-btn', onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
                                 !incoming && !toAi && h('span', { className: 'tl-pill info' }, 'AWAITING RESPONSE')));
                     }),
-                    !pending.length && h('p', { className: 'tl-empty' }, 'No pending offers on the desk.')),
+                    !pending.length && h('p', { className: 'tl-empty' }, others.some(item => item.manager === 'ai')
+                        ? 'No pending offers. Rival GMs look for fair roster fits each week; a new offer appears here when they find one.'
+                        : 'No pending offers on the desk.')),
                 h('div', { className: 'tl-card', hidden: deskView !== 'history' },
                     h('div', { className: 'tl-card-title' }, h('span', null, 'Trade history'), h('small', null, 'league-wide')),
                     settled.map((trade) => {
@@ -683,7 +701,7 @@
             !team
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Join a manager seat to open your roster.'))
                 : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats })
-                    : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors })
+                    : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors, throughWeek })
                         : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply })
                             : h(AchievementsSection, { key: team.teamId, league, team }));
     }
