@@ -2,7 +2,7 @@
 @media (max-width:767px) {
   .duat-game :is(.duat-phone-home,.duat-phone-realm) { color:#f3ecda; }
   .duat-game .duat-phone-home { padding:8px 0 20px; }
-  .duat-game .duat-phone-home-heading { margin:0 0 24px; padding:0; scroll-margin-top:88px; }
+  .duat-game .duat-phone-home-heading { margin:0 0 24px; padding:0; scroll-margin-top:calc(88px + var(--sat,env(safe-area-inset-top,0px))); }
   .duat-game .duat-phone-home-heading > span { color:#b9c9c4; font-size:14px; line-height:1.5; letter-spacing:.02em; }
   .duat-game .duat-phone-home-heading h1 { margin:8px 0 0; color:#f3ecda; font-family:Georgia,serif; font-size:32px; line-height:1.13; font-weight:500; letter-spacing:-.03em; }
   .duat-game .duat-phone-focus { padding:20px; border:1px solid #365152; border-radius:var(--card-radius-lg); background:#132628; box-shadow:none; }

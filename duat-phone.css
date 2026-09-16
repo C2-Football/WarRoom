@@ -177,7 +177,7 @@
     --duat-phone-dock-height:calc(77px + var(--sab,env(safe-area-inset-bottom,0px)));
     background:#0b1819; color:#f3ecda; padding-bottom:0; min-height:100dvh;
   }
-  .duat-game .duat-main,.duat-game.has-phone-dock .duat-main { padding:8px 20px 26px; scroll-margin-top:88px; }
+  .duat-game .duat-main,.duat-game.has-phone-dock .duat-main { padding:8px 20px 26px; scroll-margin-top:calc(88px + var(--sat,env(safe-area-inset-top,0px))); }
   .duat-game.has-phone-dock .duat-main { padding-bottom:calc(var(--duat-phone-dock-height) + 26px); }
   .duat-game .duat-phone-topbar,.duat-game.has-phone-dock .duat-phone-topbar { display:flex; align-items:center; gap:8px; min-height:72px; padding:calc(12px + var(--sat,env(safe-area-inset-top,0px))) 12px 12px; border:0; background:#0b1819; }
   .duat-game .duat-phone-back,.duat-game .duat-phone-campaign { display:grid; place-items:center; flex:none; width:44px; height:44px; padding:0; border:0; background:transparent; color:#b9c9c4; }
@@ -205,7 +205,8 @@
   .duat-game :is(.duat-button,.duat-weekly-next .primary) { border-radius:var(--card-radius-sm); background:#1a3133; border-color:#365152; box-shadow:none; }
   .duat-game :is(.duat-button.primary,.duat-weekly-next .primary) { background:#e4c27c; color:#0b1819; border-color:#e4c27c; font-size:16px!important; }
   .duat-game :is(.duat-weekly-heading,.duat-weekly-content) { padding:18px 16px; }
-  .duat-game .duat-weekly-heading { background:none; border:0; padding:12px 0 18px; }
+  .duat-game .duat-weekly-flow { background:transparent; border:0; box-shadow:none; }
+  .duat-game .duat-weekly-heading { background:none; border:0; padding:12px 0 18px; scroll-margin-top:calc(88px + var(--sat,env(safe-area-inset-top,0px))); }
   .duat-game .duat-weekly-heading h2 { color:#f3ecda; font-size:30px; }
   .duat-game.has-phone-dock .duat-weekly-next { bottom:var(--duat-phone-dock-height); padding:12px 20px; background:#132628; border-radius:0; border-top:1px solid #365152; }
   .duat-game.has-phone-dock.has-week-action .duat-main { padding-bottom:calc(var(--duat-week-action-height,160px) + var(--duat-phone-dock-height) + 26px); }
