@@ -320,7 +320,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 const division = r.settings && r.settings.division != null ? String(r.settings.division) : null;
                 return { id: String(r.roster_id), name, division, ownerId: r.owner_id != null ? String(r.owner_id) : null };
             });
-            const saved = window.App?.WrStorage?.get?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), null);
+            const saved = window.App?.AccountStorage?.get?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), null);
             setSchedules(prev => ({
                 ...prev,
                 [lid]: {
@@ -348,7 +348,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const persistSchedule = (lid, patch) => {
         setSchedules(prev => {
             const next = { ...(prev[lid] || {}), ...patch };
-            window.App?.WrStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), {
+            window.App?.AccountStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), {
                 config: next.config, schedule: next.schedule, mode: next.mode,
                 seasonYear: next.seasonYear, priorStandings: next.priorStandings, nflMeta: next.nflMeta,
             });
@@ -746,10 +746,10 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const PROPOSALS_KEY = 'commish_rulelab_proposals';
     const [savedTick, setSavedTick] = React.useState(0);
     const savedProposals = React.useMemo(() => {
-        try { return (window.App?.DhqStorage?.get?.(PROPOSALS_KEY, []) || []); } catch (e) { return []; }
+        try { return (window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []); } catch (e) { return []; }
     }, [savedTick]);
     const writeProposals = (list) => {
-        try { window.App?.DhqStorage?.set?.(PROPOSALS_KEY, list); } catch (e) { /* best effort */ }
+        try { window.App?.AccountStorage?.set?.(PROPOSALS_KEY, list); } catch (e) { /* best effort */ }
         setSavedTick(t => t + 1);
     };
     const onSaveProposal = (name) => {
@@ -1101,9 +1101,11 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         } catch (e) { return null; }
     };
     const onFetchSheet = async (lid) => {
+        const owner = window.App?.AccountStorage?.owner();
         try {
             const url = C.Treasury.getLedger(lid).sheetUrl;
             const text = url ? await C.Treasury.fetchPublishedSheet(url) : null;
+            if (!owner || window.App?.AccountStorage?.owner() !== owner) return null;
             return text ? onPasteCsv(lid, text) : null;
         } catch (e) { return null; }
     };

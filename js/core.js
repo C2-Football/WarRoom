@@ -150,8 +150,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     function canUseAI() { return true; } // authenticated server enforces shared usage limits
     function trackAIUse() {}
 
-    function handleLogout() {
+    async function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
+            if (window.App?.AccountSession) return window.App.AccountSession.signOut();
             window.DHQAI?.clear();
             localStorage.removeItem((window.STORAGE_KEYS?.OD_AUTH    || 'od_auth_v1'));
             localStorage.removeItem((window.STORAGE_KEYS?.FW_SESSION || 'fw_session_v1'));

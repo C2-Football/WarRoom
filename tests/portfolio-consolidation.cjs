@@ -21,6 +21,9 @@ const context = vm.createContext({ React, console, URLSearchParams, requestAnima
 context.window = context;
 const load = file => vm.runInContext(Babel.transform(read(file), { presets: ['react'] }).code, context);
 load('js/tabs/global-view.js');
+context.OD = { getCurrentUserId: () => 'portfolio-fixture', getSessionToken: () => 'fixture-session' };
+load('reconai-shared/storage.js');
+load('js/shared/account-storage.js');
 load('js/shared/empire-decisions.js');
 load('js/components/commish-sidebar.js');
 load('js/components/commish-governance-panel.js');
@@ -82,7 +85,7 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     const league = { ...fixture.allLeagues[0], id: '1389388885716385792', name: 'CTB Shootout' };
     let account = 'owner-a';
     Object.assign(context, {
-        OD: { getCurrentUserId: () => account }, sleeperUser: { user_id: 'sleeper-a' },
+        OD: { getCurrentUserId: () => account, getSessionToken: () => 'fixture-session' }, sleeperUser: { user_id: 'sleeper-a' },
         selectedLeague: null, activeTab: 'dashboard', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [], allWireOverlay: null,
         isNavigatingRef: { current: false }, initialRouteAppliedRef: { current: false },
         sleeperLeagues: [league], espnLeagues: [], mflLeagues: [], visibleEspnLeagues: [], visibleMflLeagues: [], loading: false,

@@ -25,7 +25,7 @@
     "test:ai": "node tests/ai-routing.js && node tests/alex-format-context.cjs",
     "test:ai-scale": "node scripts/ai-scale-load-model.cjs",
     "test:billing": "node tests/billing-schema.js",
-    "test:security": "node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs",
+    "test:security": "node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs && node tests/account-storage.cjs && node tests/account-session.cjs",
     "test:bug-capture": "node tests/bug-capture.js",
     "test:analytics": "node tests/analytics-report.js",
     "test:tutorial": "node tests/tutorial-contract.js",

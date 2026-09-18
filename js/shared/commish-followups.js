@@ -13,7 +13,7 @@
     const HISTORY_CAP = 100;
     const _mem = new Map();
 
-    function store() { return App.DhqStorage || null; }
+    function store() { return App.AccountStorage || (typeof window === 'undefined' ? null : { get: (_key, fallback) => fallback, set: () => false }); }
     function read() {
         const st = store();
         try {

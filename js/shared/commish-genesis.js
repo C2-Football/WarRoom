@@ -79,7 +79,7 @@
         get(key, fallback) { return _mem.has(key) ? JSON.parse(_mem.get(key)) : (fallback !== undefined ? fallback : null); },
         set(key, value) { _mem.set(key, JSON.stringify(value)); return true; },
     };
-    function store() { return (App.DhqStorage) || memStore; }
+    function store() { return App.AccountStorage || (typeof window === 'undefined' ? memStore : null); }
 
     // ── Manual checklist definitions ─────────────────────────────────
     // dues_noted NEVER touches money: DHQ holds no balances, sends no
