@@ -694,7 +694,7 @@ function empireFixture(overrides) {
         id: 'l1',
         name: 'Alpha',
         season: '2026',
-        settings: { draft_rounds: 4 },
+        settings: { type: 2, draft_rounds: 4 },
         rosters: [
           { roster_id: 1, owner_id: 'u1', players: ['p1', 'p2', 'p3'], settings: { wins: 8, losses: 3 } },
           { roster_id: 2, owner_id: 'u2', players: [], settings: { wins: 3, losses: 8 } },
@@ -708,7 +708,7 @@ function empireFixture(overrides) {
         id: 'l2',
         name: 'Beta',
         season: '2026',
-        settings: { draft_rounds: 4 },
+        settings: { type: 2, draft_rounds: 4 },
         rosters: [
           { roster_id: 3, owner_id: 'u1', players: ['p1', 'p4'], settings: { wins: 1, losses: 10 } },
           { roster_id: 4, owner_id: 'u3', players: [], settings: { wins: 10, losses: 1 } },

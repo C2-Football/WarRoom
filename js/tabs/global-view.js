@@ -120,6 +120,13 @@ function buildEmpirePortfolioModel(input) {
     function leagueId(league) {
         return league?.id || league?.league_id || league?.leagueId || '';
     }
+    function leagueFormat(league) {
+        const raw = window.App?.Intelligence?.getLeagueTypeOverride?.(league)
+            || (league?.type ?? league?.league_type ?? league?.settings?.type ?? league?.metadata?.type ?? league?.metadata?.league_type);
+        if (raw == null && Number(league?.settings?.max_keepers || league?.settings?.keeper_count || league?.metadata?.keeper_count || 0) > 0) return 'keeper';
+        return window.App?.LeagueSkin?.normalizeType?.(raw)
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(raw)] || String(raw || 'unknown').toLowerCase());
+    }
     function statusFromTier(tier) {
         if (tier === 'ELITE' || tier === 'CONTENDER') return 'contender';
         if (tier === 'CROSSROADS') return 'fringe';
@@ -159,6 +166,7 @@ function buildEmpirePortfolioModel(input) {
 
     allLeagues.forEach(league => {
         const rosters = league?.rosters || [];
+        const format = leagueFormat(league);
         if (rosters.length) rosterLeagueCount++;
         const myRoster = rosters.find(r => sameId(r.owner_id, sleeperUserId) || sameId(r.owner_id, league?.myUserId) || sameId(r.roster_id, league?.myRosterId));
         if (!myRoster) return;
@@ -220,6 +228,7 @@ function buildEmpirePortfolioModel(input) {
         const province = {
             id: leagueId(league),
             name: league?.name || 'League',
+            format,
             league,
             roster: myRoster,
             players: rosterPlayers,
@@ -251,7 +260,7 @@ function buildEmpirePortfolioModel(input) {
             premiumPickCount: 0,
             acquiredPickCount: 0,
             ownPickCount: 0,
-            pickScore: 0,
+            pickScore: format === 'dynasty' ? 0 : null,
             pickFeedPresent: Array.isArray(league?.tradedPicks),
             pickFeedReady: Array.isArray(league?.tradedPicks) && (!league._pickFeedState || league._pickFeedState === 'ready') && !league._portfolioStale,
         };
@@ -303,7 +312,11 @@ function buildEmpirePortfolioModel(input) {
         const tradedPicks = league.tradedPicks;
         const draftRounds = league?.settings?.draft_rounds || 4;
         const startYear = parseInt(league?.season || nowYear, 10);
-        for (let year = startYear; year <= startYear + 2; year++) {
+        // Match the shared league skin: seasonal formats own only this draft
+        // year's board. Keeper future rights remain visible, but imported rights
+        // alone cannot price keeper costs/eligibility using a dynasty rookie curve.
+        const pickHorizon = format === 'dynasty' || format === 'keeper' ? 3 : 1;
+        for (let year = startYear; year < startYear + pickHorizon; year++) {
             for (let round = 1; round <= draftRounds; round++) {
                 const tradedAway = tradedPicks.find(tp =>
                     parseInt(tp.season, 10) === year &&
@@ -312,11 +325,11 @@ function buildEmpirePortfolioModel(input) {
                     !sameId(tp.owner_id, myRoster.roster_id)
                 );
                 if (!tradedAway) {
-                    const own = { leagueId: province.id, leagueName: province.name, year, round, own: true, acquired: false, score: pickValue(round, province.teams, draftRounds) };
+                    const own = { leagueId: province.id, leagueName: province.name, format, year, round, own: true, acquired: false, score: format === 'dynasty' ? pickValue(round, province.teams, draftRounds) : null };
                     picks.push(own);
                     province.pickCount++;
                     province.ownPickCount++;
-                    province.pickScore += own.score;
+                    if (own.score != null) province.pickScore += own.score;
                     if (round <= 2) province.premiumPickCount++;
                 }
                 tradedPicks.filter(tp =>
@@ -325,11 +338,11 @@ function buildEmpirePortfolioModel(input) {
                     sameId(tp.owner_id, myRoster.roster_id) &&
                     !sameId(tp.roster_id, myRoster.roster_id)
                 ).forEach(() => {
-                    const acquired = { leagueId: province.id, leagueName: province.name, year, round, own: false, acquired: true, score: pickValue(round, province.teams, draftRounds) };
+                    const acquired = { leagueId: province.id, leagueName: province.name, format, year, round, own: false, acquired: true, score: format === 'dynasty' ? pickValue(round, province.teams, draftRounds) : null };
                     picks.push(acquired);
                     province.pickCount++;
                     province.acquiredPickCount++;
-                    province.pickScore += acquired.score;
+                    if (acquired.score != null) province.pickScore += acquired.score;
                     if (round <= 2) province.premiumPickCount++;
                 });
             }
@@ -400,9 +413,10 @@ function buildEmpirePortfolioModel(input) {
     const avgHealth = assessedHealth.length ? Math.round(assessedHealth.reduce((sum, v) => sum + v, 0) / assessedHealth.length) : null;
     const pickYears = {};
     picks.forEach(pick => {
-        if (!pickYears[pick.year]) pickYears[pick.year] = { year: pick.year, count: 0, premium: 0, acquired: 0, own: 0, score: 0 };
+        if (!pickYears[pick.year]) pickYears[pick.year] = { year: pick.year, count: 0, premium: 0, acquired: 0, own: 0, score: 0, unpriced: 0 };
         pickYears[pick.year].count++;
-        pickYears[pick.year].score += pick.score;
+        if (pick.score != null) pickYears[pick.year].score += pick.score;
+        else pickYears[pick.year].unpriced++;
         if (pick.round <= 2) pickYears[pick.year].premium++;
         if (pick.acquired) pickYears[pick.year].acquired++;
         if (pick.own) pickYears[pick.year].own++;
@@ -414,10 +428,12 @@ function buildEmpirePortfolioModel(input) {
         staleLeagues: provinces.filter(province => province.pickFeedPresent && !province.pickFeedReady).length,
         total: picks.length,
         premium: picks.filter(p => p.round <= 2).length,
+        dynastyPremium: picks.filter(p => p.format === 'dynasty' && p.round <= 2).length,
+        unpriced: picks.filter(p => p.score == null).length,
         acquired: picks.filter(p => p.acquired).length,
         own: picks.filter(p => p.own).length,
-        score: picks.reduce((sum, pick) => sum + pick.score, 0),
-        byYear: Object.values(pickYears).sort((a, b) => a.year - b.year),
+        score: picks.some(p => p.score == null) ? null : picks.reduce((sum, pick) => sum + pick.score, 0),
+        byYear: Object.values(pickYears).map(year => ({ ...year, score: year.unpriced ? null : year.score })).sort((a, b) => a.year - b.year),
     };
 
     const sourceIncomplete = input.portfolioCoverage && !['ready', 'idle'].includes(input.portfolioCoverage.status);
@@ -548,13 +564,13 @@ function buildEmpirePortfolioModel(input) {
             cta: 'Review leagues',
         });
     }
-    if (pickCapital.complete && pickCapital.premium >= Math.max(3, provinces.length * 2)) {
+    if (pickCapital.complete && pickCapital.dynastyPremium >= Math.max(3, provinces.filter(p => p.format === 'dynasty').length * 2)) {
         pushSignal({
             severity: 'low',
             type: 'capital',
-            title: 'Premium pick bank is strong',
-            body: pickCapital.premium + ' round 1-2 picks give the portfolio optionality across windows.',
-            metric: pickCapital.premium + ' premium',
+            title: 'Dynasty pick bank is strong',
+            body: pickCapital.dynastyPremium + ' dynasty round 1-2 picks give the portfolio optionality across windows.',
+            metric: pickCapital.dynastyPremium + ' dynasty R1–2',
             filter: { assetType: 'picks' },
             detail: { type: 'slice', title: 'Draft Capital', filter: { assetType: 'picks' } },
             cta: 'Open picks',
@@ -2533,7 +2549,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <div className="empire-metric"><span>Total DHQ</span><strong>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</strong></div>
                         <div className="empire-metric"><span>Health</span><strong>{province.healthScore ?? 'No read'}</strong></div>
                         <div className="empire-metric"><span>Pick Capital</span><strong>{province.pickFeedPresent ? province.pickCount + (province.pickFeedReady ? ' picks' : ' saved picks') : 'Unavailable'}</strong></div>
-                        <div className="empire-metric"><span>Premium Picks</span><strong>{province.pickFeedPresent ? province.premiumPickCount : '—'}</strong></div>
+                        <div className="empire-metric"><span>Round 1–2 Picks</span><strong>{province.pickFeedPresent ? province.premiumPickCount : '—'}</strong></div>
                     </div>
                     <div className="empire-slice-grid">
                         <section className="empire-panel">
@@ -3635,7 +3651,7 @@ const renderScoutDetail = () => {
                                                         {province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - HP{' '}
                                                         <b style={{ color: empireHealthColor(province.healthScore) }}>{province.healthScore ?? 'No read'}</b>
                                                     </span>
-                                                    <em>{province.pickFeedPresent ? province.pickCount + (province.pickFeedReady ? ' picks' : ' saved picks') + ' - ' + province.premiumPickCount + ' premium' : 'Pick ownership unavailable'} - #{province.powerRank || '-'}/{province.teams || '-'}</em>
+                                                    <em>{province.pickFeedPresent ? province.pickCount + (province.pickFeedReady ? ' picks' : ' saved picks') + ' - ' + province.premiumPickCount + ' R1–2' : 'Pick ownership unavailable'} - #{province.powerRank || '-'}/{province.teams || '-'}</em>
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</b>
@@ -3690,10 +3706,11 @@ const renderScoutDetail = () => {
                             {filters.assetType !== 'picks' && <label className="empire-asset-search">Find a player or league<input type="search" value={assetQuery} onChange={e => setAssetQuery(e.target.value)} /></label>}
                             {filters.assetType === 'picks' ? (
                                 <div className="empire-quality-grid" style={{ padding: 12, marginTop: 0 }}>
+                                    {model.provinces.some(province => province.format !== 'dynasty') && <p data-testid="empire-pick-format-note" style={{ gridColumn: '1 / -1', fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5 }}>Seasonal leagues show this draft year only. Keeper rights include future years, with costs and eligibility still to verify. Non-dynasty pick values are unpriced.</p>}
                                     {model.pickCapital.byYear.map(year => (
                                         <button key={year.year} className="empire-league-card" style={{ '--tone': 'var(--purple)' }} type="button" onClick={() => setDetail({ type: 'slice', title: year.year + ' Draft Capital', filter: { assetType: 'picks' } })}>
-                                            <div><strong>{year.year}</strong><span>{year.count} picks - {year.premium} premium</span><em>{year.acquired} acquired - {year.own} own</em></div>
-                                            <b>{year.score > 0 ? empireCompact(year.score) : '—'}</b>
+                                            <div><strong>{year.year}</strong><span>{year.count} picks - {year.premium} R1–2</span><em>{year.acquired} acquired - {year.own} own{year.unpriced ? ' - ' + year.unpriced + ' unpriced' : ''}</em></div>
+                                            <b>{year.score == null ? 'Unpriced' : year.score > 0 ? empireCompact(year.score) : '—'}</b>
                                         </button>
                                     ))}
                                     {!model.pickCapital.byYear.length && <div className="empire-empty"><strong>{model.pickCapital.complete ? 'No picks in this portfolio' : 'Pick ownership unavailable'}</strong>{model.pickCapital.complete ? 'No draft capital matched the included leagues.' : 'Retry pick sync above to verify your draft capital.'}</div>}
@@ -3802,7 +3819,7 @@ function buildCommandBridge(input) {
                : (healthDelta > 0 ? 'up ' : 'down ') + Math.abs(healthDelta) + ' from last week',
           delta: healthDelta != null ? { dir: dir(healthDelta), n: healthDelta } : null },
         { key: 'picks', label: 'Pick Capital', value: pickCapital.complete === false && !pickCapital.loadedLeagues ? '—' : String(pickCapital.total || 0),
-          sub: pickCapital.complete === false ? (pickCapital.loadedLeagues ? 'known picks · coverage incomplete' : 'ownership unavailable') : (pickCapital.premium || 0) + ' premium (R1–2)' },
+          sub: pickCapital.complete === false ? (pickCapital.loadedLeagues ? 'known picks · coverage incomplete' : 'ownership unavailable') : (pickCapital.premium || 0) + ' R1–2' + (pickCapital.unpriced ? ' · ' + pickCapital.unpriced + ' unpriced' : '') },
         { key: 'exposure', label: 'Top Exposure', value: topExp ? topExp.exposurePct + '%' : '—',
           tone: topExp && topExp.exposurePct >= 50 ? 'warn' : null,
           sub: topExp ? topExp.name + ' · ' + topExp.count + ' of ' + (totals.leagues || 0) + leagueLabel : model.coverage?.complete === false ? 'exposure check incomplete' : 'no duplicate exposure' },
