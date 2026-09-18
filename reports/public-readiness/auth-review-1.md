@@ -40,3 +40,18 @@ resolution and evidence.
 - Existing password-reset backend uses non-atomic token consumption and ignores
   errors for session-version/token-used writes. This was sent to the security
   boundary owner for investigation; it is not a frontend-diff regression.
+
+## Re-review of owner fixes
+
+Both material findings were resolved in the owner worktree on 2026-09-18.
+OAuth now requests a URL with `skipBrowserRedirect`, bounds startup at 15 seconds,
+validates the Supabase origin, and cannot navigate on a late result after timeout.
+New regressions cover hanging, invalid, and late provider responses. Legacy
+session writes now run inside the guarded authentication path, restore previous
+values on partial failure, and unlock the form for retry. Failures at each
+session key plus a successful retry are covered. `npm run test:login-auth`
+passed on the revised diff. No material finding remains in this bounded review.
+
+## Account transition integration re-review
+
+Reviewed root commit `85c4fa6` after the shared account-storage transaction was integrated into login. Ran the actual helper through `node tests/auth-request-recovery.cjs` and `node tests/login-auth-contract.js`: recovery checks passed and all 20 restoration scenarios passed. No new material finding in this bounded integration. Existing app identity precedes stale OAuth persistence; OAuth-only users receive a subject-scoped local identity without inventing an app-user ID; legacy session/context writes use the same rollback/recovery transaction. This is local regression/source evidence, not a new live authenticated journey.
