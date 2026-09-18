@@ -87,3 +87,13 @@ test('scenario loss remains player-only regardless of verified keeper or dynasty
     assert.equal(scenario.loss, 600);
     assert.equal(scenario.after, 1400);
 });
+
+test('blank format placeholders fall through exactly like canonical LeagueSkin while numeric zero remains explicit', () => {
+    for (const league of [fixture(2, { type: '', league_type: '' }), fixture(undefined, { type: '', settings: { keeper_count: 2, draft_rounds: 4 } }), fixture(0, { type: '', settings: { type: 0, keeper_count: 2, draft_rounds: 4 } })]) {
+        const canonical = context.window.App.LeagueSkin.build({ league }).type;
+        const result = model([league]);
+        assert.equal(result.provinces[0].format, canonical);
+        assert.equal(result.pickCapital.total, canonical === 'redraft' ? 4 : 12);
+        assert.equal(result.pickCapital.score == null, canonical !== 'dynasty');
+    }
+});

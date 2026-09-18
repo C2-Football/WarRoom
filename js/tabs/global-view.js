@@ -121,11 +121,14 @@ function buildEmpirePortfolioModel(input) {
         return league?.id || league?.league_id || league?.leagueId || '';
     }
     function leagueFormat(league) {
-        const raw = window.App?.Intelligence?.getLeagueTypeOverride?.(league)
-            || (league?.type ?? league?.league_type ?? league?.settings?.type ?? league?.metadata?.type ?? league?.metadata?.league_type);
-        if (raw == null && Number(league?.settings?.max_keepers || league?.settings?.keeper_count || league?.metadata?.keeper_count || 0) > 0) return 'keeper';
-        return window.App?.LeagueSkin?.normalizeType?.(raw)
-            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(raw)] || String(raw || 'unknown').toLowerCase());
+        const normalize = value => window.App?.LeagueSkin?.normalizeType?.(value)
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(value)] || String(value ?? '').trim().toLowerCase());
+        const override = normalize(window.App?.Intelligence?.getLeagueTypeOverride?.(league));
+        const raw = [league?.type, league?.league_type, league?.settings?.type, league?.metadata?.type, league?.metadata?.league_type]
+            .find(value => value !== undefined && value !== null && value !== '');
+        const explicit = override || normalize(raw);
+        if (explicit) return explicit;
+        return Number(league?.settings?.max_keepers || league?.settings?.keeper_count || league?.metadata?.keeper_count || 0) > 0 ? 'keeper' : 'unknown';
     }
     function statusFromTier(tier) {
         if (tier === 'ELITE' || tier === 'CONTENDER') return 'contender';
