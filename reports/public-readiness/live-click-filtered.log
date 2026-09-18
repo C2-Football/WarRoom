@@ -1,0 +1,17 @@
+FFFF.FFFFFF.F
+  FAIL: dashboard widget click works at desktop breakpoint: dashboard desktop missing expected text: My Roster
+  FAIL: dashboard widget click works at tablet breakpoint: dashboard tablet missing expected text: My Roster
+  FAIL: dashboard widget click works at mobile breakpoint: page.waitForSelector: Timeout 45000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-widget-id="qa-roster-sm"]') to be visible[22m
+
+  FAIL: My Roster surface renders nonblank at desktop: My Roster missing expected text: MY ROSTER
+  FAIL: Trade Center surface renders nonblank at desktop: Trade Center missing expected text: Best Move
+  FAIL: Draft surface renders nonblank at desktop: Draft missing expected text: Flash Brief
+  FAIL: Free Agency surface renders nonblank at desktop: Free Agency missing expected text: Free Agency Action HQ
+  FAIL: GM Office surface renders nonblank at desktop: GM Office missing expected text: OFFICE, GM's Office
+  FAIL: Trophy Room surface renders nonblank at desktop: Trophy Room missing expected text: Trophy
+  FAIL: Compare surface renders nonblank at desktop: Compare missing expected text: Head to Head
+  FAIL: Alex sub-tabs remain clickable: button "Model Settings" not found
+
+FAIL live click-path QA (filtered) - 2 passed, 11 failed

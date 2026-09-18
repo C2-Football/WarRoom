@@ -6,17 +6,18 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
+const { installReadOnlyRoutes } = require('./helpers/browser-readonly.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
 const USER = process.env.WARROOM_QA_USER || 'bigloco';
 const BASE_PATH = process.env.WARROOM_QA_PATH || '/dist-preview/';
-// Phone floor (390/430), iPad mini portrait (744 — PHONE tier by ruling),
+// Phone floor (320/390/430), iPad mini portrait (744 — PHONE tier by ruling),
 // iPad portrait (768 9.7", 810 10.2", 820 Air, 834 Pro 11", 1024 Pro 12.9"),
 // iPad landscape (1180 + short-height variants), desktop (1365). Heights
 // matter for the sidebar-scroll (F1) and tier-contract checks.
 const SIZES = [
-  { width: 390, height: 900 }, { width: 430, height: 900 },
+  { width: 320, height: 740 }, { width: 390, height: 900 }, { width: 430, height: 900 },
   { width: 744, height: 1133 }, { width: 768, height: 900 },
   { width: 810, height: 1080 }, { width: 820, height: 900 },
   { width: 834, height: 900 }, { width: 1024, height: 768 },
@@ -30,8 +31,8 @@ let chromium;
 try {
   chromium = require('@playwright/test').chromium;
 } catch (_err) {
-  console.log('SKIP browser QA - @playwright/test is not installed. Run npm install first.');
-  process.exit(0);
+  console.log('FAIL browser QA - @playwright/test is not installed. Run npm install first.');
+  process.exit(1);
 }
 
 function hasChrome() {
@@ -95,6 +96,20 @@ async function layoutSnapshot(page) {
       if (style.visibility === 'hidden' || style.display === 'none') return;
       if (rect.right <= 2 && rect.left < 0) return;
       if (rect.left < -2 || rect.right > window.innerWidth + 2) {
+        // A horizontal navigation strip may intentionally start offscreen.
+        // Prove the control can be exposed by that strip before accepting it;
+        // overflow:hidden and elements wider than their scrollport still fail.
+        let scroller = el.parentElement;
+        while (scroller && !(/auto|scroll/.test(getComputedStyle(scroller).overflowX) && scroller.scrollWidth > scroller.clientWidth)) scroller = scroller.parentElement;
+        if (scroller) {
+          const original = scroller.scrollLeft;
+          const bounds = scroller.getBoundingClientRect();
+          scroller.scrollLeft += rect.left - bounds.left - (bounds.width - rect.width) / 2;
+          const reached = el.getBoundingClientRect();
+          const reachable = reached.left >= Math.max(0, bounds.left) - 2 && reached.right <= Math.min(innerWidth, bounds.right) + 2;
+          scroller.scrollLeft = original;
+          if (reachable) return;
+        }
         clipped.push({
           tag: el.tagName.toLowerCase(),
           className: String(el.className || '').slice(0, 80),
@@ -116,8 +131,8 @@ async function layoutSnapshot(page) {
 
 async function main() {
   if (!hasChrome()) {
-    console.log(`SKIP browser QA - Chrome not found at ${CHROME}`);
-    return;
+    console.log(`FAIL browser QA - Chrome not found at ${CHROME}`);
+    process.exitCode = 1; return;
   }
 
   let port;
@@ -125,8 +140,8 @@ async function main() {
     port = await findOpenPort(PORT_START);
   } catch (err) {
     if (err && ['EACCES', 'EPERM'].includes(err.code)) {
-      console.log(`SKIP browser QA - local port binding is not permitted here (${err.code}).`);
-      return;
+      console.log(`FAIL browser QA - local port binding is not permitted here (${err.code}).`);
+      process.exitCode = 1; return;
     }
     throw err;
   }
@@ -137,18 +152,24 @@ async function main() {
 
   try {
     const context = await browser.newContext();
-    await context.route('**/*', route => {
-      const type = route.request().resourceType();
-      if (['image', 'font', 'media'].includes(type)) return route.abort();
-      return route.continue();
-    });
-    for (const { width, height } of SIZES) {
+    await installReadOnlyRoutes(context, { cachePublicReads: true });
+    await context.addInitScript(user => {
+      localStorage.setItem('dynastyhq_username', user);
+      localStorage.setItem('wr_tutorial_done_v1', '1');
+    }, USER);
+    const requestedWidths = process.env.WARROOM_QA_WIDTHS?.split(',').map(Number);
+    const sizes = requestedWidths ? SIZES.filter(size => requestedWidths.includes(size.width)) : SIZES;
+    if (!sizes.length) throw new Error('WARROOM_QA_WIDTHS matched no supported viewport');
+    for (const { width, height } of sizes) {
+      const page = await context.newPage();
+      page.on('pageerror', error => failures.push(`page error@${width}: ${error.message}`));
+      await page.setViewportSize({ width, height });
       for (const tab of TABS) {
-        const page = await context.newPage();
-        await page.setViewportSize({ width, height });
         const url = `http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=${tab}`;
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 12000 });
-        await page.waitForTimeout(700);
+        await page.locator('.wr-league-header-row, .wr-phone-lhdr').first().waitFor({ state: 'visible', timeout: 30000 });
+        await page.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
+        await page.waitForTimeout(300);
         const snap = await layoutSnapshot(page);
         if (snap.rootTextLength < 20) {
           failures.push(`${tab}@${width}: root content did not render`);
@@ -159,10 +180,10 @@ async function main() {
         if (snap.clipped.length) {
           failures.push(`${tab}@${width}: ${snap.clipped.length} clipped elements; first=${JSON.stringify(snap.clipped[0])}`);
         }
-        await page.close();
         checked++;
         process.stdout.write('.');
       }
+      await page.close();
     }
 
     const page = await context.newPage();
@@ -188,8 +209,10 @@ async function main() {
     if (await phoneHdr.count() !== 1) {
       failures.push('dashboard-shell@390: one-row phone header not found');
     } else {
-      await phoneHdr.locator('[role="button"]').first().click({ timeout: 4000 }).catch(err => {
-        failures.push(`dashboard-shell@390: phone header tap failed (${err.message})`);
+      await page.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
+      await page.getByRole('button', { name: 'League status and actions', exact: true }).click({ timeout: 15000 }).catch(async err => {
+        const diagnostic = await page.evaluate(() => ({ url: location.href, viewport: window.WR?.viewport?.(), sheet: typeof window.WR?.Sheet, header: document.querySelector('.wr-phone-lhdr')?.outerHTML, text: document.body.innerText.slice(0, 1200) }));
+        failures.push(`dashboard-shell@390: phone header tap failed (${err.message}); ${JSON.stringify(diagnostic)}`);
       });
       await page.waitForTimeout(250);
       const sheet = await page.locator('.wr-sheet').count();
@@ -310,17 +333,13 @@ async function main() {
     // the token and asserts the plumbing moved the chrome by exactly 47px.
     {
       const coarseCtx = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 1180, height: 820 } });
-      await coarseCtx.route('**/*', route => {
-        const type = route.request().resourceType();
-        if (['image', 'font', 'media'].includes(type)) return route.abort();
-        return route.continue();
-      });
+      await installReadOnlyRoutes(coarseCtx);
       const cp = await coarseCtx.newPage();
       await cp.addInitScript(u => {
         try { localStorage.setItem('wr_tutorial_done_v1', '1'); localStorage.setItem('dynastyhq_username', u); } catch (e) {}
       }, USER);
       await cp.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=trades`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-      await cp.waitForTimeout(900);
+      await cp.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
       const coarseSnap = await cp.evaluate(() => {
         const out = {
           coarse: matchMedia('(hover: none) and (pointer: coarse)').matches,
@@ -337,18 +356,25 @@ async function main() {
       if (!coarseSnap.coarse) failures.push('coarse@1180: (hover:none)+(pointer:coarse) did not match under touch emulation');
       if (coarseSnap.sidebarOverflow !== 'auto') failures.push(`coarse@1180: .wr-sidebar overflow-y=${coarseSnap.sidebarOverflow}, expected auto (F1)`);
       if (coarseSnap.satDelta !== 47) failures.push(`coarse@1180: header --sat plumbing moved ${coarseSnap.satDelta}px, expected 47`);
-      // Halo engagement: the 26px one-tap "+" must win taps 13px above its
-      // visual box (44×44 ::after). Needs Deal HQ rows (Pro dev login).
+      // The current + Build control is 32px tall; verify the required 44px
+      // touch target, including its invisible extension, after opening the board.
+      await cp.locator('.tc-finder-browse > summary').click();
       await cp.locator('.tc-dhq-add-btn').first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+      if (await cp.locator('.tc-dhq-add-btn').count()) {
+        await cp.locator('.tc-dhq-add-btn').first().evaluate(button => button.scrollIntoView({ block: 'center' }));
+        await cp.waitForTimeout(100);
+      }
       const haloHit = await cp.evaluate(() => {
         const btn = document.querySelector('.tc-dhq-add-btn');
         if (!btn) return 'no-btn';
         const r = btn.getBoundingClientRect();
-        const el = document.elementFromPoint(r.left + r.width / 2, r.top - 8);
+        const halo = getComputedStyle(btn, '::after');
+        if (Math.max(r.width, parseFloat(halo.width) || 0) < 44 || Math.max(r.height, parseFloat(halo.height) || 0) < 44) return 'target-below-44px';
+        const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2 - 21);
         return el === btn || btn.contains(el) ? 'hit' : 'miss:' + (el ? el.className || el.tagName : 'null');
       });
-      if (haloHit !== 'hit' && haloHit !== 'no-btn') failures.push(`coarse@1180: add-btn halo hit-test failed (${haloHit})`);
-      if (haloHit === 'no-btn') console.log('\n  note: coarse add-btn probe skipped (no Deal HQ rows rendered)');
+      if (haloHit !== 'hit') failures.push(`coarse@1180: add-btn halo hit-test failed (${haloHit})`);
+
       await cp.close();
       await coarseCtx.close();
       checked++;
@@ -357,7 +383,7 @@ async function main() {
 
     const empirePage = await context.newPage();
     await empirePage.setViewportSize({ width: 1365, height: 900 });
-    // The hub league-selector (which holds the Launch Empire Dashboard control) only renders
+    // The current hub's Open Empire card renders
     // once a Sleeper user is connected, and sleeperUsername reads from storage
     // (OD.getCurrentUsername → dynastyhq_username), NOT the ?user= query param. Seed it so the
     // hub boots connected and renders the launch control.
@@ -366,15 +392,14 @@ async function main() {
     }, USER);
     await empirePage.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
     // The selector renders only after the user's leagues finish loading (network).
-    await empirePage.locator('.hub-league-selector').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
-    const launch = empirePage.getByText('Launch Empire Dashboard', { exact: true });
+    const launch = empirePage.locator('.hub-experience-card.empire-hero').filter({ hasText: 'Open Empire' });
     await launch.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
     if (await launch.count() !== 1) {
       const diag = await empirePage.evaluate(() => ({
-        sel: !!document.querySelector('.hub-league-selector'),
+        sel: !!document.querySelector('.hub-experience-card.empire-hero'),
         body: String(document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 160),
       })).catch(() => ({}));
-      failures.push(`empire-launch: Launch Empire Dashboard control not found [selector=${diag.sel} body="${diag.body || ''}"]`);
+      failures.push(`empire-launch: Open Empire card not found [selector=${diag.sel} body="${diag.body || ''}"]`);
     } else {
       await launch.click();
       await empirePage.waitForTimeout(1200);
@@ -431,6 +456,9 @@ async function main() {
       const missingPanels = wantPanels.filter(w => !panels.some(p => p.includes(w)));
       if (missingPanels.length) failures.push(`command-bridge: panels missing ${JSON.stringify(missingPanels)} (got ${JSON.stringify(panels)})`);
 
+      // The consolidated Empire exposes asset rows through Assets > Players & picks.
+      await empirePage.getByRole('button', { name: 'Assets', exact: true }).click();
+      await empirePage.getByRole('button', { name: 'Players & picks', exact: true }).click();
       // Asset rows render asynchronously (after the player DB fetch + model build), so wait
       // for them before the filter dance — otherwise the drilldown count races the render.
       await empirePage.getByTestId('empire-asset-row').first().waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
@@ -445,7 +473,7 @@ async function main() {
           failures.push('empire-filter: filter did not produce changed content, rows, or empty state');
         }
       }
-      await empirePage.getByText('Clear 1', { exact: true }).click().catch(() => {});
+      if (await empirePage.getByText('Clear 1', { exact: true }).count()) await empirePage.getByText('Clear 1', { exact: true }).click();
       await empirePage.waitForTimeout(300);
       const rowCount = await empirePage.getByTestId('empire-asset-row').count();
       if (rowCount > 0) {
@@ -454,8 +482,8 @@ async function main() {
         if (await empirePage.getByText('Player Portfolio', { exact: true }).count() < 1) {
           failures.push('empire-drilldown: player detail did not open');
         }
-        const back = empirePage.getByRole('button', { name: '<', exact: true });
-        if (await back.count() > 0) await back.first().click();
+        await empirePage.locator('.empire-back').first().click();
+        await empirePage.getByTestId('empire-asset-row').first().waitFor({ state: 'visible', timeout: 8000 });
       } else {
         failures.push('empire-drilldown: no asset rows available to open');
       }
@@ -474,7 +502,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\nPASS browser QA - ${checked} checks`);
+  console.log(`\nPASS browser QA${process.env.WARROOM_QA_WIDTHS ? ' (filtered widths)' : ''} - ${checked} checks`);
 }
 
 main().catch(err => {

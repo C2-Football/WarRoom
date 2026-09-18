@@ -1,0 +1,8 @@
+..............................................................................................................................
+Browser QA failures:
+  FAIL: dashboard-shell@390: phone header tap failed (locator.click: Timeout 15000ms exceeded.
+Call log:
+[2m  - waiting for locator('.wr-phone-lhdr').locator('[role="button"]').first()[22m
+)
+  FAIL: dashboard-shell@390: header league sheet did not open
+  FAIL: coarse@1180: add-btn halo hit-test failed (miss:tc-dhq-asset-row tc-dhq-asset-head)
