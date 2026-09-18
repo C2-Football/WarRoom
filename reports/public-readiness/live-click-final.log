@@ -1,0 +1,6 @@
+..............................
+FAIL My Roster player row opens inline dossier: page.waitForFunction: Timeout 8000ms exceeded.
+..........
+  FAIL: My Roster player row opens inline dossier: page.waitForFunction: Timeout 8000ms exceeded.
+
+FAIL live click-path QA - 40 passed, 1 failed

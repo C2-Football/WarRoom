@@ -1,6 +1,6 @@
-# Responsive and live click-path verification — in progress
+# Responsive and live click-path verification
 
-Branch `codex/readiness-native-20260918`, after `0c1f35e`. No deployment performed.
+Branch `codex/readiness-native-20260918`, after `0c313af`; canonical shared candidate `7bd35313fc78e25a2d1ac24035989673a93f28e6`. No deployment performed.
 
 The initial suites had obsolete labels and scene assumptions. The generic suite also lacked a connected username for its viewport matrix and could pass on the arrival shell before the actual league view loaded. The revised matrix waits for league intelligence, follows the real league deep links, inspects rendered content, adds 320 px, and traverses tabs within each loaded viewport. This is a layout/navigation smoke matrix, not proof of every primary journey.
 
@@ -21,7 +21,7 @@ Narrow roster/Alex buttons are inside intentional `overflow-x:auto` strips. The 
 
 The current + Build button is 32 px tall with a 44×44 pseudo-element target. The old probe eight pixels above the visual box falls outside the intended 44 px target. The revised probe validates at least 44 px of target size and tests near the top of that target after opening Browse players and scrolling the button into view.
 
-A fresh-context 390 px header tap opens the league sheet. Earlier long-context runs hit a 15-second interaction timeout although post-failure diagnostics show the correct header DOM and viewport still present. The final full 126-check run passed this interaction, but the intermittent warm-load delay remains under profiling; one successful run is not treated as proof that the earlier timing problem is gone.
+The warm-context 390px header stall was traced to repeated full-universe elite ranking in forecast capture. The canonical snapshot and matching forecast fix are recorded in `elite-forecast-performance.md`. Two repeated warm-context browser profiles now open the sheet; the latest also records all three capture timings. This is local Chrome evidence; the parent release task owns the final integrated browser rerun.
 
 ## Isolation and run behavior
 
@@ -35,6 +35,9 @@ Missing browser/dependency/local-server access fails nonzero. Filtered developme
 - `browser-hydrated-final.log`: 126 attempted checks, failed phone-header interaction and obsolete halo probe; not a pass.
 - `live-click-filtered.log`: original targeted baseline, 2 passed / 11 failed; source-stale expectations documented above.
 - `browser-current-final.log`: **PASS, all 126 checks**, including rendered league views, phone/tablet shell and safe-area probes, 44 px touch target, and Empire filter/detail/back.
-- `live-click-final.log`: active full rerun; no final click-path readiness claim yet.
+- `live-click-final.log`: 40 passed / 1 failed. Remaining roster dossier failure is resolved by using the actual locator click instead of a raw DOM click during hydration.
+- `live-click-roster-final.log`: that focused case passes with the optimized shared engine.
+- `draft-browser-redraft-final.log`: **PASS, all 9 draft checks**, including the independent redraft-specificity regression.
+- `live-click-integrated-final.log`: full 41-case rerun in progress at this checkpoint; no final pass claim yet.
 
-Next: diagnose the header's exact post-failure state, inspect every terminal browser finding, repair genuine defects, rerun focused cases, then provide the integrated candidate and final evidence to the parent release task.
+Next: record the terminal full click-path result, then parent runs final integrated tests against the released shared pin and combined suite changes. Missing controls, an unmatched development filter, unavailable browser/runtime, or page errors fail nonzero.

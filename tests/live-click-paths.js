@@ -6,6 +6,7 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
+const { installReadOnlyRoutes } = require('./helpers/browser-readonly.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
@@ -17,14 +18,15 @@ const VIEWPORTS = {
   desktop: { width: 1365, height: 950 },
   tablet: { width: 900, height: 900 },
   mobile: { width: 390, height: 844 },
+  narrow: { width: 320, height: 740 },
 };
 
 let chromium;
 try {
   chromium = require('@playwright/test').chromium;
 } catch (_err) {
-  console.log('SKIP live click-path QA - @playwright/test is not installed. Run npm install first.');
-  process.exit(0);
+  console.log('FAIL live click-path QA - @playwright/test is not installed. Run npm install first.');
+  process.exit(1);
 }
 
 const LIVE_WIDGET_LAYOUT = [
@@ -116,7 +118,7 @@ async function runCase(name, failures, fn) {
     process.stdout.write('.');
   } catch (err) {
     failures.push(`${name}: ${err && err.message ? err.message : err}`);
-    process.stdout.write('F');
+    console.log(`\nFAIL ${name}: ${err && err.message ? err.message : err}`);
   }
 }
 
@@ -142,16 +144,10 @@ async function newQaPage(context, baseUrl, failures, options = {}) {
     }
   }
   if (lastGotoError) throw lastGotoError;
-  await page.waitForFunction(activeTab => {
-    if (window.App?.LI_LOADED === true) return true;
-    if (activeTab === 'dashboard') return false;
-    const text = document.body?.innerText || '';
-    return text.length > 500 && !text.includes('BUILDING LEAGUE INTELLIGENCE');
-  }, tab, { timeout: 60000 });
+  await page.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
   if (tab === 'dashboard') {
-    await page.waitForSelector('[data-widget-id="qa-roster-sm"]', { timeout: 45000 });
+    await page.waitForSelector('[data-widget-id="qa-intel"]', { timeout: 45000 });
   }
-  await page.waitForFunction(() => document.body.innerText.includes('Good') || document.body.innerText.includes('Dashboard'), null, { timeout: 12000 }).catch(() => {});
   await page.waitForTimeout(350);
   return page;
 }
@@ -220,7 +216,7 @@ async function clickVisibleSelector(page, selector, label) {
       if (!el) return false;
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return !el.closest('details:not([open])') && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     };
     const target = Array.from(document.querySelectorAll(targetSelector)).find(isVisible);
     if (!target) return false;
@@ -238,7 +234,7 @@ async function clickButtonText(page, text) {
     const isVisible = el => {
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return !el.closest('details:not([open])') && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     };
     const buttons = Array.from(document.querySelectorAll('button'));
     const target = buttons.find(b => isVisible(b) && normalize(b.innerText) === wanted)
@@ -273,7 +269,7 @@ async function assertSurfaceReady(page, label, snippets = []) {
     function isVisible(el) {
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return !el.closest('details:not([open])') && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     }
 
     function cssPath(el) {
@@ -319,14 +315,14 @@ async function assertSurfaceReady(page, label, snippets = []) {
     }
   }, { label, snippets });
   if (result.length < 250) throw new Error(`${label} rendered too little visible text (${result.length} chars)`);
-  if (result.missing.length) throw new Error(`${label} missing expected text: ${result.missing.join(', ')}`);
+  if (result.missing.length) throw new Error(`${label} missing expected text: ${result.missing.join(', ')}; body=${(await page.locator('body').innerText()).slice(-1800)}`);
   if (result.blankCards.length) throw new Error(`${label} has blank card/widget targets: ${result.blankCards.join(', ')}`);
 }
 
 async function main() {
   if (!hasChrome()) {
-    console.log(`SKIP live click-path QA - Chrome not found at ${CHROME}`);
-    return;
+    console.log(`FAIL live click-path QA - Chrome not found at ${CHROME}`);
+    process.exitCode = 1; return;
   }
 
   let port;
@@ -334,8 +330,8 @@ async function main() {
     port = await findOpenPort(PORT_START);
   } catch (err) {
     if (err && ['EACCES', 'EPERM'].includes(err.code)) {
-      console.log(`SKIP live click-path QA - local port binding is not permitted here (${err.code}).`);
-      return;
+      console.log(`FAIL live click-path QA - local port binding is not permitted here (${err.code}).`);
+      process.exitCode = 1; return;
     }
     throw err;
   }
@@ -343,10 +339,15 @@ async function main() {
   const server = await startStaticServer(port);
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
   const failures = [];
-  let totalCases = 0;
+  let totalCases = 0, passedCases = 0;
   const run = async (name, fn) => {
+    if (process.env.WARROOM_CLICK_QA_FILTER && !new RegExp(process.env.WARROOM_CLICK_QA_FILTER, 'i').test(name)) return;
     totalCases++;
-    await runCase(name, failures, fn);
+    const before = failures.length;
+    try { await runCase(name, failures, fn); } finally {
+      for (const context of browser.contexts()) await Promise.all(context.pages().map(page => page.close().catch(() => {})));
+    }
+    if (failures.length === before) passedCases++;
   };
   const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -367,11 +368,7 @@ async function main() {
         { id: 'qa_hof_1', scope: 'league', name: 'QA League Legend', category: 'Validation', year: 2026, note: 'Seeded by live click QA.' },
       ]));
     }, { leagueId: LEAGUE_ID, layout: LIVE_WIDGET_LAYOUT, reports: SEEDED_REPORTS, user: USER });
-    await context.route('**/*', route => {
-      const type = route.request().resourceType();
-      if (['image', 'font', 'media'].includes(type)) return route.abort();
-      return route.continue();
-    });
+    await installReadOnlyRoutes(context, { cachePublicReads: true });
 
     const navCases = [
       ['roster widget navigates to My Roster', 'qa-roster-sm', 'myteam'],
@@ -452,22 +449,28 @@ async function main() {
     for (const [name, viewport] of Object.entries(VIEWPORTS)) {
       await run(`dashboard widget click works at ${name} breakpoint`, async () => {
         const page = await newQaPage(context, baseUrl, failures, { viewport });
-        await assertSurfaceReady(page, `dashboard ${name}`, ['Home', 'My Roster']);
-        await clickWidget(page, 'qa-market-sm');
+        await assertSurfaceReady(page, `dashboard ${name}`, ['Home', 'My Team']);
+        if (viewport.width < 768) {
+          // Phone keeps the meaningful cards behind details and removes the
+          // former small KPI strip; exercise its actual expanded widget.
+          const disclosure = page.locator('details').filter({ has: page.locator('[data-widget-id="qa-market-xxl"]') });
+          await disclosure.locator('summary').click();
+          await page.locator('[data-widget-id="qa-market-xxl"] button[title="Open Trade Center"]').click();
+        } else await clickWidget(page, 'qa-market-sm');
         await waitForTab(page, 'trades');
         await page.close();
       });
     }
 
     const tabSurfaces = [
-      ['myteam', 'My Roster', ['MY ROSTER', 'Roster Board']],
+      ['myteam', 'My Roster', ['My Team', 'Roster Board']],
       ['analytics', 'Analytics', ['ANALYTICS', 'ROSTER']],
-      ['trades', 'Trade Center', ['TRADE', 'Best Move']],
-      ['draft', 'Draft', ['DRAFT', 'Flash Brief']],
-      ['fa', 'Free Agency', ['WAIVERS', 'Free Agency Action HQ']],
-      ['alex', 'GM Office', ['OFFICE', "GM's Office"]],
-      ['trophies', 'Trophy Room', ['League', 'Trophy']],
-      ['compare', 'Compare', ['Compare', 'Head to Head']],
+      ['trades', 'Trade Center', ['Trade Center', 'Find trades', 'Build a trade']],
+      ['draft', 'Draft', ['Draft room', 'Big Board', 'Mock Draft Center']],
+      ['fa', 'Free Agency', ['Waivers', 'Overview', 'Market Explorer']],
+      ['alex', 'GM Office', ['Decision Insights', 'Alex Preferences']],
+      ['trophies', 'Trophy Room', ['Championship Timeline', 'All-Time Standings']],
+      ['compare', 'Compare', ['Compare', 'Duel', 'Select team to compare']],
       ['calendar', 'Calendar', ['LEAGUE CALENDAR', 'Add Event']],
     ];
 
@@ -481,50 +484,58 @@ async function main() {
 
     await run('My Roster player row opens inline dossier', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'myteam' });
-      await clickVisibleSelector(page, '[title="Open roster player detail"]', 'roster player row');
-      await waitForText(page, 'Dynasty Read');
-      await waitForText(page, 'Decision Stack');
-      await assertSurfaceReady(page, 'My Roster expanded row', ['Dynasty Read', 'Decision Stack']);
+      await page.getByTitle('Open roster player detail', { exact: true }).first().click();
+      await waitForText(page, 'Signals');
+      await waitForText(page, 'Age Curve');
+      await page.getByTitle('Tap to set your own call', { exact: true }).waitFor({ state: 'visible' });
+      await assertSurfaceReady(page, 'My Roster expanded row', ['Signals', 'Age Curve']);
       await page.close();
     });
 
     await run('Free Agency recommendation opens player card', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'fa' });
-      await clickVisibleSelector(page, '.fa-hq-candidate[title="Open player card"], .fa-hq-mini-card[title="Open player card"], [title="Open player card"]', 'free agency player target');
+      await page.getByTitle('Plan this waiver', { exact: true }).first().click();
+      await page.locator('.fa-acquisition-plan').waitFor({ state: 'visible' });
+      await waitForText(page, 'Planning only. Submit any claim and roster change on your league platform.');
+      await page.getByRole('button', { name: 'Player details & notebook', exact: true }).click();
       await assertPlayerCardOpen(page);
       await page.close();
     });
 
-    await run('Draft target opens player card', async () => {
+    await run('Draft board target opens scouting dossier', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'draft' });
-      await clickVisibleSelector(page, '.draft-rec-card[title="Open player card"], [title="Open player card"]', 'draft player target');
-      await assertPlayerCardOpen(page);
+      await page.getByRole('button', { name: 'Big Board', exact: true }).click();
+      await page.locator('[data-draft-pid]').first().click();
+      await waitForText(page, 'Research / Actions');
+      const collapse = page.getByRole('button', { name: 'COLLAPSE', exact: true });
+      await collapse.waitFor({ state: 'visible' });
+      await collapse.click();
+      await collapse.waitFor({ state: 'hidden' });
       await page.close();
     });
 
     await run('Trade Center partner and surface clicks update the adaptive canvas', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'trades' });
-      await waitForText(page, 'Best Move');
-      // The hero renders when a usable best move exists; otherwise the workspace is already up.
-      const onHero = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('button')).some(b => b.innerText.trim() === 'Browse All Partners'));
-      if (onHero) await clickButtonText(page, 'Browse All Partners');
-      await clickVisibleSelector(page, '.tc-dhq-partner', 'trade partner');
-      await waitForText(page, 'Partner Dossier');
-      await clickButtonText(page, 'Owner DNA');
+      const partner = page.getByLabel('Trade partner', { exact: true });
+      const options = await partner.locator('option').count();
+      if (options < 2) throw new Error('trade finder has no league partners');
+      await partner.selectOption({ index: 1 });
+      const chosen = await partner.inputValue();
+      if (!chosen) throw new Error('trade partner choice was not retained');
+      await page.getByRole('button', { name: 'Managers', exact: true }).click();
       await waitForText(page, 'Owners · sorted by power');
-      await clickButtonText(page, 'Builder');
-      await waitForText(page, 'Build a Trade');
-      await assertSurfaceReady(page, 'Trade Center clicked state', ['Build a Trade']);
+      await page.locator('.tc-center-build').click();
+      await page.locator('#tc-active-builder').waitFor({ state: 'visible' });
+      await assertSurfaceReady(page, 'Trade Center clicked state', ['YOU SEND', 'YOU GET', 'Close builder']);
       await page.close();
     });
 
     await run('Compare opponent select opens team comparison and player card', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'compare' });
-      await waitForText(page, 'Head to Head');
-      const options = await page.locator('.wr-module-select option').count();
-      if (options < 2) throw new Error('compare tab has no opponent options');
-      await page.locator('.wr-module-select').selectOption({ index: 1 });
+      await page.getByRole('button', { name: 'Team to compare against', exact: true }).click();
+      const options = page.getByRole('listbox').getByRole('option');
+      if (await options.count() < 2) throw new Error('compare tab has no opponent options');
+      await options.nth(1).click();
       await waitForText(page, 'Position Edge Matrix');
       await assertSurfaceReady(page, 'Compare selected opponent', ['Matchup Read', 'Position Edge Matrix']);
       await clickVisibleSelector(page, '[title="Open player card"]', 'compare player target');
@@ -546,8 +557,7 @@ async function main() {
     });
 
     await run('Analytics report preview player row opens player card', async () => {
-      const page = await newQaPage(context, baseUrl, failures, { tab: 'analytics' });
-      await clickButtonText(page, 'Reports');
+      const page = await newQaPage(context, baseUrl, failures, { tab: 'research-reports' });
       await waitForText(page, 'Custom Reports');
       await clickVisibleSelector(page, '.analytics-report-preview-row[title="Open player card"]', 'report preview player row');
       await assertPlayerCardOpen(page);
@@ -555,8 +565,7 @@ async function main() {
     });
 
     await run('Analytics full player report row opens player card', async () => {
-      const page = await newQaPage(context, baseUrl, failures, { tab: 'analytics' });
-      await clickButtonText(page, 'Reports');
+      const page = await newQaPage(context, baseUrl, failures, { tab: 'research-reports' });
       await waitForText(page, 'Custom Reports');
       await clickVisibleSelector(page, '[data-report-id="qa_players"]', 'QA Player Report');
       await waitForText(page, 'QA Player Report');
@@ -566,8 +575,7 @@ async function main() {
     });
 
     await run('Analytics full team report row opens team context', async () => {
-      const page = await newQaPage(context, baseUrl, failures, { tab: 'analytics' });
-      await clickButtonText(page, 'Reports');
+      const page = await newQaPage(context, baseUrl, failures, { tab: 'research-reports' });
       await waitForText(page, 'Custom Reports');
       await clickVisibleSelector(page, '[data-report-id="qa_teams"]', 'QA Team Report');
       await waitForText(page, 'QA Team Report');
@@ -579,9 +587,10 @@ async function main() {
 
     await run('Alex sub-tabs remain clickable', async () => {
       const page = await newQaPage(context, baseUrl, failures, { tab: 'alex' });
-      await clickButtonText(page, 'Patterns');
+      const tabs = page.locator('.gm-office-shell > .wr-module-nav');
+      await tabs.getByRole('button', { name: 'Patterns', exact: true }).click();
       await waitForText(page, 'Patterns');
-      await clickButtonText(page, 'Model Settings');
+      await tabs.getByRole('button', { name: 'Alex Preferences', exact: true }).click();
       await waitForText(page, 'How Alex talks to you');
       await assertSurfaceReady(page, 'GM Office clicked state', ['How Alex talks to you']);
       await page.close();
@@ -600,12 +609,13 @@ async function main() {
     });
 
     console.log('');
+    if (!totalCases) failures.push('No click-path cases matched the requested filter');
     if (failures.length) {
       console.log(failures.map(f => `  FAIL: ${f}`).join('\n'));
       console.log('');
     }
-    console.log(`${failures.length ? 'FAIL' : 'PASS'} live click-path QA - ${totalCases - failures.length} passed, ${failures.length} failed`);
-    process.exit(failures.length ? 1 : 0);
+    console.log(`${failures.length ? 'FAIL' : 'PASS'} live click-path QA${process.env.WARROOM_CLICK_QA_FILTER ? ' (filtered)' : ''} - ${passedCases} passed, ${totalCases - passedCases} cases failed (${failures.length} findings)`);
+    process.exitCode = failures.length ? 1 : 0;
   } finally {
     await browser.close().catch(() => {});
     server.kill('SIGTERM');
