@@ -1,0 +1,7 @@
+
+> fantasy-war-room@1.0.0 sync:shared
+> node scripts/sync-reconai-shared.cjs
+
+[sync-reconai-shared] Copied 30 files to reconai-shared/
+[sync-reconai-shared] player-value.js twin in sync (not vendored — hand-maintained)
+[sync-reconai-shared] Vendored 3 rookie CSVs into draft-war-room/

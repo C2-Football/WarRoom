@@ -11,8 +11,11 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
   callbacks, truthful pick-feed coverage, draft fixes and shared performance are
   integrated, including reviewed Commissioner task/dues, format-specific picks and
   both OAuth/cross-tab authentication race fixes.
-- Both WarRoom remotes still baseline; **no frontend/backend readiness deployment**.
-  Only the independently verified canonical shared commit has been published.
+- Both WarRoom main branches fast-forward pushed to `898c374` at21:03UTC.
+  Both CI runs passed. Pages are running; canonical backend failed before any
+  migration/deploy because its security test lacked vendored shared storage.
+  Pinned checkout/sync workflow repair is independently reviewed and passes a clean
+  checkout reproduction/full security rerun. No hosted migration claim yet. See `release-20260918-batch1.md` for exact workflow links.
 - Canonical shared dependency published and pinned
   `7bd35313fc78e25a2d1ac24035989673a93f28e6`; remote main verified. Primary shared
   checkout fast-forwarded cleanly, vendored sync and player-value twin agree.
@@ -98,9 +101,10 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
    evidence. Keep original failure log. Other product source remains identical.
 3. Analytics detail inspection: one older individual WIP assertion still reports
    missing landing funnel telemetry. This remains open; no full diagnostics pass.
-4. Both public release metadata endpoints and Git mains still baseline5d28f39.
-   Publish this reviewed repair batch through canonical backend and both Pages
-   workflows, wait for terminal statuses, then run `verify-release.cjs <full-sha>`.
+4. Main branches now898c374; production Pages35394776267, backend35394776278,
+   CI35394776358; sandbox Pages35394794390 and CI35394794265 running. Sandbox
+   backend intentionally skipped. Wait for terminal statuses, then run
+   `verify-release.cjs 898c374a5d1b8a6a9cc63c5376e0f18cdbac1533`.
 5. Inspect `verify-hosted-release.sql` catalog evidence for migration records,
    restrictive gates and grants; verify public reset redirect resolves. No hosted
    migration has been applied manually in this goal.

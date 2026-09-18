@@ -37,6 +37,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
+      - name: Checkout canonical shared engine for security contracts
+        uses: actions/checkout@v4
+        with:
+          repository: C2-Football/dhq-shared
+          path: shared-src
+          ref: 7bd35313fc78e25a2d1ac24035989673a93f28e6
+
       - name: Verify Supabase deploy token
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
@@ -59,6 +66,9 @@ jobs:
 
       - name: Install test dependencies
         run: npm ci
+
+      - name: Sync pinned shared modules before security contracts
+        run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
 
       - name: Verify Cup, security and Vault contracts before backend deployment
         run: npm run test:cup && npm run test:security && npm run test:timeleague

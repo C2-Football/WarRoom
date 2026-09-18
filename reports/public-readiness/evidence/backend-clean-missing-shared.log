@@ -1,0 +1,22 @@
+node:fs:436
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/Users/jacobc/Projects/warroom-readiness-backend-ci/reconai-shared/storage.js'
+    at Object.readFileSync (node:fs:436:20)
+    at load (/Users/jacobc/Projects/warroom-readiness-backend-ci/tests/account-storage.cjs:21:45)
+    at makeBrowser (/Users/jacobc/Projects/warroom-readiness-backend-ci/tests/account-storage.cjs:22:5)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-readiness-backend-ci/tests/account-storage.cjs:27:11)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/jacobc/Projects/warroom-readiness-backend-ci/reconai-shared/storage.js'
+}
+
+Node.js v25.8.1

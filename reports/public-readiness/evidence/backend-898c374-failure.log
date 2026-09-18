@@ -1,0 +1,61 @@
+deploy	Verify Cup, security and Vault contracts before backend deployment	﻿2026-09-18T21:03:55.6540391Z ##[group]Run npm run test:cup && npm run test:security && npm run test:timeleague
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6541011Z ^[[36;1mnpm run test:cup && npm run test:security && npm run test:timeleague^[[0m
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6577963Z shell: /usr/bin/bash -e {0}
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6578245Z env:
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6578627Z   SUPABASE_ACCESS_TOKEN: ***
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6578941Z   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.6579253Z ##[endgroup]
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.7667448Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.7668205Z > fantasy-war-room@1.0.0 test:cup
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.7670107Z > node tests/woeppel-cup.js && node tests/cup-formats.js && node tests/cup-service.js && node tests/cup-panel.cjs
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.7671062Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.8113575Z Cup schedule, draw boundary, provisional scores, qualification, bracket and tie rulings passed
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.8504310Z Configurable Cup: league sizes, odd-team byes, round robin fairness, seed placement, calendar bounds and ties passed
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:55.8824674Z Six Cup formats: all-play/median points, direct seeded byes 2–64, survivor cuts/ties/rulings, missing and provisional scores, and final results passed
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.1983379Z Cup service: six formats, byes, permissions, scores, rulings, pending ties and revision conflicts passed
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.7668007Z PASS Cup panel: six complete local sample formats, denied/read-only permissions, explicit commissioner Start, refresh preservation and legacy routing
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.8880432Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.8881005Z > fantasy-war-room@1.0.0 test:security
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.8883413Z > node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs && node tests/account-storage.cjs && node tests/account-session.cjs && node tests/password-reset-atomic.cjs && node tests/onboarding-account-session.cjs && node tests/account-session-rls.cjs && node tests/app-account-callbacks.cjs
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.8884965Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9191463Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9192047Z War Room security contract tests
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9195806Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9198583Z   schema  ...
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9199301Z   shared helper  .
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9206389Z   auth functions  .......
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9220038Z   deploy  ....
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9222490Z   password reset  .
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9222813Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:56.9223140Z PASS 16 tests - 16 passed, 0 failed
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:57.1698656Z PASS gift authorization, administrator provisioning, self-change and conflicting writes
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:57.4002567Z PASS free-bundle signin claims stay free; old paid claims do not change free AI policy
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:57.4210574Z PASS authentication rate limiter denies requests when storage fails
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:57.4620648Z PASS Yahoo valid flow, browser binding, forged/expired/replayed state, concurrent callbacks and revoked sessions
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.6320460Z PASS SQL administrator enforcement, existing-user provisioning and exactly one first-password assignment
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.7564361Z PASS actual SQL limit accounting, window reset, lockout and caller isolation (PGlite serializes queries)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.7685038Z PASS browser roles cannot forge RPC actors, alter rate limits or access OAuth state; trusted server retains access
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.8986882Z PASS real preview HTTP: public assets work; environment/Git/internal files, escaping symlinks, hostile Host and Origin are blocked
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9335658Z node:fs:448
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9337042Z     return binding.readFileUtf8(path, stringToFlags(options.flag));
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9338307Z                    ^
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9338773Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9339636Z Error: ENOENT: no such file or directory, open '/home/runner/work/WarRoom/WarRoom/reconai-shared/storage.js'
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9340296Z     at Object.readFileSync (node:fs:448:20)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9340832Z     at load (/home/runner/work/WarRoom/WarRoom/tests/account-storage.cjs:21:45)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9341507Z     at makeBrowser (/home/runner/work/WarRoom/WarRoom/tests/account-storage.cjs:22:5)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9342590Z     at Object.<anonymous> (/home/runner/work/WarRoom/WarRoom/tests/account-storage.cjs:27:11)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9343227Z     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9343909Z     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9344454Z     at Module.load (node:internal/modules/cjs/loader:1266:32)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9344939Z     at Module._load (node:internal/modules/cjs/loader:1091:12)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9345537Z     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9346087Z     at node:internal/main/run_main_module:28:49 {
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9346710Z   errno: -2,
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9346976Z   code: 'ENOENT',
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9347230Z   syscall: 'open',
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9347753Z   path: '/home/runner/work/WarRoom/WarRoom/reconai-shared/storage.js'
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9348475Z }
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9348669Z 
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9348892Z Node.js v20.20.2
+deploy	Verify Cup, security and Vault contracts before backend deployment	2026-09-18T21:03:59.9423752Z ##[error]Process completed with exit code 1.
