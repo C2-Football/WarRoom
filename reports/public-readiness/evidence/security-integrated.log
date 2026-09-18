@@ -1,0 +1,35 @@
+
+> fantasy-war-room@1.0.0 test:security
+> node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs && node tests/account-storage.cjs && node tests/account-session.cjs && node tests/password-reset-atomic.cjs
+
+
+War Room security contract tests
+
+  schema  ...
+  shared helper  .
+  auth functions  .......
+  deploy  ....
+  password reset  .
+
+PASS 16 tests - 16 passed, 0 failed
+(node:73629) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS gift authorization, administrator provisioning, self-change and conflicting writes
+PASS free-bundle signin claims stay free; old paid claims do not change free AI policy
+PASS authentication rate limiter denies requests when storage fails
+PASS Yahoo valid flow, browser binding, forged/expired/replayed state, concurrent callbacks and revoked sessions
+(node:73632) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS SQL administrator enforcement, existing-user provisioning and exactly one first-password assignment
+PASS actual SQL limit accounting, window reset, lockout and caller isolation (PGlite serializes queries)
+PASS browser roles cannot forge RPC actors, alter rate limits or access OAuth state; trusted server retains access
+PASS real preview HTTP: public assets work; environment/Git/internal files, escaping symlinks, hostile Host and Origin are blocked
+PASS account isolation for Empire and all Commissioner private stores, sign-out, return/reload, legacy preservation, profile changes and write failure
+PASS real logout, OAuth failure recovery, volatile secrets, preserved saves, identity changes before storage event, mounted-view reset, same-account refresh and safe sign-in preparation
+(node:73639) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual SQL migration/replay preserves accounts and links; PBKDF password, old-session revocation, one-time and sibling-link use, and account isolation
+PASS actual handlers submit competing token uses with one winner (PGlite serializes SQL; independent-connection contention still requires hosted proof)
+PASS token-consumption failure rolls back password/session mutation; RPC outages never report success; retry recovers
+PASS browser roles cannot call trusted reset mutation; malformed inputs and unsupported methods rejected; emailed-link redirect retained
+PASS actual request handler persists hashed tokens before delivery; storage/provider outages produce honest audit outcomes without account enumeration or live email

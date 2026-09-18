@@ -44,7 +44,7 @@
             }
             cache.set(key,rows.sort((a,b)=>b.referencePoints-a.referencePoints||a.id.localeCompare(b.id)));
         }
-        return cache.get(key).map(clone);
+        return cache.get(key).map(player=>({...player,candidateYears:[...player.candidateYears]}));
     }
     function snapshotCard(state,player,data){
         const prior=state.hiddenYears?.assignments?.[player.id];

@@ -1,0 +1,17 @@
+(node:71098) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/jacobc/Projects/warroom-public-readiness/supabase/functions/duat/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/jacobc/Projects/warroom-public-readiness/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"label":"import","elapsedMs":174,"cpuMs":197,"heapMiB":21,"rssMiB":103}
+{"label":"load24years","elapsedMs":584,"cpuMs":844,"heapMiB":136,"rssMiB":297}
+{"label":"create","elapsedMs":33,"cpuMs":58,"heapMiB":93,"rssMiB":296}
+{"label":"startDraft","elapsedMs":504,"cpuMs":642,"heapMiB":116,"rssMiB":323}
+{"label":"projection0","elapsedMs":43,"cpuMs":46,"heapMiB":119,"rssMiB":327}
+{"label":"pick0","elapsedMs":131,"cpuMs":166,"heapMiB":126,"rssMiB":328}
+{"label":"reloadData0","elapsedMs":52,"cpuMs":51,"heapMiB":157,"rssMiB":339}
+{"label":"projection1","elapsedMs":55,"cpuMs":76,"heapMiB":124,"rssMiB":350}
+{"label":"pick1","elapsedMs":53,"cpuMs":56,"heapMiB":130,"rssMiB":353}
+{"label":"reloadData1","elapsedMs":55,"cpuMs":54,"heapMiB":161,"rssMiB":363}
+{"label":"projection2","elapsedMs":50,"cpuMs":71,"heapMiB":177,"rssMiB":358}
+{"label":"pick2","elapsedMs":133,"cpuMs":183,"heapMiB":200,"rssMiB":376}
+{"label":"reloadData2","elapsedMs":74,"cpuMs":75,"heapMiB":170,"rssMiB":383}

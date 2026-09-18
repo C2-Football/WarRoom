@@ -132,19 +132,28 @@
         const peers = state.factions.flatMap(f=>livingArmies(f).filter(a=>a.season===turn.season && a.id!==army.id).map(a=>({army:a,faction:f})));
         const query = String(options.query||'').trim().toLowerCase();
         const counts = Object.fromEntries(['QB','RB','WR','TE'].map(p=>[p,pool.filter(card=>card.position===p).length]));
-        return pool.filter(player=> {
-            if (options.position && player.position!==options.position || options.decade && player.decade!==Number(options.decade) || query && !player.name.toLowerCase().includes(query)) return false;
-            if (settingsOf(state).roster==='duat' && player.position==='QB' && army.players.filter(p=>p.position==='QB').length>=2) return false;
-            const needs = Legacy.shortages([...army.players,player],slots);
+        // Roster feasibility depends on position, not player identity. Evaluate
+        // the four possibilities once instead of scanning every rival army for
+        // each of thousands of historical cards on every pick and room read.
+        const otherNeeds = {QB:0,RB:0,WR:0,TE:0,FLEX:0,SUPER_FLEX:0};
+        for (const peer of peers) {
+            const other = Legacy.shortages(peer.army.players,Legacy.slotsOf(peer.faction));
+            for (const key of Object.keys(otherNeeds)) otherNeeds[key]+=other[key];
+        }
+        const maxQb = settingsOf(state).roster==='duat' && army.players.filter(p=>p.position==='QB').length>=2;
+        const legalPositions = new Set(['QB','RB','WR','TE'].filter(candidatePosition=> {
+            if (maxQb && candidatePosition==='QB') return false;
+            const needs = Legacy.shortages([...army.players,{position:candidatePosition}],slots);
             if (Object.values(needs).reduce((a,b)=>a+b,0)>size-army.players.length-1) return false;
-            for (const peer of peers) {
-                const other = Legacy.shortages(peer.army.players,Legacy.slotsOf(peer.faction));
-                for (const key of Object.keys(needs)) needs[key]+=other[key];
-            }
-            const left = {...counts}; left[player.position]--;
+            for (const key of Object.keys(needs)) needs[key]+=otherNeeds[key];
+            const left = {...counts}; left[candidatePosition]--;
             for (const position of ['QB','RB','WR','TE']) { left[position]-=needs[position]; if(left[position]<0)return false; }
             return left.RB+left.WR+left.TE>=needs.FLEX && Object.values(left).reduce((a,b)=>a+b,0)>=needs.FLEX+needs.SUPER_FLEX;
-        }).map(player=>({...player}));
+        }));
+        return pool.filter(player=>legalPositions.has(player.position)
+            && (!options.position || player.position===options.position)
+            && (!options.decade || player.decade===Number(options.decade))
+            && (!query || player.name.toLowerCase().includes(query))).map(player=>({...player}));
     }
     function savePick(state, player, createdAt) {
         const turn = draftTurn(state), faction = factionOf(state,turn.factionId), army = faction.armies.find(a=>a.id===turn.armyId);

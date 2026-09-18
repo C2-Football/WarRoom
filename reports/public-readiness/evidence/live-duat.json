@@ -1,0 +1,66 @@
+{
+  "runId": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755",
+  "startedAt": "2026-09-18T19:41:53.153Z",
+  "checks": [
+    {
+      "name": "Anonymous campaign access denied",
+      "at": "2026-09-18T19:41:54.407Z"
+    },
+    {
+      "name": "Nonmember cannot load private campaign",
+      "at": "2026-09-18T19:43:16.458Z"
+    },
+    {
+      "name": "Second controlled account claimed isolated invitation",
+      "at": "2026-09-18T19:43:17.241Z"
+    },
+    {
+      "name": "Member projection hides invitation codes and private allocations",
+      "at": "2026-09-18T19:43:17.927Z"
+    },
+    {
+      "name": "Cross-faction intent rejected at server boundary",
+      "at": "2026-09-18T19:43:18.797Z"
+    },
+    {
+      "name": "Ordinary member cannot advance host journey",
+      "at": "2026-09-18T19:43:19.621Z"
+    },
+    {
+      "name": "Concurrent readiness has one winner and replay is idempotent",
+      "at": "2026-09-18T19:43:25.089Z"
+    }
+  ],
+  "requests": 41,
+  "roomId": "d5038ca0-15c5-4acf-b7c4-f08e1283161f",
+  "status": "failed",
+  "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n",
+  "responses": [
+    {
+      "at": "2026-09-18T19:45:29.879Z",
+      "op": "list",
+      "status": 401,
+      "message": "Sign in to play The Duat with friends."
+    },
+    {
+      "at": "2026-09-18T19:45:34.588Z",
+      "op": "action",
+      "type": "name-alliance",
+      "status": 403,
+      "message": "You can only control your own faction."
+    },
+    {
+      "at": "2026-09-18T19:45:35.470Z",
+      "op": "action",
+      "type": "start-draft",
+      "status": 403,
+      "message": "Only the host can advance the campaign."
+    },
+    {
+      "at": "2026-09-18T19:45:39.185Z",
+      "op": "load",
+      "status": 546,
+      "message": "Function failed due to not having enough compute resources (please check logs)"
+    }
+  ]
+}

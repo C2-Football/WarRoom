@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
+const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, 'data/duat', name), 'utf8');
 const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
@@ -41,7 +42,24 @@ for (const line of lines) {
 }
 const availableSeasons = Object.keys(coverage).map(Number).filter(season => coverage[season].size === 17).sort((a, b) => a - b);
 if (availableSeasons.length < 4) throw new Error('Duat requires at least four complete seasons through Week 17.');
-const seasonData = Object.fromEntries(availableSeasons.map(season => [season, pack([header, ...grouped[season]].join('\n'))]));
+// Parse and normalize during the build, not in every Edge isolate. Shared
+// identity strings and numeric rows avoid 24 concurrent CSV parser working sets.
+const parsing = {};
+vm.runInNewContext(modules.slice(0, 4).map(name => fs.readFileSync(path.join(root, name), 'utf8')).join('\n'), parsing);
+const Season = parsing.App.TimeLeagueSeason;
+const seasonData = Object.fromEntries(availableSeasons.map(season => {
+    const { logs, skippedRows } = Season.parseGameLogCsv([header, ...grouped[season]].join('\n'));
+    if (skippedRows) throw new Error('The Duat archive contains unparsed source rows.');
+    const players = [], playerIds = new Map(), fields = Object.keys(Season.emptyStatLine());
+    const rows = logs.map(log => {
+        if (Object.keys(log).some(key => !['identity', 'name', 'position', 'season', 'week', 'stats'].includes(key))
+            || Object.keys(log.stats).some(key => !fields.includes(key))
+            || fields.some(key => !Number.isFinite(log.stats[key]))) throw new Error('Duat archive shape changed; extend the packed format before shipping.');
+        if (!playerIds.has(log.identity)) { playerIds.set(log.identity, players.length); players.push([log.identity, log.name, log.position]); }
+        return [playerIds.get(log.identity), log.week, ...fields.map(key => log.stats[key])];
+    });
+    return [season, pack({ players, fields, rows })];
+}));
 const cards = JSON.parse(read('player-cards.json'));
 const manifest = JSON.parse(read('manifest.json'));
 const runtime = source + `
@@ -55,15 +73,40 @@ async function unpack(base64) {
 }
 let cardsPromise;
 const seasonPromises = new Map();
+const dataPromises = new Map();
+async function loadSeason(year) {
+ if (!seasonPromises.has(year)) {
+  const promise = unpack(seasonData[year]).then(({players, fields, rows}) => {
+   const index = new Map();
+   for (const row of rows) {
+    const [identity, name, position] = players[row[0]], week = row[1], stats = {};
+    for (let i = 0; i < fields.length; i++) stats[fields[i]] = row[i + 2];
+    index.set(App.TimeLeagueSeason.gameLogKey(identity, year, week), {identity, name, position, season: year, week, stats});
+   }
+   return index;
+  }).catch(error => { seasonPromises.delete(year); throw error; });
+  seasonPromises.set(year, promise);
+ }
+ return seasonPromises.get(year);
+}
 export async function loadData(seasons) {
  if (!Array.isArray(seasons) || seasons.length < 1 || seasons.length > 24 || new Set(seasons).size !== seasons.length || seasons.some(year => !availableSeasons.includes(year))) throw new Error('Choose unique complete historical seasons (up to 24).');
- const cards = await (cardsPromise ||= unpack('${pack(cards)}').then(data => App.TimeLeaguePlayerCards.buildPlayerCardIndex(data)));
- const chunks = await Promise.all(seasons.map(year => {
-  if (!seasonPromises.has(year)) seasonPromises.set(year, unpack(seasonData[year]).then(csv => App.TimeLeagueSeason.parseGameLogCsv(csv).logs));
-  return seasonPromises.get(year);
- }));
- const logs = chunks.flat();
- return { cards, logIndex: App.TimeLeagueSeason.buildGameLogIndex(logs), manifest, availableSeasons };
+ const years = [...seasons].sort((a,b) => a-b), key = years.join(',');
+ if (!dataPromises.has(key)) {
+  const promise = (async () => {
+   const cards = await (cardsPromise ||= unpack('${pack(cards)}').then(data => App.TimeLeaguePlayerCards.buildPlayerCardIndex(data)).catch(error => { cardsPromise = null; throw error; }));
+   // Keep only one decompressed numeric chunk transient at a time. Reuse the
+   // finished index on every action/read instead of rebuilding 127k keys.
+   let logIndex;
+   if (years.length === 1) logIndex = await loadSeason(years[0]);
+   else { logIndex = new Map(); for (const year of years) for (const [id, log] of await loadSeason(year)) logIndex.set(id, log); }
+   return { cards, logIndex, manifest, availableSeasons };
+  })().catch(error => { dataPromises.delete(key); throw error; });
+  dataPromises.set(key, promise);
+  // Season maps share their records; cap aggregate index variants per isolate.
+  if (dataPromises.size > 4) dataPromises.delete(dataPromises.keys().next().value);
+ }
+ return dataPromises.get(key);
 }
 `;
 const target = path.join(root, 'supabase/functions/duat/runtime.js');
