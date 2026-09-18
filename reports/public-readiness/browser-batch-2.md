@@ -38,6 +38,7 @@ Missing browser/dependency/local-server access fails nonzero. Filtered developme
 - `live-click-final.log`: 40 passed / 1 failed. Remaining roster dossier failure is resolved by using the actual locator click instead of a raw DOM click during hydration.
 - `live-click-roster-final.log`: that focused case passes with the optimized shared engine.
 - `draft-browser-redraft-final.log`: **PASS, all 9 draft checks**, including the independent redraft-specificity regression.
-- `live-click-integrated-final.log`: full 41-case rerun in progress at this checkpoint; no final pass claim yet.
+- `live-click-integrated-final.log`: **PASS, all 41 cases, zero findings**, on the combined local browser changes and canonical shared `7bd3531`.
+- An unmatched `WARROOM_CLICK_QA_FILTER` intentionally fails with exit1; no skipped cases are reported as passed.
 
-Next: record the terminal full click-path result, then parent runs final integrated tests against the released shared pin and combined suite changes. Missing controls, an unmatched development filter, unavailable browser/runtime, or page errors fail nonzero.
+Next: parent runs final integrated tests against the released shared pin and combined suite changes. Missing controls, an unmatched development filter, unavailable browser/runtime, or page errors fail nonzero.
