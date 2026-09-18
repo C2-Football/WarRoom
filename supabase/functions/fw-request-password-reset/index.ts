@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       throw tokenError;
     }
 
-    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://warroom.skjjcruz.com/reset-password.html';
+    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://c2-football.github.io/WarRoom/reset-password.html';
     const resetUrl = resetBase ? `${resetBase}${resetBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(resetToken)}` : null;
     const delivery = resetUrl
       ? await sendPasswordResetEmail(user.email, resetUrl, expiresAt)

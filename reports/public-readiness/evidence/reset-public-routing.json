@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-18T20:35:34.507Z",
+  "redirectStatus": 302,
+  "redirectUrl": "https://warroom.skjjcruz.com/reset-password.html?token=readiness-routing-check",
+  "error": {
+    "message": "fetch failed",
+    "code": "ENOTFOUND",
+    "hostname": "warroom.skjjcruz.com"
+  }
+}

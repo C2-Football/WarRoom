@@ -57,6 +57,15 @@ const request = body => new Request('https://example.invalid/reset', { method: '
     const confirmLoaded = load('supabase/functions/fw-confirm-password-reset/index.ts', { ...base, createClient: () => admin });
     confirmLoaded.context.Deno.env.get = key => key === 'PASSWORD_RESET_URL' ? 'https://example.invalid/reset-password.html' : '';
     const confirm = confirmLoaded.handler;
+    const configuredRedirect = await confirm(new Request('https://example.invalid/reset?token=escaped%20token'));
+    assert.equal(configuredRedirect.headers.get('location'), 'https://example.invalid/reset-password.html?token=escaped%20token');
+    confirmLoaded.context.Deno.env.get = () => '';
+    const defaultRedirect = await confirm(new Request('https://example.invalid/reset?token=public-route'));
+    assert.equal(defaultRedirect.headers.get('location'), 'https://c2-football.github.io/WarRoom/reset-password.html?token=public-route');
+    confirmLoaded.context.Deno.env.get = key => key === 'APP_RESET_URL' ? 'https://legacy.example.invalid/reset.html?flow=reset' : '';
+    assert.equal((await confirm(new Request('https://example.invalid/reset?token=legacy-route'))).headers.get('location'), 'https://legacy.example.invalid/reset.html?flow=reset&token=legacy-route');
+    confirmLoaded.context.Deno.env.get = () => '';
+
     const reset = (value, password = 'replacement-password') => confirm(request({ token: value, password }));
     const verifier = load('supabase/functions/fw-signin/index.ts', {}, ['verifyPassword']).context.verifyPassword;
     const session = version => load('supabase/functions/_shared/security.ts', {
@@ -126,7 +135,7 @@ const request = body => new Request('https://example.invalid/reset', { method: '
       ...base, createClient: () => admin,
       fetch: async () => { deliveries++; return { ok: true }; },
     });
-    requestLoaded.context.Deno.env.get = key => ({ RESET_DEBUG_RETURN_TOKEN: 'true', PASSWORD_RESET_URL: 'https://example.invalid/reset-password.html', RESEND_API_KEY: 'synthetic' })[key];
+    requestLoaded.context.Deno.env.get = key => ({ RESET_DEBUG_RETURN_TOKEN: 'true', RESEND_API_KEY: 'synthetic' })[key];
     const requestReset = requestLoaded.handler;
     tokenFailure = true;
     const unsaved = await requestReset(request({ email: 'a@example.invalid' }));
@@ -141,6 +150,9 @@ const request = body => new Request('https://example.invalid/reset', { method: '
     assert.equal(deliveries, 1);
     assert.equal(issued.body.emailSent, true);
     assert.ok(issued.body.resetToken);
+    assert.equal(new URL(issued.body.resetUrl).origin, 'https://c2-football.github.io');
+    assert.equal(new URL(issued.body.resetUrl).pathname, '/WarRoom/reset-password.html');
+    assert.equal(new URL(issued.body.resetUrl).searchParams.get('token'), issued.body.resetToken);
     assert.equal((await q('select count(*)::int as n from password_reset_tokens where token_hash=$1', [hash(issued.body.resetToken)]))[0].n, 1);
     assert.equal((await reset(issued.body.resetToken)).status, 200);
     const unknown = await requestReset(request({ email: 'missing@example.invalid' }));

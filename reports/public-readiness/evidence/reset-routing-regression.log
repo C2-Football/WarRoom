@@ -1,0 +1,7 @@
+(node:88169) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual SQL migration/replay preserves accounts and links; PBKDF password, old-session revocation, one-time and sibling-link use, and account isolation
+PASS actual handlers submit competing token uses with one winner (PGlite serializes SQL; independent-connection contention still requires hosted proof)
+PASS token-consumption failure rolls back password/session mutation; RPC outages never report success; retry recovers
+PASS browser roles cannot call trusted reset mutation; malformed inputs and unsupported methods rejected; emailed-link redirect retained
+PASS actual request handler persists hashed tokens before delivery; storage/provider outages produce honest audit outcomes without account enumeration or live email
