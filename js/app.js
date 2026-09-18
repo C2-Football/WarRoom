@@ -48,6 +48,51 @@
     window.MFL_SANDBOX_ACCESS = MFL_SANDBOX_ACCESS;
     window.platformAccessAllowed = platformAccessAllowed;
 
+    // Validate the public profile before replacing a durable connection. A
+    // typo, unavailable provider or full browser storage must leave it intact.
+    async function saveSleeperConnection(username, options = {}) {
+        const value = String(username || '').trim();
+        if (!value) throw new Error('Enter your Sleeper username.');
+        const fetcher = options.fetcher || window.fetch.bind(window);
+        const storage = options.storage || window.localStorage;
+        let previousAuth, previousSession;
+        try {
+            previousAuth = storage.getItem('od_auth_v1');
+            previousSession = storage.getItem('fw_session_v1');
+        } catch (_) {
+            throw new Error('Could not access browser storage. Allow storage for Dynasty HQ and try again.');
+        }
+        const controller = new window.AbortController();
+        const timer = setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+        let user;
+        try {
+            const response = await fetcher('https://api.sleeper.app/v1/user/' + encodeURIComponent(value), { signal: controller.signal });
+            if (response.status === 404) throw new Error('SLEEPER_USER_NOT_FOUND');
+            if (!response.ok) throw new Error('SLEEPER_UNAVAILABLE');
+            user = await response.json();
+            if (user === null) throw new Error('SLEEPER_USER_NOT_FOUND');
+            if (!user || !user.user_id || typeof user.username !== 'string' || !user.username.trim()) throw new Error('SLEEPER_UNAVAILABLE');
+        } catch (err) {
+            if (err.message === 'SLEEPER_USER_NOT_FOUND') throw new Error("Couldn't find that Sleeper username. Check it and try again.");
+            if (controller.signal.aborted) throw new Error('Sleeper took too long to respond. Try again.');
+            throw new Error('Could not reach Sleeper. Your connection has not changed. Try again.');
+        } finally {
+            clearTimeout(timer);
+        }
+        try {
+            if (storage.getItem('fw_session_v1') !== previousSession || storage.getItem('od_auth_v1') !== previousAuth) throw new Error('CONNECTION_CHANGED');
+            let existing = {};
+            try { existing = JSON.parse(previousAuth || '{}'); } catch (_) { /* replace malformed connection metadata */ }
+            const next = JSON.stringify({ ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}), sleeperUsername: user.username.trim() });
+            storage.setItem('od_auth_v1', next);
+            if (storage.getItem('od_auth_v1') !== next) throw new Error('Storage did not retain the connection');
+        } catch (err) {
+            if (err.message === 'CONNECTION_CHANGED') throw new Error('Your account or connection changed while checking Sleeper. Try again.');
+            throw new Error('Could not save your Sleeper connection in this browser. Free up browser storage and try again.');
+        }
+        return user;
+    }
+
     // Read-only ownership context for shared player cards. This uses connected
     // account rosters only; an unhydrated league is unknown, never a zero holding.
     // player(pid) -> {count,totalLeagues,coveredLeagues,complete,leagues:[{id,name,teamName}]}.
@@ -335,6 +380,27 @@
         const sleeperUsername = React.useMemo(() => {
             return window.OD?.getCurrentUsername?.() || null;
         }, []);
+        const [sleeperConnectInput, setSleeperConnectInput] = useState(sleeperUsername || '');
+        const [sleeperConnecting, setSleeperConnecting] = useState(false);
+        const [sleeperConnectError, setSleeperConnectError] = useState(null);
+        const sleeperConnectPendingRef = React.useRef(false);
+
+        async function handleSleeperConnect(event) {
+            event?.preventDefault();
+            if (sleeperConnectPendingRef.current) return;
+            sleeperConnectPendingRef.current = true;
+            setSleeperConnecting(true);
+            setSleeperConnectError(null);
+            try {
+                await saveSleeperConnection(sleeperConnectInput);
+                window.location.reload();
+            } catch (err) {
+                setSleeperConnectError(err.message);
+            } finally {
+                sleeperConnectPendingRef.current = false;
+                setSleeperConnecting(false);
+            }
+        }
 
         // Display name state
         const [customDisplayName, setCustomDisplayName] = useState(() => {
@@ -1482,7 +1548,6 @@
 
         // Search connected leagues across active production platforms.
         const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
-        const hasLeagues = allLeagues.length > 0;
         const resumeLeague = allLeagues.find(l => String(l.id) === lastLeagueId);
         const distPrefix = (window.location.pathname || '').includes('/dist-preview/') ? '../' : '';
         const iconSrc = distPrefix + 'icon-192.png';
@@ -1567,24 +1632,18 @@
                             </div>
                             <div>
                                 <div className="product-card-title">SLEEPER</div>
-                                <div className="product-card-subtitle">{sleeperUsername ? sleeperLeagues.length + ' league' + (sleeperLeagues.length !== 1 ? 's' : '') + ' synced' : 'Connect your account'}</div>
+                                <div className="product-card-subtitle">{sleeperUsername ? (error ? 'Connection needs attention' : hubSyncing ? 'Syncing leagues…' : sleeperLeagues.length + ' league' + (sleeperLeagues.length !== 1 ? 's' : '') + ' synced') : 'Connect your account'}</div>
                             </div>
                         </div>
                         <div className="product-card-body">
-                            {!sleeperUsername ? (
-                                <div className="hub-connect-card">
-                                    <input id="wr-sleeper-input" placeholder="Sleeper username" onKeyDown={e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } } }} />
-                                    <button className="hub-cta gold" onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }}>CONNECT</button>
-                                </div>
-                            ) : hasLeagues ? (
-                                /* Add-a-league view is connect-forms only — the league list
-                                   lives on the franchise picker, not duplicated here. */
-                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.6 }}>
-                                    Signed in as <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>. Sleeper leagues sync automatically — new ones appear on the franchise board.
-                                </div>
-                            ) : (
-                                <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
-                            )}
+                            {sleeperUsername && <p style={{ marginTop: 0, fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>Sleeper profile: <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong></p>}
+                            <form className="hub-connect-card" onSubmit={handleSleeperConnect} aria-busy={sleeperConnecting} style={{ display: 'grid', gap: '8px', textAlign: 'left' }}>
+                                <label htmlFor="wr-sleeper-input">Sleeper username</label>
+                                <input id="wr-sleeper-input" name="sleeperUsername" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="Sleeper username" value={sleeperConnectInput} onChange={e => { setSleeperConnectInput(e.target.value); setSleeperConnectError(null); }} disabled={sleeperConnecting} aria-invalid={!!sleeperConnectError} aria-describedby={(sleeperConnectError || error) ? 'wr-sleeper-connect-error' : undefined} style={{ fontSize: 'var(--text-body, 1rem)', textAlign: 'left' }} />
+                                {(sleeperConnectError || error) && <p id="wr-sleeper-connect-error" role="alert" style={{ margin: 0, color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-body, 1rem)' }}>{sleeperConnectError || error}</p>}
+                                <button type="submit" className="hub-cta gold" disabled={sleeperConnecting || !sleeperConnectInput.trim()}>{sleeperConnecting ? 'Checking Sleeper…' : sleeperUsername ? 'Update connection' : 'Connect Sleeper'}</button>
+                            </form>
+                            {sleeperUsername && !error && !sleeperConnectError && <p role="status" style={{ marginBottom: 0, fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>{hubSyncing ? 'Syncing your leagues…' : sleeperLeagues.length ? 'Your leagues are on the home screen.' : 'No leagues found for ' + selectedYear + '. You can try another Sleeper username.'}</p>}
                         </div>
                     </div>
 

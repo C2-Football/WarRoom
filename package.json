@@ -9,6 +9,7 @@
     "test:duat": "node --test tests/duat-*.js tests/duat-online.cjs tests/duat-dynasty-online.cjs",
     "test:landing-content": "node tests/landing-content-contract.js",
     "test:login-auth": "node tests/login-auth-contract.js && node tests/auth-request-recovery.cjs",
+    "test:sleeper-connect": "node --test tests/sleeper-connect.cjs",
     "test:regression": "npm run build:preview && node tests/regression.js",
     "test:click-paths": "node tests/click-path-contract.js",
     "test:intelligence-surfaces": "node tests/intelligence-surface-contract.js",

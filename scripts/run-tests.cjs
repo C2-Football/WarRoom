@@ -41,7 +41,7 @@ const pkg = require(path.join(ROOT, 'package.json'));
 // about what that suite actually executes. Add a new suite by adding its
 // script name here; a typo fails loudly below rather than silently skipping.
 const SUITE_ORDER = [
-  'test:design-tokens', 'test:landing-content', 'test:login-auth', 'test:regression',
+  'test:design-tokens', 'test:landing-content', 'test:login-auth', 'test:sleeper-connect', 'test:regression',
   'test:click-paths', 'test:intelligence-surfaces', 'test:draft-context',
   'test:draft-analyst-mock', 'test:draft-trade-simulator', 'test:draft-live-sync',
   'test:draft-live-decision', 'test:draft-live-room', 'test:draft-recap', 'test:post-draft-craze',
