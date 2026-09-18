@@ -27,9 +27,11 @@ assert(!html.includes('passwordHash'), 'login must never store a password-derive
 const sessionConfig = html.slice(html.indexOf('    const SESSION_KEY ='), html.indexOf('    const messageEl ='));
 const destinationSource = html.slice(html.indexOf('    function destination()'), html.indexOf('    function showMessage('));
 const restoreSource = html.match(/\(async function restoreSession\(\) \{[\s\S]*?\}\)\(\);/)?.[0];
+const requestState = html.match(/let accountRequestPending = false;\s*let accountRequestVersion = 0;/)?.[0];
 assert(sessionConfig.includes('const GAME_LOGIN'), 'the actual game-entry configuration must be available to the behavior harness');
 assert(destinationSource.includes('return WARROOM_URL'), 'the actual destination router must be available to the behavior harness');
 assert(restoreSource, 'the actual session restoration function must be available to the behavior harness');
+assert(requestState, 'the actual restoration cancellation state must be available to the behavior harness');
 
 async function restore({ search = '', appSession, legacySession, legacyAuth, oauthSession = null, profile, contextOwner, pendingInvite = false, clientAvailable = true, storageFull = false }) {
   const stored = new Map();
@@ -63,7 +65,7 @@ async function restore({ search = '', appSession, legacySession, legacyAuth, oau
     atob: value => Buffer.from(value, 'base64').toString('utf8') });
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/shared/account-storage.js'), 'utf8'), context);
-  await vm.runInContext(sessionConfig + '\n' + destinationSource + '\n' + restoreSource, context, { timeout: 1000 });
+  await vm.runInContext(sessionConfig + '\n' + requestState + '\n' + destinationSource + '\n' + restoreSource, context, { timeout: 1000 });
   return { href: location.href, writes, oauthReads, message, session: JSON.parse(stored.get('fw_session_v1') || 'null') };
 }
 

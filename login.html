@@ -336,6 +336,7 @@
     const signupForm = document.getElementById('panelSignup');
     let sbClient = null;
     let accountRequestPending = false;
+    let accountRequestVersion = 0;
 
     if (GAME_LOGIN) {
       document.title = GAME_NAME + ' · Sign in';
@@ -415,6 +416,7 @@
     async function authenticate(endpoint, body, button, workingLabel) {
       if (accountRequestPending) return null;
       accountRequestPending = true;
+      accountRequestVersion++;
       const originalLabel = button.textContent;
       button.disabled = true;
       button.textContent = workingLabel;
@@ -483,6 +485,7 @@
       const db = getSbClient();
       if (!db) { showMessage('Secure sign-in is still loading. Please try again.'); return; }
       accountRequestPending = true;
+      accountRequestVersion++;
       button.disabled = true;
       let timeout;
       try {
@@ -531,8 +534,17 @@
     });
 
     (async function restoreSession() {
+      // Automatic restoration owns neither the account nor navigation once the
+      // user starts a sign-in. Keep that cancellation even if the attempt fails.
+      const restoreVersion = accountRequestVersion;
+      const stillAutomatic = () => accountRequestVersion === restoreVersion && !accountRequestPending;
       try {
-        const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        const sessionBefore = localStorage.getItem(SESSION_KEY);
+        const legacyBefore = localStorage.getItem(LEGACY_SESSION_KEY);
+        const mayRestore = () => stillAutomatic()
+          && localStorage.getItem(SESSION_KEY) === sessionBefore
+          && localStorage.getItem(LEGACY_SESSION_KEY) === legacyBefore;
+        const session = JSON.parse(sessionBefore || 'null');
         if (session?.token && session?.user && (!GAME_LOGIN || session.user.id)
             && window.App.AccountSession.identityOf(session)) {
           window.location.href = destination();
@@ -541,6 +553,9 @@
         const db = getSbClient();
         if (db && !GAME_LOGIN) {
           const { data } = await db.auth.getSession();
+          // getSession can refresh over the network. A late result must not
+          // overwrite an explicit sign-in or a session installed by another tab.
+          if (!mayRestore()) return;
           if (data?.session) {
             const user = data.session.user;
             const nextSession = {
@@ -552,12 +567,13 @@
             return;
           }
         }
+        if (!mayRestore()) return;
         const legacySession = JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY) || 'null');
         const legacyAuth = JSON.parse(localStorage.getItem(LEGACY_AUTH_KEY) || 'null');
         if (!GAME_LOGIN && legacySession?.token && legacyAuth?.username
             && window.App.AccountSession.identityOf(legacySession)) window.location.href = WARROOM_URL;
       } catch {
-        showMessage('Your previous session could not be restored. Sign in again, or free some browser storage and retry.');
+        if (stillAutomatic()) showMessage('Your previous session could not be restored. Sign in again, or free some browser storage and retry.');
       }
     })();
   </script>
