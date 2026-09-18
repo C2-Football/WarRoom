@@ -31,36 +31,48 @@ assert(sessionConfig.includes('const GAME_LOGIN'), 'the actual game-entry config
 assert(destinationSource.includes('return WARROOM_URL'), 'the actual destination router must be available to the behavior harness');
 assert(restoreSource, 'the actual session restoration function must be available to the behavior harness');
 
-async function restore({ search = '', appSession, legacySession, legacyAuth, oauthSession = null, profile, pendingInvite = false, clientAvailable = true }) {
+async function restore({ search = '', appSession, legacySession, legacyAuth, oauthSession = null, profile, contextOwner, pendingInvite = false, clientAvailable = true, storageFull = false }) {
   const stored = new Map();
   for (const [key, value] of [
     ['fw_session_v1', appSession], ['od_session_v1', legacySession],
     ['od_auth_v1', legacyAuth], ['od_profile_v1', profile],
   ]) if (value !== undefined) stored.set(key, JSON.stringify(value));
+  if (contextOwner) stored.set('wr_active_connection_owner_v1', contextOwner);
   const writes = [];
   let oauthReads = 0;
   const location = { search, href: 'login.html' + search };
+  let message = '';
   const context = {
     URLSearchParams,
     window: { location },
     localStorage: {
+      get length() { return stored.size; },
+      key: index => [...stored.keys()][index] ?? null,
       getItem: key => stored.get(key) ?? null,
-      setItem: (key, value) => { writes.push({ key, value }); stored.set(key, String(value)); },
+      setItem: (key, value) => { if (storageFull) throw new Error('Storage full'); writes.push({ key, value }); stored.set(key, String(value)); },
+      removeItem: key => stored.delete(key),
     },
-    sessionStorage: { getItem: key => key === 'tl-pending-invite-v1' && pendingInvite ? 'pending-invite' : null },
+    sessionStorage: { getItem: key => key === 'tl-pending-invite-v1' && pendingInvite ? 'pending-invite' : null, setItem() {}, removeItem() {} },
+    showMessage: value => { message = value; },
     getSbClient: () => clientAvailable ? { auth: { getSession: async () => {
       oauthReads += 1;
       return { data: { session: oauthSession } };
     } } } : null,
   };
-  await vm.runInNewContext(sessionConfig + '\n' + destinationSource + '\n' + restoreSource, context, { timeout: 1000 });
-  return { href: location.href, writes, oauthReads, session: JSON.parse(stored.get('fw_session_v1') || 'null') };
+  Object.assign(context.window, { localStorage: context.localStorage, sessionStorage: context.sessionStorage,
+    atob: value => Buffer.from(value, 'base64').toString('utf8') });
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/shared/account-storage.js'), 'utf8'), context);
+  await vm.runInContext(sessionConfig + '\n' + destinationSource + '\n' + restoreSource, context, { timeout: 1000 });
+  return { href: location.href, writes, oauthReads, message, session: JSON.parse(stored.get('fw_session_v1') || 'null') };
 }
 
 (async () => {
   let scenarios = 0;
   const appSession = { token: 'app-account-token', user: { id: 'app-user-123', email: 'owner@example.test', displayName: 'Owner' } };
-  const oauthSession = { access_token: 'oauth-only-token', user: { id: 'supabase-user-456', email: 'other@example.test', user_metadata: { full_name: 'Other Account' } } };
+  const jwt = payload => 'test.' + Buffer.from(JSON.stringify(payload)).toString('base64url') + '.signature';
+  const oauthToken = jwt({ sub: 'supabase-user-456', exp: Math.floor(Date.now()/1000)+3600 });
+  const oauthSession = { access_token: oauthToken, user: { id: 'supabase-user-456', email: 'other@example.test', user_metadata: { full_name: 'Other Account' } } };
   const oauthShapedAppSession = { token: 'oauth-only-token', user: { email: 'other@example.test', displayName: 'Other Account' } };
   const gameEntries = [
     { label: 'Duat', search: '?duat=1', destination: 'index.html?duat=1' },
@@ -96,11 +108,11 @@ async function restore({ search = '', appSession, legacySession, legacyAuth, oau
   const genericOAuth = await restore({ oauthSession });
   assert.strictEqual(genericOAuth.oauthReads, 1, 'ordinary sign-in retains OAuth session restoration');
   assert.strictEqual(genericOAuth.href, 'onboarding.html', 'ordinary OAuth users without a profile continue to onboarding');
-  assert.deepStrictEqual(genericOAuth.session, { token: 'oauth-only-token', user: { email: 'other@example.test', displayName: 'Other Account' } });
-  assert.strictEqual(genericOAuth.writes.length, 1);
+  assert.deepStrictEqual(genericOAuth.session, { token: oauthToken, user: { email: 'other@example.test', displayName: 'Other Account' } });
+  assert.strictEqual(genericOAuth.writes.filter(write => write.key === 'fw_session_v1').length, 1);
   scenarios += 1;
 
-  const genericReturningOAuth = await restore({ oauthSession, profile: { onboardingComplete: true } });
+  const genericReturningOAuth = await restore({ oauthSession, profile: { onboardingComplete: true }, contextOwner: 'oauth:supabase-user-456' });
   assert.strictEqual(genericReturningOAuth.href, 'index.html', 'ordinary returning OAuth users continue to Dynasty HQ');
   assert.strictEqual(genericReturningOAuth.oauthReads, 1);
   scenarios += 1;
@@ -110,8 +122,22 @@ async function restore({ search = '', appSession, legacySession, legacyAuth, oau
   assert.deepStrictEqual(genericApp.session, appSession);
   scenarios += 1;
 
-  const genericLegacy = await restore({ clientAvailable: false, legacySession: { token: 'legacy-token' }, legacyAuth: { username: 'sleeper-owner' } });
+  const genericLegacy = await restore({ clientAvailable: false, legacySession: { token: jwt({app_metadata:{sleeper_username:'sleeper-owner'}}) }, legacyAuth: { username: 'sleeper-owner' } });
   assert.strictEqual(genericLegacy.href, 'index.html', 'ordinary Sleeper username session restoration remains supported');
+  scenarios += 1;
+
+  const activeApp = await restore({ appSession, oauthSession, profile: { onboardingComplete: true } });
+  assert.deepStrictEqual(activeApp.session, appSession, 'a lingering SDK session cannot replace the active app account');
+  assert.equal(activeApp.oauthReads, 0);
+  scenarios += 1;
+  const foreignProfile = await restore({ oauthSession, profile: { onboardingComplete: true }, contextOwner: 'account:someone-else' });
+  assert.equal(foreignProfile.href, 'onboarding.html', 'OAuth cannot inherit another account onboarding context');
+  scenarios += 1;
+  const full = await restore({ oauthSession, storageFull: true });
+  assert.equal(full.href, 'login.html');assert.equal(full.session, null);assert.match(full.message, /could not be restored/);
+  scenarios += 1;
+  const expired = await restore({appSession:{...appSession,token:jwt({exp:1})}});
+  assert.equal(expired.href,'login.html','expired session does not redirect into a restore loop');
   scenarios += 1;
 
   console.log(`login auth contract ok (${scenarios} session restoration scenarios)`);

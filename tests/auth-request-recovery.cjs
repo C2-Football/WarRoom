@@ -46,20 +46,27 @@ function harness(fetchImpl, oauth, kind = 'login') {
   const script = kind === 'reset'
     ? fs.readFileSync(path.join(__dirname, '../reset-password.html'), 'utf8').match(/<script>\s*(const FW_API_BASE[\s\S]*?)<\/script>/)[1]
     : source;
-  vm.runInNewContext(script, {
+  const context = {
     window, document: { getElementById: element }, URL, URLSearchParams, AbortController,
     localStorage: {
+      get length() { return stored.size; },
+      key: index => [...stored.keys()][index] ?? null,
       getItem: key => stored.get(key) ?? null,
       setItem: (key, value) => {
         if (key === failWriteKey) throw new DOMException('Storage full', 'QuotaExceededError');
         return stored.set(key, value);
       }, removeItem: key => stored.delete(key),
     },
-    sessionStorage: { getItem: () => null },
+    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     fetch: (...args) => fetchImpl(...args),
     setTimeout: (fn, ms) => { const id = ++nextTimer; timers.set(id, { fn, ms }); return id; },
     clearTimeout: id => timers.delete(id),
-  });
+  };
+  Object.assign(window, { localStorage: context.localStorage, sessionStorage: context.sessionStorage, document: context.document,
+    atob: value => Buffer.from(value, 'base64').toString('utf8') });
+  vm.createContext(context);
+  if (kind === 'login') vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/shared/account-storage.js'), 'utf8'), context);
+  vm.runInContext(script, context);
   return {
     element, stored, window, timers,
     failWriteOn: key => { failWriteKey = key; },
@@ -167,6 +174,28 @@ const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, j
     await h.fire('panelSignin', 'submit');
     assert.equal(h.success(), true, 'storage recovery can retry');
   }
+
+  const switched = harness(async () => response({token:'account-b-token',user:{id:'b',email:'b@example.test'}}));
+  switched.stored.set('fw_session_v1',JSON.stringify({token:'account-a-token',user:{id:'a',email:'a@example.test'}}));
+  switched.stored.set('wr_active_connection_owner_v1','account:a');
+  switched.stored.set('od_auth_v1',JSON.stringify({username:'account-a-leagues'}));
+  switched.stored.set('od_profile_v1',JSON.stringify({onboardingComplete:true,displayName:'Account A'}));
+  switched.stored.set('wr_account_v1:account%3Aa:empire_decisions_v1','private plans stay stored');
+  await switched.fire('panelSignin','submit');
+  assert.equal(switched.success(),true);
+  assert.equal(JSON.parse(switched.stored.get('fw_session_v1')).user.id,'b');
+  assert.equal(switched.stored.has('od_auth_v1'),false,'new account cannot inherit previous league connection');
+  assert.equal(switched.stored.has('od_profile_v1'),false,'new account cannot inherit completed onboarding');
+  assert([...switched.stored].some(([key,value])=>key.startsWith('wr_account_context_v1:account%3Aa:')&&value.includes('account-a-leagues')),'old connection remains recoverable');
+  assert.equal(switched.stored.get('wr_account_v1:account%3Aa:empire_decisions_v1'),'private plans stay stored');
+
+  const legacyToken='test.'+Buffer.from(JSON.stringify({app_metadata:{sleeper_username:'legacy-owner'}})).toString('base64url')+'.signature';
+  const legacy=harness(async()=>response({token:legacyToken}));
+  legacy.element('identifier').value='legacy-owner';
+  await legacy.fire('panelSignin','submit');
+  assert.equal(legacy.success(),true,'signed legacy token supplies its isolated account identity');
+  assert.equal(legacy.stored.get('wr_active_connection_owner_v1'),'legacy:legacy-owner');
+  assert.equal(JSON.parse(legacy.stored.get('od_auth_v1')).username,'legacy-owner');
 
   for (const [body, status] of [[{}, 200], [{ error: 'Expired link' }, 400]]) {
     const h = harness(async () => response(body, status), null, 'reset');

@@ -317,6 +317,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js"></script>
+  <script src="js/shared/account-storage.js?v=20260918readiness1"></script>
   <script>
     const FW_API_BASE = 'https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1';
     const FW_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4c2hpcXl4aGhpZnZ0ZnFhd2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTExMzAsImV4cCI6MjA4ODI4NzEzMH0.zJi9W986ZLaANiZN6pt6ReFwaQU6yPeidsERIWo2ibI';
@@ -428,17 +429,13 @@
           [LEGACY_SESSION_KEY, JSON.stringify(data)],
           [LEGACY_AUTH_KEY, JSON.stringify({ username: body.username })],
           ['od_locked_username_v2', body.username],
+          [SESSION_KEY, null],
         ] : [[SESSION_KEY, JSON.stringify(data)]];
-        const previous = updates.map(([key]) => [key, localStorage.getItem(key)]);
         try {
-          // Write the replacement before removing the old session. Quota errors
-          // must leave a retryable form and preserve existing session records.
-          updates.forEach(([key, value]) => localStorage.setItem(key, value));
-          if (legacy) localStorage.removeItem(SESSION_KEY);
+          // The identity and its private connection/profile context move together.
+          // A failed backup or write preserves the old account and allows retry.
+          window.App.AccountStorage.prepareSignIn(data, updates);
         } catch {
-          previous.forEach(([key, value]) => {
-            try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch {}
-          });
           throw new Error('Your browser could not save the session. Free some site storage or try another browser, then sign in again.');
         }
         return data;
@@ -535,28 +532,33 @@
 
     (async function restoreSession() {
       try {
+        const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        if (session?.token && session?.user && (!GAME_LOGIN || session.user.id)
+            && window.App.AccountSession.identityOf(session)) {
+          window.location.href = destination();
+          return;
+        }
         const db = getSbClient();
         if (db && !GAME_LOGIN) {
           const { data } = await db.auth.getSession();
           if (data?.session) {
             const user = data.session.user;
-            localStorage.setItem(SESSION_KEY, JSON.stringify({
+            const nextSession = {
               token: data.session.access_token,
               user: { email: user.email, displayName: user.user_metadata?.full_name || user.user_metadata?.name || user.email },
-            }));
+            };
+            window.App.AccountStorage.prepareSignIn(nextSession, [[SESSION_KEY, JSON.stringify(nextSession)]]);
             window.location.href = destination();
             return;
           }
         }
-        const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-        if (session?.token && session?.user && (!GAME_LOGIN || session.user.id)) {
-          window.location.href = destination();
-          return;
-        }
         const legacySession = JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY) || 'null');
         const legacyAuth = JSON.parse(localStorage.getItem(LEGACY_AUTH_KEY) || 'null');
-        if (!GAME_LOGIN && legacySession?.token && legacyAuth?.username) window.location.href = WARROOM_URL;
-      } catch {}
+        if (!GAME_LOGIN && legacySession?.token && legacyAuth?.username
+            && window.App.AccountSession.identityOf(legacySession)) window.location.href = WARROOM_URL;
+      } catch {
+        showMessage('Your previous session could not be restored. Sign in again, or free some browser storage and retry.');
+      }
     })();
   </script>
 </body>
