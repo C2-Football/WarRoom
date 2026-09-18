@@ -209,6 +209,39 @@ const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, j
   finishCrossTab(oldOAuth); await flushRestore();
   assert.equal(JSON.parse(crossTab.stored.get('fw_session_v1')).user.id, 'b', 'session changed by another tab must not be overwritten by restore');
 
+  let finishOldSignin;
+  const staleSignin = harness(() => new Promise(resolve => { finishOldSignin = resolve; }));
+  const oldSignin = staleSignin.fire('panelSignin', 'submit');
+  staleSignin.window.App.AccountStorage.prepareSignIn(otherSession, [['fw_session_v1', JSON.stringify(otherSession)]]);
+  finishOldSignin(response({ token: 'late-email-a', user: { id: 'a', email: 'a@example.test' } }));
+  await oldSignin;
+  assert.equal(JSON.parse(staleSignin.stored.get('fw_session_v1')).user.id, 'b', 'pending explicit sign-in must not overwrite a newer account from another tab');
+  assert.equal(staleSignin.success(), false);
+  assert.equal(staleSignin.element('btnSignin').disabled, false, 'stale explicit request can be deliberately retried');
+  assert.equal(staleSignin.window.location.href, 'login.html');
+  assert.match(staleSignin.message(), /account changed/i);
+  const deliberateRetry = staleSignin.fire('panelSignin', 'submit');
+  finishOldSignin(response({ token: 'retry-email-a', user: { id: 'a', email: 'a@example.test' } }));
+  await deliberateRetry;
+  assert.equal(JSON.parse(staleSignin.stored.get('fw_session_v1')).user.id, 'a', 'fresh explicit retry may deliberately switch accounts');
+
+  let finishCrossTabOAuth;
+  const staleOAuth = harness(async () => response({}), () => new Promise(resolve => { finishCrossTabOAuth = resolve; }));
+  const oldProviderRequest = staleOAuth.fire('btnGoogle', 'click');
+  staleOAuth.window.App.AccountStorage.prepareSignIn(otherSession, [['fw_session_v1', JSON.stringify(otherSession)]]);
+  finishCrossTabOAuth({ data: { url: providerUrl }, error: null });
+  await oldProviderRequest;
+  assert.equal(staleOAuth.window.location.href, 'login.html', 'old provider startup must not redirect after a newer cross-tab session');
+  assert.equal(JSON.parse(staleOAuth.stored.get('fw_session_v1')).user.id, 'b');
+  assert.equal(staleOAuth.element('btnGoogle').disabled, false);
+  assert.match(staleOAuth.message(), /account changed/i);
+
+  let rejectOldRestore;
+  const crossTabError = harness(async () => response({}), async () => ({}), 'login', () => new Promise((_resolve, reject) => { rejectOldRestore = reject; }));
+  crossTabError.window.App.AccountStorage.prepareSignIn(otherSession, [['fw_session_v1', JSON.stringify(otherSession)]]);
+  rejectOldRestore(new Error('Stale OAuth failure')); await flushRestore();
+  assert.equal(crossTabError.message(), '', 'obsolete restoration error must not publish after a cross-tab account change');
+
   for (const key of ['od_session_v1', 'od_auth_v1', 'od_locked_username_v2', 'fw_session_v1']) {
     const h = harness(async () => response({ token: 'replacement-token', user: { id: 'b', email: 'b@example.test' } }));
     if (key !== 'fw_session_v1') h.element('identifier').value = 'isolated-sleeper';

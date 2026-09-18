@@ -421,7 +421,12 @@
       button.disabled = true;
       button.textContent = workingLabel;
       try {
+        const sessionBefore = localStorage.getItem(SESSION_KEY);
+        const legacyBefore = localStorage.getItem(LEGACY_SESSION_KEY);
         const data = await requestAccount(endpoint, body);
+        if (localStorage.getItem(SESSION_KEY) !== sessionBefore || localStorage.getItem(LEGACY_SESSION_KEY) !== legacyBefore) {
+          throw new Error('Your account changed in another tab. Sign in again to continue.');
+        }
         if (typeof data.token !== 'string' || !data.token.trim()
             || (endpoint !== 'get-session-token' && (!data.user?.id || !data.user?.email))) {
           throw new Error('Sign-in could not be confirmed. Please try again.');
@@ -489,6 +494,8 @@
       button.disabled = true;
       let timeout;
       try {
+        const sessionBefore = localStorage.getItem(SESSION_KEY);
+        const legacyBefore = localStorage.getItem(LEGACY_SESSION_KEY);
         // Keep navigation under this request's control: a provider that answers
         // after timeout must not redirect over a subsequent email sign-in.
         const { data, error } = await Promise.race([
@@ -498,6 +505,9 @@
           } }),
           new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Secure sign-in timed out. Please try again.')), 15000); }),
         ]);
+        if (localStorage.getItem(SESSION_KEY) !== sessionBefore || localStorage.getItem(LEGACY_SESSION_KEY) !== legacyBefore) {
+          throw new Error('Your account changed in another tab. Sign in again to continue.');
+        }
         if (error) throw error;
         if (!data?.url || new URL(data.url).origin !== SUPABASE_URL) throw new Error('Secure sign-in could not be started. Please try again.');
         window.location.href = data.url;
@@ -538,12 +548,19 @@
       // user starts a sign-in. Keep that cancellation even if the attempt fails.
       const restoreVersion = accountRequestVersion;
       const stillAutomatic = () => accountRequestVersion === restoreVersion && !accountRequestPending;
+      let sessionBefore, legacyBefore, snapshotCaptured = false;
+      const mayRestore = () => {
+        if (!stillAutomatic()) return false;
+        if (!snapshotCaptured) return true;
+        try {
+          return localStorage.getItem(SESSION_KEY) === sessionBefore
+            && localStorage.getItem(LEGACY_SESSION_KEY) === legacyBefore;
+        } catch { return false; }
+      };
       try {
-        const sessionBefore = localStorage.getItem(SESSION_KEY);
-        const legacyBefore = localStorage.getItem(LEGACY_SESSION_KEY);
-        const mayRestore = () => stillAutomatic()
-          && localStorage.getItem(SESSION_KEY) === sessionBefore
-          && localStorage.getItem(LEGACY_SESSION_KEY) === legacyBefore;
+        sessionBefore = localStorage.getItem(SESSION_KEY);
+        legacyBefore = localStorage.getItem(LEGACY_SESSION_KEY);
+        snapshotCaptured = true;
         const session = JSON.parse(sessionBefore || 'null');
         if (session?.token && session?.user && (!GAME_LOGIN || session.user.id)
             && window.App.AccountSession.identityOf(session)) {
@@ -573,7 +590,7 @@
         if (!GAME_LOGIN && legacySession?.token && legacyAuth?.username
             && window.App.AccountSession.identityOf(legacySession)) window.location.href = WARROOM_URL;
       } catch {
-        if (stillAutomatic()) showMessage('Your previous session could not be restored. Sign in again, or free some browser storage and retry.');
+        if (mayRestore()) showMessage('Your previous session could not be restored. Sign in again, or free some browser storage and retry.');
       }
     })();
   </script>
