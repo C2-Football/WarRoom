@@ -19,13 +19,13 @@ function useCommishLocalSave() {
     const failed = React.useRef({});
     const showFailure = () => setFailure(Object.values(failed.current).slice(-1)[0] || null);
     const resolve = keys => { for (const key of keys) delete failed.current[key]; showFailure(); };
-    const run = (key, area, save) => {
+    const run = (key, area, save, recovery = {}) => {
         try {
             const value = save();
             if (value !== false && value != null && failed.current[key]) { delete failed.current[key]; showFailure(); }
             return { ok: true, value };
         } catch (error) {
-            failed.current[key] = { key, area, message: error?.message || 'Your change was not saved. Retry after freeing browser storage.' };
+            failed.current[key] = { key, area, retry: recovery.retry, message: (recovery.prefix || '') + (error?.message || 'Your change was not saved. Retry after freeing browser storage.') };
             showFailure();
             return { ok: false, error: failed.current[key].message };
         }
@@ -1190,23 +1190,64 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // Every one of these writes to storage then bumps prefTick; the queue,
     // grid, badges and settings all re-derive from that single signal.
     const bumpPrefs = () => setPrefTick(t => t + 1);
-    const onToggleLeague = (lid, on) => { try { P?.setManaged(lid, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
-    const onToggleDomain = (domain, on) => { try { P?.setDomainAlert(domain, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
-    const onSetFloor = (tier) => { try { P?.setFloor(tier); } catch (e) { /* unchanged */ } bumpPrefs(); };
+    const savePreference = (key, save) => {
+        const result = localSave.run(key, 'settings', () => { save(); return true; });
+        if (result.ok) bumpPrefs();
+        return result.ok;
+    };
+    const onToggleLeague = (lid, on) => savePreference('managed:' + lid, () => P.setManaged(lid, on));
+    const onToggleDomain = (domain, on) => savePreference('domain:' + domain, () => P.setDomainAlert(domain, on));
+    const onSetFloor = tier => savePreference('floor', () => P.setFloor(tier));
     const bumpFollowups = () => setFollowTick(t => t + 1);
-    const recordFollowup = (item, type, detail) => { try { F?.record?.(item, type, detail, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } bumpFollowups(); };
+    const recordFollowup = (item, type, detail, prefix = '') => {
+        const result = localSave.run('activity:' + item.id + ':' + type, 'followups', () => F.record(item, type, detail, { nowMs: Date.now() }), {
+            prefix, retry: () => recordFollowup(item, type, detail, prefix),
+        });
+        if (result.ok) bumpFollowups();
+        return result.ok;
+    };
     const itemForFollowup = (id) => ((rawQueue && rawQueue.items) || []).find(it => String(it.id) === String(id)) || actionItem || { id, headline: F?.get?.(id)?.headline || 'Commissioner follow-up' };
-    const onSaveFollowup = (item, patch) => { try { F?.save?.(item, patch, { nowMs: Date.now() }); F?.record?.(item, 'SAVED', '', { nowMs: Date.now() }); } catch (e) { /* unchanged */ } bumpFollowups(); };
-    const onCopyFollowup = (item, text) => { onCopy(text); recordFollowup(item, 'COPIED', 'Message copied for review'); };
-    const onRemoveFollowup = (id) => { try { F?.remove?.(id); } catch (e) { /* unchanged */ } bumpFollowups(); };
-    const onItemDone = (item) => { try { P?.markDone(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'DONE', 'Marked done'); setActionItem(null); bumpPrefs(); };
-    const onItemSkip = (item) => { try { P?.skip(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'SKIPPED', 'Snoozed for ' + ((P && P.SKIP_DAYS) || 7) + ' days'); setActionItem(null); bumpPrefs(); };
-    const onItemHide = (item) => { try { P?.hide(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'HIDDEN', 'Hidden from Command'); setActionItem(null); bumpPrefs(); };
-    const onItemRestore = (id) => { const item = itemForFollowup(id); try { P?.restore(id); } catch (e) { /* unchanged */ } recordFollowup(item, 'RESTORED', 'Restored to Command'); setActionItem(null); bumpPrefs(); };
-    // A queue row opens the drawer rather than navigating: the drawer is where
-    // done/skip/hide live, and it still offers the deep-link as its primary.
-    const onQueueItem = (item) => { recordFollowup(item, 'OPENED', 'Action drawer opened'); setActionItem(item); };
-    const onActionOpen = (item) => { recordFollowup(item, 'NAVIGATED', item.action?.label || 'Opened desk'); setActionItem(null); openHub(item.hub, { leagueId: (item.leagueIds || [])[0] || null }); };
+    const onSaveFollowup = (item, patch) => {
+        const result = localSave.run('followup:' + item.id, 'followups', () => F.save(item, patch, { nowMs: Date.now(), recordSaved: true }));
+        if (result.ok) bumpFollowups();
+        return result.ok && !!result.value;
+    };
+    const onCopyFollowup = async (item, text) => {
+        try { await navigator.clipboard.writeText(text); }
+        catch { return { copied: false, error: 'Could not copy. Your draft remains here; try again.' }; }
+        const recorded = recordFollowup(item, 'COPIED', 'Message copied for review', 'The message was copied, but its activity entry was not saved. ');
+        return { copied: true, recorded };
+    };
+    const onRemoveFollowup = id => {
+        const result = localSave.run('remove-followup:' + id, 'followups', () => F.remove(id));
+        if (result.ok && result.value) {
+            localSave.resolve(['followup:' + id, ...['OPENED', 'COPIED', 'NAVIGATED', 'DONE', 'SKIPPED', 'HIDDEN', 'RESTORED'].map(type => 'activity:' + id + ':' + type)]);
+            bumpFollowups();
+        }
+        return result.ok && !!result.value;
+    };
+    const changeItemState = (item, type, detail, save) => {
+        if (!savePreference('item-state:' + item.id, save)) return false;
+        localSave.resolve(['DONE', 'SKIPPED', 'HIDDEN', 'RESTORED'].map(previous => 'activity:' + item.id + ':' + previous));
+        // Queue preferences and activity are separate existing records. Reflect
+        // the saved preference immediately; if activity fails, keep the drawer
+        // open and offer a retry for that entry without replaying typed notes.
+        if (!recordFollowup(item, type, detail, 'The queue state was saved locally, but its activity entry was not saved. ')) return false;
+        setActionItem(null);
+        return true;
+    };
+    const onItemDone = item => changeItemState(item, 'DONE', 'Marked done', () => P.markDone(item, { nowMs: Date.now() }));
+    const onItemSkip = item => changeItemState(item, 'SKIPPED', 'Snoozed for ' + P.SKIP_DAYS + ' days', () => P.skip(item, { nowMs: Date.now() }));
+    const onItemHide = item => changeItemState(item, 'HIDDEN', 'Hidden from Command', () => P.hide(item, { nowMs: Date.now() }));
+    const onItemRestore = id => changeItemState(itemForFollowup(id), 'RESTORED', 'Restored to Command', () => P.restore(id));
+    // Opening a draft does not imply sending or publishing its contents.
+    const onQueueItem = item => { setActionItem(item); recordFollowup(item, 'OPENED', 'Action drawer opened'); };
+    const onActionOpen = item => {
+        if (!recordFollowup(item, 'NAVIGATED', item.action?.label || 'Opened desk')) return false;
+        if (!localSave.canLeave()) return false;
+        setActionItem(null); openHub(item.hub, { leagueId: (item.leagueIds || [])[0] || null });
+        return true;
+    };
     const onExportAll = () => {
         if (!window.wrExport || state.status !== 'ready') return;
         (state.programmes || []).forEach(p => {
@@ -1271,6 +1312,10 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         ) : null}
         {actionItem && window.WrCommishActionPanel ? (
             <window.WrCommishActionPanel
+                key={actionItem.id + ':' + localSave.reset}
+                saveFailure={localSave.failure}
+                onDismissFailure={() => { if (localSave.failure) localSave.resolve([localSave.failure.key]); }}
+                onDiscard={() => localSave.resolve(['followup:' + actionItem.id])}
                 item={actionItem} state={P ? P.stateOf(actionItem.id) : null} followup={actionFollowup}
                 skipDays={(P && P.SKIP_DAYS) || 7}
                 onOpen={() => onActionOpen(actionItem)}
@@ -1280,7 +1325,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 onRestore={() => onItemRestore(actionItem.id)}
                 onSaveFollowup={(patch) => onSaveFollowup(actionItem, patch)}
                 onCopyMessage={(text) => onCopyFollowup(actionItem, text)}
-                onClose={() => setActionItem(null)}
+                onClose={() => { if (localSave.canLeave()) setActionItem(null); }}
             />
         ) : null}
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '14px 16px 60px' }}>
@@ -1297,7 +1342,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     </span>
                 ) : null}
             </div>
-            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div><button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
+            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div>{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry} style={{ marginTop: 8 }}>Retry activity save</button>}<button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
             {state.status === 'ready' ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     {!isPhone && window.WrCommishSidebar ? (

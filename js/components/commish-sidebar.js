@@ -123,21 +123,63 @@
     // ── Action panel ─────────────────────────────────────────────────
     // Opens on any queue row. Shows the full item (rows truncate) plus the
     // arithmetic behind its rank, then the four things you can do with it.
-    function WrCommishActionPanel({ item, state, followup, onOpen, onDone, onSkip, onHide, onRestore, onClose, onSaveFollowup, onCopyMessage, skipDays }) {
+    function WrCommishActionPanel({ item, state, followup, onOpen, onDone, onSkip, onHide, onRestore, onClose, onSaveFollowup, onCopyMessage, onDiscard, onDismissFailure, saveFailure, skipDays }) {
         const [message, setMessage] = React.useState('');
         const [note, setNote] = React.useState('');
         const [dueAt, setDueAt] = React.useState('');
+        const [saveNote, setSaveNote] = React.useState(null);
+        const [copyBusy, setCopyBusy] = React.useState(false);
+        const saved = React.useRef({ message: '', note: '', dueAt: '' });
+        const latest = React.useRef(saved.current);
+        latest.current = { message, note, dueAt };
         React.useEffect(() => {
-            setMessage(followup?.message || '');
-            setNote(followup?.note || '');
-            setDueAt(followup?.dueAt || '');
-        }, [item?.id, followup?.updatedAt]);
+            const value = { message: followup?.message || '', note: followup?.note || '', dueAt: followup?.dueAt || '' };
+            saved.current = value; latest.current = { ...value };
+            setMessage(value.message); setNote(value.note); setDueAt(value.dueAt); setSaveNote(null);
+        }, [item?.id]);
+        const dirty = () => ['message', 'note', 'dueAt'].some(key => latest.current[key] !== saved.current[key]);
+        const canLeave = () => {
+            if (!dirty()) return true;
+            setSaveNote({ error: true, text: 'Your edits are not saved. Save the follow-up or discard these edits before leaving.' });
+            return false;
+        };
+        React.useEffect(() => window.App?.NavigationGuard?.register(canLeave), [item?.id]);
+        React.useEffect(() => {
+            const warn = event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } };
+            window.addEventListener('beforeunload', warn);
+            return () => window.removeEventListener('beforeunload', warn);
+        }, [item?.id]);
         if (!item) return null;
         const sevColor = item.tier === 'NOW' ? BAD : item.tier === 'SOON' ? WARN : SILVER;
-        const commit = () => onSaveFollowup?.({ message, note, dueAt });
-        const finish = (handler) => { commit(); handler?.(); };
+        const commit = () => {
+            const patch = { ...latest.current };
+            if (onSaveFollowup?.(patch) !== true) {
+                setSaveNote({ error: true, text: 'Follow-up not saved. Your draft and private note remain here. Retry after freeing browser storage.' });
+                return false;
+            }
+            saved.current = patch;
+            setSaveNote({ text: 'Saved locally in this browser. Nothing was sent.' });
+            return true;
+        };
+        const discard = () => {
+            const value = saved.current;
+            latest.current = { ...value };
+            setMessage(value.message); setNote(value.note); setDueAt(value.dueAt);
+            setSaveNote(null); onDiscard?.();
+        };
+        const close = () => { if (canLeave()) onClose?.(); };
+        const finish = handler => { if (commit()) handler?.(); };
+        const copy = async () => {
+            if (copyBusy || !commit()) return;
+            setCopyBusy(true);
+            try {
+                const result = await onCopyMessage?.(latest.current.message);
+                setSaveNote(result?.copied ? { text: 'Message copied. Nothing was sent.' } : { error: true, text: result?.error || 'Could not copy. Your draft remains saved locally.' });
+            } catch { setSaveNote({ error: true, text: 'Could not copy. Your draft remains saved locally.' }); }
+            finally { setCopyBusy(false); }
+        };
         const act = (text, handler, opts) => (
-            <button onClick={handler}
+            <button onClick={handler} disabled={opts?.disabled}
                 style={{
                     flex: opts && opts.wide ? '1 1 100%' : '1 1 auto', minHeight: '38px', padding: '8px 12px', cursor: 'pointer',
                     background: opts && opts.primary ? ACC_FILL : 'transparent',
@@ -147,7 +189,7 @@
                 }}>{text}</button>
         );
         return (
-            <div role="dialog" aria-label="Action" onClick={onClose}
+            <div role="dialog" aria-label="Action" onClick={close}
                 style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(3, 4, 7, 0.6)', display: 'flex', justifyContent: 'flex-end' }}>
                 <div onClick={e => e.stopPropagation()}
                     style={{ width: 'min(420px, 100%)', height: '100%', background: SURF, borderLeft: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column' }}>
@@ -155,7 +197,7 @@
                         <span style={{ width: '3px', height: '16px', background: sevColor, borderRadius: '2px', flex: 'none' }} />
                         <span style={{ ...label, color: sevColor }}>{item.tier}</span>
                         <span style={{ ...label }}>{item.kicker}</span>
-                        <button onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
+                        <button onClick={close} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
                     </div>
 
                     <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -209,18 +251,28 @@
                                 <div style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>{followup?.status || 'OPEN'}</div>
                             </div>
                             <label style={{ ...label, display: 'block', marginBottom: '5px' }}>Message draft</label>
-                            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Draft a commissioner message"
+                            <textarea value={message} onChange={e => { latest.current.message = e.target.value; setMessage(e.target.value); setSaveNote(null); }} placeholder="Draft a commissioner message"
                                 style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 10px', color: TEXT, font: '400 var(--co-readable-small, 0.8125rem)/1.5 var(--font-body)' }} />
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 132px', gap: '8px', marginTop: '8px' }}>
-                                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Private note"
+                                <input value={note} onChange={e => { latest.current.note = e.target.value; setNote(e.target.value); setSaveNote(null); }} placeholder="Private note"
                                     style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 var(--co-readable-small, 0.75rem) var(--font-body)' }} />
-                                <input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} aria-label="Follow-up date"
+                                <input type="date" value={dueAt} onChange={e => { latest.current.dueAt = e.target.value; setDueAt(e.target.value); setSaveNote(null); }} aria-label="Follow-up date"
                                     style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 var(--co-readable-small, 0.75rem) var(--font-mono)' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                                 {act('Save follow-up', commit)}
-                                {act('Copy message', () => { commit(); onCopyMessage?.(message); }, { primary: true })}
+                                {act(copyBusy ? 'Copying…' : 'Copy message', copy, { primary: true, disabled: copyBusy })}
+                                {dirty() && act('Discard unsaved edits', discard)}
                             </div>
+                            {saveNote && !(saveNote.error && saveFailure) && <div role={saveNote.error ? 'alert' : 'status'} style={{ marginTop: 10, color: saveNote.error ? BAD : TEXT, fontSize: 16, lineHeight: 1.5 }}>{saveNote.text}</div>}
+                            {saveFailure && <div role="alert" style={{ marginTop: 10, color: BAD, fontSize: 16, lineHeight: 1.5 }}>
+                                {saveFailure.message}
+                                {saveFailure.retry && act('Retry activity save', saveFailure.retry)}
+                                {onDismissFailure && <div style={{ marginTop: 8 }}>
+                                    {act(saveFailure.key?.startsWith('activity:') ? 'Leave activity unrecorded' : 'Dismiss save error', onDismissFailure)}
+                                    <div style={{ color: TEXT }}>Saved changes remain. Any unsaved edits stay in this form.</div>
+                                </div>}
+                            </div>}
                             {followup?.history?.length ? (
                                 <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
                                     <div style={{ ...label, marginBottom: '7px' }}>Activity</div>

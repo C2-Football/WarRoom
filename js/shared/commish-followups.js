@@ -24,7 +24,13 @@
     function write(obj) {
         const out = obj && typeof obj === 'object' ? obj : {};
         const st = store();
-        try { if (st) st.set(KEY, out); else _mem.set(KEY, JSON.stringify(out)); } catch (e) { /* best effort */ }
+        try {
+            if (st) { if (st.set(KEY, out) !== true) throw new Error('Storage did not confirm the follow-up save'); }
+            else _mem.set(KEY, JSON.stringify(out));
+        } catch (cause) {
+            const error = new Error('Your follow-up was not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
         return out;
     }
     function itemId(item) { return String(item && item.id || ''); }
@@ -58,6 +64,7 @@
         const now = (opts && opts.nowMs) || Date.now();
         const all = read(), rec = all[id] || base(item, now);
         all[id] = { ...rec, ...cleanPatch(patch), headline: String(item.headline || rec.headline || ''), updatedAt: now };
+        if (opts?.recordSaved) all[id].history = (rec.history || []).concat([{ type: 'SAVED', detail: '', ts: now }]).slice(-HISTORY_CAP);
         write(all); return all[id];
     }
     function record(item, type, detail, opts) {

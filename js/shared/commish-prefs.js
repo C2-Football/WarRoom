@@ -47,8 +47,12 @@
     function write(obj) {
         const st = store();
         try {
-            if (st) st.set(KEY, obj); else _mem.set(KEY, JSON.stringify(obj));
-        } catch (e) { /* preferences are best-effort; never break a render */ }
+            if (st) { if (st.set(KEY, obj) !== true) throw new Error('Storage did not confirm the preference save'); }
+            else _mem.set(KEY, JSON.stringify(obj));
+        } catch (cause) {
+            const error = new Error('Your office settings were not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
         return obj;
     }
 
