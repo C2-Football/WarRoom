@@ -6,7 +6,7 @@
     const AUTH_KEYS = ['fw_session_v1', 'od_session_v1'];
     const SECRET_KEYS = ['mfl_api_key', 'espn_s2', 'espn_swid', 'yahoo_session_id', 'dhq_personal_ai_v1',
         'dynastyhq_ai_key', 'dynastyhq_apikey', 'dynastyhq_xai_key', 'dynastyhq_gemini_key', 'dynastyhq_anthropic_key'];
-    const CONTEXT_KEYS = ['od_auth_v1', 'od_profile_v1', 'od_display_name', 'dynastyhq_username', 'dynastyhq_league', 'mfl_league_id', 'mfl_year', 'mfl_franchise_id'];
+    const CONTEXT_KEYS = ['od_auth_v1', 'od_profile_v1', 'od_display_name', 'od_locked_username_v2', 'dynastyhq_username', 'dynastyhq_league', 'mfl_league_id', 'mfl_year', 'mfl_franchise_id'];
     const CONTEXT_OWNER = 'wr_active_connection_owner_v1';
     const CREDENTIAL_OWNER = 'wr_credentials_owner_v1';
     const PENDING_TRANSITION = 'wr_account_pending_transition_v1';
@@ -144,8 +144,9 @@
     }
     let blocked = false;
     const initialOwner = identity();
+    const accountElement = () => root.document?.getElementById?.('root') || root.document?.getElementById?.('account-session-root');
     function hideAccount() {
-        const element = root.document?.getElementById?.('root');
+        const element = accountElement();
         if (!element) return;
         safe(() => root.ReactDOM?.unmountComponentAtNode(element));
         element.replaceChildren();
@@ -188,7 +189,7 @@
     // A changed principal invalidates the entire mounted tree, including stale
     // async callbacks. Reads/writes also check synchronously before using a new
     // account, so they cannot race the browser's queued storage event.
-    const watching = Boolean(root.document?.getElementById?.('root') && root.addEventListener);
+    const watching = Boolean(accountElement() && root.addEventListener);
     if (watching) {
         const prior = safe(() => root.sessionStorage.getItem(CREDENTIAL_OWNER));
         if (prior && prior !== initialOwner) clearSecrets();

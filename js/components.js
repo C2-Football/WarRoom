@@ -499,7 +499,7 @@
         const b = document.createElement('div');
         b.className = 'wr-dev-banner';
         b.style.cssText = 'position:fixed;top:0;left:0;right:0;height:18px;box-sizing:border-box;z-index:99999;background:var(--k-d4af37, #d4af37);color:var(--k-000000, #000000);font-size:var(--text-label, 0.75rem);font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace;line-height:12px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-        b.textContent = IS_LOCAL ? '⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked' : 'SANDBOX — changes here do not affect production';
+        b.textContent = IS_LOCAL ? '⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked' : 'SANDBOX PREVIEW — shared production services';
         document.body.prepend(b);
     }
 

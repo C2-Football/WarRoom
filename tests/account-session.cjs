@@ -14,7 +14,7 @@ function storage() {
 function browser({ mounted = true, sdkRejects = false, knownContext = true } = {}) {
     const local = storage(), temporary = storage(), events = {}, log = [];
     local.setItem('fw_session_v1', JSON.stringify(session('a')));
-    for (const key of ['od_auth_v1', 'od_profile_v1', 'od_display_name', 'mfl_league_id', 'mfl_franchise_id']) local.setItem(key, JSON.stringify({ private: 'account-a' }));
+    for (const key of ['od_auth_v1', 'od_profile_v1', 'od_display_name', 'od_locked_username_v2', 'mfl_league_id', 'mfl_franchise_id']) local.setItem(key, JSON.stringify({ private: 'account-a' }));
     if (knownContext) local.setItem('wr_active_connection_owner_v1', 'account:a');
     local.setItem('offline-duat', 'keep-this-save'); local.setItem('commish_tasks_v1', 'preserve-unassigned');
     local.setItem('sb-project-auth-token', 'oauth-token');
@@ -41,7 +41,7 @@ function browser({ mounted = true, sdkRejects = false, knownContext = true } = {
         const b = browser({ sdkRejects });
         await b.context.handleLogout();
         assert.equal(b.context.location.href, 'landing.html');
-        for (const key of ['fw_session_v1', 'od_session_v1', 'od_auth_v1', 'od_profile_v1', 'od_display_name', 'mfl_league_id', 'mfl_franchise_id', 'sb-project-auth-token']) assert.equal(b.local.getItem(key), null, key);
+        for (const key of ['fw_session_v1', 'od_session_v1', 'od_auth_v1', 'od_profile_v1', 'od_display_name', 'od_locked_username_v2', 'mfl_league_id', 'mfl_franchise_id', 'sb-project-auth-token']) assert.equal(b.local.getItem(key), null, key);
         for (const key of ['mfl_api_key', 'espn_s2', 'espn_swid', 'yahoo_session_id']) { assert.equal(b.local.getItem(key), null); assert.equal(b.temporary.getItem(key), null); }
         assert.equal(JSON.parse(b.local.getItem('mfl_creds_l1')).apiKey, undefined);
         assert.equal(b.local.getItem('mfl_creds_corrupt'), null);
