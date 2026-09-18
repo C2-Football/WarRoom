@@ -1,0 +1,26 @@
+{
+  "expectedRevision": "5d28f396a3f41f3e95075264ea2890227907c761",
+  "startedAt": "2026-09-18T20:50:05.577Z",
+  "environments": [
+    {
+      "repo": "WarRoom",
+      "base": "https://c2-football.github.io/WarRoom/",
+      "checks": [
+        "Exact deployed revision and repository",
+        "index.html: compiled and content-hashed local scripts",
+        "draft-warroom.html: compiled and content-hashed local scripts",
+        "free-agency.html: compiled and content-hashed local scripts",
+        "trade-calculator.html: compiled and content-hashed local scripts"
+      ],
+      "assets": [],
+      "release": {
+        "revision": "5d28f396a3f41f3e95075264ea2890227907c761",
+        "builtAt": "2026-09-16T16:51:58.168Z",
+        "environment": "C2-Football/WarRoom"
+      }
+    }
+  ],
+  "status": "failed",
+  "error": "draft-war-room/index.html contains runtime Babel",
+  "completedAt": "2026-09-18T20:50:06.189Z"
+}

@@ -43,10 +43,19 @@ async function verifyLiveRedraftRail(browser, baseUrl, basePath = '/dist-preview
     await room.selectOption('teams');
     await page.getByText('QA Team 1', { exact: true }).first().waitFor({ state: 'visible' });
     await room.selectOption('board');
-    const draftButton = page.getByRole('button', { name: 'DRAFT', exact: true }).first();
+    // The board can briefly mount its desktop rows while the shared viewport
+    // subscription settles. Wait for the actual phone renderer, then prove a
+    // tap can reach it (including scrolling clear of fixed navigation).
+    const draftButton = page.locator('.la-live-draft .wr-asset-row').getByRole('button', { name: 'DRAFT', exact: true }).first();
     await draftButton.scrollIntoViewIfNeeded();
+    await draftButton.click({ trial: true });
     const box = await draftButton.boundingBox();
     assert(box && box.x >= -2 && box.x + box.width <= 322, 'live redraft@320 must expose draft action');
+    assert(await draftButton.evaluate(button => {
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return hit === button || button.contains(hit);
+    }), 'live redraft@320 draft action must receive the tap, clear of fixed navigation');
     await room.selectOption('feed');
     await page.getByRole('button', { name: /You're up.*open the Big Board/ }).click();
     assert.equal(await room.inputValue(), 'board', 'phone current action must open the board');

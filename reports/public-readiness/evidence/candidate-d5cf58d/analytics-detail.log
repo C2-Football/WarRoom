@@ -1,0 +1,11 @@
+
+War Room launch analytics tests
+
+  admin report  ..
+  collection  w...
+
+  WIP: landing page tracks signup/signin funnel without sending email or password metadata
+       missing trackLandingEvent
+       reason: landing redesign in progress — funnel instrumentation not yet re-landed
+
+PASS 5 tests - 5 passed, 0 failed (+1 wip, not blocking)

@@ -1,0 +1,11 @@
+(node:92918) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/world.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/provinces.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/draft/command-center.js as it exceeds the max of 500KB.
+[build-deploy]   index.html: rewrote 147 external babel scripts
+[build-deploy]   draft-warroom.html: rewrote 1 external babel scripts
+[build-deploy]   free-agency.html: rewrote 0 external babel scripts
+[build-deploy]   trade-calculator.html: rewrote 0 external babel scripts
+[build-deploy]   draft-war-room/index.html: rewrote 0 external babel scripts
+[build-deploy] compiled 148 JSX + minified 259 total modules (15.86MB -> 11.73MB, -26%) -> dist-deploy/

@@ -1,0 +1,16 @@
+[
+  {
+    "repo": "WarRoom",
+    "status": 200,
+    "revision": "5d28f396a3f41f3e95075264ea2890227907c761",
+    "environment": "C2-Football/WarRoom",
+    "assetCount": 149
+  },
+  {
+    "repo": "WarRoom-sandbox",
+    "status": 200,
+    "revision": "5d28f396a3f41f3e95075264ea2890227907c761",
+    "environment": "C2-Football/WarRoom-sandbox",
+    "assetCount": 149
+  }
+]
