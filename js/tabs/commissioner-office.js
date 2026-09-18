@@ -25,7 +25,7 @@ function useCommishLocalSave() {
             if (value !== false && value != null && failed.current[key]) { delete failed.current[key]; showFailure(); }
             return { ok: true, value };
         } catch (error) {
-            failed.current[key] = { key, area, retry: recovery.retry, message: (recovery.prefix || '') + (error?.message || 'Your change was not saved. Retry after freeing browser storage.') };
+            failed.current[key] = { key, area, retry: recovery.retry, retryLabel: recovery.retryLabel, discard: recovery.discard, message: (recovery.prefix || '') + (error?.message || 'Your change was not saved. Retry after freeing browser storage.') };
             showFailure();
             return { ok: false, error: failed.current[key].message };
         }
@@ -38,7 +38,7 @@ function useCommishLocalSave() {
     }, [failure]);
     React.useEffect(() => window.App?.NavigationGuard?.register(() => Object.keys(failed.current).length === 0), []);
     const canLeave = () => Object.keys(failed.current).length === 0;
-    const discard = () => { failed.current = {}; setFailure(null); setReset(value => value + 1); };
+    const discard = () => { for (const failure of Object.values(failed.current)) failure.discard?.(); failed.current = {}; setFailure(null); setReset(value => value + 1); };
     return { run, failure, canLeave, discard, reset, resolve };
 }
 
@@ -592,6 +592,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     const onResetProposal = () => {
         setProposal({}); setRosterProposal(null);
         setCommittedProposal({}); setCommittedRosterProposal(null);
+        localSave.resolve(['proposal-add']);
     };
     const proposalsEqual = (a, b) => {
         const ao = a || {}, bo = b || {};
@@ -780,16 +781,21 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     const savedProposals = React.useMemo(() => {
         try { return (window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []); } catch (e) { return []; }
     }, [savedTick]);
-    const writeProposals = (list) => {
-        try { window.App?.AccountStorage?.set?.(PROPOSALS_KEY, list); } catch (e) { /* best effort */ }
-        setSavedTick(t => t + 1);
+    const writeProposals = (list, key = 'proposal-add') => {
+        const result = localSave.run(key, 'rulelab', () => {
+            if (window.App?.AccountStorage?.set?.(PROPOSALS_KEY, list) !== true) throw new Error('Your rule proposal was not saved. Your inputs remain; free browser storage and retry.');
+            return true;
+        }, { discard: key === 'proposal-add' ? onResetProposal : undefined });
+        if (result.ok) setSavedTick(t => t + 1);
+        return result.ok;
     };
     const onSaveProposal = (name) => {
-        const list = savedProposals.slice();
+        const list = (window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).slice();
         list.unshift({ id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal, status: 'draft', ts: Date.now() });
-        writeProposals(list.slice(0, 20));
+        return writeProposals(list.slice(0, 20));
     };
     const onLoadProposal = (id) => {
+        if (!localSave.canLeave()) return;
         const sp = savedProposals.find(p => p.id === id);
         if (!sp) return;
         // Loading a saved proposal is a deliberate action, not free typing —
@@ -801,7 +807,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         setCommittedProposal(nextProposal);
         setCommittedRosterProposal(nextRoster);
     };
-    const onDeleteProposal = (id) => writeProposals(savedProposals.filter(p => p.id !== id));
+    const onDeleteProposal = id => writeProposals((window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).filter(p => p.id !== id), 'proposal-delete:' + id);
     // Ratify: the Rule Lab → Bylaws bridge. Every override lands in each
     // league's amendment ledger, so when the commissioner applies the change
     // on Sleeper, Drift recognizes it as already-ratified history.
@@ -822,7 +828,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 } catch (e) { /* ledger only */ }
             });
         });
-        writeProposals(savedProposals.map(p => p.id === id ? { ...p, status: 'ratified', ratifiedTs: Date.now() } : p));
+        writeProposals(savedProposals.map(p => p.id === id ? { ...p, status: 'ratified', ratifiedTs: Date.now() } : p), 'proposal-ratify:' + id);
         setAckTick(t => t + 1);   // governance wall re-reads amendments
     };
 
@@ -1120,8 +1126,9 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     }, [state.status, queue, genesis, treasuries, ruleLab.season, schedulesBuilt]);
 
     const onGenesisToggle = (leagueId, itemId) => {
-        try { C?.Genesis?.toggleManual?.(leagueId, itemId, { nowMs: Date.now() }); } catch (e) { /* unchanged */ }
-        setGenTick(t => t + 1);
+        const result = localSave.run('genesis:' + leagueId + ':' + itemId, 'genesis', () => C.Genesis.toggleManual(leagueId, itemId, { nowMs: Date.now() }));
+        if (result.ok && result.value) setGenTick(t => t + 1);
+        return result.ok && !!result.value;
     };
 
     // Governance state: treasuries re-read on any bookkeeping change.
@@ -1201,7 +1208,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     const bumpFollowups = () => setFollowTick(t => t + 1);
     const recordFollowup = (item, type, detail, prefix = '') => {
         const result = localSave.run('activity:' + item.id + ':' + type, 'followups', () => F.record(item, type, detail, { nowMs: Date.now() }), {
-            prefix, retry: () => recordFollowup(item, type, detail, prefix),
+            prefix, retryLabel: 'Retry activity save', retry: () => recordFollowup(item, type, detail, prefix),
         });
         if (result.ok) bumpFollowups();
         return result.ok;
@@ -1342,7 +1349,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     </span>
                 ) : null}
             </div>
-            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div>{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry} style={{ marginTop: 8 }}>Retry activity save</button>}<button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
+            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div>{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry} style={{ marginTop: 8 }}>{localSave.failure.retryLabel || 'Retry save'}</button>}<button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
             {state.status === 'ready' ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     {!isPhone && window.WrCommishSidebar ? (
@@ -1435,6 +1442,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 {tab === 'programmes' ? (Prog ? <Prog programmes={state.programmes} onExportAll={onExportAll} /> : missing('Programme rack')) : null}
                 {tab === 'rulelab' ? (window.WrCommishRuleLabPanel ? (
                     <window.WrCommishRuleLabPanel
+                        key={'rulelab:' + localSave.reset}
                         phone={isPhone}
                         status={ruleLab.status === 'ready' ? 'ready' : ruleLab.status}
                         seasonUsed={ruleLab.season}

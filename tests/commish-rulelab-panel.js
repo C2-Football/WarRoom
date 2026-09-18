@@ -427,6 +427,23 @@ test('summary line never invents a "from" value it does not know', () => {
   assert.ok(omni.includes('rec \u2192 1.0') && !omni.includes('rec 0.5'), 'omnibus omits the from-value');
 });
 
+test('proposal name stays available after failed save and clears only after success', () => {
+  const original = React.useState, slots = []; let cursor = 0, allowed = false, savedNames = [];
+  React.useState = initial => {
+    const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
+    return [slots[i], value => slots[i] = typeof value === 'function' ? value(slots[i]) : value];
+  };
+  const draw = () => { cursor = 0; return render(Panel, { status: 'ready', proposal: { rec: 1 }, presets: [], results: [], saved: [], onSaveProposal: name => { savedNames.push(name); return allowed; } }); };
+  const nameField = tree => findAll(tree, n => n.type === 'input' && n.props.placeholder?.startsWith('Name this proposal'))[0];
+  const saveButton = tree => findAll(tree, n => n.type === 'button' && textOf(n).trim() === 'Save')[0];
+  try {
+    let tree = draw(); nameField(tree).props.onChange({ target: { value: 'Keep this proposal name' } }); tree = draw();
+    saveButton(tree).props.onClick(); tree = draw(); assert.strictEqual(nameField(tree).props.value, 'Keep this proposal name');
+    allowed = true; saveButton(tree).props.onClick(); tree = draw(); assert.strictEqual(nameField(tree).props.value, '');
+    assert.deepStrictEqual(savedNames, ['Keep this proposal name', 'Keep this proposal name']);
+  } finally { React.useState = original; }
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {

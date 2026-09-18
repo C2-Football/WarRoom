@@ -360,6 +360,22 @@ test('buildAll ties break alphabetically for a stable board', () => {
   assert.deepStrictEqual(out.map(r => r.leagueName), ['Alpha', 'Beta']);
 });
 
+test('rejected checklist save preserves the recorded state and a retry flips once', () => {
+  const records = new Map(); let fail = true;
+  global.App.AccountStorage = {
+    get: (key, fallback) => records.has(key) ? JSON.parse(records.get(key)) : fallback,
+    set: (key, value) => { if (fail) return false; records.set(key, JSON.stringify(value)); return true; },
+  };
+  try {
+    assert.throws(() => Genesis.toggleManual('L1', 'dues_noted', { nowMs: 5000 }), { code: 'LOCAL_SAVE_FAILED' });
+    assert.strictEqual(item(ready({ manual: undefined }), 'dues_noted').done, false);
+    fail = false; Genesis.toggleManual('L1', 'dues_noted', { nowMs: 6000 });
+    assert.strictEqual(item(ready({ manual: undefined }), 'dues_noted').done, true);
+    fail = true; assert.throws(() => Genesis.toggleManual('L1', 'dues_noted', { nowMs: 7000 }), { code: 'LOCAL_SAVE_FAILED' });
+    assert.strictEqual(item(ready({ manual: undefined }), 'dues_noted').done, true);
+  } finally { delete global.App.AccountStorage; }
+});
+
 console.log('\n' + (failed ? 'FAIL' : 'PASS') + ' ' + (passed + failed) + ' tests — ' + passed + ' passed, ' + failed + ' failed');
 if (failed) {
   failures.forEach(f => console.error('\n✗ ' + f.name + '\n' + (f.e && f.e.stack)));

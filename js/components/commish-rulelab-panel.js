@@ -844,7 +844,7 @@ function WrCommishRuleLabPanel({
                     <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
                         style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
                     <button disabled={!saveName.trim() || (!propKeys.length && !rp)}
-                        onClick={() => { if (onSaveProposal) onSaveProposal(saveName.trim()); setSaveName(''); }}
+                        onClick={() => { if (onSaveProposal?.(saveName.trim()) === true) setSaveName(''); }}
                         style={chipBtn(true, (!saveName.trim() || (!propKeys.length && !rp)) ? { opacity: 0.45, cursor: 'default' } : null)}>
                         Save
                     </button>

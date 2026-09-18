@@ -205,7 +205,12 @@
         rec.manual = rec.manual || {};
         const cur = !!(rec.manual[itemId] && rec.manual[itemId].done);
         rec.manual[itemId] = { done: !cur, ts: nowMs };
-        st.set(KEY(lid), rec);
+        try {
+            if (st.set(KEY(lid), rec) !== true) throw new Error('Storage did not confirm the checklist save');
+        } catch (cause) {
+            const error = new Error('Your season checklist was not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
         return { id: itemId, done: !cur, ts: nowMs };
     }
 
