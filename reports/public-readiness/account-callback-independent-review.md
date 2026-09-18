@@ -1,0 +1,11 @@
+# Account callback boundary review — 2026-09-18
+
+Reviewed commit `ec61010` from `warroom-readiness-callbacks`, independently of its author. No unresolved material finding in this bounded delta.
+
+Inspected actual `js/app.js` display-name hydration, MFL cloud hydration and manual connection/finalization, ESPN connection, settings saves, Sleeper validated connection, commissioner discovery, Empire pick/DNA/stats hydration, and deferred bootstrap. Checks occur before operations and after the relevant awaits, invoking the sticky account-session boundary synchronously instead of depending on a later storage event.
+
+Re-ran `node --test tests/app-account-callbacks.cjs`: passed, zero skips. The harness extracts the production functions/effects with Babel, uses the production account-session helper, switches A to B while selected responses remain pending, and verifies no stale profile persistence, UI publication, credential retention, or follow-up cloud/provider call. The unchanged-account MFL path still persists a connection.
+
+Also inspected canonical `dhq-shared/espn-api.js` `fetchLeague`, `_espnGet`, `buildCrosswalk`, and `connectLeague`: the resumed connection mutates the old document's transient state and a public player-ID crosswalk before returning. It does not persist private league ownership or provider credentials or issue a follow-up request after that await. The caller's synchronous guard clears transient credentials and invalidates the old document before publishing the result. This is a bounded assessment of the current connector, not blanket approval of other provider save APIs.
+
+Integration requirement: the Empire pick-coverage batch replaces direct fetch in `populateEmpireWindowState` with `fetchEmpireTradedPicks` and `empirePickSnapshotsRef`. Preserve account guards on both sides of that await and at the function entry. Update the callback regression harness to include the actual helper, AbortController, and snapshot reference with a valid provider response; do not replace the production helper with a stub that skips the new path. Rerun both callback and pick suites after integrating. Live account-switch and full suite checks remain root-owned release gates.
