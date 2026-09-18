@@ -73,6 +73,7 @@ test('hub resumes the last league and puts league work before portfolio and game
         getUserTier: () => 'free', leagueQuery: '', hubAllLeagues: false, lastLeagueId: 'L1', hubSyncing: false, commishCount: 1,
         sleeperLeagues: fixture.allLeagues,
         sleeperUsername: 'owner', sleeperCoverage: { status: 'ready', knownCount: 1, loadedCount: 1 },
+        leagueRouteStatus: { status: 'idle' },
         pendingInvite: false, error: null, distPrefix: '', ProTierIcon: () => null,
         leagueTeamName: l => 'Team ' + l.id, leagueFormat: () => 'Dynasty', leagueHealth: () => ({ wp: null }), initialsFor: () => 'A',
         setShowSettings() {}, setShowConnect() {}, setProMode() {}, openCommishOffice() {}, openTimeLeague() {}, openDuat() {},
@@ -103,6 +104,8 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
         OD: { getCurrentUserId: () => account, getSessionToken: () => 'fixture-session' }, sleeperUser: { user_id: 'sleeper-a' },
         selectedLeague: null, activeTab: 'dashboard', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [], allWireOverlay: null,
         isNavigatingRef: { current: false }, initialRouteAppliedRef: { current: false },
+        linkedRouteRequestRef: { current: 0 }, linkedLeaguesRef: { current: new Map() },
+        setLeagueRouteStatus: value => { context.leagueRouteStatus = value; },
         sleeperLeagues: [league], espnLeagues: [], mflLeagues: [], visibleEspnLeagues: [], visibleMflLeagues: [], loading: false,
         setSelectedLeague: value => { context.selectedLeague = value; },
         setActiveLeagueId: value => { context.activeLeagueId = value; },
@@ -135,6 +138,7 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     assert.equal(context.selectedLeague.id, league.id);
 
     // A bookmarked view retains its route and also becomes the next Resume.
+    context.initialRouteAppliedRef.current = false;
     context.location.hash = '#league=' + league.id + '&tab=stats';
     const routeEffectStart = app.indexOf('        React.useEffect(() => {\n            if (initialRouteAppliedRef.current)');
     const routeEffectEnd = app.indexOf('        // Show Empire Dashboard', routeEffectStart);

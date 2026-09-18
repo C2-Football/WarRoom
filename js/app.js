@@ -190,6 +190,40 @@
         return snapshot();
     }
 
+    // League IDs identify a season. Verify that year's connected league list
+    // before restoring a bookmark missing from the current-year portfolio.
+    async function fetchSleeperLinkedLeague(options) {
+        const id = String(options.leagueId || '');
+        const current = options.isCurrent || (() => true);
+        if (!id || !options.username) throw new Error('Connect your Sleeper account to open this league link.');
+        async function read(path) {
+            if (!current()) throw new Error('Account changed. Reopen this link from your current account.');
+            const controller = new window.AbortController();
+            const timer = setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+            try {
+                const response = await (options.fetcher || window.fetch.bind(window))('https://api.sleeper.app/v1/' + path, { signal: controller.signal });
+                if (!response.ok) throw new Error('League unavailable. Retry when Sleeper is available.');
+                const value = await response.json();
+                if (!current()) throw new Error('Account changed. Reopen this link from your current account.');
+                return value;
+            } finally { clearTimeout(timer); }
+        }
+        const info = await read('league/' + encodeURIComponent(id));
+        const season = String(info?.season || '');
+        if (String(info?.league_id || '') !== id || !/^\d{4}$/.test(season) || Number(season) < 2000 || Number(season) > new Date().getFullYear() + 1 || (info.sport && info.sport !== 'nfl')) throw new Error('This link does not identify a valid football league season.');
+        const user = options.user?.user_id ? options.user : await read('user/' + encodeURIComponent(options.username));
+        if (!user?.user_id) throw new Error('Sleeper account unavailable. Check your connection and retry.');
+        const list = await read('user/' + encodeURIComponent(user.user_id) + '/leagues/nfl/' + season);
+        if (!Array.isArray(list)) throw new Error('Could not verify your leagues for ' + season + '. Retry this link.');
+        const owned = list.find(league => String(league?.league_id) === id);
+        if (!owned) throw new Error('This league is not connected to your Sleeper account for ' + season + '. Check your account or the link.');
+        const [rosters, users] = await Promise.all([read('league/' + encodeURIComponent(id) + '/rosters'), read('league/' + encodeURIComponent(id) + '/users')]);
+        if (!Array.isArray(rosters) || !Array.isArray(users) || rosters.some(roster => !roster || roster.roster_id == null || (roster.players != null && !Array.isArray(roster.players)) || (roster.co_owners != null && !Array.isArray(roster.co_owners)))) throw new Error('League details are unavailable. Retry this link.');
+        const mine = rosters.find(roster => String(roster.owner_id) === String(user.user_id) || (roster.co_owners || []).some(owner => String(owner) === String(user.user_id)));
+        return { user, league: { ...owned, ...info, id, season, rosters, users, myRosterId: mine?.roster_id,
+            wins: mine?.settings?.wins || 0, losses: mine?.settings?.losses || 0, ties: mine?.settings?.ties || 0, _portfolioStale: false } };
+    }
+
     // Read-only ownership context for shared player cards. This uses connected
     // account rosters only; an unhydrated league is unknown, never a zero holding.
     // player(pid) -> {count,totalLeagues,coveredLeagues,complete,leagues:[{id,name,teamName}]}.
@@ -445,6 +479,9 @@
         const sleeperSnapshotRef = React.useRef({ user: null, leagues: [], coverage: { status: 'idle', knownCount: null, loadedCount: 0 } });
         const [activeLeagueId, setActiveLeagueId] = useState(null);
         const [selectedLeague, setSelectedLeague] = useState(null);
+        const [leagueRouteStatus, setLeagueRouteStatus] = useState({ status: 'idle' });
+        const linkedLeaguesRef = React.useRef(new Map());
+        const linkedRouteRequestRef = React.useRef(0);
         const [allWireOpen, setAllWireOpen] = useState(false);
         const [proMode, setProMode] = useState(false); // Empire Dashboard mode
         const [leagueQuery, setLeagueQuery] = useState('');
@@ -534,8 +571,6 @@
             return mates.sort((a, b) => (a.display_name || a.username || '').localeCompare(b.display_name || b.username || ''));
         }, [sleeperLeagues, sleeperUser]);
 
-        const AVAILABLE_YEARS = ['2023', '2024', '2025', '2026'];
-
         // ── Browser History Navigation ──
         function buildHash(leagueId, tab) {
             return '#league=' + leagueId + '&tab=' + (tab || 'dashboard');
@@ -558,6 +593,45 @@
                 leagueId: params.get('league') || query.get('league') || query.get('leagueId'),
                 tab,
             };
+        }
+
+        function cancelLinkedLeagueRoute(clearRoute = false) {
+            initialRouteAppliedRef.current = true;
+            linkedRouteRequestRef.current++;
+            setLeagueRouteStatus({ status: 'idle' });
+            if (clearRoute && parseHash(window.location.hash).leagueId) history.replaceState({ view: 'hub' }, '', routeUrl(''));
+        }
+        function restoreLinkedLeague(league, route, providerUserId = sleeperUser?.user_id) {
+            if (!accountSessionCurrent()) return;
+            isNavigatingRef.current = true;
+            setActiveLeagueId(league.id);
+            setSelectedLeague(league);
+            setActiveTab(route.tab === 'brief' ? 'dashboard' : (route.tab || 'dashboard'));
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            rememberHubLastVisit(league, providerUserId);
+            history.replaceState({ view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' }, '', routeUrl(buildHash(league.id, route.tab || 'dashboard')));
+            setTimeout(() => { isNavigatingRef.current = false; }, 0);
+        }
+        async function resolveLinkedLeagueRoute(route) {
+            if (!accountSessionCurrent()) return;
+            const request = ++linkedRouteRequestRef.current;
+            const current = () => request === linkedRouteRequestRef.current && accountSessionCurrent() && String(parseHash(window.location.hash).leagueId) === String(route.leagueId);
+            setSelectedLeague(null);
+            setProMode(false);
+            setLeagueRouteStatus({ status: 'loading', route });
+            try {
+                const result = await fetchSleeperLinkedLeague({ leagueId: route.leagueId, username: sleeperUsername, user: sleeperUser, isCurrent: current });
+                if (!current()) return;
+                linkedLeaguesRef.current.set(String(result.league.id), result.league);
+                if (!sleeperUser) setSleeperUser(result.user);
+                initialRouteAppliedRef.current = true;
+                restoreLinkedLeague(result.league, route, result.user.user_id);
+                setLeagueRouteStatus({ status: 'idle' });
+            } catch (error) {
+                if (!current()) return;
+                setLeagueRouteStatus({ status: 'error', route, message: error.name === 'AbortError' ? 'League lookup timed out. Retry this link.' : error.message });
+            }
         }
 
         useEffect(() => {
@@ -737,21 +811,17 @@
                     window.App.NavigationGuard.restoreHistory();
                     return;
                 }
+                cancelLinkedLeagueRoute();
                 isNavigatingRef.current = true;
                 const state = e.state;
                 const hashRoute = parseHash(window.location.hash);
                 const nextState = state || (hashRoute.leagueId ? { view: 'league', leagueId: hashRoute.leagueId, tab: hashRoute.tab } : null);
                 if (nextState && nextState.view === 'league' && nextState.leagueId) {
                     const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
-                    const league = allLeagues.find(l => String(l.id) === String(nextState.leagueId));
+                    const league = allLeagues.find(l => String(l.id) === String(nextState.leagueId)) || linkedLeaguesRef.current.get(String(nextState.leagueId));
                     if (league) {
-                        setActiveLeagueId(league.id);
-                        setSelectedLeague(league);
-                        rememberHubLastVisit(league, sleeperUser?.user_id);
-                        // Legacy 'brief' tab folded into dashboard
-                        const restoredTab = nextState.tab === 'brief' ? 'dashboard' : (nextState.tab || 'dashboard');
-                        setActiveTab(restoredTab);
-                    }
+                        restoreLinkedLeague(league, nextState);
+                    } else resolveLinkedLeagueRoute(nextState);
                 } else {
                     setSelectedLeague(null);
                     setActiveTab('dashboard');
@@ -777,27 +847,18 @@
                 return;
             }
             const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
-            if (!allLeagues.length) return;
             const league = allLeagues.find(l => String(l.id) === String(route.leagueId));
             if (!league) {
                 const pendingTarget = sleeperCoverage.knownLeagues?.some(item => String(item.id) === String(route.leagueId));
-                if (!loading && sleeperCoverage.listVerified && !pendingTarget) initialRouteAppliedRef.current = true;
+                if ((!loading || !sleeperUsername) && !pendingTarget && leagueRouteStatus.status === 'idle') {
+                    resolveLinkedLeagueRoute(route);
+                }
                 return;
             }
             initialRouteAppliedRef.current = true;
-            isNavigatingRef.current = true;
-            setActiveLeagueId(league.id);
-            setSelectedLeague(league);
-            setActiveTab(route.tab || 'dashboard');
-            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
-            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
-            rememberHubLastVisit(league, sleeperUser?.user_id);
-            history.replaceState(
-                { view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' },
-                '',
-                routeUrl(buildHash(league.id, route.tab || 'dashboard'))
-            );
-            setTimeout(() => { isNavigatingRef.current = false; }, 0);
+            linkedRouteRequestRef.current++;
+            setLeagueRouteStatus({ status: 'idle' });
+            restoreLinkedLeague(league, route);
         }, [loading, sleeperLeagues, sleeperCoverage, espnLeagues, mflLeagues, sleeperUser?.user_id]);
 
         // Show Empire Dashboard (Pro mode)
@@ -842,6 +903,7 @@
             return () => { alive = false; };
         }, [sleeperLeagues.length, sleeperUser?.user_id]);
         const openCommishOffice = () => {
+            cancelLinkedLeagueRoute(true);
             setCommishMode(true);
             if (typeof window.CommissionerOffice === 'function') { setCommishModuleState('ready'); return; }
             if (!window.wrLoadModuleGroup) { setCommishModuleState('error'); return; }
@@ -860,6 +922,7 @@
             typeof window.TimeLeague === 'function' ? 'ready' : 'idle'
         );
         const openTimeLeague = () => {
+            cancelLinkedLeagueRoute(true);
             setTimeLeagueMode(true);
             if (typeof window.TimeLeague === 'function') { setTimeLeagueModuleState('ready'); return; }
             if (!window.wrLoadModuleGroup) { setTimeLeagueModuleState('error'); return; }
@@ -884,6 +947,7 @@
         const [duatMode, setDuatMode] = useState(() => new URLSearchParams(window.location.search).get('duat') === '1');
         const [duatModuleState, setDuatModuleState] = useState(typeof window.DuatGame === 'function' ? 'ready' : 'idle');
         const openDuat = () => {
+            cancelLinkedLeagueRoute(true);
             setDuatMode(true);
             setTimeLeagueMode(false);
             const url = new URL(window.location.href);
@@ -1235,10 +1299,12 @@
                 {allWireOverlay}
                 <ErrorBoundary>
                     <LeagueDetail
+                        key={selectedLeague.id}
                         league={selectedLeague}
                         onOpenAllWire={() => setAllWireOpen(true)}
                         onBack={() => {
                             if (window.App.NavigationGuard?.canNavigate() === false) return;
+                            cancelLinkedLeagueRoute();
                             setSelectedLeague(null);
                             setActiveTab('dashboard');
                             // Return to Empire Dashboard if Pro mode was active, otherwise hub
@@ -1425,6 +1491,7 @@
                         <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>{leagues.length ? 'Back to the action.' : 'Your home field.'}</h1></div>
                         <span className="hub-sync-status" role="status">{incomplete ? (hubSyncing ? 'Syncing · ' : '') + coverageText : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
+                    {leagueRouteStatus.status !== 'idle' && <div className="hub-invite" role="status" data-testid="league-route-status" style={{ flexWrap: 'wrap' }}><div><strong style={{ fontSize: 16 }}>{leagueRouteStatus.status === 'loading' ? 'Opening linked league…' : 'League link could not open'}</strong><p style={{ fontSize: 16, lineHeight: 1.5 }}>{leagueRouteStatus.status === 'loading' ? 'Checking its season and your connected account.' : leagueRouteStatus.message}</p></div>{leagueRouteStatus.status === 'error' && <button type="button" className="hub-add-button" style={{ fontSize: 16, minHeight: 44 }} onClick={() => resolveLinkedLeagueRoute(leagueRouteStatus.route)}>Retry league link</button>}<button type="button" className="hub-add-button" style={{ fontSize: 16, minHeight: 44 }} onClick={() => { cancelLinkedLeagueRoute(); history.replaceState({ view: 'hub' }, '', routeUrl('')); }}>Stay on home</button></div>}
                     {focusLeague && <button type="button" className={resume ? 'hub-resume' : 'hub-resume hub-open-league'} onClick={() => onSelect(focusLeague)}><span className="hub-eyebrow">{resume ? 'PICK UP WHERE YOU LEFT OFF' : 'YOUR LEAGUE'}</span><strong>{resume ? 'Resume ' : 'Open '}{leagueTeamName(focusLeague) || focusLeague.name}</strong><span>{focusLeague.name}{focusHealth.wp !== null && <span className="hub-focus-record"> · {focusLeague.wins}–{focusLeague.losses}{focusLeague.ties > 0 ? '–' + focusLeague.ties : ''}</span>}</span><b aria-hidden="true">→</b></button>}
                     {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
                     <nav className="hub-jump-nav" aria-label="Choose your experience">
@@ -1433,19 +1500,19 @@
                         {TIME_LEAGUE_ENABLED && <a href="#hub-games"><span>03</span> Games</a>}
                     </nav>
                     <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
-                        <div className="hub-section-heading"><div><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add league</button></div>
+                        <div className="hub-section-heading"><div><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2></div><button type="button" className="hub-add-button" onClick={() => { cancelLinkedLeagueRoute(true); setShowConnect(true); }}>+ Add league</button></div>
                         {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Find a league or team" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{query ? filtered.length + ' found' : ''}</span></div>}
-                        {incomplete && <div className="hub-invite" role="status" style={{ flexWrap: 'wrap' }}><div><strong>{coverageText}</strong><p>{sleeperCoverage.error || 'Remaining league details are still loading.'}{sleeperCoverage.staleCount > 0 ? ' Showing last loaded data for ' + sleeperCoverage.staleCount + ' league(s).' : ''}</p>{sleeperCoverage.unavailable?.length > 0 && <details><summary>League details unavailable</summary>{sleeperCoverage.unavailable.map(league => <div key={league.id}>{league.name}</div>)}</details>}</div><button type="button" className="hub-add-button" disabled={hubSyncing} onClick={loadSleeperData}>{hubSyncing ? 'Loading…' : 'Retry league sync'}</button>{error && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button>}</div>}
+                        {incomplete && <div className="hub-invite" role="status" style={{ flexWrap: 'wrap' }}><div><strong>{coverageText}</strong><p>{sleeperCoverage.error || 'Remaining league details are still loading.'}{sleeperCoverage.staleCount > 0 ? ' Showing last loaded data for ' + sleeperCoverage.staleCount + ' league(s).' : ''}</p>{sleeperCoverage.unavailable?.length > 0 && <details><summary>League details unavailable</summary>{sleeperCoverage.unavailable.map(league => <div key={league.id}>{league.name}</div>)}</details>}</div><button type="button" className="hub-add-button" disabled={hubSyncing} onClick={loadSleeperData}>{hubSyncing ? 'Loading…' : 'Retry league sync'}</button>{error && <button type="button" className="hub-add-button" onClick={() => { cancelLinkedLeagueRoute(true); setShowConnect(true); }}>Manage connection</button>}</div>}
                         <div id="hub-league-results" className="hub-league-grid">{leagueCards}</div>
                         {!query && leagueCards.length > 3 && <button type="button" className="hub-more-leagues" aria-expanded={hubAllLeagues} aria-controls="hub-league-results" onClick={() => setHubAllLeagues(!hubAllLeagues)}><span>{hubAllLeagues ? 'Show fewer leagues' : 'Show all ' + leagues.length + ' leagues'}</span><span aria-hidden="true">{hubAllLeagues ? '⌃' : '⌄'}</span></button>}
-                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : incomplete ? 'Your league data is unavailable.' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : incomplete ? 'Retry the sync above to load your teams.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && !incomplete && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
-                        {sleeperLeagues.length > 0 && <button type="button" className="hub-wire-entry wr-all-wire-launch" onClick={() => setAllWireOpen(true)}><span className="hub-wire-icon" aria-hidden="true">W</span><span><strong>The Wire</strong><span>One front page for your leagues</span></span><b aria-hidden="true">→</b></button>}
+                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : incomplete ? 'Your league data is unavailable.' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : incomplete ? 'Retry the sync above to load your teams.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && !incomplete && <button type="button" className="hub-add-button" onClick={() => { cancelLinkedLeagueRoute(true); setShowConnect(true); }}>Connect a league</button>}</div>}
+                        {sleeperLeagues.length > 0 && <button type="button" className="hub-wire-entry wr-all-wire-launch" onClick={() => { cancelLinkedLeagueRoute(true); setAllWireOpen(true); }}><span className="hub-wire-icon" aria-hidden="true">W</span><span><strong>The Wire</strong><span>One front page for your leagues</span></span><b aria-hidden="true">→</b></button>}
                     </section>
                     <div className="hub-experience-grid">
                         {(EMPIRE_ENABLED || COMMISH_ENABLED) && <section id="hub-management" className="hub-management" aria-labelledby="hub-management-title">
                             <div className="hub-section-heading"><div><h2 id="hub-management-title">Across your leagues</h2></div></div>
                             <div className="hub-management-cards">
-                                {EMPIRE_ENABLED && <button type="button" className="hub-experience-card empire-hero" onClick={() => { if (isPaid) setProMode(true); else if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = distPrefix + 'landing.html'; }}>
+                                {EMPIRE_ENABLED && <button type="button" className="hub-experience-card empire-hero" onClick={() => { cancelLinkedLeagueRoute(true); if (isPaid) setProMode(true); else if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = distPrefix + 'landing.html'; }}>
                                     <span className="hub-card-top"><ProTierIcon size={34} /><span className="hub-product-tag">{isPaid ? 'PORTFOLIO' : 'PRO'}</span></span>
                                     <strong>Empire Command</strong><span className="hub-card-description">Your players and opportunities across leagues.</span>
                                     <span className="hub-card-action">{isPaid ? 'Open Empire' : 'Explore Empire Pro'} <span aria-hidden="true">↗</span></span>
@@ -1468,13 +1535,14 @@
                             </button>
                         </section>}
                     </div>
-                    <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => setShowSettings(true)}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
+                    <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => { cancelLinkedLeagueRoute(true); setShowSettings(true); }}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
                 </main>
             );
         }
 
         function handleSelectLeague(league) {
             if (!accountSessionCurrent() || window.App.NavigationGuard?.canNavigate() === false) return;
+            cancelLinkedLeagueRoute();
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             setActiveTab('dashboard');
@@ -1630,7 +1698,7 @@
                     </a>
                     <div className="hub-account-controls">
                         <a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a>
-                        <button type="button" aria-label="Account & settings" onClick={() => setShowSettings(true)}><span className="hub-account-avatar" aria-hidden="true">{initialsFor(String(displayName))}</span><span className="hub-account-label">Account & settings</span></button>
+                        <button type="button" aria-label="Account & settings" onClick={() => { cancelLinkedLeagueRoute(true); setShowSettings(true); }}><span className="hub-account-avatar" aria-hidden="true">{initialsFor(String(displayName))}</span><span className="hub-account-label">Account & settings</span></button>
                     </div>
                 </header>
 
