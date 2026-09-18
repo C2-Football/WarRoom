@@ -96,6 +96,34 @@
         return user;
     }
 
+    // A failed provider response cannot prove that every original pick is still
+    // owned. Keep the last verified transfers distinct from a verified empty feed.
+    async function fetchEmpireTradedPicks(league, options = {}) {
+        const id = String(league.id || league.league_id || '');
+        const contextKey = String(league.season || '') + ':' + id;
+        const previous = options.previous?.contextKey === contextKey ? options.previous : null;
+        const unavailable = message => ({ contextKey, picks: previous?.picks, status: Array.isArray(previous?.picks) ? 'stale' : 'unavailable', error: message });
+        if (!id || league._espn || league._mfl || (league._source && league._source !== 'sleeper')) return unavailable('Pick ownership is unavailable from this connection.');
+        const controller = new window.AbortController();
+        const timer = setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+        try {
+            const response = await (options.fetcher || window.fetch.bind(window))('https://api.sleeper.app/v1/league/' + encodeURIComponent(id) + '/traded_picks', { signal: controller.signal });
+            if (!response.ok) throw new Error('Pick feed request failed');
+            const data = await response.json();
+            if (!Array.isArray(data) || data.some(pick => !pick || !Number.isInteger(Number(pick.season)) || Number(pick.season) < 1900 || !Number.isInteger(Number(pick.round)) || Number(pick.round) < 1 || pick.roster_id == null || pick.owner_id == null || !String(pick.roster_id).trim() || !String(pick.owner_id).trim())) throw new Error('Invalid pick feed');
+            const normalize = options.normalize || window.App?.normalizeTradedPicks;
+            const normalized = normalize ? normalize(league.rosters || [], data) : data;
+            const distinct = new Map();
+            for (const pick of normalized) {
+                const key = [pick.season, pick.round, pick.roster_id].join(':');
+                if (distinct.has(key) && String(distinct.get(key).owner_id) !== String(pick.owner_id)) throw new Error('Conflicting pick ownership');
+                distinct.set(key, { ...pick, league_id: id });
+            }
+            return { contextKey, picks: [...distinct.values()], status: 'ready', error: null };
+        } catch (_) { return unavailable('Could not verify pick ownership. Retry league sync.'); }
+        finally { clearTimeout(timer); }
+    }
+
     // A league list and its hydrated rosters are separate evidence. Publish
     // coverage alongside streamed usable leagues; missing data is never an empty roster.
     async function fetchSleeperPortfolio(options) {
@@ -918,6 +946,7 @@
 
         // Bumped after background roster assessment so the Rolodex re-renders.
         const [, setEmpireAssessReady] = useState(0);
+        const empirePickSnapshotsRef = React.useRef(new Map());
 
         // Cross-league window.S population + traded-picks fetch — extracted from
         // the one-time Empire bootstrap below so Empire's manual refresh can redo
@@ -939,17 +968,17 @@
             await Promise.allSettled(allLeaguesList.map(async l => {
                 const lid = l.id || l.league_id;
                 if (!lid) return;
-                try {
-                    const tp = await fetch('https://api.sleeper.app/v1/league/' + lid + '/traded_picks').then(r => r.ok ? r.json() : []);
-                    if (!accountSessionCurrent()) return;
-                    const norm = window.App?.normalizeTradedPicks;
-                    l.tradedPicks = (norm ? norm(l.rosters || [], tp || []) : (tp || []))
-                        .map(p => ({ ...p, league_id: String(lid) }));
-                    allTradedPicks.push(...l.tradedPicks);
-                } catch {}
+                const snapshot = await fetchEmpireTradedPicks(l, { previous: empirePickSnapshotsRef.current.get(String(lid)) });
+                if (!accountSessionCurrent()) return;
+                empirePickSnapshotsRef.current.set(String(lid), snapshot);
+                l.tradedPicks = snapshot.picks;
+                l._pickFeedState = snapshot.status;
+                l._pickFeedError = snapshot.error;
+                allTradedPicks.push(...(snapshot.picks || []));
             }));
             if (!accountSessionCurrent()) return;
             window.S.tradedPicks = allTradedPicks;
+            setEmpireAssessReady(Date.now());
         }
 
         // Per-league health/tier assessment + Owner DNA — same extraction, same

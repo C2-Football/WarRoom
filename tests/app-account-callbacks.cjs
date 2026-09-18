@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const Babel=require('@babel/standalone');
 const source=fs.readFileSync('js/app.js','utf8');
-const wanted=new Set(['accountSessionCurrent','handleMFLConnect','handleESPNConnect','finalizeMFLConnect','populateEmpireWindowState','assessEmpirePortfolio']);
+const wanted=new Set(['accountSessionCurrent','fetchEmpireTradedPicks','handleMFLConnect','handleESPNConnect','finalizeMFLConnect','populateEmpireWindowState','assessEmpirePortfolio']);
 const nodes=[];
 const selected=Babel.transform(source,{presets:['react'],plugins:[()=>({visitor:{FunctionDeclaration(path){if(wanted.has(path.node.id.name))nodes.push(path.node);},Program:{exit(path){path.node.body=nodes;}}}})]}).code;
 const displayEffect=source.slice(source.indexOf('        // Cloud sync —'),source.indexOf('        const leagueMates ='));
@@ -12,7 +12,7 @@ function fixture(){
   const local=storage(),temporary=storage(),log=[],effects=[];
   const install=id=>{local.setItem('fw_session_v1',JSON.stringify({token:'fixture-'+id,user:{id}}));local.setItem('od_display_name',id+' name');local.setItem('mfl_league_id',id+' league');};
   install('a');
-  const context=vm.createContext({console,atob,URL,setTimeout,clearTimeout,localStorage:local,sessionStorage:temporary,
+  const context=vm.createContext({console,atob,URL,AbortController,setTimeout,clearTimeout,empirePickSnapshotsRef:{current:new Map()},localStorage:local,sessionStorage:temporary,
     document:{getElementById:()=>({replaceChildren(){},textContent:''}),addEventListener(){}},addEventListener(){},location:{reload:()=>log.push('reload')},
     App:{},OD:{saveMflConnection:async value=>log.push(['saveMflConnection',value])},
     useEffect:effect=>effects.push(effect),MFL_SANDBOX_ACCESS:true,OWNER_MFL_TEAM:'Owner',sleeperUsername:'owner',selectedYear:'2026',
@@ -59,7 +59,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
   console.log('PASS actual display/provider hydration/connect/finalize callbacks cannot mutate another account; unchanged-account MFL flow persists normally');
 
   const empire=fixture(),picks=deferred();empire.context.fetch=()=>picks.promise;const league={id:'a-league',rosters:[]};
-  const populate=empire.context.populateEmpireWindowState([league]);empire.install('b');empire.context.S={tradedPicks:['b-state']};picks.resolve({ok:true,json:async()=>[{pick:'a-private'}]});await populate;
+  const populate=empire.context.populateEmpireWindowState([league]);empire.install('b');empire.context.S={tradedPicks:['b-state']};picks.resolve({ok:true,json:async()=>[{season:'2027',round:1,roster_id:1,owner_id:2}]});await populate;
   assert.equal(league.tradedPicks,undefined);assert.deepEqual(empire.context.S.tradedPicks,['b-state']);
   const dna=fixture(),saved=deferred(),requested=deferred();let txnFetches=0;
   dna.context.S={playerStats:{known:true}};dna.context.App.assessAllTeams=()=>[];dna.context.OD.loadDNA=()=>{requested.resolve();return saved.promise;};dna.context.WrTxns={fetchLeagueTxns:async()=>{txnFetches++;return[];}};

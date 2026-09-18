@@ -253,9 +253,10 @@ function buildEmpirePortfolioModel(input) {
             ownPickCount: 0,
             pickScore: 0,
             pickFeedPresent: Array.isArray(league?.tradedPicks),
+            pickFeedReady: Array.isArray(league?.tradedPicks) && (!league._pickFeedState || league._pickFeedState === 'ready') && !league._portfolioStale,
         };
         provinces.push(province);
-        if (province.pickFeedPresent) pickFeedLeagueCount++;
+        if (province.pickFeedReady) pickFeedLeagueCount++;
 
         rosterPlayers.forEach(pid => {
             const player = playersData?.[pid];
@@ -296,7 +297,10 @@ function buildEmpirePortfolioModel(input) {
             addTotal(tierTotals, asset.tier, { label: asset.tier, count: 1, dhq, color: asset.tierColor });
         });
 
-        const tradedPicks = Array.isArray(league?.tradedPicks) ? league.tradedPicks : [];
+        // Without verified (or explicitly saved) transfers even original picks
+        // may have been traded away. Unknown ownership is not zero transfers.
+        if (!province.pickFeedPresent) return;
+        const tradedPicks = league.tradedPicks;
         const draftRounds = league?.settings?.draft_rounds || 4;
         const startYear = parseInt(league?.season || nowYear, 10);
         for (let year = startYear; year <= startYear + 2; year++) {
@@ -404,6 +408,10 @@ function buildEmpirePortfolioModel(input) {
         if (pick.own) pickYears[pick.year].own++;
     });
     const pickCapital = {
+        complete: pickFeedLeagueCount === provinces.length && (!input.portfolioCoverage || ['ready', 'idle'].includes(input.portfolioCoverage.status)),
+        verifiedLeagues: pickFeedLeagueCount,
+        loadedLeagues: provinces.filter(province => province.pickFeedPresent).length,
+        staleLeagues: provinces.filter(province => province.pickFeedPresent && !province.pickFeedReady).length,
         total: picks.length,
         premium: picks.filter(p => p.round <= 2).length,
         acquired: picks.filter(p => p.acquired).length,
@@ -437,7 +445,7 @@ function buildEmpirePortfolioModel(input) {
             key: 'picks',
             label: 'Pick feed',
             status: pickFeedLeagueCount === provinces.length && provinces.length ? 'ready' : pickFeedLeagueCount > 0 ? 'partial' : 'degraded',
-            detail: pickFeedLeagueCount ? pickFeedLeagueCount + '/' + provinces.length + ' leagues with traded-pick feed' : 'Own picks estimated, traded picks unknown',
+            detail: pickFeedLeagueCount + '/' + provinces.length + ' leagues with current pick ownership' + (pickCapital.staleLeagues ? '; ' + pickCapital.staleLeagues + ' using saved ownership' : '') + (pickCapital.loadedLeagues < provinces.length ? '; unavailable picks excluded' : ''),
         },
         {
             key: 'assessments',
@@ -540,7 +548,7 @@ function buildEmpirePortfolioModel(input) {
             cta: 'Review leagues',
         });
     }
-    if (pickCapital.premium >= Math.max(3, provinces.length * 2)) {
+    if (pickCapital.complete && pickCapital.premium >= Math.max(3, provinces.length * 2)) {
         pushSignal({
             severity: 'low',
             type: 'capital',
@@ -2187,13 +2195,13 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const wasRefreshingRef = useRef(false);
     useEffect(() => {
         if (wasRefreshingRef.current && !refreshing) {
-            setJustSynced(!portfolioCoverage || portfolioCoverage.status === 'ready');
+            setJustSynced((!portfolioCoverage || portfolioCoverage.status === 'ready') && model.pickCapital.complete);
             const t = setTimeout(() => setJustSynced(false), 2500);
             wasRefreshingRef.current = false;
             return () => clearTimeout(t);
         }
         wasRefreshingRef.current = !!refreshing;
-    }, [refreshing, portfolioCoverage]);
+    }, [refreshing, portfolioCoverage, model.pickCapital.complete]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -2351,6 +2359,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         return <div className="empire-workspace-nav">
             {model.coverage.complete === false && <div role="status" data-testid="empire-coverage" style={{ padding: '12px', fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5, color: 'var(--gold)' }}><strong>{portfolioCoverage.knownCount == null ? 'League coverage unverified' : portfolioCoverage.loadedCount + ' of ' + portfolioCoverage.knownCount + ' Sleeper leagues loaded'}</strong><div>Totals and exposure percentages cover the {model.provinces.length} loaded, included league(s). Holdings in unavailable leagues are unknown.{portfolioCoverage.staleCount > 0 ? ' ' + portfolioCoverage.staleCount + ' league(s) use last loaded data.' : ''}</div><button className="empire-action" type="button" disabled={!!refreshing} onClick={onRefresh}>{refreshing ? 'Loading…' : 'Retry league sync'}</button></div>}
             {decisionJournal.failure && <div role="alert" data-testid="empire-decision-save-error" style={{ padding: 12, fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5 }}><strong>Decision not saved</strong><div>{decisionJournal.failure.message} Your edits remain open in this page.</div><button className="empire-action" type="button" onClick={decisionJournal.retry}>Retry saving decision</button><button className="empire-ghost" type="button" onClick={decisionJournal.discard}>Discard unsaved edits</button></div>}
+            {!model.pickCapital.complete && model.provinces.length > 0 && <div role="status" data-testid="empire-pick-coverage" style={{ padding: '12px', fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5, color: 'var(--gold)' }}><strong>Pick ownership incomplete</strong><div>{model.pickCapital.verifiedLeagues} of {model.provinces.length} loaded leagues verified.{model.pickCapital.staleLeagues > 0 ? ' ' + model.pickCapital.staleLeagues + ' use saved ownership.' : ''} Unavailable picks are excluded from totals.</div><button className="empire-action" type="button" disabled={!!refreshing} onClick={onRefresh}>{refreshing ? 'Loading…' : 'Retry pick sync'}</button></div>}
             <nav aria-label="Empire workspaces" className="empire-workspace-primary">
                 {groups.map(g => <button key={g.key} type="button" aria-current={group.key === g.key ? 'page' : undefined} onClick={() => openWorkspace(g.key)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 7, verticalAlign: 'middle' }}>{EMPIRE_ICON_PATHS[({ overview: 'home', actions: 'zap', leagues: 'layers', assets: 'briefcase' })[g.key]].map((d, i) => <path key={i} d={d} />)}</svg><span>{g.label}</span></button>)}
             </nav>
@@ -2523,8 +2532,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <div className="empire-detail-metrics">
                         <div className="empire-metric"><span>Total DHQ</span><strong>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</strong></div>
                         <div className="empire-metric"><span>Health</span><strong>{province.healthScore ?? 'No read'}</strong></div>
-                        <div className="empire-metric"><span>Pick Capital</span><strong>{province.pickCount} picks</strong></div>
-                        <div className="empire-metric"><span>Premium Picks</span><strong>{province.premiumPickCount}</strong></div>
+                        <div className="empire-metric"><span>Pick Capital</span><strong>{province.pickFeedPresent ? province.pickCount + (province.pickFeedReady ? ' picks' : ' saved picks') : 'Unavailable'}</strong></div>
+                        <div className="empire-metric"><span>Premium Picks</span><strong>{province.pickFeedPresent ? province.premiumPickCount : '—'}</strong></div>
                     </div>
                     <div className="empire-slice-grid">
                         <section className="empire-panel">
@@ -2532,7 +2541,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-stack">
                                 <div className="empire-quality" style={{ '--tone': province.tierColor }}><span>Strengths</span><strong>{province.strengths.length ? province.strengths.join(', ') : 'None flagged'}</strong><em>Current roster edge</em></div>
                                 <div className="empire-quality" style={{ '--tone': 'var(--k-e74c3c, #e74c3c)' }}><span>Needs</span><strong>{province.needs.length ? province.needs.join(', ') : 'None flagged'}</strong><em>Upgrade lanes</em></div>
-                                <div className="empire-quality" style={{ '--tone': 'var(--purple)' }}><span>Draft Capital</span><strong>{leaguePicks.length} picks</strong><em>{leaguePicks.filter(p => p.acquired).length} acquired</em></div>
+                                <div className="empire-quality" style={{ '--tone': 'var(--purple)' }}><span>Draft Capital</span><strong>{province.pickFeedPresent ? leaguePicks.length + (province.pickFeedReady ? ' picks' : ' saved picks') : 'Unavailable'}</strong><em>{province.pickFeedPresent ? leaguePicks.filter(p => p.acquired).length + ' acquired' : 'Ownership has not been verified'}</em></div>
                             </div>
                         </section>
                         <section className="empire-workspace" style={{ marginTop: 0 }}>
@@ -3381,7 +3390,7 @@ const renderScoutDetail = () => {
                         <strong>Empire Command</strong>
                         <span>{model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · asset allocation · exposure · pick capital</span>
                     </div>
-                    {freshness && model.coverage.complete ? (
+                    {freshness && model.coverage.complete && model.pickCapital.complete ? (
                         <span className={'empire-live' + (freshness.live ? '' : ' is-stale')} style={{ marginLeft: 12 }}
                             title={freshness.live ? 'League data rebuilt in the last 15 minutes' : 'Empire reads cached league data — hit Refresh Leagues to re-sync'}>
                             {freshness.label}
@@ -3479,7 +3488,7 @@ const renderScoutDetail = () => {
                                 <div className="empire-panel-head"><strong>Empire Brief</strong><em>Alex · {userName}</em></div>
                                 <div className="empire-command-kicker">Today's command read</div>
                                 <div className="empire-command-focus">{briefText}</div>
-                                <div className="empire-command-meta">Across {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · {actionQueue.length} ranked moves · {model.pickCapital.total} picks under management</div>
+                                <div className="empire-command-meta">Across {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · {actionQueue.length} ranked moves · {model.pickCapital.complete ? model.pickCapital.total + ' picks under management' : model.pickCapital.loadedLeagues ? model.pickCapital.total + ' known picks · coverage incomplete' : 'pick ownership unavailable'}</div>
                             </div>
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Priority Queue</strong><em>the next {Math.min(3, actionQueue.length)} moves</em></div>
@@ -3626,7 +3635,7 @@ const renderScoutDetail = () => {
                                                         {province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - HP{' '}
                                                         <b style={{ color: empireHealthColor(province.healthScore) }}>{province.healthScore ?? 'No read'}</b>
                                                     </span>
-                                                    <em>{province.pickCount} picks - {province.premiumPickCount} premium - #{province.powerRank || '-'}/{province.teams || '-'}</em>
+                                                    <em>{province.pickFeedPresent ? province.pickCount + (province.pickFeedReady ? ' picks' : ' saved picks') + ' - ' + province.premiumPickCount + ' premium' : 'Pick ownership unavailable'} - #{province.powerRank || '-'}/{province.teams || '-'}</em>
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</b>
@@ -3670,7 +3679,7 @@ const renderScoutDetail = () => {
                             <div className="empire-workspace-head">
                                 <div>
                                     <strong>Asset Workspace</strong>
-                                    <div style={{ color: 'var(--ov-9, rgb(132,132,133))', fontSize: 'var(--text-label, 0.75rem)', marginTop: 2 }}>{filtered.assets.length} players - {filtered.picks.length} picks - {activeFilters ? activeFilters + ' filters' : 'full portfolio'}</div>
+                                    <div style={{ color: 'var(--ov-9, rgb(132,132,133))', fontSize: 'var(--text-label, 0.75rem)', marginTop: 2 }}>{filtered.assets.length} players - {filtered.picks.length} {model.pickCapital.complete ? 'picks' : 'known picks'} - {activeFilters ? activeFilters + ' filters' : 'full portfolio'}</div>
                                 </div>
                                 <div className="empire-sort-row">
                                     {['dhq', 'exposure', 'age', 'position', 'league'].map(key => (
@@ -3687,6 +3696,7 @@ const renderScoutDetail = () => {
                                             <b>{year.score > 0 ? empireCompact(year.score) : '—'}</b>
                                         </button>
                                     ))}
+                                    {!model.pickCapital.byYear.length && <div className="empire-empty"><strong>{model.pickCapital.complete ? 'No picks in this portfolio' : 'Pick ownership unavailable'}</strong>{model.pickCapital.complete ? 'No draft capital matched the included leagues.' : 'Retry pick sync above to verify your draft capital.'}</div>}
                                 </div>
                             ) : searchedAssets.length ? (
                                 <>
@@ -3791,8 +3801,8 @@ function buildCommandBridge(input) {
                : healthDelta === 0 ? 'flat week over week'
                : (healthDelta > 0 ? 'up ' : 'down ') + Math.abs(healthDelta) + ' from last week',
           delta: healthDelta != null ? { dir: dir(healthDelta), n: healthDelta } : null },
-        { key: 'picks', label: 'Pick Capital', value: String(pickCapital.total || 0),
-          sub: (pickCapital.premium || 0) + ' premium (R1–2)' },
+        { key: 'picks', label: 'Pick Capital', value: pickCapital.complete === false && !pickCapital.loadedLeagues ? '—' : String(pickCapital.total || 0),
+          sub: pickCapital.complete === false ? (pickCapital.loadedLeagues ? 'known picks · coverage incomplete' : 'ownership unavailable') : (pickCapital.premium || 0) + ' premium (R1–2)' },
         { key: 'exposure', label: 'Top Exposure', value: topExp ? topExp.exposurePct + '%' : '—',
           tone: topExp && topExp.exposurePct >= 50 ? 'warn' : null,
           sub: topExp ? topExp.name + ' · ' + topExp.count + ' of ' + (totals.leagues || 0) + leagueLabel : model.coverage?.complete === false ? 'exposure check incomplete' : 'no duplicate exposure' },
