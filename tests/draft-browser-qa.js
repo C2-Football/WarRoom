@@ -7,6 +7,7 @@ const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
 const { installReadOnlyRoutes } = require('./helpers/browser-readonly.cjs');
+const { verifyLiveRedraftRail } = require('./helpers/live-redraft-rail.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
@@ -296,12 +297,14 @@ async function main() {
     }
 
     await desktop.close();
+    await verifyLiveRedraftRail(browser, baseUrl, BASE_PATH);
+    process.stdout.write('...');
   } finally {
     await browser.close().catch(() => {});
     server.kill();
   }
 
-  console.log(`\n${failures.length ? 'FAIL' : 'PASS'} draft browser QA - ${failures.length ? failures.length + ' issue(s)' : '6 checks'}`);
+  console.log(`\n${failures.length ? 'FAIL' : 'PASS'} draft browser QA - ${failures.length ? failures.length + ' issue(s)' : '9 checks'}`);
   if (failures.length) {
     failures.forEach(failure => console.log('  - ' + failure));
     process.exit(1);

@@ -1678,7 +1678,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    /* The room sits beside the sidebar: adapt to its available width, not
 	       the window width, so live controls never fall outside the rail. */
 	    @container(max-width:1320px) {
-	        .mock-draftcast-rail { grid-template-columns: minmax(0,1fr); }
+	        .mock-draftcast-rail, .is-live-redraft .mock-draftcast-rail { grid-template-columns: minmax(0,1fr); }
 	        .mock-draftcast-rail > div { min-width: 0; }
 	        .mock-draftcast-rail > .mock-cast-controls { display: flex; flex-wrap: wrap; justify-content: flex-start; }
 	    }
