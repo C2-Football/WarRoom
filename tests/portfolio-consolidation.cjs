@@ -58,6 +58,7 @@ test('hub resumes the last league and puts league work before portfolio and game
         EMPIRE_FREE_PRELIVE: true, EMPIRE_ENABLED: true, COMMISH_ENABLED: true, TIME_LEAGUE_ENABLED: true,
         getUserTier: () => 'free', leagueQuery: '', hubAllLeagues: false, lastLeagueId: 'L1', hubSyncing: false, commishCount: 1,
         sleeperLeagues: fixture.allLeagues,
+        sleeperUsername: 'owner', sleeperCoverage: { status: 'ready', knownCount: 1, loadedCount: 1 },
         pendingInvite: false, error: null, distPrefix: '', ProTierIcon: () => null,
         leagueTeamName: l => 'Team ' + l.id, leagueFormat: () => 'Dynasty', leagueHealth: () => ({ wp: null }), initialsFor: () => 'A',
         setShowSettings() {}, setShowConnect() {}, setProMode() {}, openCommishOffice() {}, openTimeLeague() {}, openDuat() {},
@@ -124,7 +125,17 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     const routeEffectStart = app.indexOf('        React.useEffect(() => {\n            if (initialRouteAppliedRef.current)');
     const routeEffectEnd = app.indexOf('        // Show Empire Dashboard', routeEffectStart);
     const originalEffect = React.useEffect; React.useEffect = fn => fn();
-    try { vm.runInContext(app.slice(routeEffectStart, routeEffectEnd), context); } finally { React.useEffect = originalEffect; }
+    try {
+        // A known league whose provider details failed must retain the bookmark
+        // until retry hydrates it, even if another league already loaded.
+        context.sleeperLeagues = [{ ...league, id: 'other-league' }];
+        context.sleeperCoverage = { status: 'partial', listVerified: true, knownLeagues: [{ id: league.id }] };
+        vm.runInContext(app.slice(routeEffectStart, routeEffectEnd), context);
+        assert.equal(context.initialRouteAppliedRef.current, false);
+        context.sleeperLeagues = [league];
+        context.sleeperCoverage = { status: 'ready', listVerified: true, knownCount: 1, loadedCount: 1 };
+        vm.runInContext(app.slice(routeEffectStart, routeEffectEnd), context);
+    } finally { React.useEffect = originalEffect; }
     assert.equal(context.activeTab, 'stats'); assert.equal(context.location.hash, '#league=' + league.id + '&tab=stats');
     all(context.renderLeagueRoute(), n => n.type === 'league-detail')[0].props.onBack();
     assert.match(text(hub()), /Last opened/);

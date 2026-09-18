@@ -93,10 +93,76 @@
         return user;
     }
 
+    // A league list and its hydrated rosters are separate evidence. Publish
+    // coverage alongside streamed usable leagues; missing data is never an empty roster.
+    async function fetchSleeperPortfolio(options) {
+        const { username, season, onProgress = () => {} } = options;
+        const contextKey = String(username).toLowerCase() + ':' + String(season);
+        const previous = options.previous?.contextKey === contextKey ? options.previous : {};
+        const fetcher = options.fetcher || window.fetch.bind(window);
+        async function read(path) {
+            const controller = new window.AbortController();
+            const timer = setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+            try {
+                const response = await fetcher('https://api.sleeper.app/v1/' + path, { signal: controller.signal });
+                if (!response.ok) throw new Error('Sleeper request failed');
+                return await response.json();
+            } finally { clearTimeout(timer); }
+        }
+        let user, listed;
+        try {
+            user = await read('user/' + encodeURIComponent(username));
+            if (!user?.user_id) throw new Error('SLEEPER_USER_NOT_FOUND');
+            listed = await read('user/' + encodeURIComponent(user.user_id) + '/leagues/nfl/' + encodeURIComponent(season));
+            if (!Array.isArray(listed) || listed.some(league => !league?.league_id)) throw new Error('Invalid league list');
+        } catch (err) {
+            const leagues = (previous.leagues || []).map(league => ({ ...league, _portfolioStale: true }));
+            const coverage = { ...(previous.coverage || {}), status: leagues.length ? 'stale' : 'error', listVerified: false, pendingCount: 0, freshCount: 0, staleCount: leagues.length, loadedCount: leagues.length,
+                error: err.message === 'SLEEPER_USER_NOT_FOUND' ? "Couldn't find that Sleeper username. Check your connection and try again." : 'Could not refresh the Sleeper league list. Try again.' };
+            const result = { contextKey, user: previous.user || user || null, leagues, coverage };
+            onProgress(result);
+            return result;
+        }
+        // Defensive deduplication avoids inflating either the denominator or requests.
+        const known = [...new Map(listed.map(league => [String(league.league_id), league])).values()];
+        const old = new Map((previous.leagues || []).map(league => [String(league.id), league]));
+        const fresh = new Map(), failed = new Set(), pending = new Set(known.map(league => String(league.league_id)));
+        const snapshot = () => {
+            const leagues = known.map(league => {
+                const id = String(league.league_id);
+                return fresh.get(id) || (old.has(id) ? { ...old.get(id), _portfolioStale: true } : null);
+            }).filter(Boolean);
+            const unavailable = known.filter(league => !fresh.has(String(league.league_id)) && !old.has(String(league.league_id))).map(league => ({ id: String(league.league_id), name: league.name || 'League' }));
+            return { contextKey, user, leagues, coverage: {
+                status: pending.size ? 'loading' : failed.size ? (leagues.length ? 'partial' : 'error') : 'ready',
+                listVerified: true, knownCount: known.length, loadedCount: leagues.length, freshCount: fresh.size,
+                staleCount: leagues.length - fresh.size, failedCount: failed.size, pendingCount: pending.size,
+                knownLeagues: known.map(league => ({ id: String(league.league_id), name: league.name || 'League' })),
+                unavailable, error: failed.size ? 'Some Sleeper league details could not load.' : null,
+            } };
+        };
+        onProgress(snapshot());
+        await Promise.all(known.map(async league => {
+            const id = String(league.league_id);
+            try {
+                const [rosters, users] = await Promise.all([read('league/' + encodeURIComponent(id) + '/rosters'), read('league/' + encodeURIComponent(id) + '/users')]);
+                if (!Array.isArray(rosters) || !Array.isArray(users) || rosters.some(roster => !roster || roster.roster_id == null || (roster.players != null && !Array.isArray(roster.players)))) throw new Error('Invalid league details');
+                const mine = rosters.find(roster => String(roster.owner_id) === String(user.user_id));
+                fresh.set(id, { id, name: league.name, status: league.status || '', season: String(season),
+                    wins: mine?.settings?.wins || 0, losses: mine?.settings?.losses || 0, ties: mine?.settings?.ties || 0,
+                    scoring_settings: league.scoring_settings || {}, roster_positions: league.roster_positions || [],
+                    settings: league.settings || {}, rosters, users, _portfolioStale: false });
+            } catch (_) { failed.add(id); }
+            finally { pending.delete(id); onProgress(snapshot()); }
+        }));
+        // Return the snapshot directly: React may defer state-updater callbacks.
+        return snapshot();
+    }
+
     // Read-only ownership context for shared player cards. This uses connected
     // account rosters only; an unhydrated league is unknown, never a zero holding.
     // player(pid) -> {count,totalLeagues,coveredLeagues,complete,leagues:[{id,name,teamName}]}.
-    function buildPortfolioPlayerContext(leagues, userId, pid) {
+    function buildPortfolioPlayerContext(leagues, userId, pid, coverage) {
         const unique = new Map();
         (leagues || []).forEach(l => { const id = l && (l.id || l.league_id); if (id != null) unique.set(String(id), l); });
         const holdings = [];
@@ -109,7 +175,8 @@
             const players = new Set([].concat(roster.players, roster.reserve || [], roster.taxi || []).filter(p => p && String(p) !== '0').map(String));
             if (pid != null && players.has(String(pid))) holdings.push({ id, name: l.name || 'League', teamName: roster.metadata?.team_name || l.teamName || '' });
         });
-        return { count: holdings.length, totalLeagues: unique.size, coveredLeagues, complete: coveredLeagues === unique.size, leagues: holdings };
+        const totalLeagues = unique.size + Math.max(0, (coverage?.knownCount || 0) - (coverage?.loadedCount || 0));
+        return { count: holdings.length, totalLeagues, coveredLeagues, complete: coveredLeagues === totalLeagues && (!coverage || coverage.status === 'ready'), leagues: holdings };
     }
     window.App.PortfolioContext = { player: () => buildPortfolioPlayerContext([], null, null) };
 
@@ -343,6 +410,8 @@
         const [sleeperUser, setSleeperUser] = useState(null);
         const [selectedYear, setSelectedYear] = useState('2026');
         const [sleeperLeagues, setSleeperLeagues] = useState([]);
+        const [sleeperCoverage, setSleeperCoverage] = useState({ status: 'idle', knownCount: null, loadedCount: 0 });
+        const sleeperSnapshotRef = React.useRef({ user: null, leagues: [], coverage: { status: 'idle', knownCount: null, loadedCount: 0 } });
         const [activeLeagueId, setActiveLeagueId] = useState(null);
         const [selectedLeague, setSelectedLeague] = useState(null);
         const [allWireOpen, setAllWireOpen] = useState(false);
@@ -358,7 +427,7 @@
         // drives the return-to-hub freshness check below (audit:refresh-stale step 10).
         const hubSyncedAtRef = React.useRef(0);
         // Guards against overlapping background hub revalidations.
-        const hubRevalidatingRef = React.useRef(false);
+        const hubRevalidatingRef = React.useRef(null);
         // ESPN state
         const [espnLeagues, setEspnLeagues] = useState([]);
         const [espnConnecting, setEspnConnecting] = useState(false);
@@ -372,9 +441,9 @@
         const visibleMflLeagues = MFL_SANDBOX_ACCESS ? mflLeagues : [];
         useEffect(() => {
             const connected = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
-            window.App.PortfolioContext.player = pid => buildPortfolioPlayerContext(connected, sleeperUser?.user_id, pid);
+            window.App.PortfolioContext.player = pid => buildPortfolioPlayerContext(connected, sleeperUser?.user_id, pid, sleeperCoverage.status === 'idle' ? null : sleeperCoverage);
             return () => { window.App.PortfolioContext.player = () => buildPortfolioPlayerContext([], null, null); };
-        }, [sleeperLeagues, espnLeagues, mflLeagues, sleeperUser?.user_id]);
+        }, [sleeperLeagues, sleeperCoverage, espnLeagues, mflLeagues, sleeperUser?.user_id]);
         const [espnError, setEspnError] = useState(null);
         // Sleeper username — read from localStorage (login.html stores 'username', inline connect stores 'sleeperUsername')
         const sleeperUsername = React.useMemo(() => {
@@ -571,141 +640,45 @@
             return () => { alive = false; };
         }, []);
 
-        async function loadSleeperData() {
+        function syncSleeperPortfolio() {
+            if (!sleeperUsername) return Promise.resolve(null);
+            const contextKey = String(sleeperUsername).toLowerCase() + ':' + String(selectedYear);
+            if (hubRevalidatingRef.current?.contextKey === contextKey) return hubRevalidatingRef.current;
             setLoading(true);
             setError(null);
-            setSleeperLeagues([]);
-
-            try {
-                const user = await fetchSleeperUser(sleeperUsername);
-                if (!user) {
-                    setError("Couldn't find that Sleeper username — check spelling and try again");
+            if (sleeperSnapshotRef.current.contextKey && sleeperSnapshotRef.current.contextKey !== contextKey) {
+                setSleeperLeagues([]);
+                setSleeperUser(null);
+                setSleeperCoverage({ status: 'loading', knownCount: null, loadedCount: 0 });
+            } else setSleeperCoverage(previous => ({ ...previous, status: 'loading' }));
+            const apply = snapshot => {
+                if (hubRevalidatingRef.current !== request) return;
+                if (window.App.AccountSession?.isCurrent && !window.App.AccountSession.isCurrent()) return;
+                sleeperSnapshotRef.current = snapshot;
+                setSleeperUser(snapshot.user);
+                setSleeperLeagues(snapshot.leagues);
+                setSleeperCoverage(snapshot.coverage);
+                setError(snapshot.coverage.listVerified ? null : snapshot.coverage.error);
+            };
+            const request = fetchSleeperPortfolio({ username: sleeperUsername, season: selectedYear, previous: sleeperSnapshotRef.current, onProgress: apply })
+                .then(snapshot => {
+                    if (hubRevalidatingRef.current !== request) return null;
+                    if (window.App.AccountSession?.isCurrent && !window.App.AccountSession.isCurrent()) return null;
+                    apply(snapshot);
+                    hubSyncedAtRef.current = Date.now();
+                    return snapshot.leagues;
+                })
+                .finally(() => {
+                    if (hubRevalidatingRef.current !== request) return;
+                    hubRevalidatingRef.current = null;
                     setLoading(false);
-                    return;
-                }
-                setSleeperUser(user);
-
-                const leagues = (await fetchUserLeagues(user.user_id, selectedYear)) || [];
-                if (!leagues.length) { setSleeperLeagues([]); setLoading(false); hubSyncedAtRef.current = Date.now(); return; }
-
-                // Stream each league's full details into state as it resolves, preserving
-                // the original order, instead of awaiting the slowest league via a single
-                // Promise.all. The hub paints fast leagues immediately rather than blocking
-                // on the slowest one. Each streamed entry is always complete (never a
-                // partial skeleton), so opening a card is safe. `loading` stays true until
-                // every league settles, which preserves the deep-link routing guards below.
-                const byId = new Map();
-                const orderedBuilt = () => leagues.map(lg => byId.get(lg.league_id)).filter(Boolean);
-
-                await Promise.all(
-                    leagues.map(async (league) => {
-                        try {
-                            const [rosters, users] = await Promise.all([
-                                fetchLeagueRosters(league.league_id),
-                                fetchLeagueUsers(league.league_id)
-                            ]);
-
-                            const myRoster = rosters.find(r => r.owner_id === user.user_id);
-
-                            byId.set(league.league_id, {
-                                id: league.league_id,
-                                name: league.name,
-                                status: league.status || '',
-                                wins: myRoster?.settings?.wins || 0,
-                                losses: myRoster?.settings?.losses || 0,
-                                ties: myRoster?.settings?.ties || 0,
-                                season: selectedYear,
-                                scoring_settings: league.scoring_settings || {},
-                                roster_positions: league.roster_positions || [],
-                                settings: league.settings || {},
-                                rosters,
-                                users
-                            });
-                        } catch (e) {
-                            console.error(`Failed to load league ${league.name}:`, e);
-                        } finally {
-                            // Re-render with everything loaded so far, in original order.
-                            setSleeperLeagues(orderedBuilt());
-                        }
-                    })
-                );
-
-                hubSyncedAtRef.current = Date.now();
-                setLoading(false);
-            } catch (err) {
-                console.error('Failed to load Sleeper data:', err);
-                setError('Failed to load Sleeper data. Please refresh.');
-                setLoading(false);
-            }
-        }
-
-        // Background hub revalidation — non-destructive loadSleeperData variant.
-        // The return-to-hub freshness check must never yank a working franchise
-        // picker: no loading/error toggles, no upfront sleeperLeagues clear.
-        // Fresh data replaces state only on success; any failure (user lookup,
-        // league list, per-league detail) silently keeps what's already on
-        // screen and console.warns. Initial + year-change loads keep using
-        // loadSleeperData's destructive reset.
-        // Returns the fresh league array on success (or null) — Empire's manual
-        // refresh needs the up-to-date list immediately to re-run assessments on,
-        // and reading the sleeperLeagues state var right after calling this would
-        // race the async setState (still the pre-refresh value in that closure).
-        async function revalidateSleeperData() {
-            if (hubRevalidatingRef.current) return null;
-            hubRevalidatingRef.current = true;
-            try {
-                const user = await fetchSleeperUser(sleeperUsername);
-                if (!user) { console.warn('Hub revalidation: Sleeper user lookup failed — keeping cached leagues'); return null; }
-                setSleeperUser(user);
-                const leagues = (await fetchUserLeagues(user.user_id, selectedYear)) || [];
-                if (!leagues.length) { console.warn('Hub revalidation: no leagues returned — keeping cached leagues'); return null; }
-                const byId = new Map();
-                await Promise.all(
-                    leagues.map(async (league) => {
-                        try {
-                            const [rosters, users] = await Promise.all([
-                                fetchLeagueRosters(league.league_id),
-                                fetchLeagueUsers(league.league_id)
-                            ]);
-                            const myRoster = rosters.find(r => r.owner_id === user.user_id);
-                            byId.set(league.league_id, {
-                                id: league.league_id,
-                                name: league.name,
-                                status: league.status || '',
-                                wins: myRoster?.settings?.wins || 0,
-                                losses: myRoster?.settings?.losses || 0,
-                                ties: myRoster?.settings?.ties || 0,
-                                season: selectedYear,
-                                scoring_settings: league.scoring_settings || {},
-                                roster_positions: league.roster_positions || [],
-                                settings: league.settings || {},
-                                rosters,
-                                users
-                            });
-                        } catch (e) {
-                            console.warn(`Hub revalidation: failed to refresh league ${league.name} — keeping cached copy:`, e);
-                        }
-                    })
-                );
-                // Single swap at the end: fresh entries where the refetch worked,
-                // the existing card where it didn't — a league never disappears
-                // because one background request hiccupped.
-                let freshLeagues = null;
-                setSleeperLeagues(prev => {
-                    freshLeagues = leagues
-                        .map(lg => byId.get(lg.league_id) || (prev || []).find(p => String(p.id) === String(lg.league_id)))
-                        .filter(Boolean);
-                    return freshLeagues;
                 });
-                hubSyncedAtRef.current = Date.now();
-                return freshLeagues;
-            } catch (err) {
-                console.warn('Hub revalidation failed — keeping cached league data:', err);
-                return null;
-            } finally {
-                hubRevalidatingRef.current = false;
-            }
+            request.contextKey = contextKey;
+            hubRevalidatingRef.current = request;
+            return request;
         }
+        function loadSleeperData() { return syncSleeperPortfolio(); }
+        function revalidateSleeperData() { return syncSleeperPortfolio(); }
 
         // Hub freshness (audit:refresh-stale step 10): league cards load once per
         // year selection and then sit stale for the whole session. When the user
@@ -769,7 +742,8 @@
             if (!allLeagues.length) return;
             const league = allLeagues.find(l => String(l.id) === String(route.leagueId));
             if (!league) {
-                if (!loading) initialRouteAppliedRef.current = true;
+                const pendingTarget = sleeperCoverage.knownLeagues?.some(item => String(item.id) === String(route.leagueId));
+                if (!loading && sleeperCoverage.listVerified && !pendingTarget) initialRouteAppliedRef.current = true;
                 return;
             }
             initialRouteAppliedRef.current = true;
@@ -786,7 +760,7 @@
                 routeUrl(buildHash(league.id, route.tab || 'dashboard'))
             );
             setTimeout(() => { isNavigatingRef.current = false; }, 0);
-        }, [loading, sleeperLeagues, espnLeagues, mflLeagues, sleeperUser?.user_id]);
+        }, [loading, sleeperLeagues, sleeperCoverage, espnLeagues, mflLeagues, sleeperUser?.user_id]);
 
         // Show Empire Dashboard (Pro mode)
         // global-view.js is a deferred module group (see js/module-loader.js); load it
@@ -1112,7 +1086,8 @@
                         playersData={empirePlayers}
                         sleeperUserId={sleeperUser?.user_id}
                         onRefresh={refreshEmpirePortfolio}
-                        refreshing={empireRefreshing}
+                        refreshing={empireRefreshing || loading}
+                        portfolioCoverage={sleeperCoverage}
                         hasNonSleeperLeagues={!!(visibleEspnLeagues.length || visibleMflLeagues.length)}
                         onEnterLeague={(league) => {
                             handleSelectLeague(league);
@@ -1332,7 +1307,7 @@
             // cards start arriving we render them live and show a "loading more" hint.
             if (loading && sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>Loading leagues...</div>;
             if (error && sleeperLeagues.length === 0) return <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-body, 1rem)' }}>{error}</div>;
-            if (!loading && sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>No leagues found for {selectedYear}</div>;
+            if (!loading && sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>{sleeperCoverage.status === 'error' ? 'League data unavailable. Retry league sync on the home screen.' : 'No leagues found for ' + selectedYear}</div>;
 
             return (
                 <div className="hub-league-selector">
@@ -1372,6 +1347,9 @@
             const query = leagueQuery.trim().toLowerCase();
             const resume = leagues.find(l => String(l.id) === String(lastLeagueId));
             const focusLeague = resume || leagues[0];
+            const incomplete = sleeperUsername && sleeperCoverage.status !== 'ready' && sleeperCoverage.status !== 'idle';
+            const knownCount = sleeperCoverage.knownCount;
+            const coverageText = knownCount == null ? 'Sleeper league count unavailable' : sleeperLeagues.length + ' of ' + knownCount + ' Sleeper leagues loaded';
             const focusHealth = focusLeague ? leagueHealth(focusLeague) : null;
             const filtered = leagues.filter(l => [l.name, leagueTeamName(l), leagueFormat(l)].join(' ').toLowerCase().includes(query))
                 .sort((a, b) => Number(String(b.id) === String(lastLeagueId)) - Number(String(a.id) === String(lastLeagueId)));
@@ -1382,14 +1360,14 @@
                 const isLast = String(l.id) === String(lastLeagueId);
                 return <button type="button" key={l.id} className={'hub-league-card' + (isLast ? ' is-last' : '') + (!query && index >= 3 ? ' hub-league-overflow' + (hubAllLeagues ? ' is-expanded' : '') : '')} onClick={() => onSelect(l)}>
                     <span className="hub-league-card-top"><span className="hub-team-avatar" aria-hidden="true">{initialsFor(title)}</span><span className="hub-league-identity"><strong>{title}</strong><span>{l.name}</span></span>{isLast && <span className="hub-last-badge">Last opened</span>}</span>
-                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
+                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}{l._portfolioStale ? ' · Saved data' : ''}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
                 </button>;
             });
             return (
                 <main className="hub-franchise-picker experience-hub">
                     <div className="hub-welcome">
                         <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>{leagues.length ? 'Back to the action.' : 'Your home field.'}</h1></div>
-                        <span className="hub-sync-status" role="status">{hubSyncing ? 'Syncing leagues…' : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
+                        <span className="hub-sync-status" role="status">{incomplete ? (hubSyncing ? 'Syncing · ' : '') + coverageText : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
                     {focusLeague && <button type="button" className={resume ? 'hub-resume' : 'hub-resume hub-open-league'} onClick={() => onSelect(focusLeague)}><span className="hub-eyebrow">{resume ? 'PICK UP WHERE YOU LEFT OFF' : 'YOUR LEAGUE'}</span><strong>{resume ? 'Resume ' : 'Open '}{leagueTeamName(focusLeague) || focusLeague.name}</strong><span>{focusLeague.name}{focusHealth.wp !== null && <span className="hub-focus-record"> · {focusLeague.wins}–{focusLeague.losses}{focusLeague.ties > 0 ? '–' + focusLeague.ties : ''}</span>}</span><b aria-hidden="true">→</b></button>}
                     {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
@@ -1401,10 +1379,10 @@
                     <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
                         <div className="hub-section-heading"><div><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add league</button></div>
                         {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Find a league or team" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{query ? filtered.length + ' found' : ''}</span></div>}
-                        {error && <div className="hub-invite" role="alert">{error}<button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button></div>}
+                        {incomplete && <div className="hub-invite" role="status" style={{ flexWrap: 'wrap' }}><div><strong>{coverageText}</strong><p>{sleeperCoverage.error || 'Remaining league details are still loading.'}{sleeperCoverage.staleCount > 0 ? ' Showing last loaded data for ' + sleeperCoverage.staleCount + ' league(s).' : ''}</p>{sleeperCoverage.unavailable?.length > 0 && <details><summary>League details unavailable</summary>{sleeperCoverage.unavailable.map(league => <div key={league.id}>{league.name}</div>)}</details>}</div><button type="button" className="hub-add-button" disabled={hubSyncing} onClick={loadSleeperData}>{hubSyncing ? 'Loading…' : 'Retry league sync'}</button>{error && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button>}</div>}
                         <div id="hub-league-results" className="hub-league-grid">{leagueCards}</div>
                         {!query && leagueCards.length > 3 && <button type="button" className="hub-more-leagues" aria-expanded={hubAllLeagues} aria-controls="hub-league-results" onClick={() => setHubAllLeagues(!hubAllLeagues)}><span>{hubAllLeagues ? 'Show fewer leagues' : 'Show all ' + leagues.length + ' leagues'}</span><span aria-hidden="true">{hubAllLeagues ? '⌃' : '⌄'}</span></button>}
-                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
+                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : incomplete ? 'Your league data is unavailable.' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : incomplete ? 'Retry the sync above to load your teams.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && !incomplete && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
                         {sleeperLeagues.length > 0 && <button type="button" className="hub-wire-entry wr-all-wire-launch" onClick={() => setAllWireOpen(true)}><span className="hub-wire-icon" aria-hidden="true">W</span><span><strong>The Wire</strong><span>One front page for your leagues</span></span><b aria-hidden="true">→</b></button>}
                     </section>
                     <div className="hub-experience-grid">
@@ -1632,7 +1610,7 @@
                             </div>
                             <div>
                                 <div className="product-card-title">SLEEPER</div>
-                                <div className="product-card-subtitle">{sleeperUsername ? (error ? 'Connection needs attention' : hubSyncing ? 'Syncing leagues…' : sleeperLeagues.length + ' league' + (sleeperLeagues.length !== 1 ? 's' : '') + ' synced') : 'Connect your account'}</div>
+                                <div className="product-card-subtitle">{sleeperUsername ? (error || sleeperCoverage.failedCount ? 'Connection needs attention' : hubSyncing ? 'Syncing leagues…' : sleeperLeagues.length + ' league' + (sleeperLeagues.length !== 1 ? 's' : '') + ' synced') : 'Connect your account'}</div>
                             </div>
                         </div>
                         <div className="product-card-body">
@@ -1643,7 +1621,7 @@
                                 {(sleeperConnectError || error) && <p id="wr-sleeper-connect-error" role="alert" style={{ margin: 0, color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-body, 1rem)' }}>{sleeperConnectError || error}</p>}
                                 <button type="submit" className="hub-cta gold" disabled={sleeperConnecting || !sleeperConnectInput.trim()}>{sleeperConnecting ? 'Checking Sleeper…' : sleeperUsername ? 'Update connection' : 'Connect Sleeper'}</button>
                             </form>
-                            {sleeperUsername && !error && !sleeperConnectError && <p role="status" style={{ marginBottom: 0, fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>{hubSyncing ? 'Syncing your leagues…' : sleeperLeagues.length ? 'Your leagues are on the home screen.' : 'No leagues found for ' + selectedYear + '. You can try another Sleeper username.'}</p>}
+                            {sleeperUsername && !error && !sleeperConnectError && <p role="status" style={{ marginBottom: 0, fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>{hubSyncing ? 'Syncing your leagues…' : sleeperCoverage.failedCount ? 'Some league details are unavailable. Retry league sync on the home screen.' : sleeperLeagues.length ? 'Your leagues are on the home screen.' : 'No leagues found for ' + selectedYear + '. You can try another Sleeper username.'}</p>}
                         </div>
                     </div>
 

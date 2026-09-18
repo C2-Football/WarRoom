@@ -412,7 +412,9 @@ function buildEmpirePortfolioModel(input) {
         byYear: Object.values(pickYears).sort((a, b) => a.year - b.year),
     };
 
+    const sourceIncomplete = input.portfolioCoverage && !['ready', 'idle'].includes(input.portfolioCoverage.status);
     const qualityItems = [
+        ...(sourceIncomplete ? [{ key: 'coverage', label: 'League coverage', status: 'partial', detail: input.portfolioCoverage.knownCount == null ? 'Connected league count could not be verified' : input.portfolioCoverage.loadedCount + '/' + input.portfolioCoverage.knownCount + ' Sleeper leagues loaded; unavailable holdings are unknown' }] : []),
         {
             key: 'rosters',
             label: 'Rosters',
@@ -563,6 +565,7 @@ function buildEmpirePortfolioModel(input) {
     signals.sort((a, b) => (severityOrder[a.severity] ?? 1) - (severityOrder[b.severity] ?? 1));
 
     return {
+        coverage: { complete: !sourceIncomplete, knownLeagues: input.portfolioCoverage?.knownCount ?? allLeagues.length, loadedLeagues: provinces.length, staleLeagues: input.portfolioCoverage?.staleCount || 0 },
         provinces,
         assets,
         picks,
@@ -676,7 +679,7 @@ function EmpirePortfolioLab({ model, onOpen }) {
             <div className="empire-metric"><span>Current player value</span><strong>{result.total ? empireCompact(result.total) : 'Unavailable'}</strong></div>
             <div className="empire-metric"><span>Scenario value</span><strong>{result.total ? empireCompact(result.after) : 'Unavailable'}</strong></div>
             <div className="empire-metric"><span>Portfolio decrease</span><strong style={{ color: 'var(--bad)' }}>{pct(result.lossPct)}</strong><span>{result.total ? empireCompact(result.loss) + ' DHQ' : 'Waiting for valuations'}</span></div>
-            <div className="empire-metric"><span>Leagues affected</span><strong>{result.rows.length}/{model.provinces.length}</strong><span>{result.scored}/{result.assetCount} holdings valued{result.missingMeta ? ' · ' + result.missingMeta + ' unnamed' : ''}</span></div>
+            <div className="empire-metric"><span>Leagues affected{model.coverage?.complete === false ? ' (loaded)' : ''}</span><strong>{result.rows.length}/{model.provinces.length}</strong><span>{result.scored}/{result.assetCount} holdings valued{result.missingMeta ? ' · ' + result.missingMeta + ' unnamed' : ''}</span></div>
         </div>
         {(result.scored < result.assetCount || result.missingMeta > 0) && <p className="empire-lab-note" role="status">Partial coverage: unvalued or unnamed holdings are excluded from value calculations. Their impact is unknown.</p>}
         <section className="empire-panel">
@@ -693,7 +696,7 @@ function EmpirePortfolioLab({ model, onOpen }) {
             <div className="empire-lab-guardrails">{result.breaches.slice(0, 12).map(g => <button className="empire-signal" type="button" key={g.pid} onClick={() => { setKind('player'); setTarget(String(g.pid)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                 <div className="empire-signal-top"><strong>{g.name}</strong><b>{Math.round(g.pct)}%</b></div><span>{g.count} leagues · {g.excess} above your target</span><em>Model this player →</em>
             </button>)}</div>
-            {!result.breaches.length && <div className="empire-empty"><strong>{result.assetCount ? 'Within your exposure target' : 'No ownership data yet'}</strong>{result.assetCount ? 'Every player fits your selected limit.' : 'Sync leagues to review concentration.'}</div>}
+            {!result.breaches.length && <div className="empire-empty"><strong>{model.coverage?.complete === false ? 'Exposure check is incomplete' : result.assetCount ? 'Within your exposure target' : 'No ownership data yet'}</strong>{model.coverage?.complete === false ? 'Unavailable or stale leagues must refresh before the portfolio can be checked against your limit.' : result.assetCount ? 'Every player fits your selected limit.' : 'Sync leagues to review concentration.'}</div>}
             {result.breaches.length > 12 && <p className="empire-lab-note">Showing the 12 largest breaches, ordered by excess ownership, then DHQ value. Use the Holding selector to model any player.</p>}
         </section>
     </main>;
@@ -1906,7 +1909,7 @@ function EmpireSecondaryDetails({ active, children }) {
     return active ? <details className="empire-secondary-details"><summary>Portfolio insights & supporting detail</summary>{children}</details> : <React.Fragment>{children}</React.Fragment>;
 }
 
-function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack, onRefresh, refreshing, hasNonSleeperLeagues }) {
+function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack, onRefresh, refreshing, hasNonSleeperLeagues, portfolioCoverage }) {
     const { useState, useMemo, useCallback, useEffect, useRef } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
     const [filters, setFilters] = useState(emptyFilters);
@@ -2034,7 +2037,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         assessTeam: typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal : null,
         nowYear: new Date().getFullYear(),
         liLoaded: !!window.App?.LI_LOADED,
-    }), [enabledLeagues, playersData, sleeperUserId, scoreKey]);
+        portfolioCoverage,
+    }), [enabledLeagues, playersData, sleeperUserId, scoreKey, portfolioCoverage]);
 
     const rolodex = useMemo(() => buildEmpireRolodex(enabledLeagues, sleeperUserId), [enabledLeagues, scoreKey]);
     const actionQueue = useMemo(() => buildEmpireActionQueue(model, rolodex), [model, rolodex]);
@@ -2124,13 +2128,13 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const wasRefreshingRef = useRef(false);
     useEffect(() => {
         if (wasRefreshingRef.current && !refreshing) {
-            setJustSynced(true);
+            setJustSynced(!portfolioCoverage || portfolioCoverage.status === 'ready');
             const t = setTimeout(() => setJustSynced(false), 2500);
             wasRefreshingRef.current = false;
             return () => clearTimeout(t);
         }
         wasRefreshingRef.current = !!refreshing;
-    }, [refreshing]);
+    }, [refreshing, portfolioCoverage]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -2286,6 +2290,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         ];
         const group = groups.find(g => g.key === workspaceForDetail);
         return <div className="empire-workspace-nav">
+            {model.coverage.complete === false && <div role="status" data-testid="empire-coverage" style={{ padding: '12px', fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5, color: 'var(--gold)' }}><strong>{portfolioCoverage.knownCount == null ? 'League coverage unverified' : portfolioCoverage.loadedCount + ' of ' + portfolioCoverage.knownCount + ' Sleeper leagues loaded'}</strong><div>Totals and exposure percentages cover the {model.provinces.length} loaded, included league(s). Holdings in unavailable leagues are unknown.{portfolioCoverage.staleCount > 0 ? ' ' + portfolioCoverage.staleCount + ' league(s) use last loaded data.' : ''}</div><button className="empire-action" type="button" disabled={!!refreshing} onClick={onRefresh}>{refreshing ? 'Loading…' : 'Retry league sync'}</button></div>}
             <nav aria-label="Empire workspaces" className="empire-workspace-primary">
                 {groups.map(g => <button key={g.key} type="button" aria-current={group.key === g.key ? 'page' : undefined} onClick={() => openWorkspace(g.key)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 7, verticalAlign: 'middle' }}>{EMPIRE_ICON_PATHS[({ overview: 'home', actions: 'zap', leagues: 'layers', assets: 'briefcase' })[g.key]].map((d, i) => <path key={i} d={d} />)}</svg><span>{g.label}</span></button>)}
             </nav>
@@ -3314,9 +3319,9 @@ const renderScoutDetail = () => {
                     <button className="empire-back" type="button" aria-label="Back to hub" onClick={onBack}>{"<"}</button>
                     <div className="empire-title">
                         <strong>Empire Command</strong>
-                        <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
+                        <span>{model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · asset allocation · exposure · pick capital</span>
                     </div>
-                    {freshness ? (
+                    {freshness && model.coverage.complete ? (
                         <span className={'empire-live' + (freshness.live ? '' : ' is-stale')} style={{ marginLeft: 12 }}
                             title={freshness.live ? 'League data rebuilt in the last 15 minutes' : 'Empire reads cached league data — hit Refresh Leagues to re-sync'}>
                             {freshness.label}
@@ -3414,7 +3419,7 @@ const renderScoutDetail = () => {
                                 <div className="empire-panel-head"><strong>Empire Brief</strong><em>Alex · {userName}</em></div>
                                 <div className="empire-command-kicker">Today's command read</div>
                                 <div className="empire-command-focus">{briefText}</div>
-                                <div className="empire-command-meta">Across {model.totals.leagues} leagues · {actionQueue.length} ranked moves · {model.pickCapital.total} picks under management</div>
+                                <div className="empire-command-meta">Across {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · {actionQueue.length} ranked moves · {model.pickCapital.total} picks under management</div>
                             </div>
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Priority Queue</strong><em>the next {Math.min(3, actionQueue.length)} moves</em></div>
@@ -3432,7 +3437,7 @@ const renderScoutDetail = () => {
                         </section>
                         <EmpireSecondaryDetails active={phone && workspace === 'overview'}>
                         {workspace !== 'assets' && <section className="empire-panel empire-lab-entry">
-                            <div><div className="empire-command-kicker">Portfolio Lab</div><strong>How much of your empire rides on one outcome?</strong><p>Model a player, team, or position value drop across every league.</p></div>
+                            <div><div className="empire-command-kicker">Portfolio Lab</div><strong>How much of your empire rides on one outcome?</strong><p>Model a player, team, or position value drop across {model.coverage.complete ? 'every' : 'loaded'} league{model.coverage.complete ? '' : 's'}.</p></div>
                             <button className="empire-action" type="button" onClick={() => setDetail({ type: 'lab' })}>Stress-test portfolio →</button>
                         </section>}
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
@@ -3584,12 +3589,12 @@ const renderScoutDetail = () => {
                             <div className="empire-floor-matrix">
                                 {model.exposure.filter(e => e.count > 1).slice(0, 12).map(e => (
                                     <button key={e.pid} type="button" className="empire-expo-row" onClick={() => setDetail({ type: 'player', pid: e.pid })}>
-                                        <div className="empire-expo-name"><strong>{e.name}</strong><span>{e.pos} · {e.count} of {model.totals.leagues} leagues</span></div>
+                                        <div className="empire-expo-name"><strong>{e.name}</strong><span>{e.pos} · {e.count} of {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'}</span></div>
                                         <div className="empire-expo-track"><div className="empire-expo-fill" style={{ width: Math.min(100, e.exposurePct) + '%', background: e.agePhaseColor }} /></div>
                                         <b style={{ color: e.exposurePct >= 50 ? 'var(--bad)' : 'var(--gold)' }}>{e.exposurePct}%</b>
                                     </button>
                                 ))}
-                                {!model.exposure.some(e => e.count > 1) && <div className="empire-empty"><strong>No duplicate exposure</strong>Your assets are spread cleanly across leagues.</div>}
+                                {!model.exposure.some(e => e.count > 1) && <div className="empire-empty"><strong>{model.coverage.complete ? 'No duplicate exposure' : 'No duplicates in loaded holdings'}</strong>{model.coverage.complete ? 'Your assets are spread cleanly across leagues.' : 'Unavailable or stale leagues may change your exposure.'}</div>}
                             </div>
                             <details className="empire-asset-map" open={phone ? undefined : true}><summary>Top valued assets</summary><div className="empire-tilegrid">
                                 {[...model.assets].filter(a => a.dhq > 0).sort((a, b) => b.dhq - a.dhq).slice(0, 48).map((a, i) => (
@@ -3667,6 +3672,7 @@ function buildCommandBridge(input) {
     const pickCapital = model.pickCapital || {};
     const provinces = model.provinces || [];
     const topExp = (model.exposure || [])[0] || null;
+    const leagueLabel = model.coverage?.complete === false ? ' loaded leagues' : ' leagues';
 
     const fmtK = v => {
         const n = Math.round(Number(v) || 0);
@@ -3715,7 +3721,7 @@ function buildCommandBridge(input) {
 
     const kpis = [
         { key: 'value', label: 'Empire Value', value: fmtK(totals.totalDHQ),
-          sub: 'DHQ across ' + (totals.leagues || 0) + ' leagues',
+          sub: 'DHQ across ' + (totals.leagues || 0) + leagueLabel,
           delta: dhqDelta != null ? { dir: dir(dhqDelta), pct: dhqPct } : null },
         { key: 'record', label: 'Record', value: (rec.wins || 0) + '–' + (rec.losses || 0),
           sub: winPctStr + (games ? ' · ' + playoffSpots + ' in playoff spots' : '') + (choppedNote ? ' · ' + choppedNote : '') },
@@ -3729,7 +3735,7 @@ function buildCommandBridge(input) {
           sub: (pickCapital.premium || 0) + ' premium (R1–2)' },
         { key: 'exposure', label: 'Top Exposure', value: topExp ? topExp.exposurePct + '%' : '—',
           tone: topExp && topExp.exposurePct >= 50 ? 'warn' : null,
-          sub: topExp ? topExp.name + ' · ' + topExp.count + ' of ' + (totals.leagues || 0) + ' leagues' : 'no duplicate exposure' },
+          sub: topExp ? topExp.name + ' · ' + topExp.count + ' of ' + (totals.leagues || 0) + leagueLabel : model.coverage?.complete === false ? 'exposure check incomplete' : 'no duplicate exposure' },
         { key: 'actions', label: 'Open Actions', value: String(queue.length),
           tone: highActions ? 'gold' : null, sub: highActions + ' high priority' },
     ];
