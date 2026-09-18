@@ -27,6 +27,22 @@
 //   onAddTask({title, type, dueTs, leagueId, note}) — add a manual entry.
 //   onToggleTask(id) / onRemoveTask(id) — mutate a manual entry.
 // ══════════════════════════════════════════════════════════════════
+// Stable component identity keeps inputs focused across form edits.
+function WrCommishOpsSection({ title, meta, action, children }) {
+    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))', TEXT = 'var(--text, #e8e8ea)';
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) var(--font-mono, "JetBrains Mono", monospace)', color: 'var(--text-muted, #8D887E)', letterSpacing: '0.08em', textTransform: 'uppercase' };
+    return (
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+                {action ? <span style={{ marginLeft: 'auto' }}>{action}</span> : null}
+            </div>
+            {children}
+        </div>
+    );
+}
+
 function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge, onAddTask, onToggleTask, onRemoveTask }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)';
@@ -75,12 +91,13 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     const submitTask = () => {
         if (!form.title.trim() || typeof onAddTask !== 'function') return;
         const dueTs = form.dueDate ? Date.parse(form.dueDate) : null;
-        onAddTask({
+        const saved = onAddTask({
             title: form.title.trim(), type: form.type,
             dueTs: Number.isFinite(dueTs) ? dueTs : null,
             leagueId: form.leagueId || null,
             note: form.note.trim(),
         });
+        if (saved !== true) return;
         resetForm();
         setShowAdd(false);
     };
@@ -107,16 +124,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     };
 
     // ── Shells (same idiom as season-odds-panel) ─────────────────────
-    const Section = ({ title, meta, action, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-                {action ? <span style={{ marginLeft: 'auto' }}>{action}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
+
     const TypeChip = ({ type }) => {
         const c = CHIP[type] || CHIP.playoffs;
         return <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.6rem)', fontWeight: 700, letterSpacing: '0.06em', color: c.color, border: `1px solid ${c.border}`, background: c.bg, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px', whiteSpace: 'nowrap' }}>{c.text}</span>;
@@ -154,7 +162,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <Section title="Drift Sentinel" meta={driftRows.length ? driftRows.length + ' league' + (driftRows.length === 1 ? '' : 's') + ' watched' : null}>
+            <WrCommishOpsSection title="Drift Sentinel" meta={driftRows.length ? driftRows.length + ' league' + (driftRows.length === 1 ? '' : 's') + ' watched' : null}>
                 <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '10px', lineHeight: 1.5 }}>
                     Nightly diff of live settings against the last state you ratified. The silent co-commish edit, caught.
                 </div>
@@ -206,9 +214,9 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                         {quietCount > 0 ? quietLine('The other ' + quietCount + ' league' + (quietCount === 1 ? ' matches' : 's match') + ' the last state you signed off on.', GREEN, 'rgba(46,204,113,0.07)') : null}
                     </div>
                 )}
-            </Section>
+            </WrCommishOpsSection>
 
-            <Section title="Master Calendar" meta={events.length ? events.length + ' event' + (events.length === 1 ? '' : 's') + ' · every league, one board' : null}
+            <WrCommishOpsSection title="Master Calendar" meta={events.length ? events.length + ' event' + (events.length === 1 ? '' : 's') + ' · every league, one board' : null}
                 action={typeof onAddTask === 'function' ? (
                     <button onClick={() => setShowAdd(s => !s)}
                         style={{ background: 'none', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: showAdd ? TEXT : SILVER, cursor: 'pointer', font: '700 var(--co-readable-small, 0.66rem) ' + MONO, letterSpacing: '0.05em', padding: '5px 10px' }}>
@@ -267,9 +275,9 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                 {events.some(ev => ev.approximate) ? (
                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '8px' }}>≈ week-derived date — the league sets the week, the NFL sets the day.</div>
                 ) : null}
-            </Section>
+            </WrCommishOpsSection>
 
-            <Section title="Conflicts" meta={conflictRows.length ? conflictRows.length + ' flagged' : null}>
+            <WrCommishOpsSection title="Conflicts" meta={conflictRows.length ? conflictRows.length + ' flagged' : null}>
                 {!conflictRows.length ? (
                     <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No collisions on the board.</div>
                 ) : (
@@ -304,7 +312,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                         ))}
                     </div>
                 )}
-            </Section>
+            </WrCommishOpsSection>
         </div>
     );
 }

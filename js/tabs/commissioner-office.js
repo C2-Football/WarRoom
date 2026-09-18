@@ -13,7 +13,36 @@
 // office never executes anything on a platform.
 // Deferred module group "commish" — loaded when the hub card is opened.
 // ══════════════════════════════════════════════════════════════════
-function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
+function useCommishLocalSave() {
+    const [failure, setFailure] = React.useState(null);
+    const [reset, setReset] = React.useState(0);
+    const failed = React.useRef({});
+    const showFailure = () => setFailure(Object.values(failed.current).slice(-1)[0] || null);
+    const resolve = keys => { for (const key of keys) delete failed.current[key]; showFailure(); };
+    const run = (key, area, save) => {
+        try {
+            const value = save();
+            if (value !== false && value != null && failed.current[key]) { delete failed.current[key]; showFailure(); }
+            return { ok: true, value };
+        } catch (error) {
+            failed.current[key] = { key, area, message: error?.message || 'Your change was not saved. Retry after freeing browser storage.' };
+            showFailure();
+            return { ok: false, error: failed.current[key].message };
+        }
+    };
+    React.useEffect(() => {
+        if (!failure) return undefined;
+        const warn = event => { event.preventDefault(); event.returnValue = ''; };
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+    }, [failure]);
+    React.useEffect(() => window.App?.NavigationGuard?.register(() => Object.keys(failed.current).length === 0), []);
+    const canLeave = () => Object.keys(failed.current).length === 0;
+    const discard = () => { failed.current = {}; setFailure(null); setReset(value => value + 1); };
+    return { run, failure, canLeave, discard, reset, resolve };
+}
+
+function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLeague }) {
     // ── The token ladder ─────────────────────────────────────────────
     // The office used to read as translucent for a reason that had nothing to
     // do with opacity: --panel, --ov-4, --text, --acc-fill2 and --k-* are all
@@ -35,6 +64,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     };
 
     const C = window.App && window.App.Commish;
+    const localSave = useCommishLocalSave();
+    const onBack = () => { if (localSave.canLeave()) leaveOffice(); };
     const [state, setState] = React.useState({ status: 'idle' });
     // View state. 'command' is the front door — the office used to land on the
     // Coefficient, which is an empty table all offseason, which is a large part
@@ -66,6 +97,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // multi-thousand-pixel audit log before the commissioner has acted today.
     const [queueFilter, setQueueFilter] = React.useState({ tier: 'NOW', leagueId: null, domain: null });
     const openHub = React.useCallback((hub, opts) => {
+        if (!localSave.canLeave()) return;
         // Accept BOTH shapes: openHub(hub, {leagueId}) and the older
         // openHub(hub, leagueId) the command panel emits. Before this, a bare
         // string made opts.leagueId undefined and scoping silently no-opped.
@@ -907,6 +939,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         return m;
     }, [managedLeagues]);
     const handleEnterLeague = (leagueId) => {
+        if (!localSave.canLeave()) return;
         const full = leagueById.get(String(leagueId));
         if (full && onEnterLeague) onEnterLeague(full);
     };
@@ -949,9 +982,14 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         const manual = C.Tasks.asEvents(taskItems, { leagueNameOf, nowMs: Date.now() });
         return { events: C.Tasks.mergeSorted(auto, manual) };
     }, [state.status, state.calendar, taskItems]);
-    const onAddTask = (input) => { try { C?.Tasks?.add?.(input, { nowMs: Date.now() }); } catch (e) { /* board is best-effort */ } setTasksTick(t => t + 1); };
-    const onToggleTask = (id) => { try { C?.Tasks?.toggleDone?.(id, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setTasksTick(t => t + 1); };
-    const onRemoveTask = (id) => { try { C?.Tasks?.remove?.(id); } catch (e) { /* unchanged */ } setTasksTick(t => t + 1); };
+    const changeTask = (key, save) => { const result = localSave.run(key, 'ops', save); if (!result.ok || !result.value) return false; setTasksTick(t => t + 1); return true; };
+    const onAddTask = input => changeTask('add-task', () => C.Tasks.add(input, { nowMs: Date.now() }));
+    const onToggleTask = id => changeTask('toggle-task:' + id, () => C.Tasks.toggleDone(id, { nowMs: Date.now() }));
+    const onRemoveTask = id => {
+        const saved = changeTask('remove-task:' + id, () => C.Tasks.remove(id));
+        if (saved) localSave.resolve(['toggle-task:' + id]);
+        return saved;
+    };
 
     const rawQueue = React.useMemo(() => {
         if (state.status !== 'ready' || !C?.Triage?.buildQueue) return null;
@@ -1087,17 +1125,17 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     };
 
     // Governance state: treasuries re-read on any bookkeeping change.
-    const onMarkPaid = (lid, uid, paid) => { try { C?.Treasury?.markPaid?.(lid, uid, { paid }); } catch (e) { /* unchanged */ } setTreasuryTick(t => t + 1); };
-    const onSetLeagueSafe = (lid, url) => { const ok = !!C?.Treasury?.setLeagueSafeUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
-    const onSetSheet = (lid, url) => { const ok = !!C?.Treasury?.setSheetUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
+    const changeDues = (key, save) => { const result = localSave.run(key, 'dues', save); if (result.ok && result.value) setTreasuryTick(t => t + 1); return result; };
+    const onMarkPaid = (lid, uid, paid) => changeDues('paid:' + lid + ':' + uid, () => C.Treasury.markPaid(lid, uid, { paid })).ok;
+    const onSetLeagueSafe = (lid, url) => { const result = changeDues('leaguesafe:' + lid, () => C.Treasury.setLeagueSafeUrl(lid, url)); return result.ok ? result.value : null; };
+    const onSetSheet = (lid, url) => { const result = changeDues('sheet:' + lid, () => C.Treasury.setSheetUrl(lid, url)); return result.ok ? result.value : null; };
     const onPasteCsv = (lid, text) => {
         try {
             const members = Object.values(state.graph.people).filter(p => p.leagueIds.includes(lid));
             const parsed = C.Treasury.parseDuesCsv(text, members);
             if (!parsed.matched.length) return null;
-            const applied = C.Treasury.applyCsv(lid, parsed, { nowMs: Date.now() });
-            setTreasuryTick(t => t + 1);
-            return { applied, unmatched: parsed.unmatched };
+            const result = changeDues('csv:' + lid, () => C.Treasury.applyCsv(lid, parsed, { nowMs: Date.now() }));
+            return result.ok ? { applied: result.value, unmatched: parsed.unmatched } : { error: result.error };
         } catch (e) { return null; }
     };
     const onFetchSheet = async (lid) => {
@@ -1259,6 +1297,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     </span>
                 ) : null}
             </div>
+            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div><button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
             {state.status === 'ready' ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     {!isPhone && window.WrCommishSidebar ? (
@@ -1344,7 +1383,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
                 {tab === 'people' ? (People ? <People phone={isPhone} radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
                 {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? (isPhone ? <details className="co-disclosure"><summary>Renewal forecast</summary><window.WrCommishRenewalPanel forecast={state.renewal} /></details> : <window.WrCommishRenewalPanel forecast={state.renewal} />) : null}
-                {tab === 'ops' ? (Ops ? <Ops drift={state.drift} calendar={opsCalendar} conflicts={state.conflicts}
+                {tab === 'ops' ? (Ops ? <Ops key={'ops:' + localSave.reset} drift={state.drift} calendar={opsCalendar} conflicts={state.conflicts}
                     leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
                     onAcknowledge={onAcknowledge} onAddTask={onAddTask} onToggleTask={onToggleTask} onRemoveTask={onRemoveTask}
                     ackTick={ackTick} /> : missing('Ops desk')) : null}
@@ -1423,7 +1462,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 ) : missing('Season Setup')) : null}
                 {(tab === 'governance' || tab === 'dues') ? (window.WrCommishGovernancePanel ? (
                     <window.WrCommishGovernancePanel
-                        key={tab} section={tab === 'dues' ? 'dues' : 'bylaws'}
+                        key={tab + ':' + localSave.reset} section={tab === 'dues' ? 'dues' : 'bylaws'}
                         leagues={state.mine} graph={state.graph}
                         constitutions={state.constitutions || {}} amendments={bylawAmendments} treasuries={treasuries}
                         onMarkPaid={onMarkPaid} onSetLeagueSafe={onSetLeagueSafe} onSetSheet={onSetSheet}

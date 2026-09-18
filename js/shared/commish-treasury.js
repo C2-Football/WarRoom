@@ -52,6 +52,14 @@
         set(key, value) { _mem.set(key, JSON.stringify(value)); return true; },
     };
     function store() { return App.AccountStorage || (typeof window === 'undefined' ? memStore : null); }
+    function writeLedger(lid, rec) {
+        try {
+            if (store()?.set(KEY(lid), rec) !== true) throw new Error('Storage did not confirm the ledger save');
+        } catch (cause) {
+            const error = new Error('Your dues records were not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
+    }
 
     function getLedger(leagueId) {
         const lid = String(leagueId || '');
@@ -92,7 +100,7 @@
         const rec = getLedger(lid);
         rec[field] = value;
         rec.updatedAt = (opts && opts.nowMs != null) ? Number(opts.nowMs) : Date.now();
-        store().set(KEY(lid), rec);
+        writeLedger(lid, rec);
         return true;
     }
     function setLeagueSafeUrl(leagueId, url, opts) {
@@ -119,7 +127,7 @@
         };
         rec.entries[uid] = entry;
         rec.updatedAt = nowMs;
-        store().set(KEY(lid), rec);
+        writeLedger(lid, rec);
         return entry;
     }
 
@@ -245,12 +253,21 @@
 
     // Write every matched row into the ledger. Returns how many were marked.
     function applyCsv(leagueId, parsed, opts) {
+        const lid = String(leagueId || '');
+        if (!lid) return 0;
         const list = (parsed && parsed.matched) || [];
+        const rec = getLedger(lid);
+        const nowMs = opts?.nowMs != null ? Number(opts.nowMs) : Date.now();
         let count = 0;
         for (const m of list) {
-            if (!m || m.userId == null) continue;
-            if (markPaid(leagueId, m.userId, { paid: m.paid, note: m.note, nowMs: opts && opts.nowMs })) count++;
+            if (!m || m.userId == null || String(m.userId) === '') continue;
+            const uid = String(m.userId), prev = rec.entries[uid] || { paid: false, note: '' };
+            rec.entries[uid] = { paid: m.paid !== undefined ? !!m.paid : prev.paid, note: m.note != null ? String(m.note) : prev.note, ts: nowMs };
+            count++;
         }
+        // One durable write for the whole import: a rejected save must not
+        // leave half the league paid while reporting that the import failed.
+        if (count) { rec.updatedAt = nowMs; writeLedger(lid, rec); }
         return count;
     }
 

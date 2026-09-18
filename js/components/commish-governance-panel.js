@@ -19,10 +19,26 @@
 // Props: { leagues, graph, constitutions: {leagueId: {text, clauses}|null},
 //          amendments: {leagueId: rows}, treasuries: {leagueId: buildTreasury
 //          output}, onMarkPaid(lid, uid, paid), onSetLeagueSafe(lid, url) →
-//          bool, onSetSheet(lid, url) → bool, onFetchSheet(lid) → Promise,
-//          onPasteCsv(lid, text) → {applied, unmatched}|null, onAsk(lid,
+//          bool|null (null = storage failure), onSetSheet(lid, url) → bool|null,
+//          onFetchSheet(lid) → Promise,
+//          onPasteCsv(lid, text) → {applied, unmatched}|{error}|null, onAsk(lid,
 //          question) → Promise<string|null> }
 // ══════════════════════════════════════════════════════════════════
+// Stable component identity keeps inputs focused across form edits.
+function WrCommishGovernanceSection({ title, meta, children }) {
+    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))', TEXT = 'var(--text, #e8e8ea)';
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) var(--font-mono, "JetBrains Mono", monospace)', color: 'var(--text-muted, #8D887E)', letterSpacing: '0.08em', textTransform: 'uppercase' };
+    return (
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+            </div>
+            {children}
+        </div>
+    );
+}
+
 function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amendments, treasuries, onMarkPaid, onSetLeagueSafe, onSetSheet, onFetchSheet, onPasteCsv, onAsk }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--warn, #F0A500)';
@@ -39,15 +55,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
     const [csvNote, setCsvNote] = React.useState({});     // lid -> result line
     const [sheetBusy, setSheetBusy] = React.useState(null);
 
-    const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
+
     const btn = (label, onClick, opts) => (
         <button onClick={onClick} disabled={opts && opts.disabled}
             style={{ padding: '5px 12px', cursor: 'pointer', background: 'transparent', color: (opts && opts.color) || GOLD, border: '1px solid ' + ((opts && opts.color) || 'rgba(212,175,55,0.5)'), borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.66rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: opts && opts.disabled ? 0.5 : 1 }}>
@@ -64,7 +72,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <Section title={section === 'dues' ? 'Dues' : section === 'bylaws' ? 'Bylaws & Amendments' : 'Bylaws & Dues'} meta={section === 'bylaws' ? 'Constitutions, grounded rulings, and amendment history' : 'Dues bookkeeping · LeagueSafe stays the system of record'}>
+            <WrCommishGovernanceSection title={section === 'dues' ? 'Dues' : section === 'bylaws' ? 'Bylaws & Amendments' : 'Bylaws & Dues'} meta={section === 'bylaws' ? 'Constitutions, grounded rulings, and amendment history' : 'Dues bookkeeping · LeagueSafe stays the system of record'}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {(leagues || []).map(l => {
                         const lid = String(l.league_id || l.id);
@@ -148,19 +156,19 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                         <input value={draft.ls != null ? draft.ls : (tre.leagueSafeUrl || '')} onChange={e => setUrlDrafts(d => ({ ...d, [lid]: { ...d[lid], ls: e.target.value } }))}
                                                             placeholder="https://www.leaguesafe.com/… (this league's page)"
                                                             style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
-                                                        {btn('Save link', () => { const ok = onSetLeagueSafe && onSetLeagueSafe(lid, draft.ls || ''); setCsvNote(n => ({ ...n, [lid]: ok ? 'LeagueSafe link saved.' : 'Rejected — must be an https leaguesafe.com URL.' })); })}
+                                                        {btn('Save link', () => { const ok = onSetLeagueSafe && onSetLeagueSafe(lid, draft.ls ?? tre.leagueSafeUrl ?? ''); setCsvNote(n => ({ ...n, [lid]: ok === null ? 'Link not saved. Your input remains; retry after freeing browser storage.' : ok ? 'LeagueSafe link saved locally.' : 'Rejected — must be an https leaguesafe.com URL.' })); })}
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
                                                         <input value={draft.sheet != null ? draft.sheet : (tre.sheetUrl || '')} onChange={e => setUrlDrafts(d => ({ ...d, [lid]: { ...d[lid], sheet: e.target.value } }))}
                                                             placeholder="Published Google Sheet CSV URL (File → Share → Publish to web)"
                                                             style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
-                                                        {btn('Save', () => { const ok = onSetSheet && onSetSheet(lid, draft.sheet || ''); setCsvNote(n => ({ ...n, [lid]: ok ? 'Sheet link saved.' : 'Rejected — must be an https docs.google.com URL.' })); })}
+                                                        {btn('Save', () => { const ok = onSetSheet && onSetSheet(lid, draft.sheet ?? tre.sheetUrl ?? ''); setCsvNote(n => ({ ...n, [lid]: ok === null ? 'Link not saved. Your input remains; retry after freeing browser storage.' : ok ? 'Sheet link saved locally.' : 'Rejected — must be an https docs.google.com URL.' })); })}
                                                         {btn(sheetBusy === lid ? 'Fetching…' : 'Sync from sheet', async () => {
                                                             if (!onFetchSheet) return;
                                                             setSheetBusy(lid);
                                                             const res = await onFetchSheet(lid);
                                                             setSheetBusy(null);
-                                                            setCsvNote(n => ({ ...n, [lid]: res ? ('Synced — ' + res.applied + ' marked' + (res.unmatched.length ? ' · unmatched: ' + res.unmatched.slice(0, 3).join(', ') : '')) : 'Sheet fetch failed (browser blocked it?) — paste the CSV below instead.' }));
+                                                            setCsvNote(n => ({ ...n, [lid]: res?.error ? res.error : res ? ('Synced — ' + res.applied + ' marked' + (res.unmatched.length ? ' · unmatched: ' + res.unmatched.slice(0, 3).join(', ') : '')) : 'Sheet fetch failed (browser blocked it?) — paste the CSV below instead.' }));
                                                         }, { disabled: !tre.sheetUrl || sheetBusy === lid })}
                                                     </div>
                                                     <textarea value={csvDraft} onChange={e => setCsvDraft(e.target.value)}
@@ -169,7 +177,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
                                                         {btn('Apply pasted CSV', () => {
                                                             const res = onPasteCsv && onPasteCsv(lid, csvDraft);
-                                                            setCsvNote(n => ({ ...n, [lid]: res ? ('Applied — ' + res.applied + ' marked' + (res.unmatched.length ? ' · unmatched: ' + res.unmatched.slice(0, 3).join(', ') : '')) : 'Nothing matched — check the name column against Sleeper display names.' }));
+                                                            setCsvNote(n => ({ ...n, [lid]: res?.error ? res.error : res ? ('Applied — ' + res.applied + ' marked' + (res.unmatched.length ? ' · unmatched: ' + res.unmatched.slice(0, 3).join(', ') : '')) : 'Nothing matched — check the name column against Sleeper display names.' }));
                                                         }, { disabled: !csvDraft.trim() })}
                                                         {csvNote[lid] ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{csvNote[lid]}</span> : null}
                                                     </div>
@@ -182,7 +190,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                         );
                     })}
                 </div>
-            </Section>
+            </WrCommishGovernanceSection>
         </div>
     );
 }

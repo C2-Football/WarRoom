@@ -55,7 +55,12 @@
         } catch (e) { return []; }
     }
     function write(list) {
-        try { store().set(KEY, list); } catch (e) { /* board is best-effort; never break a render */ }
+        try {
+            if (store()?.set(KEY, list) !== true) throw new Error('Storage did not confirm the task save');
+        } catch (cause) {
+            const error = new Error('Your task was not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
         return list;
     }
 
@@ -66,7 +71,7 @@
         const title = String((input && input.title) || '').trim();
         if (!title) return null; // nothing worth a checkbox with no label
         const type = TYPES.includes(input && input.type) ? input.type : 'task';
-        const dueTsNum = Number(input && input.dueTs);
+        const dueTsNum = input?.dueTs == null || input.dueTs === '' ? NaN : Number(input.dueTs);
         const dueTs = Number.isFinite(dueTsNum) ? dueTsNum : null;
         const leagueId = input && input.leagueId ? String(input.leagueId) : null;
         const note = String((input && input.note) || '').trim();
