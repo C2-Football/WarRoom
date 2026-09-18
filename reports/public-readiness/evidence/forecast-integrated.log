@@ -1,0 +1,42 @@
+
+> fantasy-war-room@1.0.0 test:forecast-ledger
+> node tests/forecast-ledger.cjs && node tests/forecast-archive.cjs && node tests/forecast-evaluation.cjs
+
+PASS Healthy status quo and byes are explicit assumptions
+PASS IR, OUT and unsigned do not imply a fabricated full-season zero or return
+PASS Explicit week evidence can model a return without overriding a bye
+PASS Future-dated evidence rejected and missing baseline distinguished from zero
+PASS Hash ordering stable, first-write immutable, input changes create new records
+PASS Zero and missing players survive capture; identity and league settings recorded
+PASS Snapshots copy inputs before asynchronous hashing
+PASS Historical, projected and cross-league captures are rejected
+PASS Storage failure is visible and cannot masquerade as successful capture
+PASS Evidence cannot leak across seasons
+PASS A new runtime implementation creates a new version fingerprint
+PASS Dynasty scenario outputs are frozen without applying them to scores
+PASS Bulk dynasty and keeper captures rank once and preserve all scenario values
+PASS Evaluation requires completed, correctly-scored outcomes and reports coverage
+PASS Shadow capture failure leaves public prices byte-for-byte unchanged
+PASS Changed availability is compared on the same sample, without promotion
+PASS Dynasty production shadow neither rewrites DHQ nor populates ROS cache
+17 shadow-forecast checks passed.
+PASS No authenticated session means no network calls
+PASS Save returns the server receipt without mutating the forecast
+PASS Missing migration, network failures and invalid receipts do not pretend success
+PASS Recovery follows all pages and preserves original receipts
+PASS Wrong league, repeated cursor and bad receipt abort recovery
+PASS Account switching during recovery aborts rather than merging owners
+PASS Migration contract denies table mutation and derives owner and receipt server-side
+7 forecast archive checks passed (SQL contract only; database runtime not exercised).
+PASS Actual capture fingerprints verify and receipt-gated comparison runs
+PASS Changed predictions, scoring, runtime, and IDs fail integrity checking
+PASS Invalid player rows and duplicate IDs cannot inflate sample size
+PASS Local-only evaluation is explicitly exploratory
+PASS Late upload and exact kickoff boundary are rejected despite early client time
+PASS Missing, duplicate and impossible receipts fail closed
+PASS Missing or uncertified schedule and wrong season/week cannot pass the gate
+PASS Shared league settings never permit another league’s results
+PASS Invalid outcomes remain failures, not zero-filled success
+PASS Earliest registered run wins even when the later run scores better
+PASS Malformed envelopes are rejected without hiding other usable records
+11 evaluation integrity checks passed.

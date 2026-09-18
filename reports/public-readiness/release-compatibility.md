@@ -50,3 +50,13 @@ revoked app sessions may now be denied by direct REST as intended; users sign in
 
 No production migrations have been applied manually during this investigation.
 Final release SHA, checks, operational postconditions and workflows remain pending.
+
+## Shared dependency checkpoint
+
+Canonical `C2-Football/dhq-shared` main is now verified at
+`7bd35313fc78e25a2d1ac24035989673a93f28e6` after an ordinary fast-forward push.
+Root independently reran 14,560 ranking comparisons and explicit projection parity,
+reviewed immutable-snapshot/live-read behavior, and verified remote ref. WarRoom
+release pin, all shared-loader entry cachebusters and the byte-identical player-value
+twin are updated together. This dependency publication does not deploy either
+WarRoom frontend; candidate validation and deployment remain pending.

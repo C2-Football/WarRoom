@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260903assessfix2'; // bumped: team-assess.js assessTeamFromGlobal string/number rosterId cache fix; tier.js free tier retired (getTier() always 'paid')
+    const DEFAULT_VERSION = '20260918forecast1'; // canonical 7bd3531: immutable elite snapshot for bulk forecasts
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,
