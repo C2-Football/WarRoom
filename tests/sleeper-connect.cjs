@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../js/app.js'), 'utf8');
 const start = source.indexOf('    async function saveSleeperConnection(');
 const end = source.indexOf('    // Read-only ownership context', start);
 assert(start >= 0 && end > start, 'connection implementation is present');
-const context = vm.createContext({ setTimeout, clearTimeout, window: { AbortController } });
+const context = vm.createContext({ setTimeout, clearTimeout, window: { AbortController, App: {} } });
 vm.runInContext(source.slice(start, end), context);
 const connect = context.saveSleeperConnection;
 const previous = JSON.stringify({ sleeperUsername: 'old-profile', username: 'legacy-profile', isGifted: true });

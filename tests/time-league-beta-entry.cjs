@@ -14,20 +14,23 @@ async function login({ search = '', local = {}, pendingInvite = null, oauth = nu
             listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; } });
         return elements.get(id);
     };
-    const requests = [], timers = [], location = { search, href: 'login.html' + search, origin: 'https://c2-football.github.io', pathname: '/WarRoom-sandbox/login.html' };
+    const requests = [], timers = new Map(); let timerId = 0; const location = { search, href: 'login.html' + search, origin: 'https://c2-football.github.io', pathname: '/WarRoom-sandbox/login.html' };
     let oauthReads = 0;
-    const context = vm.createContext({ URLSearchParams,
+    const context = vm.createContext({ URLSearchParams, AbortController,
         window: { location, supabase: { createClient: () => ({ auth: { getSession: async () => { oauthReads++; return { data: { session: oauth } }; } } }) } },
         document: { title: '', getElementById: element, querySelector: element },
-        localStorage: { getItem: key => disk.get(key) || null, setItem: (key, value) => disk.set(key, value), removeItem: key => disk.delete(key) },
-        sessionStorage: { getItem: key => temporary.get(key) || null },
-        setTimeout: fn => timers.push(fn),
+        localStorage: { get length() { return disk.size; }, key: index => [...disk.keys()][index] ?? null, getItem: key => disk.get(key) || null, setItem: (key, value) => disk.set(key, value), removeItem: key => disk.delete(key) },
+        sessionStorage: { get length() { return temporary.size; }, key: index => [...temporary.keys()][index] ?? null, getItem: key => temporary.get(key) || null, setItem: (key, value) => temporary.set(key, value), removeItem: key => temporary.delete(key) },
+        setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id; },
+        clearTimeout: id => timers.delete(id),
         fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({ token: 'app-token', user: { id: 'app-account', email: 'manager@example.test' } }) }; },
     });
+    Object.assign(context.window, { localStorage: context.localStorage, sessionStorage: context.sessionStorage, atob: value => Buffer.from(value, 'base64').toString('utf8') });
+    vm.runInContext(fs.readFileSync('js/shared/account-storage.js', 'utf8'), context);
     vm.runInContext(script, context);
     await Promise.resolve(); await Promise.resolve();
     return { context, element, location, requests, disk, temporary, oauthReads: () => oauthReads,
-        submit: async id => { await element(id).listeners.submit({ preventDefault() {} }); while (timers.length) timers.shift()(); } };
+        submit: async id => { await element(id).listeners.submit({ preventDefault() {} }); while (timers.size) { const [id, fn] = timers.entries().next().value; timers.delete(id); fn(); } } };
 }
 
 (async () => {

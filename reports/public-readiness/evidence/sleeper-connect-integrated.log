@@ -1,0 +1,21 @@
+
+> fantasy-war-room@1.0.0 test:sleeper-connect
+> node --test tests/sleeper-connect.cjs
+
+✔ validated canonical username preserves account session and connection metadata (3.7385ms)
+✔ unknown profile leaves saved connection intact and can retry (0.895667ms)
+✔ provider 404 leaves saved connection intact and can retry (0.340334ms)
+✔ provider outage leaves saved connection intact and can retry (0.2385ms)
+✔ malformed provider body leaves saved connection intact and can retry (0.169333ms)
+✔ offline and timeout failures leave identity intact and release retry (5.707375ms)
+✔ empty input and rejected browser persistence never report a saved connection (0.458041ms)
+✔ account or connection changes during lookup cannot overwrite the new context (0.347542ms)
+✔ form blocks competing submissions and stays editable after failure (1.028417ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.741458

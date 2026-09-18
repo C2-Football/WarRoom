@@ -10,16 +10,30 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 let passed = 0;
 const test = (name, run) => { run(); passed++; console.log('ok ' + name); };
 let slots = [], cursor = 0;
+const namedSlots = new Map();
 const React = {
     Fragment: Symbol('fragment'),
     createElement(type, props, ...children) { return typeof type === 'function' ? type({ ...props, children }) : { type, props: props || {}, children }; },
+    __namedUseState(name, init) { namedSlots.set(name, cursor); return React.useState(init); },
     useState(init) { const i = cursor++; if (!(i in slots)) slots[i] = typeof init === 'function' ? init() : init; return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; },
     useMemo(fn) { return fn(); }, useCallback(fn) { return fn; }, useEffect() {}, useRef(value) { return { current: value }; },
 };
 const store = new Map();
 const context = vm.createContext({ React, console, URLSearchParams, requestAnimationFrame: fn => fn(), location: { hostname: 'localhost', search: '' }, document: { querySelector: () => ({ scrollIntoView() {} }) }, localStorage: { getItem: key => store.get(key) || null, setItem: (key, value) => store.set(key, value) }, App: {}, S: {}, scrollTo() {} });
 context.window = context;
-const load = file => vm.runInContext(Babel.transform(read(file), { presets: ['react'] }).code, context);
+// Address state by its declared meaning, never by hook order. Adding a journal
+// hook must not accidentally inject market data into a different control.
+const load = file => vm.runInContext(Babel.transform(read(file), { presets: ['react'], plugins: [({types:t}) => ({visitor:{
+    VariableDeclarator(p) {
+        const {id,init}=p.node;
+        if (!t.isArrayPattern(id) || !t.isIdentifier(id.elements[0]) || !t.isCallExpression(init)) return;
+        const c=init.callee;
+        if (t.isIdentifier(c,{name:'useState'}) || (t.isMemberExpression(c) && t.isIdentifier(c.object,{name:'React'}) && t.isIdentifier(c.property,{name:'useState'}))) {
+            init.callee=t.memberExpression(t.identifier('React'),t.identifier('__namedUseState'));
+            init.arguments.unshift(t.stringLiteral(id.elements[0].name));
+        }
+    }
+}})] }).code, context);
 load('js/tabs/global-view.js');
 context.OD = { getCurrentUserId: () => 'portfolio-fixture', getSessionToken: () => 'fixture-session' };
 load('reconai-shared/storage.js');
@@ -192,7 +206,7 @@ test('Empire arbitrage and direct Trade Desk state respect Chopped and disabled-
         legs: fixture.allLeagues.map(l => ({ leagueId: l.id, name: l.name, mine: true })),
     }] }) };
     slots = []; cursor = 0; render();
-    slots[10] = { stats: {}, prior: {}, proj: {} }; // settled market-data hook
+    slots[namedSlots.get('markData')] = { stats: {}, prior: {}, proj: {} }; // settled market-data hook
     let tree = render();
     const arbitrage = all(tree, n => n.props['data-testid'] === 'empire-arbitrage')[0];
     assert.ok(arbitrage);
@@ -203,7 +217,7 @@ test('Empire arbitrage and direct Trade Desk state respect Chopped and disabled-
     let tradeMounts = 0;
     context.TradeCalcTab = () => { tradeMounts++; return null; };
     for (const leagueId of ['chopped', 'disabled']) {
-        slots[2] = { type: 'tradeDesk', leagueId, seedPid: 'p1' }; // restored/stale direct route
+        slots[namedSlots.get('detail')] = { type: 'tradeDesk', leagueId, seedPid: 'p1' }; // restored/stale direct route
         tree = render(); assert.match(text(tree), /Trading is unavailable in this league/);
     }
     assert.equal(tradeMounts, 0, 'blocked league never mounts the trade builder');
