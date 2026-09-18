@@ -1,0 +1,9 @@
+# Commissioner task and treasury recovery review — 2026-09-18
+
+Independently reviewed the pending bounded task/treasury recovery delta in `warroom-readiness-callbacks`: `commish-tasks.js`, `commish-treasury.js`, Commissioner callbacks/save hook, Ops and Governance panels, and the actual production-function/form regression. No unresolved material finding in this subset after the correction below.
+
+Confirmed false-return and thrown storage failures now propagate without false success; failed add retains typed fields; CSV import writes one complete ledger rather than partial per-member commits. Undated tasks stay unscheduled. Stable Section component identity fixes the input remount/focus defect. Navigation and document-exit guards use a per-operation failure map, preserving unrelated errors after a successful action. Explicit discard remounts the affected input panels while retaining durable records.
+
+Review found an unretryable error path: fail a task toggle, recover storage, then successfully remove that task. The old toggle error remained although its task no longer existed. The author corrected successful removal to clear only that record's obsolete toggle failure, and the exact production-callback regression passes. Also reviewed the author's related fix preserving an untouched saved link rather than replacing it with empty text; nullish fallback still allows deliberate clearing, covered by actual rendered Governance button callbacks.
+
+Independently reran `node tests/commish-save-recovery.cjs` after corrections: storage-failure, retry, atomic import, multiple failure, navigation, task-form retention, removal cleanup, and link preservation checks passed. The author's real 390px browser evidence covers failed task entry, retained text/focus, retry to one record, and reload; this reviewer did not independently repeat that browser run. Other Commissioner persistence areas and full launch readiness remain separate open work.
