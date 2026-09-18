@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-18T19:37:01.245Z",
+  "backend": "sxshiqyxhhifvtfqawbq.supabase.co",
+  "runId": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755",
+  "accounts": [
+    {
+      "index": 0,
+      "userId": "9159bd98-98e2-49fb-8741-d4cd513bfcb4",
+      "email": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755-0@example.invalid",
+      "signupConfirmed": true,
+      "signinConfirmed": true,
+      "profileMatches": true,
+      "initialVaultRooms": 0,
+      "initialDuatRooms": 0
+    },
+    {
+      "index": 1,
+      "userId": "c5fbdc81-d5ac-4118-8547-ed27b28e822b",
+      "email": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755-1@example.invalid",
+      "signupConfirmed": true,
+      "signinConfirmed": true,
+      "profileMatches": true,
+      "initialVaultRooms": 0,
+      "initialDuatRooms": 0
+    }
+  ],
+  "realCustomerRecordsTouched": false
+}

@@ -1,0 +1,26 @@
+
+> fantasy-war-room@1.0.0 test:native
+> node --test tests/native-packaging.cjs
+
+✔ staging copies compiled app and game assets without repository contents or restricted archive (24.747333ms)
+✔ repository-root webDir and live-reload endpoints are rejected (12.52075ms)
+✔ an injected restricted archive or secret fails inspection, even with the old override (87.254208ms)
+✔ native output and source symlinks cannot copy secrets (6.895083ms)
+✔ changed or removed artifacts and new source files require a rebuild (28.717791ms)
+✔ missing deferred modules and raw browser compilation fail staging (20.157583ms)
+✔ release blocker cannot be bypassed by marking the generated manifest ready (19.386583ms)
+
+cap-sync-guard: Missing native staging; run npm run build:native 
+
+
+cap-sync-guard: Missing native staging; run npm run build:native 
+
+✔ Capacitor direct copy and sync hooks invoke the guard (233.665167ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 527.272334

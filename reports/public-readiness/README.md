@@ -54,4 +54,3 @@ establish rollback/recovery. Ask only when no productive authorized path remains
 - `evidence/`: command logs and compact machine-readable verification
 - Area reports record severity, reproduction, cause, fix, related checks and
   evidence limitations. Unrun requirements remain unverified.
-
