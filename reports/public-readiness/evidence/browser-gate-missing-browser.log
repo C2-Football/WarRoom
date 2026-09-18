@@ -1,0 +1,22 @@
+
+Running browser-qa.js
+SKIP browser QA - Chrome not found at /nonexistent/readiness-chrome
+FAIL browser-qa.js: required browser coverage was skipped
+
+Running launch-browser-qa.js
+SKIP launch browser QA - Chrome not found at /nonexistent/readiness-chrome
+FAIL launch-browser-qa.js: required browser coverage was skipped
+
+Running live-click-paths.js
+SKIP live click-path QA - Chrome not found at /nonexistent/readiness-chrome
+FAIL live-click-paths.js: required browser coverage was skipped
+
+Running draft-browser-qa.js
+SKIP draft browser QA - Chrome not found at /nonexistent/readiness-chrome
+FAIL draft-browser-qa.js: required browser coverage was skipped
+
+Running league-skin-browser-qa.js
+SKIP league skin browser QA - Chrome not found at /nonexistent/readiness-chrome
+FAIL league-skin-browser-qa.js: required browser coverage was skipped
+
+FAIL browser gate: 0 passed, 5 failed; all 5 suites attempted

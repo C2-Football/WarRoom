@@ -90,7 +90,7 @@ a{color:inherit}
 
 /* ===== top bar ===== */
 .topbar{position:sticky;top:0;z-index:40;background:rgba(8,9,12,.78);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);transition:background var(--t),backdrop-filter var(--t),border-color var(--t)}
-.topbar__in{display:flex;align-items:center;justify-content:space-between;height:60px}
+.topbar__in{display:flex;align-items:center;justify-content:space-between;min-height:60px;flex-wrap:wrap;gap:8px;padding-block:8px}
 .brand{display:flex;align-items:center;gap:var(--sp-3);font:600 15px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-1)}
 .brand i{width:11px;height:11px;background:var(--forge);display:inline-block;transform:rotate(45deg)}
 .brand-logo{width:30px;height:30px;border-radius:7px;object-fit:cover;flex:none}
@@ -212,7 +212,7 @@ html.js-nav .topbar--frosted{background:rgba(8,9,12,.78);backdrop-filter:blur(10
 .ftag--free{border-color:#1f5f47;color:var(--pos)}
 .ftag--pro{border-color:var(--forge-dim);color:var(--forge)}
 .ftag--soon{border-color:#2c5e80;color:var(--tactical)}
-@media(max-width:560px){.nav-features{display:none}}
+@media(max-width:560px){.topbar .nav-features{display:none}}
 
 
 /* ===== About / founder note (#about) ===== */
@@ -229,7 +229,7 @@ html.js-nav .topbar--frosted{background:rgba(8,9,12,.78);backdrop-filter:blur(10
 .about__x:hover{background:var(--forge-tint);border-color:var(--forge);color:var(--forge-bright)}
 
 /* ===== buttons ===== */
-.btn{font:500 13px var(--font-mono);letter-spacing:.04em;padding:11px 20px;border-radius:2px;border:1px solid transparent;transition:var(--t-fast);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:500 13px var(--font-mono);letter-spacing:.04em;padding:11px 20px;border-radius:2px;border:1px solid transparent;transition:var(--t-fast);white-space:nowrap}
 .btn--primary{background:var(--forge);color:#08090C;border-color:var(--forge)}
 .btn--primary:hover{background:var(--forge-bright);border-color:var(--forge-bright)}
 .btn--secondary{background:transparent;border-color:var(--border-strong);color:var(--text-1)}
@@ -588,6 +588,10 @@ html.js-nav .topbar--frosted{background:rgba(8,9,12,.78);backdrop-filter:blur(10
   .board__tabs button{min-width:40px;padding:var(--sp-3) 2px}
   .row{grid-template-columns:26px 1fr 86px 52px}
   .tiers{grid-template-columns:1fr}
+  .strat__grid{grid-template-columns:minmax(0,1fr)}
+  .strat__knob{min-width:0}
+  .strat__knob .seg{display:grid;grid-template-columns:1fr}
+  .strat__knob .seg button{min-height:44px;white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ===== inline copy editor (dev/edit tool — only shows on local server or with #edit in the URL) ===== */
@@ -620,10 +624,11 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
 <header class="topbar"><div class="wrap topbar__in">
   <div class="brand"><img class="brand-logo" src="img/logo.png" alt="Dynasty HQ">DYNASTY&nbsp;HQ <span class="beta-badge" title="In active development — features and data are still evolving">Beta</span> <small>// YOUR&nbsp;FRONT&nbsp;OFFICE</small></div>
   <div class="topbar__r">
+    <a class="btn btn--ghost" href="login.html">Sign in</a>
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Features</button>
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Plans</button>
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">Vision</button>
-    <button class="btn btn--primary" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free</button>
+    <a class="btn btn--primary" href="login.html?mode=signup">Start free</a>
   </div>
 </div></header>
 
@@ -636,7 +641,7 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
       <h1>Generic advice: stop here.<span class="f">This is your world.</span></h1>
       <p class="hero__sub">Every other tool ranks players for a league that isn't yours. Dynasty HQ rebuilds every value, trade, and draft call around <b>your exact scoring and roster</b> — and reads <b>how each rival actually operates.</b></p>
       <div class="hero__cta">
-        <button class="btn btn--primary btn--lg" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free with Sleeper</button>
+        <a class="btn btn--primary btn--lg" href="login.html?mode=signup">Start free with Sleeper</a>
         <button class="btn btn--ghost" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">or see plans</button>
       </div>
       <div class="hero__fine" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><span class="chip">$0 · no credit card</span><span class="chip">Dynasty + redraft</span><span class="chip">Sleeper · MFL</span></div>
@@ -708,7 +713,7 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
   <div class="aha-cta">
     <p class="aha-cta__t">That's your board — recomputed live on your settings.</p>
     <p class="aha-cta__s">Connect your Sleeper league to make it real — your rosters, your matchups, your market, season over season.</p>
-    <button class="btn btn--primary btn--lg" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free with Sleeper</button>
+    <a class="btn btn--primary btn--lg" href="login.html?mode=signup">Start free with Sleeper</a>
     <span class="hero__fine">Free for one Sleeper league · no credit card</span>
   </div>
   </div>
@@ -721,7 +726,7 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
     <div class="tier">
       <div class="tier__name">Scout</div><div class="tier__price"><span class="price-amt">$0</span></div><div class="tier__note">Free forever</div>
       <ul><li>Mobile and desktop experience</li><li>A curated-feature experience</li><li>The raw data, you do your own analysis</li><li>One AI-call per day</li></ul>
-      <button class="btn btn--primary" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free with Sleeper</button>
+      <a class="btn btn--primary" href="login.html?mode=signup">Start free with Sleeper</a>
     </div>
     <div class="tier tier--feat" id="tier-dhq">
       <div class="tier__name" style="color:var(--forge)">Dynasty HQ Pro</div>
@@ -732,12 +737,12 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
       <div class="tier__price"><span class="price-amt">$9.99</span><span class="price-per">/mo</span></div>
       <div class="tier__note tier__save" hidden>Billed $99.99/yr · ≈ $8.33/mo · save ~17%</div>
       <ul><li>The full Dynasty HQ experience</li><li>DHQ Engine, Owner DNA, Follow-live draft</li><li>Deep GM-strategy customization</li><li>Alex Ingram, your AI GM.</li><li>20 AI calls per-day</li></ul>
-      <button class="btn btn--primary" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Go Pro</button>
+      <a class="btn btn--primary" href="upgrade.html">Go Pro</a>
     </div>
     <div class="tier">
       <div class="tier__name">DHQ Labs</div><div class="tier__price"><span class="price-amt">Soon</span></div><div class="tier__note" style="color:var(--tactical)">In development</div>
       <ul><li>Full redraft functionality</li><li>Empire mode — all leagues, one terminal</li><li>MFL sync</li></ul>
-      <button class="btn btn--secondary" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Get early access</button>
+      <a class="btn btn--secondary" href="login.html?mode=signup">Get early access</a>
     </div>
   </div>
 </div></section>
@@ -1012,7 +1017,7 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
   <div class="closing__in reveal">
     <h2>A universe built around your league.</h2>
     <p>Your scoring. Your rivals. Your history. No other system cares this much about making the experience yours — and only yours.</p>
-    <button class="btn btn--primary btn--lg" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free with Sleeper</button>
+    <a class="btn btn--primary btn--lg" href="login.html?mode=signup">Start free with Sleeper</a>
     <div class="hero__fine" style="margin-top:var(--sp-4)">Free for one Sleeper league · no credit card</div>
   </div>
 </section>
@@ -1025,7 +1030,7 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
 
 <!-- mobile sticky CTA (shown under 560px) -->
 <div class="mcta">
-  <button class="btn btn--primary btn--lg" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free with Sleeper</button>
+  <a class="btn btn--primary btn--lg" href="login.html?mode=signup">Start free with Sleeper</a>
   <span class="hero__fine">Free for one Sleeper league · no credit card</span>
 </div>
 

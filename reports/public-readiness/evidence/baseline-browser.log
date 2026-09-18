@@ -1,0 +1,25 @@
+
+> fantasy-war-room@1.0.0 test:browser
+> npm run build:preview && node tests/browser-qa.js && node tests/launch-browser-qa.js && node tests/live-click-paths.js && node tests/draft-browser-qa.js && node tests/league-skin-browser-qa.js
+
+
+> fantasy-war-room@1.0.0 build:preview
+> npm run sync:shared && node scripts/build-preview.cjs
+
+
+> fantasy-war-room@1.0.0 sync:shared
+> node scripts/sync-reconai-shared.cjs
+
+[sync-reconai-shared] Copied 30 files to reconai-shared/
+[sync-reconai-shared] player-value.js twin in sync (not vendored — hand-maintained)
+[sync-reconai-shared] Vendored 3 rookie CSVs into draft-war-room/
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/world.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/provinces.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/draft/command-center.js as it exceeds the max of 500KB.
+Compiled 147 Babel scripts into dist-preview/
+(node:59170) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+...................................................................................................................
+Browser QA failures:
+  FAIL: coarse@1180: add-btn halo hit-test failed (miss:null)
+  FAIL: empire-launch: Launch Empire Dashboard control not found [selector=false body="⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked DYNASTY HQ BIGLOCO Plans & billing AI settings B Account & settings YOUR DYNASTY HQ Back to the acti"]

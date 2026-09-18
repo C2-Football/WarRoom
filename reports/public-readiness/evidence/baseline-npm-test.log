@@ -1,0 +1,53 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 40 test suites…
+
+  ✓ core
+  ✓ design-tokens
+  ~ landing-content  [quarantined — not blocking]
+  ✓ login-auth
+  ✓ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing
+  ✓ security
+  ✓ bug-capture
+  ✓ analytics
+  ✓ tutorial
+  ✓ rookies
+  ✓ rookie-capital
+  ✓ rookie-fields
+  ✓ redraft
+  ✓ live-scores
+  ✓ dashboard-league
+  ✓ fa-market
+  ✓ stats
+  ✓ forecast-ledger
+  ✓ cup
+  ✓ chopped
+  ✓ first-class
+  ✓ workspaces
+  ✓ empire
+  ✓ commish
+  ✓ timeleague
+  ✓ duat
+
+Quarantined (running, reporting, not blocking):
+  ~ landing-content
+      Landing page is mid-redesign (f17ce8a single-tier rebrand, 2610142 "WIP snapshot"). The contract asserts the pre-rebrand shape — hero.title, productSummary(3), features.cards(6), pricing.plans(4) — none of which the current content has. OWNER RULING 2026-08-23: the landing page is FINE as-is; do not "fix" it. That includes the contract's last assertion, which is technically accurate — landing.html has not loaded js/landing-content.js since f17ce8a, so content/landing-pages.json and the npm run landing:edit editor drive nothing on the live page. That is known and accepted. Leave this quarantined; do not re-audit or re-report it.
+
+PASS  40 suites in 92.3s — 39 passed, 0 failed, 1 quarantined

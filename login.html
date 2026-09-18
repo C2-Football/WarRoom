@@ -334,6 +334,7 @@
     const signinForm = document.getElementById('panelSignin');
     const signupForm = document.getElementById('panelSignup');
     let sbClient = null;
+    let accountRequestPending = false;
 
     if (GAME_LOGIN) {
       document.title = GAME_NAME + ' · Sign in';
@@ -383,24 +384,69 @@
       (signin ? document.getElementById('identifier') : document.getElementById('signupEmail')).focus();
     }
 
-    async function authenticate(endpoint, body, button, workingLabel) {
-      const originalLabel = button.textContent;
-      button.disabled = true;
-      button.textContent = workingLabel;
+    async function requestAccount(endpoint, body) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
         const response = await fetch(`${FW_API_BASE}/${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': FW_ANON_KEY, 'Authorization': `Bearer ${FW_ANON_KEY}` },
           body: JSON.stringify(body),
+          signal: controller.signal,
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || (endpoint === 'fw-signin' ? 'Invalid email or password.' : 'Account creation failed.'));
-        localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(typeof data?.error === 'string' ? data.error : 'The account service is unavailable. Please try again.');
+        }
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          throw new Error('The account service returned an incomplete response. Please try again.');
+        }
+        return data;
+      } catch (error) {
+        if (controller.signal.aborted) throw new Error('The request timed out. Check your connection and try again.');
+        if (error?.name === 'TypeError') throw new Error('Unable to connect. Check your connection and try again.');
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    async function authenticate(endpoint, body, button, workingLabel) {
+      if (accountRequestPending) return null;
+      accountRequestPending = true;
+      const originalLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = workingLabel;
+      try {
+        const data = await requestAccount(endpoint, body);
+        if (typeof data.token !== 'string' || !data.token.trim()
+            || (endpoint !== 'get-session-token' && (!data.user?.id || !data.user?.email))) {
+          throw new Error('Sign-in could not be confirmed. Please try again.');
+        }
+        const legacy = endpoint === 'get-session-token';
+        const updates = legacy ? [
+          [LEGACY_SESSION_KEY, JSON.stringify(data)],
+          [LEGACY_AUTH_KEY, JSON.stringify({ username: body.username })],
+          ['od_locked_username_v2', body.username],
+        ] : [[SESSION_KEY, JSON.stringify(data)]];
+        const previous = updates.map(([key]) => [key, localStorage.getItem(key)]);
+        try {
+          // Write the replacement before removing the old session. Quota errors
+          // must leave a retryable form and preserve existing session records.
+          updates.forEach(([key, value]) => localStorage.setItem(key, value));
+          if (legacy) localStorage.removeItem(SESSION_KEY);
+        } catch {
+          previous.forEach(([key, value]) => {
+            try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch {}
+          });
+          throw new Error('Your browser could not save the session. Free some site storage or try another browser, then sign in again.');
+        }
         return data;
       } catch (error) {
         showMessage(error?.message || 'Unable to connect. Please try again.');
         button.disabled = false;
         button.textContent = originalLabel;
+        accountRequestPending = false;
         return null;
       }
     }
@@ -418,12 +464,6 @@
       const data = await authenticate(endpoint, body, document.getElementById('btnSignin'), 'Signing in…');
       if (!data) return;
 
-      if (!isEmail) {
-        localStorage.removeItem(SESSION_KEY);
-        localStorage.setItem(LEGACY_SESSION_KEY, JSON.stringify(data));
-        localStorage.setItem(LEGACY_AUTH_KEY, JSON.stringify({ username: identifier }));
-        localStorage.setItem('od_locked_username_v2', identifier);
-      }
       showMessage('Welcome back. Opening Dynasty HQ…', 'success');
       setTimeout(() => { window.location.href = WARROOM_URL; }, 500);
     });
@@ -442,32 +482,54 @@
     });
 
     async function startOAuth(provider, button) {
+      if (accountRequestPending) return;
       const db = getSbClient();
       if (!db) { showMessage('Secure sign-in is still loading. Please try again.'); return; }
+      accountRequestPending = true;
       button.disabled = true;
-      const { error } = await db.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname } });
-      if (error) { showMessage(error.message || 'Unable to start secure sign-in.'); button.disabled = false; }
+      let timeout;
+      try {
+        // Keep navigation under this request's control: a provider that answers
+        // after timeout must not redirect over a subsequent email sign-in.
+        const { data, error } = await Promise.race([
+          db.auth.signInWithOAuth({ provider, options: {
+            redirectTo: window.location.origin + window.location.pathname,
+            skipBrowserRedirect: true,
+          } }),
+          new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Secure sign-in timed out. Please try again.')), 15000); }),
+        ]);
+        if (error) throw error;
+        if (!data?.url || new URL(data.url).origin !== SUPABASE_URL) throw new Error('Secure sign-in could not be started. Please try again.');
+        window.location.href = data.url;
+      } catch (error) {
+        showMessage(error?.message || 'Unable to start secure sign-in. Please try again.');
+        button.disabled = false;
+        accountRequestPending = false;
+      } finally {
+        clearTimeout(timeout);
+      }
     }
 
     document.getElementById('btnGoogle').addEventListener('click', (event) => startOAuth('google', event.currentTarget));
     document.getElementById('btnApple').addEventListener('click', (event) => startOAuth('apple', event.currentTarget));
     document.getElementById('tabSignin').addEventListener('click', () => switchMode('signin'));
     document.getElementById('tabSignup').addEventListener('click', () => switchMode('signup'));
+    if (new URLSearchParams(window.location.search).get('mode') === 'signup') switchMode('signup');
     document.getElementById('btnReset').addEventListener('click', async (event) => {
       const email = document.getElementById('identifier').value.trim();
       if (!email) { showMessage('Enter your email first, then request a reset link.'); return; }
       if (!email.includes('@')) { showMessage('Password reset links are available for email accounts.'); return; }
       const button = event.currentTarget;
+      if (button.disabled) return;
       button.disabled = true;
       button.textContent = 'Sending reset link…';
       try {
-        await fetch(`${FW_API_BASE}/fw-request-password-reset`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': FW_ANON_KEY, 'Authorization': `Bearer ${FW_ANON_KEY}` },
-          body: JSON.stringify({ email }),
-        });
-        showMessage('If that email exists, a reset link is on the way.', 'success');
-      } catch { showMessage('If that email exists, a reset link is on the way.', 'success'); }
+        const data = await requestAccount('fw-request-password-reset', { email });
+        if (data.ok !== true) throw new Error('The reset request could not be confirmed. Please try again.');
+        // The service deliberately does not reveal whether an account exists or
+        // whether email was delivered. Acknowledgement is not delivery proof.
+        showMessage('Reset request received. Check your inbox for the next step.', 'success');
+      } catch (error) { showMessage(error?.message || 'Unable to request a reset. Check your connection and try again.'); }
       finally { button.disabled = false; button.textContent = 'Forgot password?'; }
     });
 

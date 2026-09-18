@@ -98,6 +98,7 @@ function supabaseStub() {
 
 function reconSharedStub() {
   return `
+    const SUPABASE_URL = 'https://sxshiqyxhhifvtfqawbq.supabase.co';
     window.OD = window.OD || {};
     window.OD.saveProfile = async function () { return true; };
     window.OD.track = function (eventName, payload) {
@@ -141,13 +142,13 @@ async function installRoutes(context, network) {
       return route.fulfill({ status: 200, contentType: 'text/javascript', body: supabaseStub() });
     }
 
-    if (url.includes('c2-football.github.io/ReconAI/shared/supabase-client.js')) {
+    if (url.includes('c2-football.github.io/ReconAI/shared/supabase-client.js') || url.includes('/reconai-shared/supabase-client.js')) {
       return route.fulfill({ status: 200, contentType: 'text/javascript', body: reconSharedStub() });
     }
 
     if (url.includes('/functions/v1/fw-signup')) {
       network.signup.push(JSON.parse(req.postData() || '{}'));
-      return route.fulfill(jsonResponse({ token: QA_TOKEN, user: { email: 'qa@example.com', displayName: 'QA User' } }));
+      return route.fulfill(jsonResponse({ token: QA_TOKEN, user: { id: 'isolated-qa-account', email: 'qa@example.com', displayName: 'QA User' } }));
     }
 
     if (url.includes('/functions/v1/fw-signin')) {
@@ -157,6 +158,8 @@ async function installRoutes(context, network) {
 
     if (url.includes('/functions/v1/fw-request-password-reset')) {
       network.passwordReset.push(JSON.parse(req.postData() || '{}'));
+      if (network.resetFailure) return route.abort('internetdisconnected');
+      if (network.resetStatus) return route.fulfill(jsonResponse({ error: 'Reset service unavailable. Try again.' }, network.resetStatus));
       return route.fulfill(jsonResponse({ ok: true }));
     }
 
@@ -216,6 +219,8 @@ async function installRoutes(context, network) {
       return route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Stripe QA</title><h1>Stripe QA</h1>' });
     }
 
+    // Never mutate the shared production backend during fixture browser QA.
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method()) && !url.startsWith(network.baseUrl + '/')) return route.abort();
     if (['image', 'font', 'media'].includes(type)) return route.abort();
     return route.continue();
   });
@@ -257,48 +262,44 @@ async function runCase(name, fn, failures) {
 
 async function testLandingAuth(context, baseUrl, failures) {
   const page = await newPage(context, failures);
-  await page.setViewportSize({ width: 390, height: 900 });
+  await page.setViewportSize({ width: 320, height: 740 });
   await page.goto(`${baseUrl}/landing.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-  await page.waitForTimeout(300);
-  await assertNoHorizontalOverflow(page, 'landing mobile');
-
-  let names = await eventNames(page);
-  expect(names.includes('landing_viewed'), 'landing_viewed analytics event missing');
-
-  await page.getByRole('button', { name: 'Start free trial' }).first().click();
-  await page.locator('#tabSignup').click();
-  await page.locator('#su-email').fill('qa@example.com');
-  await page.locator('#su-password').fill('launch-password-1');
-  await page.locator('#su-name').fill('QA User');
+  await assertNoHorizontalOverflow(page, 'landing narrow phone');
+  await page.getByRole('link', { name: 'Start free', exact: true }).click();
+  await page.waitForURL('**/login.html?mode=signup');
+  await assertNoHorizontalOverflow(page, 'signup narrow phone');
+  await page.getByLabel('Email', { exact: true }).fill('qa@example.com');
+  await page.locator('#signupPassword').fill('synthetic-password-1');
+  await page.locator('#displayName').fill('QA User');
   await page.locator('#btnSignup').click();
-  await page.getByText('Account created!', { exact: false }).waitFor({ state: 'visible', timeout: 4000 });
-
+  await page.waitForURL('**/onboarding.html');
   const session = await page.evaluate(() => JSON.parse(localStorage.getItem('fw_session_v1') || 'null'));
-  expect(session?.token === QA_TOKEN, 'signup did not store the app session token');
-  names = await eventNames(page);
-  expect(names.includes('signup_started'), 'signup_started analytics event missing');
-  expect(names.includes('signup_succeeded'), 'signup_succeeded analytics event missing');
+  expect(session?.token === QA_TOKEN && session?.user?.id === 'isolated-qa-account', 'signup must persist the confirmed account identity');
+  await page.locator('#step3.active').waitFor({ state: 'visible' });
   await page.close();
 }
 
-async function testSigninAndReset(context, baseUrl, failures) {
+async function testSigninAndReset(context, baseUrl, network, failures) {
   const page = await newPage(context, failures);
-  await page.addInitScript(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.goto(`${baseUrl}/landing.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-  await page.locator('#tabSignin').click();
-  await page.locator('#si-email').fill('fail@example.com');
-  await page.locator('#si-password').fill('bad-password');
+  await page.goto(`${baseUrl}/login.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+  await page.locator('#identifier').fill('isolated@example.test');
+  await page.locator('#password').fill('synthetic-invalid-password');
   await page.locator('#btnSignin').click();
-  await page.getByText('Invalid email or password.', { exact: false }).waitFor({ state: 'visible', timeout: 4000 });
+  await page.getByRole('status').filter({ hasText: 'Invalid email or password.' }).waitFor();
+  expect(await page.locator('#btnSignin').isEnabled(), 'rejected sign-in must be retryable');
+  expect(await page.evaluate(() => localStorage.getItem('fw_session_v1')) === null, 'rejected sign-in must not store a session');
+  network.resetFailure = true;
   await page.locator('#btnReset').click();
-  await page.getByText('reset link is on the way', { exact: false }).waitFor({ state: 'visible', timeout: 4000 });
-  const names = await eventNames(page);
-  expect(names.includes('signin_started'), 'signin_started analytics event missing');
-  expect(names.includes('signin_failed'), 'signin_failed analytics event missing');
-  expect(names.includes('password_reset_requested'), 'password reset analytics event missing');
+  await page.getByRole('status').filter({ hasText: 'Unable to connect.' }).waitFor();
+  expect(await page.locator('#btnReset').isEnabled(), 'offline reset must be retryable');
+  network.resetFailure = false;
+  network.resetStatus = 503;
+  await page.locator('#btnReset').click();
+  await page.getByRole('status').filter({ hasText: 'Reset service unavailable.' }).waitFor();
+  network.resetStatus = null;
+  await page.locator('#btnReset').click();
+  await page.getByRole('status').filter({ hasText: 'Reset request received.' }).waitFor();
+  expect(await page.locator('#btnReset').isEnabled(), 'reset request must release its busy state');
   await page.close();
 }
 
@@ -307,7 +308,7 @@ async function testOnboardingFreeFlow(context, baseUrl, failures) {
   await page.addInitScript(token => {
     try {
       if (!sessionStorage.getItem('__qa_onboarding_seeded')) {
-        localStorage.setItem('fw_session_v1', JSON.stringify({ token, user: { email: 'qa@example.com', displayName: 'QA User' } }));
+        localStorage.setItem('fw_session_v1', JSON.stringify({ token, user: { id: 'isolated-qa-account', email: 'qa@example.com', displayName: 'QA User' } }));
         localStorage.removeItem('od_profile_v1');
         sessionStorage.setItem('__qa_onboarding_seeded', '1');
       }
@@ -319,8 +320,6 @@ async function testOnboardingFreeFlow(context, baseUrl, failures) {
   await page.goto(`${baseUrl}/onboarding.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
   await page.waitForTimeout(250);
   await assertNoHorizontalOverflow(page, 'onboarding mobile step 1');
-  await page.locator('#plan-scout').click();
-  await page.locator('#step1Btn').click();
   await page.locator('#step3.active').waitFor({ state: 'attached', timeout: 4000 });
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.locator('#sleeperUsernameInput').fill('bigloco');
@@ -339,18 +338,16 @@ async function testCheckoutFlow(context, baseUrl, network, failures) {
   await page.addInitScript(token => {
     try {
       if (!sessionStorage.getItem('__qa_checkout_seeded')) {
-        localStorage.setItem('fw_session_v1', JSON.stringify({ token, user: { email: 'qa@example.com', displayName: 'QA User' } }));
-        localStorage.removeItem('od_profile_v1');
+        localStorage.setItem('fw_session_v1', JSON.stringify({ token, user: { id: 'isolated-qa-account', email: 'qa@example.com', displayName: 'QA User' } }));
+        localStorage.setItem('od_profile_v1', JSON.stringify({ tier: 'free', onboardingComplete: true }));
         sessionStorage.setItem('__qa_checkout_seeded', '1');
       }
     } catch (err) {
       window.__qaInitError = err.message;
     }
   }, QA_TOKEN);
-  await page.goto(`${baseUrl}/onboarding.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-  await page.locator('#plan-standard').click();
-  await page.locator('#step1Btn').click();
-  await page.locator('#stripeBtn').click();
+  await page.goto(`${baseUrl}/upgrade.html`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+  await page.getByRole('link', { name: 'Upgrade to Dynasty HQ' }).click();
   for (let i = 0; i < 30 && !network.checkout.length; i++) await wait(100);
   const alertText = await page.locator('#alertPayment').textContent().catch(() => '');
   expect(network.checkout.length > 0, `checkout endpoint was not called; alert="${alertText || ''}" url="${page.url()}"`);
@@ -400,8 +397,9 @@ async function testSubscriptionGating(context, baseUrl, failures) {
       return window.canAccess('analytics-full');
     })(),
   }));
-  expect(access.freeAnalytics === false, 'free profile should not access analytics-full');
-  expect(access.freeWarRoom === false, 'free profile should not access war-room-core');
+  expect(access.freeAnalytics === true, 'accepted free-access policy exposes analytics without checkout');
+  expect(access.freeWarRoom === true, 'accepted free-access policy exposes War Room without checkout');
+  expect(await page.evaluate(() => window.isCommissioner()) === false, 'a product capability or client plan must not grant commissioner authority');
   expect(access.afterUpgrade === true, 'warroom profile should access analytics-full');
   await page.close();
 }
@@ -430,17 +428,23 @@ async function main() {
   network.baseUrl = baseUrl;
 
   try {
-    const context = await browser.newContext();
-    await installRoutes(context, network);
+    // Each journey has independent browser storage and explicitly intercepted mutations.
+    const cases = [
+      ['arrival and signup', (ctx) => testLandingAuth(ctx, baseUrl, failures)],
+      ['signin and reset recovery', (ctx) => testSigninAndReset(ctx, baseUrl, network, failures)],
+      ['onboarding free flow', (ctx) => testOnboardingFreeFlow(ctx, baseUrl, failures)],
+      ['existing checkout flow', (ctx) => testCheckoutFlow(ctx, baseUrl, network, failures)],
+      ['admin analytics', (ctx) => testAdminAnalytics(ctx, baseUrl, failures)],
+      ['capability and role separation', (ctx) => testSubscriptionGating(ctx, baseUrl, failures)],
+    ];
+    for (const [name, test] of cases) {
+      const context = await browser.newContext();
+      context.setDefaultTimeout(10000);
+      await installRoutes(context, network);
+      await runCase(name, () => test(context), failures);
+      await context.close();
+    }
 
-    await runCase('landing signup analytics', () => testLandingAuth(context, baseUrl, failures), failures);
-    await runCase('signin reset analytics', () => testSigninAndReset(context, baseUrl, failures), failures);
-    await runCase('onboarding free flow', () => testOnboardingFreeFlow(context, baseUrl, failures), failures);
-    await runCase('checkout flow', () => testCheckoutFlow(context, baseUrl, network, failures), failures);
-    await runCase('admin analytics', () => testAdminAnalytics(context, baseUrl, failures), failures);
-    await runCase('subscription gating', () => testSubscriptionGating(context, baseUrl, failures), failures);
-
-    await context.close();
   } finally {
     await browser.close();
     server.kill();

@@ -1,0 +1,4 @@
+League skin browser QA failed: page.waitForFunction: Timeout 60000ms exceeded.
+    at openLeaguePage (/Users/jacobc/Projects/warroom-public-readiness/tests/league-skin-browser-qa.js:108:14)
+    at async runMatrix (/Users/jacobc/Projects/warroom-public-readiness/tests/league-skin-browser-qa.js:157:10)
+    at async main (/Users/jacobc/Projects/warroom-public-readiness/tests/league-skin-browser-qa.js:256:5)

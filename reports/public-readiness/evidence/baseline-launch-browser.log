@@ -1,0 +1,30 @@
+FFFF.F
+Launch browser QA failures:
+  FAIL: landing signup analytics: landing_viewed analytics event missing
+  FAIL: signin reset analytics: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#tabSignin')[22m
+
+  FAIL: onboarding free flow: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#plan-scout')[22m
+
+  FAIL: checkout flow: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#plan-standard')[22m
+[2m    - locator resolved to <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')">…</div>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    58 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+  FAIL: subscription gating: free profile should not access analytics-full
