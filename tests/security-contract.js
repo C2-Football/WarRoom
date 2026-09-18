@@ -20,6 +20,7 @@ const getSession = read('supabase/functions/get-session-token/index.ts');
 const setPassword = read('supabase/functions/set-password/index.ts');
 const resetRequest = read('supabase/functions/fw-request-password-reset/index.ts');
 const resetConfirm = read('supabase/functions/fw-confirm-password-reset/index.ts');
+const atomicReset = read('supabase/migrations/20260918010000_atomic_password_reset.sql');
 const resetPage = read('reset-password.html');
 const onboarding = read('onboarding.html');
 const leagueDetail = read('js/league-detail.js');
@@ -280,13 +281,17 @@ test('password reset endpoints store hashed tokens and rotate session version', 
     "req.method === 'GET'",
     'Response.redirect',
     'PASSWORD_RESET_URL',
-    'password_reset_tokens',
     'sha256Hex(String(token))',
-    'increment_app_user_session_version',
-    'password_changed_at',
+    "admin.rpc('confirm_app_password_reset'",
+    'if (error) throw error',
     'auditEvent',
     'checkRateLimit',
   ], 'reset confirm');
+  hasEvery(atomicReset, [
+    'password_reset_tokens', 'for update', 'password_changed_at',
+    'session_version = u.session_version + 1',
+    'from public, anon, authenticated', 'to service_role',
+  ], 'atomic reset transaction');
   hasEvery(resetPage, [
     'fw-confirm-password-reset',
     'new URLSearchParams(window.location.search).get',

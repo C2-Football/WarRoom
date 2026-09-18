@@ -26,6 +26,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 Deno.serve(async (req) => {
   const options = handleOptions(req);
   if (options) return options;
+  if (req.method !== 'POST') return json(req, { error: 'Method not allowed.' }, 405);
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   try {
@@ -40,11 +41,12 @@ Deno.serve(async (req) => {
 
     if (!normalizedEmail) return json(req, { ok: true }, 200);
 
-    const { data: user } = await admin
+    const { data: user, error: userError } = await admin
       .from('app_users')
       .select('id, email')
       .eq('email', normalizedEmail)
       .maybeSingle();
+    if (userError) throw userError;
 
     if (!user) {
       await auditEvent(admin, req, 'password_reset_requested', 'ignored', { email: normalizedEmail }, { reason: 'unknown_email' });
@@ -54,13 +56,17 @@ Deno.serve(async (req) => {
     const resetToken = crypto.randomUUID() + '.' + crypto.randomUUID();
     const tokenHash = await sha256Hex(resetToken);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    await admin.from('password_reset_tokens').insert({
+    const { error: tokenError } = await admin.from('password_reset_tokens').insert({
       user_id: user.id,
       token_hash: tokenHash,
       requested_ip: clientIp(req),
       requested_user_agent: req.headers.get('User-Agent') || null,
       expires_at: expiresAt,
     });
+    if (tokenError) {
+      await auditEvent(admin, req, 'password_reset_requested', 'failure', { userId: user.id, email: normalizedEmail }, { reason: 'token_storage_failed' });
+      throw tokenError;
+    }
 
     const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://warroom.skjjcruz.com/reset-password.html';
     const resetUrl = resetBase ? `${resetBase}${resetBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(resetToken)}` : null;
@@ -68,7 +74,7 @@ Deno.serve(async (req) => {
       ? await sendPasswordResetEmail(user.email, resetUrl, expiresAt)
       : { sent: false, reason: 'missing_reset_url' };
 
-    await auditEvent(admin, req, 'password_reset_requested', 'success', { userId: user.id, email: normalizedEmail }, {
+    await auditEvent(admin, req, 'password_reset_requested', delivery.sent ? 'success' : 'failure', { userId: user.id, email: normalizedEmail }, {
       emailSent: delivery.sent,
       emailProvider: delivery.provider || null,
       emailReason: delivery.reason || null,
