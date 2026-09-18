@@ -1,0 +1,21 @@
+same-input calculation benchmark {
+  players: 40,
+  universe: 2436,
+  beforeMs: 33.69999998807907,
+  afterMs: 23.5,
+  equal: true
+}
+warm phone header {
+  loadedMs: 4304,
+  actionMs: 4163,
+  totalMs: 8467,
+  isElitePlayerSelfMs: 288.834,
+  topSelfMs: [
+    [ '', 2858 ],
+    [ 'place', 928 ],
+    [ 'fantasyCalcCompatibility', 687 ],
+    [ 'calcRawPts', 488 ],
+    [ '(program)', 467 ],
+    [ '(idle)', 456 ]
+  ]
+}

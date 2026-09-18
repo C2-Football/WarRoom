@@ -8,6 +8,7 @@ const {engine} = require('../scripts/audit-football-logic.cjs');
 const ROOT = path.resolve(__dirname,'..');
 function setup() {
     const e = engine(); e.crypto = webcrypto; e.TextEncoder = TextEncoder;
+    vm.runInContext(fs.readFileSync(path.join(ROOT,'reconai-shared/utils.js'),'utf8'),e);
     for (const file of ['availability-forecast.js','forecast-ledger.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,'js/shared',file),'utf8'),e);
     e.S = {currentLeagueId: 'L', season: 2026, nflState: {season: 2026}};
     const saved = new Map();
@@ -73,6 +74,26 @@ await test('Dynasty scenario outputs are frozen without applying them to scores'
     const {e,journal,ctx,result,healthy}=setup();ctx.skin.type='dynasty';ctx.playersData.a.age=22;e.App.LI={playerScores:{a:7000}};
     await journal.capture(ctx,result,healthy);const r=(await journal.read())[0].rows.find(r=>r.pid==='a');
     assert.equal(Object.keys(r.dynastyScenario.valuesBySeason).join(','),'2027,2028,2029');assert.equal(e.App.LI.playerScores.a,7000);
+});
+await test('Bulk dynasty and keeper captures rank once and preserve all scenario values',async()=>{
+    for (const type of ['dynasty','keeper']) {
+        const {e,journal,ctx,result,healthy}=setup();ctx.skin.type=type;
+        e.App.LI={playerScores:{},playerMeta:{}};ctx.playersData={};result.points={};
+        for(let i=0;i<8;i++) {
+            const id='q'+i;e.App.LI.playerScores[id]=1000+i*100;e.App.LI.playerMeta[id]={pos:'QB'};
+            ctx.playersData[id]={position:'QB',team:'IND',age:24};result.points[id]=160;
+        }
+        const expected=Object.fromEntries(Object.keys(result.points).map(id=>[id,[1,2,3].map(delta=>e.App.PlayerValue.projectPlayerValue(id,e.App.LI.playerScores[id],24,'QB',delta,{trend:0}))]));
+        let snapshots=0,liveRanks=0;const create=e.App.createElitePlayerSnapshot,live=e.App.isElitePlayer;
+        assert.equal(typeof create,'function','canonical elite snapshot must be synchronized');
+        e.App.createElitePlayerSnapshot=()=>{snapshots++;return create();};
+        e.App.isElitePlayer=(...args)=>{liveRanks++;return live(...args);};
+        await journal.capture(ctx,result,healthy);
+        const record=(await journal.read())[0];assert(record,journal.status.error);
+        assert.equal(snapshots,1);assert.equal(liveRanks,0,'scenario loop must not rerank all players');
+        for(const row of record.rows) assert.deepEqual(Object.values(row.dynastyScenario.valuesBySeason),expected[row.pid]);
+        assert(record.rows.some(row=>row.inputs.elite));assert(record.rows.some(row=>!row.inputs.elite));
+    }
 });
 await test('Evaluation requires completed, correctly-scored outcomes and reports coverage',async()=>{
     const {e,journal,ctx,result,healthy}=setup();await journal.capture(ctx,result,healthy);const r=(await journal.read())[0];

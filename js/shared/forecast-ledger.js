@@ -75,6 +75,8 @@
                 const config = clone({scoring: ctx.scoring || ctx.league.scoring_settings || {}, rosterPositions: ctx.league.roster_positions || [], totalTeams: ctx.totalTeams || ctx.league.total_rosters || null, leagueType: type, endWeek});
                 const provenance = clone({provider: Object.keys(ctx.projectionsData || {}).length ? 'season_projection_rows_present' : 'history_fallback', sourceAsOf: ctx.sourceAsOf || null, sourceTimestampsVerified: false, dataObservedAt: capturedAt});
                 const models = {baseline: BASELINE_VERSION, challenger: root.App.AvailabilityForecast.VERSION};
+                const eliteSnapshot = type !== 'redraft' && typeof root.App.createElitePlayerSnapshot === 'function'
+                    ? root.App.createElitePlayerSnapshot() : root.App.isElitePlayer;
                 const rows = Object.keys(result.points).sort().map(pid => {
                     const p = ctx.playersData?.[pid] || {};
                     const inputs = clone({player: {position: p.position || null, team: p.team ?? null, injury_status: p.injury_status ?? null, status: p.status ?? null, bye_week: p.bye_week ?? null}, currentStats: ctx.statsData?.[pid] || null, priorStats: ctx.priorData?.[pid] || null, seasonProjection: ctx.projectionsData?.[pid] || null, availabilityEvidence: ctx.availabilityEvidence?.[pid] || null, recentWeeklyPoints: Object.fromEntries(Object.entries(root.S?.weeklyPlayerPoints || {}).filter(([w]) => Number(w) <= week).map(([w,map]) => [w, map?.[pid] ?? null]))});
@@ -88,8 +90,8 @@
                         const stats = inputs.usageStats;
                         const trend = stats?.prevAvg > 0 && stats?.seasonAvg > 0 ? (stats.seasonAvg - stats.prevAvg) / stats.prevAvg : 0;
                         inputs.trend = trend;
-                        inputs.elite = typeof root.App.isElitePlayer === 'function' ? !!root.App.isElitePlayer(pid) : currentDynastyValue >= 7000;
-                        dynastyScenario = {modelVersion: 'current-age-scenario-20260906', kind: 'uncalibrated_value_scenario', valuesBySeason: Object.fromEntries([1,2,3].map(delta => [season + delta, root.App.PlayerValue.projectPlayerValue(pid, currentDynastyValue, p.age || 0, p.position || '', delta, {trend})]))};
+                        inputs.elite = typeof eliteSnapshot === 'function' ? !!eliteSnapshot(pid) : currentDynastyValue >= 7000;
+                        dynastyScenario = {modelVersion: 'current-age-scenario-20260906', kind: 'uncalibrated_value_scenario', valuesBySeason: Object.fromEntries([1,2,3].map(delta => [season + delta, root.App.PlayerValue.projectPlayerValue(pid, currentDynastyValue, p.age || 0, p.position || '', delta, {trend, elite: inputs.elite})]))};
                     }
                     return {pid, inputs, baseline: {healthyPerWeek: healthyPerWeek[pid] ?? null, points: result.points[pid], rosValue: result.values[pid] ?? null, currentDynastyValue}, dynastyScenario, challenger: root.App.AvailabilityForecast.forecast({player: inputs.player, season, weeks, healthyPerWeek: healthyPerWeek[pid] ?? null, capturedAt, evidence: inputs.availabilityEvidence})};
                 });

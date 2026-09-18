@@ -1,0 +1,18 @@
+PASS Healthy status quo and byes are explicit assumptions
+PASS IR, OUT and unsigned do not imply a fabricated full-season zero or return
+PASS Explicit week evidence can model a return without overriding a bye
+PASS Future-dated evidence rejected and missing baseline distinguished from zero
+PASS Hash ordering stable, first-write immutable, input changes create new records
+PASS Zero and missing players survive capture; identity and league settings recorded
+PASS Snapshots copy inputs before asynchronous hashing
+PASS Historical, projected and cross-league captures are rejected
+PASS Storage failure is visible and cannot masquerade as successful capture
+PASS Evidence cannot leak across seasons
+PASS A new runtime implementation creates a new version fingerprint
+PASS Dynasty scenario outputs are frozen without applying them to scores
+PASS Bulk dynasty and keeper captures rank once and preserve all scenario values
+PASS Evaluation requires completed, correctly-scored outcomes and reports coverage
+PASS Shadow capture failure leaves public prices byte-for-byte unchanged
+PASS Changed availability is compared on the same sample, without promotion
+PASS Dynasty production shadow neither rewrites DHQ nor populates ROS cache
+17 shadow-forecast checks passed.
