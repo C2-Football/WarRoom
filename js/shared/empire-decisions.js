@@ -24,7 +24,13 @@
     function write(rows) {
         const out = Array.isArray(rows) ? rows : [];
         const st = store();
-        try { if (st) st.set(KEY, out); else _mem.set(KEY, JSON.stringify(out)); } catch (e) { /* best effort */ }
+        try {
+            if (st) { if (st.set(KEY, out) !== true) throw new Error('Storage did not confirm the save'); }
+            else _mem.set(KEY, JSON.stringify(out));
+        } catch (cause) {
+            const error = new Error('Your decision was not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
         return out;
     }
     function hash(s) {

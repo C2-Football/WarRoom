@@ -1909,7 +1909,52 @@ function EmpireSecondaryDetails({ active, children }) {
     return active ? <details className="empire-secondary-details"><summary>Portfolio insights & supporting detail</summary>{children}</details> : <React.Fragment>{children}</React.Fragment>;
 }
 
-function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack, onRefresh, refreshing, hasNonSleeperLeagues, portfolioCoverage }) {
+function useEmpireDecisionJournal(api) {
+    const [tick, setTick] = React.useState(0);
+    const [drafts, setDrafts] = React.useState({});
+    const [failure, setFailure] = React.useState(null);
+    const pending = React.useRef({});
+    const failed = React.useRef({});
+    const edit = (id, patch) => {
+        pending.current = { ...pending.current, [id]: { ...pending.current[id], ...patch } };
+        setDrafts(pending.current);
+    };
+    const intentKey = intent => intent.type + ':' + (intent.id || JSON.stringify(intent.move));
+    const publishFailure = () => setFailure(Object.values(failed.current)[0] || null);
+    const commit = (intent, retry = false) => {
+        if (intent.type === 'update' && !retry) edit(intent.id, intent.patch);
+        try {
+            let result;
+            if (intent.type === 'track') result = api?.track?.(intent.move, { nowMs: Date.now() });
+            else if (intent.type === 'update') result = api?.update?.(intent.id, pending.current[intent.id], { nowMs: Date.now() });
+            else if (intent.type === 'remove') result = api?.remove?.(intent.id);
+            if (!result) throw new Error('The decision could not be saved. Reload your account and retry.');
+            if (intent.id) { const next = { ...pending.current }; delete next[intent.id]; pending.current = next; setDrafts(next); }
+            const nextFailures = { ...failed.current };
+            delete nextFailures[intentKey(intent)];
+            if (intent.type === 'remove') {
+                for (const key of Object.keys(nextFailures)) if (nextFailures[key].intent.id === intent.id) delete nextFailures[key];
+            }
+            failed.current = nextFailures; publishFailure(); setTick(value => value + 1); return true;
+        } catch (error) {
+            failed.current = { ...failed.current, [intentKey(intent)]: { intent, message: error?.message || 'Your decision was not saved. Try again.' } };
+            publishFailure();
+            return false;
+        }
+    };
+    React.useEffect(() => {
+        if (!failure && !Object.keys(drafts).length) return undefined;
+        const warn = event => { event.preventDefault(); event.returnValue = ''; };
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+    }, [failure, drafts]);
+    const hasPending = () => Boolean(Object.keys(failed.current).length || Object.keys(pending.current).length);
+    const discard = () => { pending.current = {}; failed.current = {}; setDrafts({}); setFailure(null); };
+    const retry = () => { const next = Object.values(failed.current)[0]; return next ? commit(next.intent, true) : false; };
+    return { tick, drafts, failure, edit, commit, retry, hasPending, discard };
+}
+
+function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague: enterLeague, onBack: leaveEmpire, onRefresh, refreshing, hasNonSleeperLeagues, portfolioCoverage }) {
     const { useState, useMemo, useCallback, useEffect, useRef } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
     const [filters, setFilters] = useState(emptyFilters);
@@ -1918,7 +1963,22 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [workspace, setWorkspace] = useState('overview');
     const [actionView, setActionView] = useState('priority');
-    const [decisionTick, setDecisionTick] = useState(0);
+    const decisionApi = window.App?.EmpireDecisions || null;
+    const decisionJournal = useEmpireDecisionJournal(decisionApi);
+    const decisionTick = decisionJournal.tick;
+    useEffect(() => window.App.NavigationGuard?.register(() => {
+        if (!decisionJournal.hasPending()) return true;
+        setDetail({ type: 'moves' }); setActionView('journal');
+        return false;
+    }), []);
+    const onBack = () => {
+        if (decisionJournal.hasPending()) { setDetail({ type: 'moves' }); setActionView('journal'); return; }
+        leaveEmpire();
+    };
+    const onEnterLeague = (...args) => {
+        if (decisionJournal.hasPending()) { setDetail({ type: 'moves' }); setActionView('journal'); return; }
+        enterLeague(...args);
+    };
     // Arbitrage board default: owned rows only. The board is sorted
     // mine-first regardless, but a portfolio with a deep player pool can
     // bury your own leverage under market-only rows without this.
@@ -2046,13 +2106,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const empireGrudges = useMemo(() => buildEmpireGrudges(enabledLeagues), [enabledLeagues]);
     const moves = useMemo(() => buildEmpireMoves({ leagues: enabledLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine, grudges: empireGrudges }), [enabledLeagues, model, scoreKey, empireGrudges]);
     const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
-    const decisionApi = window.App?.EmpireDecisions || null;
     const decisions = useMemo(() => decisionApi?.list?.() || [], [decisionTick]);
     const decisionSummary = useMemo(() => decisionApi?.summary?.(decisions) || { total: 0, active: 0, closed: 0, won: 0, lost: 0, realizedDelta: 0 }, [decisions]);
     const decisionForMove = useCallback((move) => decisionApi?.byMove?.(move) || null, [decisionTick]);
-    const trackDecision = useCallback((move) => { decisionApi?.track?.(move, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
-    const updateDecision = useCallback((id, patch) => { decisionApi?.update?.(id, patch, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
-    const removeDecision = useCallback((id) => { decisionApi?.remove?.(id); setDecisionTick(t => t + 1); }, []);
+    const trackDecision = move => decisionJournal.commit({ type: 'track', move });
+    const updateDecision = (id, patch) => decisionJournal.commit({ type: 'update', id, patch });
+    const removeDecision = id => decisionJournal.commit({ type: 'remove', id });
     const empireLeagueIds = useMemo(() => (enabledLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [enabledLeagues]);
     const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
     const bridge = useMemo(() => buildCommandBridge({ model, actionQueue, brief: briefText, empireDelta }), [model, actionQueue, briefText, empireDelta]);
@@ -2291,6 +2350,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         const group = groups.find(g => g.key === workspaceForDetail);
         return <div className="empire-workspace-nav">
             {model.coverage.complete === false && <div role="status" data-testid="empire-coverage" style={{ padding: '12px', fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5, color: 'var(--gold)' }}><strong>{portfolioCoverage.knownCount == null ? 'League coverage unverified' : portfolioCoverage.loadedCount + ' of ' + portfolioCoverage.knownCount + ' Sleeper leagues loaded'}</strong><div>Totals and exposure percentages cover the {model.provinces.length} loaded, included league(s). Holdings in unavailable leagues are unknown.{portfolioCoverage.staleCount > 0 ? ' ' + portfolioCoverage.staleCount + ' league(s) use last loaded data.' : ''}</div><button className="empire-action" type="button" disabled={!!refreshing} onClick={onRefresh}>{refreshing ? 'Loading…' : 'Retry league sync'}</button></div>}
+            {decisionJournal.failure && <div role="alert" data-testid="empire-decision-save-error" style={{ padding: 12, fontSize: 'var(--text-body, 1rem)', lineHeight: 1.5 }}><strong>Decision not saved</strong><div>{decisionJournal.failure.message} Your edits remain open in this page.</div><button className="empire-action" type="button" onClick={decisionJournal.retry}>Retry saving decision</button><button className="empire-ghost" type="button" onClick={decisionJournal.discard}>Discard unsaved edits</button></div>}
             <nav aria-label="Empire workspaces" className="empire-workspace-primary">
                 {groups.map(g => <button key={g.key} type="button" aria-current={group.key === g.key ? 'page' : undefined} onClick={() => openWorkspace(g.key)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 7, verticalAlign: 'middle' }}>{EMPIRE_ICON_PATHS[({ overview: 'home', actions: 'zap', leagues: 'layers', assets: 'briefcase' })[g.key]].map((d, i) => <path key={i} d={d} />)}</svg><span>{g.label}</span></button>)}
             </nav>
@@ -2616,14 +2676,14 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                             {d ? (
                                                 <React.Fragment>
                                                     <div className="empire-decision-controls">
-                                                        <select aria-label={'Status for ' + m.title} value={d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>
+                                                        <select aria-label={'Status for ' + m.title} value={decisionJournal.drafts[d.id]?.status ?? d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>
                                                             {(decisionApi?.STATUSES || []).map(s => <option key={s} value={s}>{s}</option>)}
                                                         </select>
-                                                        <input aria-label={'Review date for ' + m.title} type="date" value={d.reviewAt || ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
-                                                        <input aria-label={'Realized DHQ for ' + m.title} type="number" value={d.actualDelta == null ? '' : d.actualDelta} placeholder="Realized Δ" onChange={e => updateDecision(d.id, { actualDelta: e.target.value === '' ? null : e.target.value })} />
+                                                        <input aria-label={'Review date for ' + m.title} type="date" value={decisionJournal.drafts[d.id]?.reviewAt ?? d.reviewAt ?? ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
+                                                        <input aria-label={'Realized DHQ for ' + m.title} type="number" value={(decisionJournal.drafts[d.id]?.actualDelta !== undefined ? decisionJournal.drafts[d.id].actualDelta : d.actualDelta) ?? ''} placeholder="Realized Δ" onChange={e => updateDecision(d.id, { actualDelta: e.target.value === '' ? null : e.target.value })} />
                                                         <button className="empire-action" type="button" onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>Player</button>
                                                     </div>
-                                                    <textarea key={d.id + ':' + d.updatedAt} className="empire-decision-note" aria-label={'Decision note for ' + m.title} defaultValue={d.note || ''} placeholder="What are you waiting for? What happened?" onBlur={e => updateDecision(d.id, { note: e.target.value })} />
+                                                    <textarea className="empire-decision-note" aria-label={'Decision note for ' + m.title} value={decisionJournal.drafts[d.id]?.note ?? d.note ?? ''} onChange={e => decisionJournal.edit(d.id, { note: e.target.value })} placeholder="What are you waiting for? What happened?" onBlur={e => updateDecision(d.id, { note: e.target.value })} />
                                                     <div className="empire-section-footer"><button className="empire-ghost" type="button" onClick={() => removeDecision(d.id)}>Remove from journal</button></div>
                                                 </React.Fragment>
                                             ) : (
@@ -2649,10 +2709,10 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                             <span style={{ color: decisionTone(d.status), fontWeight: 800 }}>{d.status}{d.actualDelta != null ? ' · ' + (d.actualDelta > 0 ? '+' : '') + empireCompact(d.actualDelta) + ' DHQ' : ''}</span>
                                             <span>{d.leagueName}{d.reviewAt ? ' · review ' + d.reviewAt : ''}</span>
                                             <div className="empire-decision-controls">
-                                                <select aria-label={'Status for ' + d.title} value={d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>{(decisionApi?.STATUSES || []).map(status => <option key={status} value={status}>{status}</option>)}</select>
-                                                <input type="date" aria-label={'Review date for ' + d.title} value={d.reviewAt || ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
+                                                <select aria-label={'Status for ' + d.title} value={decisionJournal.drafts[d.id]?.status ?? d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>{(decisionApi?.STATUSES || []).map(status => <option key={status} value={status}>{status}</option>)}</select>
+                                                <input type="date" aria-label={'Review date for ' + d.title} value={decisionJournal.drafts[d.id]?.reviewAt ?? d.reviewAt ?? ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
                                             </div>
-                                            <textarea key={d.id + ':' + d.updatedAt} className="empire-decision-note" aria-label={'Decision note for ' + d.title} defaultValue={d.note || ''} onBlur={e => updateDecision(d.id, { note: e.target.value })} />
+                                            <textarea className="empire-decision-note" aria-label={'Decision note for ' + d.title} value={decisionJournal.drafts[d.id]?.note ?? d.note ?? ''} onChange={e => decisionJournal.edit(d.id, { note: e.target.value })} onBlur={e => updateDecision(d.id, { note: e.target.value })} />
                                             <button type="button" className="empire-ghost" onClick={() => removeDecision(d.id)}>Remove from journal</button>
                                         </div>
                                     )) : <div className="empire-empty"><strong>No tracked decisions</strong>Track a ranked move to preserve the recommendation, set a review date and record the outcome.</div>}

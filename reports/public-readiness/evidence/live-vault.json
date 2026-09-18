@@ -1,0 +1,97 @@
+{
+  "runId": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755",
+  "startedAt": "2026-09-18T19:55:55.891Z",
+  "checks": [
+    {
+      "name": "Anonymous Vault access denied",
+      "at": "2026-09-18T19:55:56.701Z"
+    },
+    {
+      "name": "Created isolated two-account Vault",
+      "at": "2026-09-18T19:56:48.295Z"
+    },
+    {
+      "name": "Nonmember cannot read Vault",
+      "at": "2026-09-18T19:56:50.139Z"
+    },
+    {
+      "name": "Second controlled account joined Vault",
+      "at": "2026-09-18T19:56:50.916Z"
+    },
+    {
+      "name": "Member cannot see invitations or private authoritative fields",
+      "at": "2026-09-18T19:56:51.797Z"
+    },
+    {
+      "name": "Only commissioner starts draft",
+      "at": "2026-09-18T19:56:52.772Z"
+    },
+    {
+      "name": "Shared sealed draft completes with real historical cards",
+      "at": "2026-09-18T19:57:20.595Z"
+    },
+    {
+      "name": "Competing actions preserve one version winner",
+      "at": "2026-09-18T19:57:23.634Z"
+    },
+    {
+      "name": "Member cannot change another manager team",
+      "at": "2026-09-18T19:57:26.350Z"
+    },
+    {
+      "name": "Vault season completes with actual historical results and champion",
+      "weeks": 2,
+      "champion": "t1",
+      "at": "2026-09-18T19:58:11.657Z"
+    },
+    {
+      "name": "Second manager reconnects to the same saved final results",
+      "at": "2026-09-18T19:58:12.497Z"
+    }
+  ],
+  "requests": 74,
+  "responses": [
+    {
+      "op": "list",
+      "status": 401,
+      "message": "Sign in to play with friends."
+    },
+    {
+      "op": "create",
+      "status": 400,
+      "message": "Invalid league rules."
+    },
+    {
+      "op": "list",
+      "status": 401,
+      "message": "Sign in to play with friends."
+    },
+    {
+      "op": "load",
+      "status": 403,
+      "message": "You do not have a seat in this league."
+    },
+    {
+      "op": "action",
+      "type": "start",
+      "status": 400,
+      "message": "Only the commissioner can start the draft."
+    },
+    {
+      "op": "action",
+      "type": "team",
+      "status": 409,
+      "message": "No acknowledgement"
+    },
+    {
+      "op": "action",
+      "type": "team",
+      "status": 400,
+      "message": "You can only manage your own team."
+    }
+  ],
+  "status": "passed",
+  "roomId": "9abe0f2c-7f52-4035-984a-606a0b121142",
+  "completedAt": "2026-09-18T19:58:12.498Z",
+  "probeSetupCorrection": "The first create request was rejected because the probe omitted scoring settings. The corrected request created the sole isolated room."
+}

@@ -1,0 +1,1 @@
+{"status":"passed","viewport":"390x844","checks":["failed save visible","draft retained","saved record unchanged","hub navigation preserves unsaved draft","browser back preserves draft and URL","retry persists","reload restores"],"externalWriteGuard":true,"blockedExternalWrites":4}

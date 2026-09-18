@@ -699,6 +699,10 @@
         // popstate listener for back/forward navigation — MUST be before early return
         React.useEffect(() => {
             function onPopState(e) {
+                if (window.App.NavigationGuard?.canNavigate() === false) {
+                    window.App.NavigationGuard.restoreHistory();
+                    return;
+                }
                 isNavigatingRef.current = true;
                 const state = e.state;
                 const hashRoute = parseHash(window.location.hash);
@@ -1185,6 +1189,7 @@
                         league={selectedLeague}
                         onOpenAllWire={() => setAllWireOpen(true)}
                         onBack={() => {
+                            if (window.App.NavigationGuard?.canNavigate() === false) return;
                             setSelectedLeague(null);
                             setActiveTab('dashboard');
                             // Return to Empire Dashboard if Pro mode was active, otherwise hub
@@ -1418,6 +1423,7 @@
         }
 
         function handleSelectLeague(league) {
+            if (window.App.NavigationGuard?.canNavigate() === false) return;
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             setActiveTab('dashboard');
@@ -1430,6 +1436,7 @@
         }
 
         function handleTabChange(tab) {
+            if (window.App.NavigationGuard?.canNavigate() === false) return;
             setActiveTab(tab);
             if (!isNavigatingRef.current && selectedLeague) {
                 history.pushState({ view: 'league', leagueId: selectedLeague.id, tab }, '', routeUrl(buildHash(selectedLeague.id, tab)));

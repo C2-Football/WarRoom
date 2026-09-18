@@ -2998,7 +2998,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/chop-odds.js?v=20260805ch3"></script>
 <script src="js/shared/empire-values.js?v=20260823priced1"></script>
 <script src="js/shared/account-storage.js?v=20260918accounts2"></script>
-<script src="js/shared/empire-decisions.js?v=20260918accounts1"></script>
+<script src="js/shared/navigation-guard.js?v=20260918save1"></script>
+<script src="js/shared/empire-decisions.js?v=20260918save1"></script>
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
 <script src="js/shared/stat-catalog.js?v=20260821sc3"></script>
 <script src="js/shared/league-stats.js?v=20260910stats2"></script>
@@ -3242,7 +3243,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260915audit5"></script>
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
      Pro mode activates — also provides window.App.buildEmpireDna etc. -->
-<script type="text/babel" data-wr-defer="empire" src="js/tabs/global-view.js?v=20260915audit5"></script>
+<script type="text/babel" data-wr-defer="empire" src="js/tabs/global-view.js?v=20260918save1"></script>
 <!-- Group "commish": the Commissioner's Office React surface — panels first
      (the office resolves window.WrCommish* at render), office last. -->
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-network-panel.js?v=20260915audit5"></script>
@@ -3284,7 +3285,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 7. League detail: coordinator shell, depends on all above -->
     <script type="text/babel" src="js/league-detail.js?v=20260915audit5"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
-<script type="text/babel" src="js/app.js?v=20260918readiness1"></script>
+<script type="text/babel" src="js/app.js?v=20260918readiness2"></script>
 
 <!-- All JSX code extracted to js/ modules. Only bootstrap remains. -->
 <script>
