@@ -1,7 +1,7 @@
 {
   "name": "fantasy-war-room",
   "version": "1.0.0",
-  "description": "Fantasy football owner dashboard \u2014 draft war room, earnings tracking, free agent targets",
+  "description": "Fantasy football owner dashboard — draft war room, earnings tracking, free agent targets",
   "main": "index.html",
   "scripts": {
     "test": "node scripts/run-tests.cjs",
@@ -51,10 +51,10 @@
     "sync:shared": "node scripts/sync-reconai-shared.cjs",
     "build:preview": "npm run sync:shared && node scripts/build-preview.cjs",
     "preview:prod": "npm run build:preview && node scripts/serve-static.cjs --port=3002",
-    "cap:sync": "node scripts/cap-sync-guard.cjs && npx cap sync",
+    "cap:sync": "npm run build:native && node scripts/cap-sync-guard.cjs && npx cap sync",
     "cap:ios": "node scripts/cap-sync-guard.cjs && npx cap open ios",
     "cap:android": "node scripts/cap-sync-guard.cjs && npx cap open android",
-    "cap:build:android": "node scripts/cap-sync-guard.cjs && npx cap build android",
+    "cap:build:android": "npm run build:native && node scripts/cap-sync-guard.cjs && npx cap build android",
     "prepare": "husky || true",
     "start": "npm run sync:shared && node scripts/serve-static.cjs --port=3001 --compile",
     "dev": "npm run sync:shared && node scripts/serve-static.cjs --compile",
@@ -62,7 +62,11 @@
     "landing:edit": "node scripts/serve-static.cjs --port=3011 --open=landing-editor.html",
     "test:design-tokens": "node tests/design-tokens-contract.js",
     "test:chain": "node tests/run.js && npm run test:design-tokens && npm run test:landing-content && npm run test:login-auth && npm run test:regression && npm run test:click-paths && npm run test:intelligence-surfaces && npm run test:draft-context && npm run test:draft-analyst-mock && npm run test:draft-trade-simulator && npm run test:draft-live-sync && npm run test:draft-live-decision && npm run test:draft-recap && npm run test:post-draft-craze && npm run test:draft-strategy-studio && npm run test:ai && npm run test:ai-scale && npm run test:billing && npm run test:security && npm run test:bug-capture && npm run test:analytics && npm run test:tutorial && npm run test:rookies && npm run test:rookie-capital && npm run test:rookie-fields && npm run test:redraft && npm run test:chopped && npm run test:first-class && npm run test:empire && npm run test:commish && npm run test:timeleague",
-    "test:cup": "node tests/woeppel-cup.js && node tests/cup-formats.js && node tests/cup-service.js && node tests/cup-panel.cjs"
+    "test:cup": "node tests/woeppel-cup.js && node tests/cup-formats.js && node tests/cup-service.js && node tests/cup-panel.cjs",
+    "build:native": "node scripts/build-native.cjs",
+    "test:native": "node --test tests/native-packaging.cjs",
+    "capacitor:copy:before": "node scripts/cap-sync-guard.cjs",
+    "capacitor:sync:before": "node scripts/cap-sync-guard.cjs"
   },
   "keywords": [
     "fantasy",

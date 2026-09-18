@@ -32,7 +32,7 @@ const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'dist-deploy');
 
 // Every HTML entry point that loads @babel/standalone + type="text/babel" scripts.
-const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html'];
+const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html', 'draft-war-room/index.html'];
 
 const assetHash = new Map(); // pathname -> content hash of the emitted (minified) output
 let compiledCount = 0;
@@ -83,17 +83,18 @@ const BABEL_TAG_RE = /<script\b[^>]*?\btype=["']text\/babel["'][^>]*?\bsrc=["'](
 function collectSources(htmlByEntry) {
   const babelSrcs = new Set();
   const allSrcs = new Set();
-  for (const html of Object.values(htmlByEntry)) {
+  for (const [entry, html] of Object.entries(htmlByEntry)) {
+    const resolveSource = src => path.posix.normalize(path.posix.join(path.posix.dirname(entry), src.split('?')[0]));
     let m;
     BABEL_TAG_RE.lastIndex = 0;
     while ((m = BABEL_TAG_RE.exec(html))) {
       const src = m[1] || m[2];
-      if (src && !isExternalSrc(src)) babelSrcs.add(src.split('?')[0]);
+      if (src && !isExternalSrc(src)) babelSrcs.add(resolveSource(src));
     }
     SCRIPT_TAG_RE.lastIndex = 0;
     while ((m = SCRIPT_TAG_RE.exec(html))) {
       const src = m[1];
-      if (src && !isExternalSrc(src)) allSrcs.add(src.split('?')[0]);
+      if (src && !isExternalSrc(src)) allSrcs.add(resolveSource(src));
     }
   }
   return { babelSrcs, allSrcs };
@@ -165,10 +166,10 @@ function processEntry(entry, html) {
   //    module after a deploy. External / CDN URLs are left untouched.
   html = html.replace(/<script\b([^>]*?)\bsrc=(["'])([^"']+)\2([^>]*)>/gi, (m, before, q, src, after) => {
     if (isExternalSrc(src)) return m; // external/CDN — leave as-is
-    const pathname = src.split('?')[0];
+    const pathname = path.posix.normalize(path.posix.join(path.posix.dirname(entry), src.split('?')[0]));
     const hash = assetHash.get(pathname);
     if (!hash) return m; // unknown local asset — leave as-is
-    return `<script${before}src=${q}${pathname}?v=${hash}${q}${after}>`;
+    return `<script${before}src=${q}${src.split('?')[0]}?v=${hash}${q}${after}>`;
   });
 
   // Safety net: the deploy must ship NO in-browser Babel (match real script tags,
@@ -180,7 +181,7 @@ function processEntry(entry, html) {
     throw new Error(`${entry}: @babel/standalone reference survived`);
   }
 
-  ensureDir(OUT_DIR);
+  ensureDir(path.dirname(path.join(OUT_DIR, entry)));
   fs.writeFileSync(path.join(OUT_DIR, entry), html, 'utf8');
   console.log(`[build-deploy]   ${entry}: rewrote ${entryExternal} external babel scripts`);
 }

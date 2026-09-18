@@ -2,6 +2,7 @@ supabase/.temp/
 node_modules/
 dist-preview/
 dist-deploy/
+dist-native/
 reconai-shared/
 # Rookie/prospect CSVs vendored from dhq-shared (npm run sync:shared). Canonical
 # source is C2-Football/dhq-shared/draft-war-room. War-Room-only draft-tool data

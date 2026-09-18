@@ -46,7 +46,7 @@ const SUITE_ORDER = [
   'test:draft-analyst-mock', 'test:draft-trade-simulator', 'test:draft-live-sync',
   'test:draft-live-decision', 'test:draft-live-room', 'test:draft-recap', 'test:post-draft-craze',
   'test:draft-strategy-studio', 'test:ai', 'test:ai-scale', 'test:billing',
-  'test:security', 'test:bug-capture', 'test:analytics', 'test:tutorial',
+  'test:security', 'test:native', 'test:bug-capture', 'test:analytics', 'test:tutorial',
   'test:rookies', 'test:rookie-capital', 'test:rookie-fields', 'test:redraft', 'test:live-scores', 'test:dashboard-league', 'test:fa-market', 'test:stats', 'test:forecast-ledger',
   'test:cup', 'test:chopped', 'test:first-class', 'test:workspaces', 'test:empire', 'test:commish', 'test:timeleague', 'test:duat',
 ];
