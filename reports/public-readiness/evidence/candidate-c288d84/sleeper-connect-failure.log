@@ -1,0 +1,86 @@
+
+> fantasy-war-room@1.0.0 test:sleeper-connect
+> node --test tests/sleeper-connect.cjs
+
+✖ validated canonical username preserves account session and connection metadata (9.069625ms)
+✖ unknown profile leaves saved connection intact and can retry (2.885084ms)
+✖ provider 404 leaves saved connection intact and can retry (8.419292ms)
+✖ provider outage leaves saved connection intact and can retry (0.203667ms)
+✖ malformed provider body leaves saved connection intact and can retry (0.149417ms)
+✔ offline and timeout failures leave identity intact and release retry (7.167958ms)
+✔ empty input and rejected browser persistence never report a saved connection (0.448542ms)
+✖ account or connection changes during lookup cannot overwrite the new context (1.256167ms)
+✔ form blocks competing submissions and stays editable after failure (1.27725ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 3
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 219.686875
+
+✖ failing tests:
+
+test at tests/sleeper-connect.cjs:22:1
+✖ validated canonical username preserves account session and connection metadata (9.069625ms)
+  Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+      at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:25:18)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+
+test at tests/sleeper-connect.cjs:42:5
+✖ unknown profile leaves saved connection intact and can retry (2.885084ms)
+  Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+      at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:46:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/sleeper-connect.cjs:42:5
+✖ provider 404 leaves saved connection intact and can retry (8.419292ms)
+  Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+      at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:46:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/sleeper-connect.cjs:42:5
+✖ provider outage leaves saved connection intact and can retry (0.203667ms)
+  Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+      at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:46:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/sleeper-connect.cjs:42:5
+✖ malformed provider body leaves saved connection intact and can retry (0.149417ms)
+  Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+      at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:46:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/sleeper-connect.cjs:73:1
+✖ account or connection changes during lookup cannot overwrite the new context (1.256167ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /changed while checking/. Input:
+  
+  'Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.'
+  
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:76:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+        at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+        at async waitForActual (node:assert:621:5)
+        at async strict.rejects (node:assert:744:25)
+        at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:76:9)
+        at async Test.run (node:internal/test_runner/test:1208:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:831:7),
+    expected: /changed while checking/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

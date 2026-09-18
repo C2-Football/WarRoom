@@ -1,0 +1,68 @@
+
+> fantasy-war-room@1.0.0 test:workspaces
+> node --test tests/league-workspaces.cjs && node tests/player-notebook.cjs && node --test tests/portfolio-consolidation.cjs && node tests/workspace-intelligence.cjs
+
+✔ six stable workspaces retain meaningful deep routes (3.428583ms)
+✔ legacy analytics links retain their selected report in its new home (0.291792ms)
+✔ blocked deep links and navigation use the same format rules (0.244334ms)
+✔ callers cannot mutate shared routing metadata (0.177166ms)
+✔ only an untouched previous starter layout receives the new defaults (0.713667ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 160.7015
+PASS notebook owner/provider/league scopes, migration preservation, action capabilities, contextual handoffs and real player-card actions
+PASS saved-targets to waiver-plan mount reuse and view-prop effect ordering
+(node:86008) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ok ownership context counts IR/taxi once, excludes opponents, and preserves unknown coverage
+ok hub resumes the last league and puts league work before portfolio and games
+ok real Sleeper IDs survive select, back and direct-link restore without crossing accounts
+ok Empire exposes four workspaces and every prior specialized view remains reachable
+ok full Priority Queue preserves preview records and tracks them into the journal
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(arbitrage)
+
+    at /Users/jacobc/Projects/warroom-public-readiness/tests/portfolio-consolidation.cjs:198:12
+    at test (/Users/jacobc/Projects/warroom-public-readiness/tests/portfolio-consolidation.cjs:11:31)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/portfolio-consolidation.cjs:182:1)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v25.8.1
+✖ tests/portfolio-consolidation.cjs (1468.694625ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1478.754959
+
+✖ failing tests:
+
+test at tests/portfolio-consolidation.cjs:1:1
+✖ tests/portfolio-consolidation.cjs (1468.694625ms)
+  'test failed'

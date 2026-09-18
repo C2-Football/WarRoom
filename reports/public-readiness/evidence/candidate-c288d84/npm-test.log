@@ -1,0 +1,139 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 43 test suites…
+
+  ✓ core
+  ✓ design-tokens
+  ✓ landing-content
+  ✓ login-auth
+  ✗ sleeper-connect
+  ✓ sleeper-portfolio
+  ✓ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing
+  ✓ security
+  ✓ native
+  ✓ bug-capture
+  ✓ analytics
+  ✓ tutorial
+  ✓ rookies
+  ✓ rookie-capital
+  ✓ rookie-fields
+  ✓ redraft
+  ✓ live-scores
+  ✓ dashboard-league
+  ✓ fa-market
+  ✓ stats
+  ✓ forecast-ledger
+  ✓ cup
+  ✓ chopped
+  ✓ first-class
+  ✗ workspaces
+  ✓ empire
+  ✓ commish
+  ✗ timeleague
+  ✓ duat
+
+────────────────────────────────────────────────────────────────
+FAILED: sleeper-connect
+────────────────────────────────────────────────────────────────
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/sleeper-connect.cjs:73:1
+✖ account or connection changes during lookup cannot overwrite the new context (0.84225ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /changed while checking/. Input:
+  
+  'Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.'
+  
+      at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:76:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Could not save your Sleeper connection in this browser. Free up browser storage and try again.
+        at saveSleeperConnection (evalmachine.<anonymous>:39:19)
+        at async waitForActual (node:assert:621:5)
+        at async strict.rejects (node:assert:744:25)
+        at async TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-connect.cjs:76:9)
+        at async Test.run (node:internal/test_runner/test:1208:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:831:7),
+    expected: /changed while checking/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+────────────────────────────────────────────────────────────────
+FAILED: workspaces
+────────────────────────────────────────────────────────────────
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v25.8.1
+✖ tests/portfolio-consolidation.cjs (547.322541ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 554.591583
+
+✖ failing tests:
+
+test at tests/portfolio-consolidation.cjs:1:1
+✖ tests/portfolio-consolidation.cjs (547.322541ms)
+  'test failed'
+(node:85739) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+────────────────────────────────────────────────────────────────
+FAILED: timeleague
+────────────────────────────────────────────────────────────────
+ok invitation inbox excludes ownership IDs and marks occupied seats unavailable
+ok directory uses opt-in server view with bounded pages and verified results only
+PASS: Vault community request and response boundaries
+Vault community UI: bounded search, view mapping, own-profile exclusion, controlled seat invites, stale-seat actions and account isolation passed.
+PASS: saved team identity defaults solo and friends creation, survives normalization, protects edits from late cloud loads and restores explicitly
+ok rapid taps create one room; returned and thrown failures preserve settings and allow retry
+ok local creation errors also recover
+ok the collapsed personality guide exposes the full catalog with one profile at a time
+PASS: Vault beta setup interaction and error recovery
+PASS: offline startup, retry/reconnection, successful cache reuse, failed creation, quota rollback, pending-save isolation, retry/discard, preserved draft time, actionable recovery dock and safe back navigation.
+PASS: 88 durable actions, legacy Week 9 quota recovery, exact 14-week scores/editions/history, Unicode, atomic failure, corruption guard, and unrelated-data preservation. Week 9 raw 485603; complete season raw 806292 vs compact 61473 characters (8%).
+PASS: authenticated remote reads/writes, account-change isolation, stale-version conflicts, saved-write recovery, nonoverlapping polls, reconnect and unsubscribe cleanup.
+PASS: Legacy calendar — 92 saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.
+(node:85808) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85833) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85835) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85839) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85846) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+TypeError: Cannot read properties of undefined (reading 'body')
+    at /Users/jacobc/Projects/warroom-public-readiness/tests/time-league-beta-entry.cjs:41:35
+
+FAIL  43 suites in 84.1s — 40 passed, 3 failed, 0 quarantined

@@ -7,9 +7,10 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 - Source checkout `/Users/jacobc/Projects/warroom`, main at
   `5d28f396a3f41f3e95075264ea2890227907c761`; unrelated untracked work preserved.
 - Integration `/Users/jacobc/Projects/warroom-public-readiness`, branch
-  `codex/public-readiness-20260918`, current committed revision `5835b11`. Empire journal retries/navigation, account
+  `codex/public-readiness-20260918`, current integrated code revision `2434e1a`. Empire journal retries/navigation, account
   callbacks, truthful pick-feed coverage, draft fixes and shared performance are
-  integrated. Queued: reviewed Commissioner task/dues and format-specific picks.
+  integrated, including reviewed Commissioner task/dues, format-specific picks and
+  both OAuth/cross-tab authentication race fixes.
 - Both WarRoom remotes still baseline; **no frontend/backend readiness deployment**.
   Only the independently verified canonical shared commit has been published.
 - Canonical shared dependency published and pinned
@@ -82,13 +83,13 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 
 1. First frozen frontend candidate c288d84: npm test 40 pass / 3 fail / 0 quarantined.
    The three stale harness failures are reproduced and fixed without app changes
-   (fc663b7). Actual browser: 126 responsive + 6 arrival/auth flows passed; full
-   live-click/draft/skin/Empire recovery still running in exec session 2098. Logs
-   under evidence/candidate-c288d84. Do not claim the whole browser gate yet.
+   (fc663b7). Actual browser gate PASSED all 7 entries: 126 responsive checks, 6 arrival/auth
+   flows, 41 live click paths, 9 draft checks, league skin matrix, Empire recovery
+   and external-write guard preflight. Logs under evidence/candidate-c288d84.
+   These precede the latest authentication/Commissioner/format integrations.
 2. Release reviewer found delayed OAuth restoration overwrites newer explicit login;
-   then adjacent pending explicit sign-in overwrites another-tab login. Native agent
-   owns isolated warroom-readiness-oauth-restore, base c288d84; initial 64a099 is NOT
-   sufficient alone. Security re-review required after follow-up. No deployment.
+   then adjacent pending explicit sign-in overwrites another-tab login. Both corrections (64a099 + 97d7a10) are integrated with independent security
+   review and full-script regressions passing. No deployment yet.
 3. Root fixed actual hosted reset links redirecting to a nonresolving old hostname
    (5835b11). Both URL override secret names absent; existing production reset page
    HTTP 200. Handler regression+independent review pass; live fallback remains old
@@ -96,11 +97,14 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
    tmp/public-readiness/live-reset.cjs. It asserts exact disposable IDs, checks both
    migrations, seeds only their reset hashes via existing CLI, races links, verifies
    revocation/re-signin/game retention. Raw tokens/passwords remain mode-0600 only.
-4. Queued next coherent changes: 4ad0bb4 Commissioner task/dues+64d48b8 independent
-   review; 552db46 pick format fix with small blank-type precedence follow-up pending;
-   b488114 terminal 41/41 agent click-path evidence. Integrate after frozen browser
-   candidate finishes, then rerun final required gates. Further Commissioner stores
-   and INV05 historical deep links continue in isolated worktrees.
+4. Commissioner task/dues+review, pick format+blank-type correction and agent
+   terminal click-path evidence are integrated. Focused Empire, Commissioner and
+   login suites pass. Freeze this batch for renewed integrated broad/browser gates.
+   Further Commissioner stores and INV05 historical deep links continue isolated.
+   Native/browser agent is now exercising real controlled-account Vault UI using
+   its own worktree/preview. DEFER PASSWORD RESET until that agent reports its
+   sessions finished; root reset would revoke those sessions. Preserve original
+   completed API Vault and failed Duat rooms.
 5. Inspect current hosted auth table/function signatures read-only; compare to both
    new migrations and rehearse compatibility. Establish reversible frontend/backend
    rollback while keeping additive security migration protections in place.
