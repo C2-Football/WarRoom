@@ -807,29 +807,47 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         setCommittedProposal(nextProposal);
         setCommittedRosterProposal(nextRoster);
     };
-    const onDeleteProposal = id => writeProposals((window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).filter(p => p.id !== id), 'proposal-delete:' + id);
-    // Ratify: the Rule Lab → Bylaws bridge. Every override lands in each
-    // league's amendment ledger, so when the commissioner applies the change
-    // on Sleeper, Drift recognizes it as already-ratified history.
-    const onRatifyProposal = (id) => {
-        const sp = savedProposals.find(p => p.id === id);
-        if (!sp || !C?.Bylaws?.recordAmendment) return;
-        rlScoped.forEach(l => {
-            const lid = String(l.league_id || l.id);
-            Object.keys(sp.overrides || {}).forEach(k => {
-                try {
-                    C.Bylaws.recordAmendment(lid, {
-                        path: 'scoring.' + k,
-                        from: (l.scoring_settings || {})[k] != null ? (l.scoring_settings || {})[k] : null,
-                        to: sp.overrides[k],
-                        note: 'Rule Lab ratification: ' + sp.name,
-                        source: 'manual', nowMs: Date.now(),
-                    });
-                } catch (e) { /* ledger only */ }
-            });
+    const onDeleteProposal = id => {
+        const saved = writeProposals((window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).filter(p => p.id !== id), 'proposal-delete:' + id);
+        if (saved) localSave.resolve(['proposal-ratify:' + id]);
+        return saved;
+    };
+    // Ratify records local amendment intent for the selected leagues. It does
+    // not change provider settings; Drift still reviews actual provider edits.
+    const onRatifyProposal = id => {
+        if (!C?.Bylaws?.recordAmendments || !rlScoped.length) return false;
+        const result = localSave.run('proposal-ratify:' + id, 'rulelab', () => {
+            const current = window.App.AccountStorage.get(PROPOSALS_KEY, []);
+            if (!Array.isArray(current)) throw new Error('The saved proposal list could not be read.');
+            const sp = current.find(proposal => proposal.id === id);
+            if (!sp) throw new Error('This proposal is no longer saved. Dismiss this attempt and choose a saved proposal.');
+            for (const league of rlScoped) {
+                const lid = String(league.league_id || league.id);
+                const rows = Object.keys(sp.overrides || {}).map(key => ({
+                    path: 'scoring.' + key,
+                    from: league.scoring_settings?.[key] ?? null,
+                    to: sp.overrides[key], note: 'Rule Lab ratification: ' + sp.name,
+                    source: 'manual', nowMs: Date.now(),
+                }));
+                if (sp.rosterProposal?.rosterPositions) rows.push({
+                    path: 'roster_positions', from: league.roster_positions || null,
+                    to: sp.rosterProposal.rosterPositions.slice(), note: 'Rule Lab ratification: ' + sp.name,
+                    source: 'manual', nowMs: Date.now(),
+                });
+                if (rows.length) C.Bylaws.recordAmendments(lid, rows, { operationId: 'proposal:' + id });
+            }
+            if (window.App.AccountStorage.set(PROPOSALS_KEY, current.map(proposal => proposal.id === id ? { ...proposal, status: 'ratified', ratifiedTs: Date.now(), ratifiedLeagueIds: rlScoped.map(league => String(league.league_id || league.id)) } : proposal)) !== true) {
+                throw new Error('The proposal status was not saved.');
+            }
+            return true;
+        }, {
+            prefix: 'Ratification is incomplete. Some amendment entries may already be saved locally; retry finishes without duplicating them. ',
+            retryLabel: 'Retry ratification', retry: () => onRatifyProposal(id),
         });
-        writeProposals(savedProposals.map(p => p.id === id ? { ...p, status: 'ratified', ratifiedTs: Date.now() } : p), 'proposal-ratify:' + id);
-        setAckTick(t => t + 1);   // governance wall re-reads amendments
+        // Completed league entries stay visible even if a later write failed.
+        setAckTick(t => t + 1);
+        if (result.ok) setSavedTick(t => t + 1);
+        return result.ok;
     };
 
     // ── Ballot handlers ──────────────────────────────────────────────
@@ -1462,7 +1480,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                         editorKeys={rlEditorKeys}
                         leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
                         selectedLeagueId={rlActiveId}
-                        onSelectLeague={(id) => { setRlLeagueId(id); setSweepState(null); }}
+                        onSelectLeague={(id) => { if (localSave.canLeave()) { setRlLeagueId(id); setSweepState(null); } }}
                         currentSlotsByLeague={rlCurrentSlots}
                         sweepResult={sweepState}
                         onSweep={onSweep}

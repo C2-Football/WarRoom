@@ -853,14 +853,15 @@ function WrCommishRuleLabPanel({
                     <div key={sp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)`, flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.8rem)', color: sp.status === 'ratified' ? MUTED : TEXT }}>{sp.name}</span>
                         <span style={{ ...microHdr }}>{Object.keys(sp.overrides || {}).length} rule{Object.keys(sp.overrides || {}).length === 1 ? '' : 's'}{sp.rosterProposal ? ' + structure' : ''}</span>
-                        {sp.status === 'ratified' ? <span style={{ ...microHdr, color: GREEN }}>RATIFIED</span> : null}
+                        {sp.status === 'ratified' ? <span style={{ ...microHdr, color: GREEN }}>RATIFIED LOCALLY{sp.ratifiedLeagueIds?.length ? ' · ' + sp.ratifiedLeagueIds.length + ' league' + (sp.ratifiedLeagueIds.length === 1 ? '' : 's') : ''}</span> : null}
                         <span style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
                             <button onClick={() => onLoadProposal && onLoadProposal(sp.id)} style={chipBtn(false)}>Load</button>
                             {sp.status !== 'ratified' && onRatify ? (
-                                <button title="Records every override into each league's amendment ledger — the constitution history the Bylaws desk shows."
+                                <button title="Records proposed changes in the selected leagues' local amendment history. It does not update platform settings."
                                     onClick={() => onRatify(sp.id)} style={chipBtn(false, { color: GREEN, borderColor: 'rgba(46,204,113,0.4)' })}>Ratify</button>
                             ) : null}
-                            <button onClick={() => onDeleteProposal && onDeleteProposal(sp.id)} style={chipBtn(false, { color: MUTED })}>✕</button>
+                            <button aria-label={'Remove saved proposal ' + sp.name} title="Removes this saved proposal; amendment history already recorded remains."
+                                onClick={() => onDeleteProposal && onDeleteProposal(sp.id)} style={chipBtn(false, { color: MUTED })}>✕</button>
                         </span>
                     </div>
                 ))}

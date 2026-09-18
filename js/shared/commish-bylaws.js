@@ -255,22 +255,37 @@
     // or hand-recorded amendment ('manual') lands here, newest last on disk,
     // newest first out of amendments(). Cap 100 per league.
     function recordAmendment(leagueId, entry) {
+        const rows = recordAmendments(leagueId, [entry]);
+        return rows && rows[0] || null;
+    }
+
+    // A ratification can span several rules and leagues. Commit each league's
+    // complete batch once; retries after a later league fails cannot duplicate
+    // its already-recorded history.
+    function recordAmendments(leagueId, entries, opts) {
         const lid = String(leagueId || '');
-        if (!lid || !entry || typeof entry !== 'object') return null;
-        const nowMs = entry.nowMs != null ? Number(entry.nowMs) : Date.now();
+        if (!lid || !Array.isArray(entries) || !entries.length || entries.some(entry => !entry || typeof entry !== 'object')) return null;
         const st = store();
         const rec = st.get(KEY(lid), null) || { amendments: [] };
-        const row = {
-            ts: nowMs,
+        const operationId = opts?.operationId ? String(opts.operationId) : null;
+        if (operationId && Object.prototype.hasOwnProperty.call(rec.completedBatches || {}, operationId) && rec.completedBatches[operationId] === true) return [];
+        const rows = entries.map(entry => ({
+            ts: entry.nowMs != null ? Number(entry.nowMs) : Date.now(),
             path: entry.path != null ? String(entry.path) : '',
             from: entry.from !== undefined ? entry.from : null,
             to: entry.to !== undefined ? entry.to : null,
             note: entry.note != null ? String(entry.note) : '',
             source: entry.source === 'drift_ack' ? 'drift_ack' : 'manual',
-        };
-        rec.amendments = ((rec.amendments || []).concat([row])).slice(-AMEND_CAP);
-        st.set(KEY(lid), rec);
-        return row;
+        }));
+        rec.amendments = ((rec.amendments || []).concat(rows)).slice(-AMEND_CAP);
+        if (operationId) rec.completedBatches = { ...(rec.completedBatches || {}), [operationId]: true };
+        try {
+            if (st.set(KEY(lid), rec) !== true) throw new Error('Storage did not confirm the amendment save');
+        } catch (cause) {
+            const error = new Error('The amendment history was not saved. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
+        return rows;
     }
 
     function amendments(leagueId) {
@@ -281,7 +296,7 @@
     App.Commish = App.Commish || {};
     App.Commish.Bylaws = {
         parseClauses, searchClauses, buildRulingContext,
-        recordAmendment, amendments,
+        recordAmendment, recordAmendments, amendments,
         RULING_INSTRUCTION, _mem,
     };
     /* global module */
