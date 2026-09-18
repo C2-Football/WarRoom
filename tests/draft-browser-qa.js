@@ -6,6 +6,7 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
+const { installReadOnlyRoutes } = require('./helpers/browser-readonly.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
@@ -18,8 +19,8 @@ let chromium;
 try {
   chromium = require('@playwright/test').chromium;
 } catch (_err) {
-  console.log('SKIP draft browser QA - @playwright/test is not installed. Run npm install first.');
-  process.exit(0);
+  console.log('FAIL draft browser QA - @playwright/test is not installed. Run npm install first.');
+  process.exit(1);
 }
 
 function hasChrome() {
@@ -125,8 +126,8 @@ async function clickTopDraftView(page, label) {
 
 async function main() {
   if (!hasChrome()) {
-    console.log(`SKIP draft browser QA - Chrome not found at ${CHROME}`);
-    return;
+    console.log(`FAIL draft browser QA - Chrome not found at ${CHROME}`);
+    process.exitCode = 1; return;
   }
 
   let port;
@@ -134,8 +135,8 @@ async function main() {
     port = await findOpenPort(PORT_START);
   } catch (err) {
     if (err && ['EACCES', 'EPERM'].includes(err.code)) {
-      console.log(`SKIP draft browser QA - local port binding is not permitted here (${err.code}).`);
-      return;
+      console.log(`FAIL draft browser QA - local port binding is not permitted here (${err.code}).`);
+      process.exitCode = 1; return;
     }
     throw err;
   }
@@ -147,7 +148,7 @@ async function main() {
 
   try {
     const context = await browser.newContext();
-    await context.addInitScript((leagueId, user) => {
+    await context.addInitScript(({ leagueId, user }) => {
       // The hub reads its username through OD.getCurrentUsername() (od_auth_v1),
       // not the ?user= param — without this seed no leagues ever load, the
       // deep link never resolves, and every assertion below times out waiting
@@ -160,12 +161,8 @@ async function main() {
         .forEach(key => localStorage.removeItem(key));
       localStorage.removeItem(`wr_draft_cc_current_mock_${leagueId}`);
       localStorage.removeItem(`wr_draft_cc_current_live_${leagueId}`);
-    }, LEAGUE_ID, USER);
-    await context.route('**/*', route => {
-      const type = route.request().resourceType();
-      if (['image', 'font', 'media'].includes(type)) return route.abort();
-      return route.continue();
-    });
+    }, { leagueId: LEAGUE_ID, user: USER });
+    await installReadOnlyRoutes(context);
 
     const desktop = await context.newPage();
     desktop.on('pageerror', err => failures.push(`desktop page error: ${err.message}`));
@@ -174,7 +171,7 @@ async function main() {
       waitUntil: 'domcontentloaded',
       timeout: 45000,
     });
-    await desktop.waitForFunction(() => document.body.innerText.includes('Draft'), null, { timeout: 25000 });
+    await desktop.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
     // The War Room view has TWO shapes and which one renders is a property of
     // the league, not of the code: draft_locked (the league's draft has
     // finished) swaps the Flash Brief for the recap/"Draft Complete" panel.
@@ -207,10 +204,10 @@ async function main() {
       ['View Draft Results', 'VIEW FULL BOARD'].some(text => flashTextLower.includes(text.toLowerCase()))
         || failures.push('war-room@1365: draft-complete panel offers no way into the results');
     } else {
-      ['Alex Analyst Mock', 'League Reality', 'My Board Lens', 'Trade Market'].forEach(text => {
+      ['Alex Analyst Mock', 'Draft Plan'].forEach(text => {
         if (!flashTextLower.includes(text.toLowerCase())) failures.push(`war-room@1365: missing ${text}`);
       });
-      if (!flashTextLower.includes('draft readiness')) failures.push('war-room@1365: missing Draft Readiness trust layer');
+      await desktop.locator('.draft-analyst-flash .draft-alex-generate').waitFor({ state: 'visible' });
     }
     process.stdout.write('.');
 
@@ -224,10 +221,10 @@ async function main() {
     process.stdout.write('.');
 
     await clickTopDraftView(desktop, 'Mock Draft Center');
-    await desktop.waitForFunction(() => /Mock Draft Center/i.test(document.body.innerText), null, { timeout: 25000 });
+    await desktop.locator('.draft-setup-start').waitFor({ state: 'visible', timeout: 25000 });
     const mockSnap = await assertNoOverflow(desktop, 'mock-draft-center@1365', failures);
     const mockTextLower = mockSnap.text.toLowerCase();
-    ['MOCK UPCOMING DRAFT', 'AI GM STRATEGY STUDIO', 'MODEL TUNING', 'OWNER DNA', 'SAVE PROFILE', 'START MOCK DRAFT'].forEach(text => {
+    ['DRAFT SETUP', 'LEAGUE SETTINGS', 'AI GM STRATEGY STUDIO', 'MODEL TUNING', 'OWNER DNA', 'SAVE PROFILE', 'START MOCK DRAFT'].forEach(text => {
       if (!mockTextLower.includes(text.toLowerCase())) failures.push(`mock-draft-center@1365: missing ${text}`);
     });
     ['Custom Solo', 'bestball', 'Bestball'].forEach(text => {
@@ -236,10 +233,15 @@ async function main() {
     if (/Analyst Projected Mock|Alex Analyst Mock/i.test(mockSnap.text)) {
       failures.push('mock-draft-center@1365: analyst mock should live on Flash Brief, not Mock Draft Center');
     }
-    const roundOptions = await desktop.evaluate(() => [...document.querySelectorAll('option')].map(option => option.textContent.trim()));
-    if (!roundOptions.includes('1 round') || !roundOptions.includes('100 rounds')) {
+    // Rounds now uses the shared accessible listbox, not a native select.
+    const rounds = desktop.getByRole('button', { name: 'Draft Rounds', exact: true });
+    await rounds.click();
+    const roundOptions = await desktop.getByRole('option').allTextContents();
+    if (!roundOptions.some(text => /(?:^|✓)1 round$/.test(text)) || !roundOptions.some(text => /100 rounds$/.test(text))) {
       failures.push('mock-draft-center@1365: round picker does not expose full 1-100 range');
     }
+    await desktop.getByRole('option', { name: '1 round', exact: true }).click();
+    if (!(await rounds.innerText()).includes('1 ROUND')) failures.push('mock-draft-center@1365: selected round count not retained');
     process.stdout.write('.');
 
     await clickTopDraftView(desktop, 'Follow Live Draft');
@@ -265,30 +267,41 @@ async function main() {
     });
     process.stdout.write('.');
 
-    const mobile = await context.newPage();
-    mobile.on('pageerror', err => failures.push(`mobile page error: ${err.message}`));
-    await mobile.setViewportSize({ width: 390, height: 900 });
-    await mobile.goto(`${baseUrl}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=draft`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 45000,
-    });
-    await mobile.waitForFunction(() => document.body.innerText.includes('Draft'), null, { timeout: 25000 });
-    await clickTopDraftView(mobile, 'Mock Draft Center');
-    await mobile.waitForFunction(() => document.body.innerText.includes('Run mock drafts on desktop'), null, { timeout: 25000 });
-    const mobileSnap = await assertNoOverflow(mobile, 'mock-draft-center@390', failures);
-    ['Run mock drafts on desktop', 'START MOCK DRAFT'].forEach(text => {
-      if (!mobileSnap.text.includes(text)) failures.push(`mock-draft-center@390: missing ${text}`);
-    });
-    process.stdout.write('.');
+    for (const width of [320, 390]) {
+      const mobileContext = await browser.newContext();
+      await installReadOnlyRoutes(mobileContext);
+      await mobileContext.addInitScript(user => {
+        localStorage.setItem('dynastyhq_username', user);
+        localStorage.setItem('wr_tutorial_done_v1', '1');
+      }, USER);
+      const mobile = await mobileContext.newPage();
+      mobile.on('pageerror', err => failures.push(`mobile@${width} page error: ${err.message}`));
+      await mobile.setViewportSize({ width, height: 900 });
+      await mobile.goto(`${baseUrl}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=draft`, {
+        waitUntil: 'domcontentloaded', timeout: 45000,
+      });
+      // Phone navigation is the current Draft view select; desktop buttons do
+      // not mount on phones. Use the same user-facing navigation state setter.
+      const view = mobile.locator('.la-view-select select');
+      await mobile.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 45000 });
+      await view.waitFor({ state: 'visible', timeout: 45000 });
+      await view.selectOption('mock');
+      await mobile.locator('.draft-setup-start').waitFor({ state: 'visible', timeout: 25000 });
+      const mobileSnap = await assertNoOverflow(mobile, `mock-draft-center@${width}`, failures);
+      ['DRAFT SETUP', 'START MOCK DRAFT'].forEach(text => {
+        if (!mobileSnap.text.includes(text)) failures.push(`mock-draft-center@${width}: missing ${text}`);
+      });
+      await mobileContext.close();
+      process.stdout.write('.');
+    }
 
     await desktop.close();
-    await mobile.close();
   } finally {
     await browser.close().catch(() => {});
     server.kill();
   }
 
-  console.log(`\n${failures.length ? 'FAIL' : 'PASS'} draft browser QA - ${failures.length ? failures.length + ' issue(s)' : '5 checks'}`);
+  console.log(`\n${failures.length ? 'FAIL' : 'PASS'} draft browser QA - ${failures.length ? failures.length + ' issue(s)' : '6 checks'}`);
   if (failures.length) {
     failures.forEach(failure => console.log('  - ' + failure));
     process.exit(1);

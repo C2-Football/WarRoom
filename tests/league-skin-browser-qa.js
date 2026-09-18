@@ -6,6 +6,8 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
+const { installReadOnlyRoutes } = require('./helpers/browser-readonly.cjs');
+const { createLeagueSkinFixture } = require('./helpers/league-skin-fixture.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const REDRAFT_LEAGUE_ID = process.env.WARROOM_QA_REDRAFT_LEAGUE || '1356311207652360192';
@@ -19,8 +21,8 @@ let chromium;
 try {
   chromium = require('@playwright/test').chromium;
 } catch (_err) {
-  console.log('SKIP league skin browser QA - @playwright/test is not installed. Run npm install first.');
-  process.exit(0);
+  console.log('FAIL league skin browser QA - @playwright/test is not installed. Run npm install first.');
+  process.exit(1);
 }
 
 function hasChrome() {
@@ -110,7 +112,10 @@ async function openLeaguePage(context, port, leagueId, expectedType, tab, option
     if (!skin || skin.type !== type) return false;
     const text = document.body?.innerText || '';
     return text.length > 80 && !text.includes('BUILDING LEAGUE INTELLIGENCE');
-  }, expectedType, { timeout: 60000 });
+  }, expectedType, { timeout: 30000 }).catch(async error => {
+    const diagnostic = await page.evaluate(() => ({ skin: window.App?.LeagueSkin?.getCurrent?.(), text: document.body.innerText.slice(0, 1800) }));
+    throw new Error(`${leagueId}/${tab}: ${error.message} ${JSON.stringify(diagnostic)}`);
+  });
   await page.waitForTimeout(400);
   return page;
 }
@@ -180,7 +185,7 @@ async function runMatrix(context, port, failures) {
     await page.close();
   }
 
-  page = await openLeaguePage(context, port, REDRAFT_LEAGUE_ID, 'redraft', 'alex', { alexSubTab: 'settings' });
+  page = await openLeaguePage(context, port, REDRAFT_LEAGUE_ID, 'redraft', 'gm-settings', { alexSubTab: 'settings' });
   await waitForModelSettings(page);
   snap = await skinSnapshot(page);
   const redraftPositionButtons = snap.sections?.targetPositions || [];
@@ -210,7 +215,7 @@ async function runMatrix(context, port, failures) {
   pushIf(failures, snap.skin?.vocabulary?.valueLabel !== 'DHQ Dynasty Value', 'dynasty myteam: value label should be DHQ Dynasty Value');
   await page.close();
 
-  page = await openLeaguePage(context, port, DYNASTY_LEAGUE_ID, 'dynasty', 'alex', { alexSubTab: 'settings' });
+  page = await openLeaguePage(context, port, DYNASTY_LEAGUE_ID, 'dynasty', 'gm-settings', { alexSubTab: 'settings' });
   await waitForModelSettings(page);
   snap = await skinSnapshot(page);
   const dynastyPositionButtons = snap.sections?.targetPositions || [];
@@ -224,8 +229,8 @@ async function runMatrix(context, port, failures) {
 
 async function main() {
   if (!hasChrome()) {
-    console.log(`SKIP league skin browser QA - Chrome not found at ${CHROME}`);
-    return;
+    console.log(`FAIL league skin browser QA - Chrome not found at ${CHROME}`);
+    process.exitCode = 1; return;
   }
 
   let port;
@@ -233,8 +238,8 @@ async function main() {
     port = await findOpenPort(PORT_START);
   } catch (err) {
     if (err && ['EACCES', 'EPERM'].includes(err.code)) {
-      console.log(`SKIP league skin browser QA - local port binding is not permitted here (${err.code}).`);
-      return;
+      console.log(`FAIL league skin browser QA - local port binding is not permitted here (${err.code}).`);
+      process.exitCode = 1; return;
     }
     throw err;
   }
@@ -245,14 +250,11 @@ async function main() {
 
   try {
     const context = await browser.newContext();
-    await context.addInitScript(() => {
-      try { localStorage.setItem('wr_tutorial_done_v1', '1'); } catch (_) {}
-    });
-    await context.route('**/*', route => {
-      const type = route.request().resourceType();
-      if (['image', 'font', 'media'].includes(type)) return route.abort();
-      return route.continue();
-    });
+    await context.addInitScript(user => {
+      localStorage.setItem('wr_tutorial_done_v1', '1');
+      localStorage.setItem('dynastyhq_username', user);
+    }, USER);
+    await installReadOnlyRoutes(context, { fixture: createLeagueSkinFixture({ redraftId: REDRAFT_LEAGUE_ID, dynastyId: DYNASTY_LEAGUE_ID, user: USER }) });
     await runMatrix(context, port, failures);
     await context.close();
   } finally {
