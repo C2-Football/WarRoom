@@ -7,13 +7,14 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 - Source checkout `/Users/jacobc/Projects/warroom`, main at
   `5d28f396a3f41f3e95075264ea2890227907c761`; unrelated untracked work preserved.
 - Integration `/Users/jacobc/Projects/warroom-public-readiness`, branch
-  `codex/public-readiness-20260918`, current committed revision `deadaa6`. Empire journal retries/navigation, account
-  callbacks, truthful pick-feed coverage and responsive draft fixes are integrated.
-  Pending: shared ranking performance counterpart/pin and Commissioner recovery.
-- Both remotes still baseline; **no readiness changes pushed or deployed**.
-- Canonical shared dependency pinned `5de7baa36225c43e8cacb00a2763e4c65508f296`.
-  Independent shared ranking performance fix in progress; synchronize and pin its
-  canonical commit before release. Do not edit only the vendored copy.
+  `codex/public-readiness-20260918`, current committed revision `5835b11`. Empire journal retries/navigation, account
+  callbacks, truthful pick-feed coverage, draft fixes and shared performance are
+  integrated. Queued: reviewed Commissioner task/dues and format-specific picks.
+- Both WarRoom remotes still baseline; **no frontend/backend readiness deployment**.
+  Only the independently verified canonical shared commit has been published.
+- Canonical shared dependency published and pinned
+  `7bd35313fc78e25a2d1ac24035989673a93f28e6`; remote main verified. Primary shared
+  checkout fast-forwarded cleanly, vendored sync and player-value twin agree.
 - `node_modules` is an untracked symlink to original dependencies; never stage it.
   Local Node 25.8.1; CI Node 20. Preview running on localhost:3028.
 - Persistent goal thread `01a0b5f1-9d40-7202-a6a8-27887434173c` active.
@@ -79,19 +80,38 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 
 ## Release gate and next executable steps
 
-1. Finish/review Empire failure + real history-back regression; integrate callback,
-   traded-pick, Commissioner, browser and canonical shared performance batches.
-2. Inspect current hosted auth table/function signatures read-only; compare to both
+1. First frozen frontend candidate c288d84: npm test 40 pass / 3 fail / 0 quarantined.
+   The three stale harness failures are reproduced and fixed without app changes
+   (fc663b7). Actual browser: 126 responsive + 6 arrival/auth flows passed; full
+   live-click/draft/skin/Empire recovery still running in exec session 2098. Logs
+   under evidence/candidate-c288d84. Do not claim the whole browser gate yet.
+2. Release reviewer found delayed OAuth restoration overwrites newer explicit login;
+   then adjacent pending explicit sign-in overwrites another-tab login. Native agent
+   owns isolated warroom-readiness-oauth-restore, base c288d84; initial 64a099 is NOT
+   sufficient alone. Security re-review required after follow-up. No deployment.
+3. Root fixed actual hosted reset links redirecting to a nonresolving old hostname
+   (5835b11). Both URL override secret names absent; existing production reset page
+   HTTP 200. Handler regression+independent review pass; live fallback remains old
+   until deploy. Post-deploy probe and controlled reset script prepared (not run):
+   tmp/public-readiness/live-reset.cjs. It asserts exact disposable IDs, checks both
+   migrations, seeds only their reset hashes via existing CLI, races links, verifies
+   revocation/re-signin/game retention. Raw tokens/passwords remain mode-0600 only.
+4. Queued next coherent changes: 4ad0bb4 Commissioner task/dues+64d48b8 independent
+   review; 552db46 pick format fix with small blank-type precedence follow-up pending;
+   b488114 terminal 41/41 agent click-path evidence. Integrate after frozen browser
+   candidate finishes, then rerun final required gates. Further Commissioner stores
+   and INV05 historical deep links continue in isolated worktrees.
+5. Inspect current hosted auth table/function signatures read-only; compare to both
    new migrations and rehearse compatibility. Establish reversible frontend/backend
    rollback while keeping additive security migration protections in place.
-3. Run fresh integrated `npm test`, all explicit applicable suites and browser gate;
+6. Run fresh integrated `npm test`, all explicit applicable suites and browser gate;
    inspect failures and quarantines. Baseline was 39 pass / 0 fail / 1 preexisting
    landing-content quarantine, **not a final-candidate pass**. Browser gate now
    includes external-write guard preflight and failed-save journey.
-4. Release coherent validated batch through established canonical dependency,
+7. Release coherent validated batch through established canonical dependency,
    backend and Pages workflows to both destinations. Verify terminal workflows,
    release metadata, served asset hashes and actual post-release journeys.
-5. Resume original Duat room; verify atomic reset and direct REST revocation using
+8. Resume original Duat room; verify atomic reset and direct REST revocation using
    only isolated test accounts; finish remaining product/format/error/permission/
    persistence matrix and independent final review.
 
