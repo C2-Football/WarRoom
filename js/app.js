@@ -4,6 +4,9 @@
 // ══════════════════════════════════════════════════════════════════
     const APP_WR_KEYS  = window.App.WR_KEYS;
     const AppStorage = window.App.WrStorage;
+    function accountSessionCurrent() {
+        return window.App.AccountSession?.isCurrent?.() !== false;
+    }
     // Resume is account history, separate from the current URL/route. Keep the
     // ID inside an object: WrStorage parses a bare Sleeper ID as a number and
     // 19-digit IDs exceed JavaScript's integer precision.
@@ -80,7 +83,7 @@
             clearTimeout(timer);
         }
         try {
-            if (storage.getItem('fw_session_v1') !== previousSession || storage.getItem('od_auth_v1') !== previousAuth) throw new Error('CONNECTION_CHANGED');
+            if (window.App.AccountSession?.isCurrent?.() === false || storage.getItem('fw_session_v1') !== previousSession || storage.getItem('od_auth_v1') !== previousAuth) throw new Error('CONNECTION_CHANGED');
             let existing = {};
             try { existing = JSON.parse(previousAuth || '{}'); } catch (_) { /* replace malformed connection metadata */ }
             const next = JSON.stringify({ ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}), sleeperUsername: user.username.trim() });
@@ -478,8 +481,10 @@
 
         // Cloud sync — load from Supabase on mount
         useEffect(() => {
+            if (!accountSessionCurrent()) return;
             if (window.OD?.loadDisplayName) {
                 window.OD.loadDisplayName().then(name => {
+                    if (!accountSessionCurrent()) return;
                     if (name) { setCustomDisplayName(name); localStorage.setItem('od_display_name', name); }
                 }).catch(err => window.wrLog('app.loadDisplayName', err));
             }
@@ -573,7 +578,7 @@
         // persist the connection (id / year / team) and re-fetch it on mount so
         // a locked-in MFL league always reappears in the franchise picker.
         useEffect(() => {
-            if (!MFL_SANDBOX_ACCESS) return;
+            if (!MFL_SANDBOX_ACCESS || !accountSessionCurrent()) return;
             let alive = true;
             (async () => {
                 // Resolve the connection: prefer local, else pull the cloud-synced
@@ -583,6 +588,7 @@
                 if (!leagueId && window.OD?.loadMflConnection) {
                     try {
                         const conn = await window.OD.loadMflConnection();
+                        if (!alive || !accountSessionCurrent()) return;
                         if (conn?.leagueId) {
                             leagueId = String(conn.leagueId);
                             localStorage.setItem('mfl_league_id', leagueId);
@@ -591,19 +597,19 @@
                         }
                     } catch (e) { window.wrLog?.('app.loadMflConnection', e); }
                 }
-                if (!alive || !leagueId) return;
+                if (!alive || !accountSessionCurrent() || !leagueId) return;
                 // mfl-api.js ships in the shared bundle, but guard against the
                 // connector not being ready yet on a cold start.
                 for (let i = 0; i < 50 && !window.MFL; i++) {
                     await new Promise(r => setTimeout(r, 100));
                 }
-                if (!alive || !window.MFL) return;
+                if (!alive || !accountSessionCurrent() || !window.MFL) return;
                 const year = localStorage.getItem('mfl_year') || '2026';
                 const apiKey = sessionStorage.getItem('mfl_api_key') || null;
                 let franchiseId = localStorage.getItem('mfl_franchise_id') || null;
                 try {
                     const raw = await window.MFL.fetchLeague(leagueId, year, apiKey);
-                    if (!alive || !raw?.leagueData?.league) return;
+                    if (!alive || !accountSessionCurrent() || !raw?.leagueData?.league) return;
                     const franchisesRaw = raw.leagueData?.league?.franchises?.franchise || [];
                     const franchiseArr = Array.isArray(franchisesRaw) ? franchisesRaw : [franchisesRaw];
                     // Owner default: if bigloco hasn't picked a team yet, lock in the
@@ -794,12 +800,13 @@
             typeof window.CommissionerOffice === 'function' ? 'ready' : 'idle'
         );
         useEffect(() => {
-            if (!COMMISH_ENABLED || !sleeperUser?.user_id || !sleeperLeagues.length) return;
+            if (!COMMISH_ENABLED || !sleeperUser?.user_id || !sleeperLeagues.length || !accountSessionCurrent()) return;
             if (!window.App?.Commish?.discoverCommissioned) return;
             let alive = true;
             (async () => {
                 try {
                     await window.App.Commish.hydrateCommissioned(sleeperLeagues);
+                    if (!alive || !accountSessionCurrent()) return;
                     const mine = window.App.Commish.discoverCommissioned({ leagues: sleeperLeagues, myUserId: String(sleeperUser.user_id) });
                     if (alive) setCommishCount(mine.length);
                 } catch (e) { /* card stays hidden — discovery is best-effort */ }
@@ -916,6 +923,7 @@
         // the one-time Empire bootstrap below so Empire's manual refresh can redo
         // this same step against freshly-revalidated leagues, not just on first load.
         async function populateEmpireWindowState(allLeaguesList) {
+            if (!accountSessionCurrent()) return;
             if (!window.S) window.S = {};
             const allRosters = [];
             const allUsers = [];
@@ -933,12 +941,14 @@
                 if (!lid) return;
                 try {
                     const tp = await fetch('https://api.sleeper.app/v1/league/' + lid + '/traded_picks').then(r => r.ok ? r.json() : []);
+                    if (!accountSessionCurrent()) return;
                     const norm = window.App?.normalizeTradedPicks;
                     l.tradedPicks = (norm ? norm(l.rosters || [], tp || []) : (tp || []))
                         .map(p => ({ ...p, league_id: String(lid) }));
                     allTradedPicks.push(...l.tradedPicks);
                 } catch {}
             }));
+            if (!accountSessionCurrent()) return;
             window.S.tradedPicks = allTradedPicks;
         }
 
@@ -947,6 +957,7 @@
         // l.empireDna) and bumps empireAssessReady so a re-render picks the
         // fresh values up via a new allLeagues array reference.
         async function assessEmpirePortfolio(allLeaguesList, players) {
+            if (!accountSessionCurrent()) return;
             if (typeof window.App?.assessAllTeams !== 'function') return;
             if (!window.S) window.S = {};
             // Empire mode never populated S.playerStats, so assessments ran with no
@@ -955,15 +966,18 @@
             if ((!window.S.playerStats || !Object.keys(window.S.playerStats).length) && typeof window.fetchSeasonStats === 'function') {
                 const season = parseInt(window.S.season || new Date().getFullYear(), 10);
                 let st = (await window.fetchSeasonStats(String(season)).catch(() => ({}))) || {};
+                if (!accountSessionCurrent()) return;
                 // Offseason: the current season has no games yet — fall back to the last
                 // completed season so dynasty health/tier reflect real production.
                 if (!Object.keys(st).length) st = (await window.fetchSeasonStats(String(season - 1)).catch(() => ({}))) || {};
+                if (!accountSessionCurrent()) return;
                 window.S.playerStats = st;
             }
             const stats = window.S.playerStats || {};
             // Yield between leagues so a heavy or oddly-shaped league can't freeze the load.
             for (const l of allLeaguesList) {
                 await new Promise(r => setTimeout(r, 0));
+                if (!accountSessionCurrent()) return;
                 const lid = l.id || l.league_id;
                 try {
                     l.empireAssessments = window.App.assessAllTeams(l.rosters || [], players, stats, l, l.users || [], l.tradedPicks || []);
@@ -972,7 +986,9 @@
                 // precedence; transaction-behavioral inference fills the gaps.
                 try {
                     const saved = (window.OD?.loadDNA ? await window.OD.loadDNA(lid).catch(() => ({})) : {}) || {};
+                    if (!accountSessionCurrent()) return;
                     const txns = (window.WrTxns?.fetchLeagueTxns ? await window.WrTxns.fetchLeagueTxns(lid).catch(() => []) : []) || [];
+                    if (!accountSessionCurrent()) return;
                     l.empireDna = window.App.buildEmpireDna ? window.App.buildEmpireDna(saved, txns, l.rosters || [], sleeperUser?.user_id) : saved;
                 } catch (e) { l.empireDna = l.empireDna || {}; }
             }
@@ -990,30 +1006,33 @@
         // is no equivalent revalidate function for those providers yet.
         const [empireRefreshing, setEmpireRefreshing] = useState(false);
         async function refreshEmpirePortfolio() {
-            if (empireRefreshing) return;
+            if (empireRefreshing || !accountSessionCurrent()) return;
             setEmpireRefreshing(true);
             try {
                 const fresh = await revalidateSleeperData();
+                if (!accountSessionCurrent()) return;
                 const allLeaguesList = [...(fresh || sleeperLeagues), ...visibleEspnLeagues, ...visibleMflLeagues];
                 await populateEmpireWindowState(allLeaguesList);
                 await assessEmpirePortfolio(allLeaguesList, window.S?.players || empirePlayers);
             } catch (e) {
                 window.wrLog?.('empire.refreshPortfolio', e);
             } finally {
-                setEmpireRefreshing(false);
+                if (accountSessionCurrent()) setEmpireRefreshing(false);
             }
         }
 
         // Load player database + DHQ engine when Pro mode activates
         useEffect(() => {
-            if (!proMode || empirePlayersLoaded) return;
+            if (!proMode || empirePlayersLoaded || !accountSessionCurrent()) return;
             (async () => {
                 try {
                     // The deferred empire group owns buildEmpireDna & co. — make sure it
                     // has executed before the assessment loop below reaches for it.
                     if (window.wrLoadModuleGroup) { try { await window.wrLoadModuleGroup('empire'); } catch (e) {} }
+                    if (!accountSessionCurrent()) return;
                     // Load 10k player database (league-independent, cached 1hr)
                     const players = await window.App.fetchAllPlayers();
+                    if (!accountSessionCurrent()) return;
                     setEmpirePlayers(players || {});
                     // Ensure window.S exists for assessment functions
                     if (!window.S) window.S = {};
@@ -1022,6 +1041,7 @@
                     // Populate rosters from all leagues into window.S for assessments,
                     // plus each league's traded picks.
                     await populateEmpireWindowState(allLeaguesList);
+                    if (!accountSessionCurrent()) return;
                     // Empire mode opens no single league, so S.currentLeagueId is unset and
                     // loadLeagueIntel() bails — DHQ player scores never populate, leaving Empire
                     // Value 0 and every asset unvalued. Point LeagueIntel at a representative league
@@ -1044,12 +1064,12 @@
                     // re-render the Empire once they land (don't block the UI on the ~15s first load).
                     setEmpirePlayersLoaded(true);
                     if (typeof window.App?.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
-                        if (window.DhqEvents?.once) window.DhqEvents.once('li:loaded', () => setEmpireAssessReady(Date.now()));
+                        if (window.DhqEvents?.once) window.DhqEvents.once('li:loaded', () => { if (accountSessionCurrent()) setEmpireAssessReady(Date.now()); });
                         window.App.loadLeagueIntel().catch(() => {});
                     }
                     // Then assess every roster in the background.
                     assessEmpirePortfolio(allLeaguesList, players).catch(e => console.warn('[Empire] Assessment error:', e));
-                } catch (e) { console.warn('[Empire] Data load error:', e); setEmpirePlayersLoaded(true); }
+                } catch (e) { console.warn('[Empire] Data load error:', e); if (accountSessionCurrent()) setEmpirePlayersLoaded(true); }
             })();
         }, [proMode, empirePlayersLoaded]);
 
@@ -1203,6 +1223,7 @@
                         settingsProps={{
                             initDisplayName: customDisplayName,
                             onDisplayNameSave: (name) => {
+                                if (!accountSessionCurrent()) return;
                                 setCustomDisplayName(name);
                                 window.OD.saveDisplayName(name);
                             },
@@ -1216,6 +1237,7 @@
                         onClose={() => setShowSettings(false)}
                         initDisplayName={customDisplayName}
                         onDisplayNameSave={(name) => {
+                            if (!accountSessionCurrent()) return;
                             setCustomDisplayName(name);
                             window.OD.saveDisplayName(name);
                         }}
@@ -1423,7 +1445,7 @@
         }
 
         function handleSelectLeague(league) {
-            if (window.App.NavigationGuard?.canNavigate() === false) return;
+            if (!accountSessionCurrent() || window.App.NavigationGuard?.canNavigate() === false) return;
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             setActiveTab('dashboard');
@@ -1444,6 +1466,7 @@
         }
 
         async function handleESPNConnect(leagueId, espnS2, swid) {
+            if (!accountSessionCurrent()) return;
             if (!platformAccessAllowed('espn')) { setEspnError(platformBetaMessage('espn')); return; }
             if (!leagueId) { setEspnError('Enter your ESPN league ID'); return; }
             const numericId = leagueId.replace(/\D/g, '');
@@ -1457,6 +1480,7 @@
                 if (espnS2) { sessionStorage.setItem('espn_s2', espnS2); localStorage.removeItem('espn_s2'); }
                 if (swid)   { sessionStorage.setItem('espn_swid', swid); localStorage.removeItem('espn_swid'); }
                 const result = await window.ESPN.connectLeague(numericId, year, espnS2 || null, swid || null);
+                if (!accountSessionCurrent()) return;
                 const league = {
                     id:              result.league.league_id,
                     name:            result.league.name,
@@ -1474,13 +1498,14 @@
                     return [...filtered, league];
                 });
             } catch (e) {
-                setEspnError(e.message || 'ESPN connection failed');
+                if (accountSessionCurrent()) setEspnError(e.message || 'ESPN connection failed');
             } finally {
-                setEspnConnecting(false);
+                if (accountSessionCurrent()) setEspnConnecting(false);
             }
         }
 
         async function handleMFLConnect(leagueId, year, apiKey) {
+            if (!accountSessionCurrent()) return;
             if (!platformAccessAllowed('mfl')) { setMflError(platformBetaMessage('mfl')); return; }
             if (!leagueId) { setMflError('Enter your MFL League ID'); return; }
             if (!window.MFL) { setMflError('MFL connector not loaded — refresh and try again'); return; }
@@ -1488,6 +1513,7 @@
             setMflError(null);
             try {
                 const raw = await window.MFL.fetchLeague(leagueId, year, apiKey || null);
+                if (!accountSessionCurrent()) return;
                 if (!raw?.leagueData?.league) throw new Error('Invalid MFL league data. Check your League ID and year.');
                 // Build crosswalk (empty Sleeper players — rebuilds when full DB loads)
                 const mflPlayerArr = raw.playersData?.players?.player || [];
@@ -1504,13 +1530,14 @@
                 setMflPendingResult(result);
                 setMflFranchises(franchiseArr);
             } catch (e) {
-                setMflError(e.message || 'MFL connection failed');
+                if (accountSessionCurrent()) setMflError(e.message || 'MFL connection failed');
             } finally {
-                setMflConnecting(false);
+                if (accountSessionCurrent()) setMflConnecting(false);
             }
         }
 
         function finalizeMFLConnect(franchiseId) {
+            if (!accountSessionCurrent()) return;
             if (!platformAccessAllowed('mfl')) return;
             const result = mflPendingResult;
             if (!result) return;
@@ -1720,6 +1747,7 @@
                         onClose={() => setShowSettings(false)}
                         initDisplayName={customDisplayName}
                         onDisplayNameSave={(name) => {
+                            if (!accountSessionCurrent()) return;
                             setCustomDisplayName(name);
                             window.OD.saveDisplayName(name);
                         }}
