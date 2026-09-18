@@ -1,0 +1,62 @@
+
+> fantasy-war-room@1.0.0 test:empire
+> node tests/empire-values.js && node tests/empire-decisions.js && node tests/empire-scenarios.cjs && node --test tests/empire-pick-coverage.cjs
+
+  ok  slotsFromRoster: superflex creates real QB demand; bench is ignored
+  ok  superflex prices quarterbacks above an otherwise identical 1QB league
+  ok  a scoring change moves the position it touches — and only that position
+  ok  identical leagues quote identical prices — nothing drifts on its own
+  ok  one freak valuation cannot rescale a league board
+  ok  every league is re-anchored to the common scale
+  ok  arbitrage names the high and low book and the capturable gap
+  ok  the superflex premium lands on MARGINAL quarterbacks, not elite ones
+  ok  spread() returns null for a player only one league prices
+  ok  ownership: a shared player owned in both books is framed as leverage, not a trade instruction
+  ok  ownership: owned in the high book, free agent in the low book
+  ok  ownership: owned by a rival in the other book reads as intel, not an instruction
+  ok  ownership: rows touching your roster sort ahead of pure market intel
+  ok  ownership: spreadMine ALWAYS agrees with the note — a THIRD league does not count
+  ok  ownership: spreadMine is true exactly when the note describes your roster
+  ok  ownership: with no myUserId, nobody reads as yours and nothing crashes
+  ok  a pre-draft league is not marked at all — an empty book is not a cheap book
+  ok  ownership: rostered by someone (not me) in both books reads as pure intel
+  ok  formatOf reads Sleeper league types, chopped included
+  ok  a league that cannot be priced is reported, not silently dropped
+  ok  build refuses gracefully with no leagues
+
+PASS: 21 tests
+  ok  track captures recommendation context once
+  ok  update records workflow, review date, note and realized delta
+  ok  summary separates active and terminal decisions
+  ok  remove is explicit and safe
+  ok  failed journal writes preserve the saved record and allow one successful retry
+  ok  actual journal UI retains failed drafts, merges newer edits and retries safely
+
+PASS 6 tests
+(node:83069) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ok player shock conserves value and ranks proportional league impact
+ok team correlation aggregates different players and positions across leagues
+ok guardrails round down whole league ownership and include unvalued players
+ok zero, total loss, invalid inputs, stale target and missing values stay honest
+ok duplicates and excluded league assets cannot inflate the scenario
+ok scenario action capability excludes Chopped and disabled trading
+ok interactive controls recompute results and route trading and non-trading leagues
+PASS 7 scenario tests
+(node:83070) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ HTTP, network and malformed pick failures cannot become verified zero transfers or own-pick capital (4.025375ms)
+✔ a verified empty feed proves own-pick holdings; transferred picks use normalized owners (0.503333ms)
+✔ failed refresh keeps labeled prior good ownership; retry replaces it; other seasons cannot reuse it (0.375625ms)
+✔ duplicate rows cannot inflate acquired picks; conflicting owners fail rather than guessing (0.578875ms)
+✔ partial pick coverage excludes unknown holdings and cannot generate full-portfolio capital claims (0.172917ms)
+✔ a slow provider times out and non-Sleeper connections never query the wrong provider (5.743125ms)
+✔ actual Empire hydration retains snapshots when roster refresh creates new league objects (0.856541ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 93.826458

@@ -7,9 +7,9 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 - Source checkout `/Users/jacobc/Projects/warroom`, main at
   `5d28f396a3f41f3e95075264ea2890227907c761`; unrelated untracked work preserved.
 - Integration `/Users/jacobc/Projects/warroom-public-readiness`, branch
-  `codex/public-readiness-20260918`, current committed revision `f0f6e53`.
-  Pending root changes: truthful Empire journal saves, retained drafts/retry,
-  browser/back navigation guard, actual browser regression.
+  `codex/public-readiness-20260918`, current committed revision `deadaa6`. Empire journal retries/navigation, account
+  callbacks, truthful pick-feed coverage and responsive draft fixes are integrated.
+  Pending: shared ranking performance counterpart/pin and Commissioner recovery.
 - Both remotes still baseline; **no readiness changes pushed or deployed**.
 - Canonical shared dependency pinned `5de7baa36225c43e8cacb00a2763e4c65508f296`.
   Independent shared ranking performance fix in progress; synchronize and pin its
@@ -68,11 +68,12 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 
 - Root: Empire save/navigation recovery; integrated release gates, hosted schema
   compatibility, release record, safe test-account operational verification.
-- Security agent: callback guard commit `ec61010` ready for integration; Commissioner
+- Security agent: callback guard commit `ec61010` integrated/reviewed; Commissioner
   task/treasury failed-save recovery under development. Other silent-save stores
   remain explicit unfinished findings. Independent root navigation review.
-- Inventory agent: traded-pick ownership failures/stale-good handling, independently
-  reviewed callback/security changes; pick batch awaiting final browser replay.
+- Inventory agent: traded-pick ownership failures/stale-good batch integrated;
+  independently reviewed callback/journal/security changes. Format-specific draft
+  capital correction now active after reproducing dynasty advice in redraft.
 - Native/browser agent: canonical shared ranking performance, hydrated browser
   fixtures and redraft overflow specificity follow-up. No agent pushes.
 

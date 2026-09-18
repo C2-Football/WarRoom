@@ -98,6 +98,7 @@ test('a slow provider times out and non-Sleeper connections never query the wron
 test('actual Empire hydration retains snapshots when roster refresh creates new league objects', async () => {
     const hydration = vm.createContext({ window: { App: {}, S: {} }, sleeperUser: { user_id: 'me' }, empirePickSnapshotsRef: { current: new Map() }, setEmpireAssessReady() {},
         fetchEmpireTradedPicks: (input, options) => load(input, { ...options, fetcher: reply([transfer]) }) });
+    vm.runInContext(app.slice(app.indexOf('    function accountSessionCurrent('), app.indexOf('    // Resume is account history')), hydration);
     vm.runInContext(app.slice(app.indexOf('        async function populateEmpireWindowState('), app.indexOf('        // Per-league health/tier assessment')), hydration);
     const old = { ...league };
     await hydration.populateEmpireWindowState([old]);

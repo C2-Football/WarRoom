@@ -63,17 +63,10 @@ const SUITES = [
 ];
 
 // suite name -> why it cannot block the build yet.
-const QUARANTINE = {
-  'landing-content': 'Landing page is mid-redesign (f17ce8a single-tier rebrand, '
-    + '2610142 "WIP snapshot"). The contract asserts the pre-rebrand shape — '
-    + 'hero.title, productSummary(3), features.cards(6), pricing.plans(4) — none of '
-    + 'which the current content has. OWNER RULING 2026-08-23: the landing page is '
-    + 'FINE as-is; do not "fix" it. That includes the contract\'s last assertion, '
-    + 'which is technically accurate — landing.html has not loaded '
-    + 'js/landing-content.js since f17ce8a, so content/landing-pages.json and the '
-    + 'npm run landing:edit editor drive nothing on the live page. That is known '
-    + 'and accepted. Leave this quarantined; do not re-audit or re-report it.',
-};
+// The old landing editor schema quarantine was retired after the accepted
+// HTML arrival contract gained current route/disclosure checks and real browser
+// signup coverage. Future quarantines need a recorded, reviewable reason.
+const QUARANTINE = {};
 
 const args = process.argv.slice(2);
 const BAIL = args.includes('--bail');
