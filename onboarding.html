@@ -1097,16 +1097,17 @@
         }
 
         // Save for app compatibility
-        localStorage.setItem('od_locked_username_v2', username);
+        const connectedUsername = typeof data.username === 'string' && data.username.trim() ? data.username.trim() : username;
+        localStorage.setItem('od_locked_username_v2', connectedUsername);
         const existingAuth = JSON.parse(localStorage.getItem('od_auth_v1') || '{}');
         localStorage.setItem('od_auth_v1', JSON.stringify({
-          ...existingAuth, username, createdAt: new Date().toISOString()
+          ...existingAuth, username: connectedUsername, sleeperUsername: connectedUsername, createdAt: new Date().toISOString()
         }));
-        patchProfile({ sleeperUsername: username, sleeperUserId: data.user_id });
-        window.OD?.savePlatformUsernames?.({ sleeper: username }).catch(() => {});
+        patchProfile({ sleeperUsername: connectedUsername, sleeperUserId: data.user_id });
+        window.OD?.savePlatformUsernames?.({ sleeper: connectedUsername }).catch(() => {});
 
         alertEl.className = 'alert alert-success show';
-        alertEl.textContent = `✓ Connected as ${username}!`;
+        alertEl.textContent = `✓ Connected as ${connectedUsername}!`;
         setTimeout(() => { if (window.App.AccountSession.isCurrent()) goStep5(); }, 800);
 
       } catch {

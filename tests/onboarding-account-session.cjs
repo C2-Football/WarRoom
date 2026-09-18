@@ -68,10 +68,15 @@ function browser() {
   assert(checkout.log.includes('reload'));
 
   const happy=browser();
-  happy.context.fetch=async()=>({ok:true,json:async()=>({user_id:'public-sleeper-id'})});
+  happy.local.setItem('od_auth_v1',JSON.stringify({username:'previous-user',sleeperUsername:'previous-user',preserved:'context'}));
+  happy.context.fetch=async()=>({ok:true,json:async()=>({user_id:'public-sleeper-id',username:'canonical-user'})});
   await happy.context.saveSleeper();
   assert.equal(JSON.parse(happy.local.getItem('od_profile_v1')).sleeperUserId,'public-sleeper-id');
-  assert.equal(JSON.parse(happy.local.getItem('od_auth_v1')).username,'verified-user');
+  assert.equal(JSON.parse(happy.local.getItem('od_auth_v1')).username,'canonical-user');
+  assert.equal(JSON.parse(happy.local.getItem('od_auth_v1')).sleeperUsername,'canonical-user','reconnect cannot retain the old higher-priority pointer');
+  assert.equal(JSON.parse(happy.local.getItem('od_auth_v1')).preserved,'context');
+  assert.equal(happy.local.getItem('od_locked_username_v2'),'canonical-user');
+  assert.equal(JSON.parse(happy.local.getItem('od_profile_v1')).sleeperUsername,'canonical-user');
   assert.equal(happy.log.filter(entry=>Array.isArray(entry)&&entry[0]==='cloud-username').length,1);
   happy.install('b');
   happy.timers.forEach(fn=>fn());
