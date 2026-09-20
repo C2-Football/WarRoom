@@ -423,6 +423,35 @@ test('build refuses gracefully with no leagues', () => {
   assert.strictEqual(EV.build({}), null);
 });
 
+test('current-season evidence excludes historical books and players with only dynasty/history data', () => {
+  const projections = { ...PROJ }; delete projections.qb1;
+  const out = EV.build({ leagues: [league('NOW', 'Now', { season: '2026' }), league('OLD', 'Old', { season: '2025' })],
+    playersData: PLAYERS, priorData: PROJ, projectionsData: projections, playerScores: SCORES, week: 2,
+    season: '2026', requireCurrentEvidence: true });
+  assert.strictEqual(out.byLeague.NOW.evidence, 'current-season');
+  assert.strictEqual(out.byLeague.NOW.season, '2026');
+  assert.strictEqual(out.byLeague.NOW.values.qb1, undefined, 'history and dynasty scores do not fill missing current evidence');
+  assert.ok(out.byLeague.NOW.values.qb2 > 0);
+  assert.strictEqual(out.byLeague.OLD, undefined);
+  assert.strictEqual(out.leagues.find(l => l.id === 'OLD').priced, false);
+  const empty = EV.build({ leagues: [league('NOW', 'Now', { season: '2026' })], playersData: PLAYERS,
+    priorData: PROJ, projectionsData: {}, playerScores: SCORES, week: 2, season: '2026', requireCurrentEvidence: true });
+  assert.strictEqual(empty.byLeague.NOW, undefined);
+});
+
+test('format metadata honors blank fallthrough, explicit zero and keeper evidence', () => {
+  assert.strictEqual(EV.formatOf({ type: '', settings: { type: 2 } }), 'dynasty');
+  assert.strictEqual(EV.formatOf({ settings: { type: 0, keeper_count: 2 } }), 'redraft');
+  assert.strictEqual(EV.formatOf({ settings: { keeper_count: 2 } }), 'keeper');
+  assert.strictEqual(EV.formatOf({}), 'unknown');
+});
+
+test('seasonal ownership respects a connected platform roster identity', () => {
+  const out = EV.build({ leagues: [league('MFL', 'Mapped account', { myRosterId: 1, rosters: [{ roster_id: 1, owner_id: 'platform-id', players: ['qb1'] }] })],
+    playersData: PLAYERS, projectionsData: PROJ, playerScores: SCORES, week: 1, myUserId: 'sleeper-id' });
+  assert.ok(out.byLeague.MFL.mine.has('qb1'));
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {

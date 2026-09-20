@@ -83,9 +83,10 @@ test('explicit zero-format and league overrides win over vestigial keeper settin
 test('scenario loss remains player-only regardless of verified keeper or dynasty draft rights', () => {
     const portfolio = model([fixture(1), fixture(2)]);
     const scenario = context.buildEmpireScenario(portfolio, { target: 'p', drop: 30 });
-    assert.equal(scenario.total, 2000);
-    assert.equal(scenario.loss, 600);
-    assert.equal(scenario.after, 1400);
+    assert.equal(scenario.total, 1000);
+    assert.equal(scenario.loss, 300);
+    assert.equal(scenario.after, 700);
+    assert.equal(scenario.rows.find(row => row.province.format === 'keeper').unknown, 1, 'missing seasonal evidence cannot inherit dynasty value');
 });
 
 test('blank format placeholders fall through exactly like canonical LeagueSkin while numeric zero remains explicit', () => {

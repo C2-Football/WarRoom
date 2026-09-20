@@ -210,7 +210,7 @@ test('Empire arbitrage and direct Trade Desk state respect Chopped and disabled-
         legs: fixture.allLeagues.map(l => ({ leagueId: l.id, name: l.name, mine: true })),
     }] }) };
     slots = []; cursor = 0; render();
-    slots[namedSlots.get('markData')] = { stats: {}, prior: {}, proj: {} }; // settled market-data hook
+    slots[namedSlots.get('markData')] = { status: 'ready', season: '2026', week: 2, stats: {}, prior: {}, proj: {} }; // explicitly verified market-data state; engine result is injected below
     let tree = render();
     const arbitrage = all(tree, n => n.props['data-testid'] === 'empire-arbitrage')[0];
     assert.ok(arbitrage);

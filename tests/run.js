@@ -157,7 +157,8 @@ const globalViewSrc = fs.readFileSync(path.join(ROOT, 'js/tabs/global-view.js'),
 // isn't inside the extracted model function — pull it in alongside.
 const tierColorSrc = extractFunction(globalViewSrc, 'function tierColor(tier)');
 const empireModelSrc = extractFunction(globalViewSrc, 'function buildEmpirePortfolioModel(input)');
-vm.runInContext(`${tierColorSrc}\n${empireModelSrc}`, ctx);
+const empireFormatSrc = extractFunction(globalViewSrc, 'function empireLeagueFormat(league)');
+vm.runInContext(`${tierColorSrc}\n${empireFormatSrc}\n${empireModelSrc}`, ctx);
 process.stdout.write('OK\n\n');
 
 // ── Grab references from context ──────────────────────────────────
@@ -847,20 +848,17 @@ test('chopped province: totalRecord EXCLUDES it from the aggregate regardless of
     eq(withChopped.totals.totalRecord.losses, withoutChopped.totals.totalRecord.losses);
   });
 
-test('chopped province: avgHealth excludes it ONLY once eliminated (alive roster health still counts)',
+test('seasonal chopped health never inherits an unqualified dynasty assessment',
   () => {
     const withoutChopped = buildEmpirePortfolioModel(empireFixture());
     const aliveChopped = buildEmpirePortfolioModel(empireFixtureWithChopped());
     const eliminatedChopped = buildEmpirePortfolioModel(empireFixtureWithChopped({ settings: { eliminated: 4, locked: 1 } }));
-    // Alive: roster 5's health score (55) is real signal and SHOULD count —
-    // being in a chopped league does not itself invalidate a live roster's
-    // health read, only an eliminated (empty, released) one does.
-    ok(aliveChopped.totals.avgHealth !== withoutChopped.totals.avgHealth,
-      'an alive chopped roster\'s health score is real and moves the average');
-    // Eliminated: nulled at the source, so the average reverts to exactly
-    // what it would be without the chopped league at all.
-    eq(eliminatedChopped.totals.avgHealth, withoutChopped.totals.avgHealth,
-      'once eliminated, the empty roster contributes nothing to avgHealth');
+    // The injected assessment has no seasonal basis; the shared producer can
+    // estimate it from dynasty DHQ. Neither a live nor released Chopped roster
+    // may turn that fallback into a current-season health claim.
+    eq(aliveChopped.provinces.find(p => p.isChopped).healthScore, null);
+    eq(aliveChopped.totals.avgHealth, withoutChopped.totals.avgHealth);
+    eq(eliminatedChopped.totals.avgHealth, withoutChopped.totals.avgHealth);
   });
 
 test('non-chopped provinces are completely unaffected by chopped-awareness',

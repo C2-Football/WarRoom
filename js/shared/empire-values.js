@@ -74,11 +74,12 @@
     const MIN_SIDE_VALUE = Math.round(COMMON_SCALE * 0.08);
 
     function formatOf(league) {
-        const t = Number((league && league.settings && league.settings.type));
-        if (t === 3) return 'chopped';
-        if (t === 2) return 'dynasty';
-        if (t === 1) return 'keeper';
-        return 'redraft';
+        const normalize = value => App.LeagueSkin?.normalizeType?.(value)
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(value)] || String(value ?? '').trim().toLowerCase());
+        const override = normalize(App.Intelligence?.getLeagueTypeOverride?.(league));
+        const raw = [league?.type, league?.league_type, league?.settings?.type, league?.metadata?.type, league?.metadata?.league_type]
+            .find(value => value !== undefined && value !== null && value !== '');
+        return override || normalize(raw) || (Number(league?.settings?.max_keepers || league?.settings?.keeper_count || league?.metadata?.keeper_count || 0) > 0 ? 'keeper' : 'unknown');
     }
 
     function sameId(a, b) { return a != null && b != null && String(a) === String(b); }
@@ -90,7 +91,7 @@
         const mine = new Set();
         const rostered = new Set();
         rosters.forEach(r => {
-            const isMine = myUserId != null && sameId(r.owner_id, myUserId);
+            const isMine = sameId(r.owner_id, myUserId) || sameId(r.owner_id, league.myUserId) || sameId(r.roster_id, league.myRosterId);
             (r.players || []).forEach(pid => {
                 rostered.add(pid);
                 if (isMine) mine.add(pid);
@@ -109,10 +110,16 @@
         const byLeague = {};
         const unpriced = [];
         const meta = [];
+        const projectionFields = ['pass_att', 'pass_yd', 'pass_td', 'rush_att', 'rush_yd', 'rush_td', 'rec', 'rec_tgt', 'rec_yd', 'rec_td', 'pts_ppr', 'pts_half_ppr', 'pts_std', 'fga', 'fgm', 'xpm', 'idp_tkl'];
+        const projections = opts.requireCurrentEvidence ? Object.fromEntries(Object.entries(opts.projectionsData || {}).filter(([, row]) => projectionFields.some(field => Number(row?.[field]) > 0))) : opts.projectionsData;
+        const evidenced = map => opts.requireCurrentEvidence ? Object.fromEntries(Object.entries(map || {}).filter(([pid]) => Object.prototype.hasOwnProperty.call(projections, pid))) : map;
 
         leagues.forEach(l => {
             const lid = String(l.league_id || l.id || '');
             if (!lid) return;
+            if (opts.requireCurrentEvidence && String(l.season) !== String(opts.season)) {
+                unpriced.push(lid); meta.push({ id: lid, name: l.name || 'League', format: formatOf(l), teams: Number(l.total_rosters) || (l.rosters || []).length, priced: false }); return;
+            }
             const slots = PV.slotsFromRoster(l.roster_positions || []);
             const teams = Number(l.total_rosters) || (l.rosters || []).length || 12;
             let board = null;
@@ -125,10 +132,10 @@
                     perTeamSlots: slots,
                     totalTeams: teams,
                     playersData,
-                    statsData: opts.statsData || {},
-                    priorData: opts.priorData || {},
-                    projectionsData: opts.projectionsData || null,
-                    playerScores: opts.playerScores || null,
+                    statsData: evidenced(opts.statsData) || {},
+                    priorData: evidenced(opts.priorData) || {},
+                    projectionsData: projections || null,
+                    playerScores: evidenced(opts.playerScores) || null,
                 });
             } catch (e) { board = null; }
             const fmt = formatOf(l);
@@ -165,7 +172,13 @@
             const anchor = topN.length ? topN.reduce((a, b) => a + b, 0) / topN.length : 0;
             const k = anchor > 0 ? (COMMON_SCALE / anchor) : 1;
             const values = {};
-            for (const pid in board.values) values[pid] = Math.round((board.values[pid] || 0) * k);
+            for (const pid in board.values) {
+                const projection = projections?.[pid];
+                // Historical-only baselines cannot fill a missing current
+                // projection while the UI promises current-season evidence.
+                if (opts.requireCurrentEvidence && (!projection || !playersData[pid]?.position)) continue;
+                values[pid] = Math.round((board.values[pid] || 0) * k);
+            }
 
             byLeague[lid] = {
                 values, points: board.points,
@@ -173,6 +186,8 @@
                 slots, teams, format: fmt, name: l.name || 'League',
                 anchor: Math.round(anchor), rescale: Math.round(k * 1000) / 1000,
                 mine: own.mine, rostered: own.rostered,
+                season: opts.season == null ? null : String(opts.season),
+                evidence: opts.requireCurrentEvidence ? 'current-season' : 'projection-or-history',
             };
         });
 
