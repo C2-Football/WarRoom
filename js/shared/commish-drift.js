@@ -54,6 +54,15 @@
     };
     function store() { return App.AccountStorage || (typeof window === 'undefined' ? memStore : null); }
 
+    function persist(st, key, value) {
+        try {
+            if (st.set(key, value) !== true) throw new Error('Storage did not confirm the drift save');
+        } catch (cause) {
+            const error = new Error('Drift tracking was not saved locally. Free browser storage or sign in again, then retry.');
+            error.code = 'LOCAL_SAVE_FAILED'; error.cause = cause; throw error;
+        }
+    }
+
     // ── Snapshot ─────────────────────────────────────────────────────
     // Flatten the three commissioner-editable surfaces into dot-path leaves.
     // roster_positions joins to a single 'positions' leaf (a slot edit reads
@@ -101,7 +110,8 @@
 
         const rec = st.get(key, null);
         if (!rec || !rec.snapshot) {
-            st.set(key, { ts: nowMs, snapshot: snap, pending: [], history: [] });
+            try { persist(st, key, { ts: nowMs, snapshot: snap, pending: [], history: [] }); }
+            catch (error) { return { firstRun: false, changes: [], storageError: error.message }; }
             return { firstRun: true, changes: [] };
         }
 
@@ -124,20 +134,31 @@
         }
         for (const c of fresh) if (byPath[c.path]) next.push(c);
 
+        const changed = JSON.stringify(rec.pending || []) !== JSON.stringify(next);
         rec.pending = next;
-        st.set(key, rec);
-        return { firstRun: false, changes: next.slice(), baselineTs: rec.ts };
+        const result = { firstRun: false, changes: next.slice(), baselineTs: rec.ts };
+        if (changed) {
+            try { persist(st, key, rec); }
+            catch (error) { return { ...result, storageError: error.message }; }
+        }
+        return result;
     }
 
     function acknowledge(leagueId, opts) {
         const lid = String(leagueId || '');
         const st = store();
         const rec = st.get(KEY(lid), null);
-        if (!rec) return null;
+        if (!rec || !Array.isArray(rec.pending) || !rec.pending.length) return null;
         const nowMs = (opts && opts.nowMs != null) ? Number(opts.nowMs) : Date.now();
         rec.ackTs = nowMs;
         let group = null;
         if (Array.isArray(rec.pending) && rec.pending.length) {
+            // The local ledger is saved first using a stable batch identifier.
+            // If our baseline write fails, retry can finish without duplicating it.
+            group = { ackTs: nowMs, changes: rec.pending };
+            if (typeof opts?.beforeCommit === 'function') {
+                opts.beforeCommit(group, 'drift:' + JSON.stringify({ baselineTs: rec.ts, changes: rec.pending }));
+            }
             // Fold: the baseline becomes what the league looks like NOW, so
             // the next check is quiet until something else moves.
             for (const p of rec.pending) {
@@ -149,7 +170,7 @@
             rec.pending = [];
             rec.ts = nowMs;
         }
-        st.set(KEY(lid), rec);
+        persist(st, KEY(lid), rec);
         return group;
     }
 

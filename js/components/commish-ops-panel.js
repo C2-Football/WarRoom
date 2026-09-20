@@ -43,7 +43,7 @@ function WrCommishOpsSection({ title, meta, action, children }) {
     );
 }
 
-function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge, onAddTask, onToggleTask, onRemoveTask }) {
+function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge, onRetryDrift, onAddTask, onToggleTask, onRemoveTask }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)';
     const AMBER = 'var(--warn, #F0A500)', BLUE = 'var(--co-accent, #5DADE2)';
@@ -56,9 +56,10 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     // Split once up front so the render below reads as policy, not sorting.
     const driftRows = Array.isArray(drift) ? drift : [];
     const changed = driftRows.filter(d => d.result && !d.result.firstRun && (d.result.changes || []).length > 0);
+    const unsaved = driftRows.filter(d => d.result?.storageError);
     const firstRuns = driftRows.filter(d => d.result && d.result.firstRun);
     const unchecked = driftRows.filter(d => !d.result);
-    const quietCount = driftRows.length - changed.length - firstRuns.length - unchecked.length;
+    const quietCount = driftRows.filter(d => d.result && !d.result.firstRun && !d.result.storageError && !(d.result.changes || []).length).length;
     // "All quiet" is the strong claim — only make it when EVERY league was
     // actually checked against a real baseline and came back clean.
     const allQuiet = driftRows.length > 0 && quietCount === driftRows.length;
@@ -164,7 +165,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <WrCommishOpsSection title="Drift Sentinel" meta={driftRows.length ? driftRows.length + ' league' + (driftRows.length === 1 ? '' : 's') + ' watched' : null}>
                 <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '10px', lineHeight: 1.5 }}>
-                    Nightly diff of live settings against the last state you ratified. The silent co-commish edit, caught.
+                    Checks settings when you open the office against your last locally acknowledged state. Nothing here changes platform settings.
                 </div>
                 {!driftRows.length ? (
                     <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No commissioned leagues on the watch yet — the sentinel arms once a league is hydrated.</div>
@@ -172,6 +173,10 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                     quietLine('Settings match the last state you signed off on — all ' + driftRows.length + ' league' + (driftRows.length === 1 ? '' : 's') + '.', GREEN, 'rgba(46,204,113,0.07)')
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {unsaved.map(lg => <div key={'unsaved:' + lg.leagueId} role="alert" style={{ color: AMBER, lineHeight: 1.5 }}>
+                            <strong>{lg.leagueName}</strong> — {lg.result.storageError}
+                            <button onClick={() => onRetryDrift?.(lg.leagueId)} style={{ display: 'block', marginTop: '8px', minHeight: '44px' }}>Retry drift check</button>
+                        </div>)}
                         {changed.map(lg => (
                             <div key={lg.leagueId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px' }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>

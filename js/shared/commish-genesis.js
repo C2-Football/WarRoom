@@ -142,6 +142,7 @@
 
     function checkSettingsRatified(driftResult) {
         if (driftResult == null) return { done: false, detail: 'not checked yet' };
+        if (driftResult.storageError) return { done: false, detail: 'Drift tracking was not saved — retry from Operations.' };
         if (driftResult.firstRun) {
             return { done: true, detail: 'Baseline captured — settings are being watched from here.' };
         }

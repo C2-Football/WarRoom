@@ -128,6 +128,11 @@ test('driftResult null → not done, detail "not checked yet"', () => {
   assert.strictEqual(it.detail, 'not checked yet');
 });
 
+test('failed drift save never claims settings are ready', () => {
+  const it = item(ready({ driftResult: { firstRun: false, changes: [], storageError: 'quota' } }), 'settings_ratified');
+  assert.strictEqual(it.done, false); assert.match(it.detail, /not saved/);
+});
+
 test('firstRun drift counts done', () => {
   const it = item(ready({ driftResult: { firstRun: true, changes: [] } }), 'settings_ratified');
   assert.strictEqual(it.done, true);

@@ -142,7 +142,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         if (runRef.current.key === runKey) return;
         if (!C || !window.App?.Luck) { setState({ status: 'unavailable' }); return; }
         runRef.current.key = runKey;
-        const live = () => runRef.current.key === runKey;
+        const live = () => runRef.current.key === runKey && window.App?.AccountSession?.isCurrent?.() !== false;
         setState({ status: 'loading', step: 'Reading your leagues…' });
         (async () => {
             try {
@@ -173,7 +173,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 try { draftsByLeague = C.Calendar?.loadDrafts ? await C.Calendar.loadDrafts(mine) : {}; } catch (e) { draftsByLeague = {}; }
                 const playersData = window.App.fetchAllPlayers ? await window.App.fetchAllPlayers().catch(() => ({})) : {};
 
-                if (live()) setState({ status: 'loading', step: 'Running the desk…' });
+                if (!live()) return;
+                setState({ status: 'loading', step: 'Running the desk…' });
                 // 3. Engines (each guarded — a failed engine empties its wall, not the office).
                 let coefficient = null, radar = null, drift = [], calendar = { events: [] }, conflicts = [], programmes = [], renewal = null;
                 try { coefficient = C.Coefficient?.buildCoefficient ? C.Coefficient.buildCoefficient({ graph, ledgers }) : null; } catch (e) { window.wrLog?.('commish.coefficient', e); }
@@ -1189,25 +1190,42 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         } catch (e) { return null; }
     };
 
-    const onAcknowledge = (leagueId) => {
-        // The constitutional-history link: an acknowledged drift change IS an
-        // amendment — record it before folding the baseline.
-        try {
-            const pending = (state.drift.find(d => d.leagueId === leagueId)?.result?.changes) || [];
-            pending.forEach(ch => C.Bylaws?.recordAmendment?.(leagueId, { path: ch.path, from: ch.from, to: ch.to, note: '', source: 'drift_ack', nowMs: Date.now() }));
-        } catch (e) { /* ledger only */ }
-        try { C.Drift?.acknowledge?.(leagueId, { nowMs: Date.now() }); } catch (e) { /* keep pending */ }
-        // Re-check just that league against the fresh baseline.
-        setState(s => {
-            if (s.status !== 'ready') return s;
-            const drift = s.drift.map(d => {
-                if (d.leagueId !== leagueId) return d;
-                const league = s.mine.find(l => String(l.league_id || l.id) === leagueId);
-                try { return { ...d, result: C.Drift.checkLeague(league, { nowMs: Date.now() }) }; } catch (e) { return d; }
-            });
-            return { ...s, drift };
+    const refreshDrift = (leagueId) => {
+        if (window.App?.AccountSession?.isCurrent?.() === false) return null;
+        const league = (state.mine || []).find(item => String(item.league_id || item.id) === leagueId);
+        const result = C.Drift?.checkLeague?.(league, { nowMs: Date.now() });
+        setState(current => current.status !== 'ready' ? current : {
+            ...current, drift: current.drift.map(row => row.leagueId === leagueId ? { ...row, result } : row),
         });
+        return result;
+    };
+    const onRetryDrift = leagueId => localSave.run('drift-check:' + leagueId, 'ops', () => {
+        const result = refreshDrift(leagueId);
+        if (!result || result.storageError) throw new Error(result?.storageError || 'League settings could not be checked.');
+        return true;
+    }, { retry: () => onRetryDrift(leagueId), retryLabel: 'Retry drift check' }).ok;
+    const onAcknowledge = leagueId => {
+        const result = localSave.run('drift-ack:' + leagueId, 'ops', () => {
+            // Do not acknowledge unsaved or stale detected changes. A fresh
+            // check first persists the currently visible provider snapshot.
+            const checked = refreshDrift(leagueId);
+            if (!checked || checked.storageError) throw new Error(checked?.storageError || 'League settings could not be checked.');
+            if (!C.Bylaws?.recordAmendments || !C.Drift?.acknowledge) throw new Error('The amendment ledger is unavailable.');
+            C.Drift.acknowledge(leagueId, {
+                nowMs: Date.now(),
+                beforeCommit: (group, operationId) => C.Bylaws.recordAmendments(leagueId, group.changes.map(change => ({
+                    path: change.path, from: change.from, to: change.to, note: '', source: 'drift_ack', nowMs: group.ackTs,
+                })), { operationId }),
+            });
+            refreshDrift(leagueId);
+            return true;
+        }, {
+            prefix: 'Acknowledgment is incomplete. Amendment history may already be saved; retry finishes without duplicating it. ',
+            retry: () => onAcknowledge(leagueId), retryLabel: 'Retry acknowledgment',
+        });
+        if (result.ok) localSave.resolve(['drift-check:' + leagueId]);
         setAckTick(t => t + 1);
+        return result.ok;
     };
     const onCopy = (text) => { try { navigator.clipboard?.writeText?.(text); } catch (e) { /* clipboard unavailable */ } };
 
@@ -1455,7 +1473,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? (isPhone ? <details className="co-disclosure"><summary>Renewal forecast</summary><window.WrCommishRenewalPanel forecast={state.renewal} /></details> : <window.WrCommishRenewalPanel forecast={state.renewal} />) : null}
                 {tab === 'ops' ? (Ops ? <Ops key={'ops:' + localSave.reset} drift={state.drift} calendar={opsCalendar} conflicts={state.conflicts}
                     leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
-                    onAcknowledge={onAcknowledge} onAddTask={onAddTask} onToggleTask={onToggleTask} onRemoveTask={onRemoveTask}
+                    onAcknowledge={onAcknowledge} onRetryDrift={onRetryDrift} onAddTask={onAddTask} onToggleTask={onToggleTask} onRemoveTask={onRemoveTask}
                     ackTick={ackTick} /> : missing('Ops desk')) : null}
                 {tab === 'programmes' ? (Prog ? <Prog programmes={state.programmes} onExportAll={onExportAll} /> : missing('Programme rack')) : null}
                 {tab === 'rulelab' ? (window.WrCommishRuleLabPanel ? (
