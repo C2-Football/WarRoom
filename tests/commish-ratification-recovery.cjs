@@ -4,10 +4,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const Bylaws = require('../js/shared/commish-bylaws.js');
 const Proposals = require('../js/shared/commish-proposals.js');
-const records = new Map(); let failKey = null, writes = [];
+const records = new Map(); let failKey = null, writes = [], afterWrite = null;
 const storage = {
     get: (key, fallback) => records.has(key) ? JSON.parse(records.get(key)) : fallback,
-    set(key, value) { writes.push(key); if (key === failKey) return false; records.set(key, JSON.stringify(value)); return true; },
+    set(key, value) { writes.push(key); if (key === failKey) return false; records.set(key, JSON.stringify(value)); if (afterWrite) afterWrite(key); return true; },
 };
 global.App.AccountStorage = storage;
 const source = fs.readFileSync('js/tabs/commissioner-office.js', 'utf8');
@@ -58,5 +58,29 @@ try {
     records.set(c.PROPOSALS_KEY, '[]'); writes = []; ({ ratify } = render());
     assert.equal(ratify('p2'), false); assert.equal(writes.length, 0);
     assert.equal(Bylaws.amendments('L1').length, 6);
+    // A changed same-ID proposal cannot inherit an older partial ratification.
+    render().ui.discard(); records.clear(); writes = []; failKey = null;
+    const original = proposal('p3'); records.set(c.PROPOSALS_KEY, JSON.stringify([original]));
+    afterWrite = key => { if (key === 'commish_bylaws_L1') records.set(c.PROPOSALS_KEY, JSON.stringify([{ ...original, overrides: { ...original.overrides, rec: 2 } }])); };
+    ({ ratify } = render()); assert.equal(ratify('p3'), false);
+    assert.equal(Bylaws.amendments('L1').length, 3); assert.equal(Bylaws.amendments('L2').length, 0);
+    assert.equal(storage.get(c.PROPOSALS_KEY)[0].overrides.rec, 2); assert.equal(storage.get(c.PROPOSALS_KEY)[0].status, 'draft');
+    afterWrite = null; writes = []; ({ ratify } = render()); assert.equal(ratify('p3'), false);
+    assert.equal(writes.length, 0, 'changed content cannot reuse or duplicate the previous batch');
+    assert.match(render().ui.failure.message, /proposal contents could not be verified/);
+    // Restoring the exact original semantics permits the interrupted operation.
+    records.set(c.PROPOSALS_KEY, JSON.stringify([{ ...original, overrides: { pass_td: 6, rec: 1 } }]));
+    writes = []; ({ ratify } = render()); assert.equal(ratify('p3'), true);
+    assert(!writes.includes('commish_bylaws_L1')); assert.equal(Bylaws.amendments('L1').length, 3); assert.equal(Bylaws.amendments('L2').length, 3);
+    assert.equal(storage.get(c.PROPOSALS_KEY)[0].status, 'ratified');
+    // Earlier-version completed markers have no content proof. Preserve them;
+    // never attach a guessed fingerprint or silently replay their amendments.
+    records.clear(); const oldProposal = proposal('legacy'); records.set(c.PROPOSALS_KEY, JSON.stringify([oldProposal]));
+    Bylaws.recordAmendments('L1', rows, { operationId: 'proposal:legacy' }); writes = [];
+    ({ ratify } = render()); assert.equal(ratify('legacy'), false); assert.equal(writes.length, 0);
+    assert.equal(Bylaws.amendments('L1').length, 2); assert.equal(storage.get(c.PROPOSALS_KEY)[0].status, 'draft');
+    assert.match(render().ui.failure.message, /Review the amendment history and save a new proposal/);
+    assert.equal(storage.get('commish_bylaws_L1').completedBatchFingerprints, undefined);
+    console.log('PASS same-ID content changes stop before further ledgers/status, exact-semantic retry is idempotent, and legacy partial markers cannot invent content proof');
     console.log('PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments');
 } finally { delete global.App.AccountStorage; }

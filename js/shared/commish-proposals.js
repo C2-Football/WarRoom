@@ -10,6 +10,9 @@
             && (row.rosterProposal == null || (object(row.rosterProposal) && Array.isArray(row.rosterProposal.rosterPositions)
                 && row.rosterProposal.rosterPositions.every(slot => typeof slot === 'string'))));
     }
+    function fingerprint(row) {
+        return JSON.stringify([row.name, Object.keys(row.overrides || {}).sort().map(key => [key, row.overrides[key]]), row.rosterProposal?.rosterPositions || null]);
+    }
     function read() {
         let raw = null, key = null;
         try {
@@ -67,7 +70,7 @@
         } catch (_) { return []; }
     }
     App.Commish = App.Commish || {};
-    App.Commish.Proposals = { read, update, recover, recoveryCopies };
+    App.Commish.Proposals = { read, update, recover, recoveryCopies, fingerprint };
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = App.Commish.Proposals;
 })(typeof window !== 'undefined' ? window : globalThis);

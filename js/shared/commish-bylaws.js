@@ -268,7 +268,13 @@
         const st = store();
         const rec = st.get(KEY(lid), null) || { amendments: [] };
         const operationId = opts?.operationId ? String(opts.operationId) : null;
-        if (operationId && Object.prototype.hasOwnProperty.call(rec.completedBatches || {}, operationId) && rec.completedBatches[operationId] === true) return [];
+        const fingerprint = typeof opts?.contentFingerprint === 'string' ? opts.contentFingerprint : null;
+        if (operationId && Object.prototype.hasOwnProperty.call(rec.completedBatches || {}, operationId) && rec.completedBatches[operationId] === true) {
+            if (fingerprint !== null && rec.completedBatchFingerprints?.[operationId] !== fingerprint) {
+                throw new Error('Earlier amendment entries exist, but their proposal contents could not be verified. Review the amendment history and save a new proposal if needed.');
+            }
+            return [];
+        }
         const rows = entries.map(entry => ({
             ts: entry.nowMs != null ? Number(entry.nowMs) : Date.now(),
             path: entry.path != null ? String(entry.path) : '',
@@ -278,7 +284,10 @@
             source: entry.source === 'drift_ack' ? 'drift_ack' : 'manual',
         }));
         rec.amendments = ((rec.amendments || []).concat(rows)).slice(-AMEND_CAP);
-        if (operationId) rec.completedBatches = { ...(rec.completedBatches || {}), [operationId]: true };
+        if (operationId) {
+            rec.completedBatches = { ...(rec.completedBatches || {}), [operationId]: true };
+            if (fingerprint !== null) rec.completedBatchFingerprints = { ...(rec.completedBatchFingerprints || {}), [operationId]: fingerprint };
+        }
         try {
             if (st.set(KEY(lid), rec) !== true) throw new Error('Storage did not confirm the amendment save');
         } catch (cause) {

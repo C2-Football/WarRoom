@@ -837,7 +837,16 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             const current = snapshot.list;
             const sp = current.find(proposal => proposal.id === id);
             if (!sp) throw new Error('This proposal is no longer saved. Dismiss this attempt and choose a saved proposal.');
+            const contentFingerprint = C.Proposals.fingerprint(sp);
+            const assertCurrentProposal = () => {
+                const latest = C.Proposals.read();
+                const row = latest.list.find(proposal => proposal.id === id);
+                if (latest.error || latest.key !== snapshot.key || !row || C.Proposals.fingerprint(row) !== contentFingerprint) {
+                    throw new Error('The proposal or account changed during ratification. Reopen it and review any amendment entries already saved.');
+                }
+            };
             for (const league of rlScoped) {
+                assertCurrentProposal();
                 const lid = String(league.league_id || league.id);
                 const rows = Object.keys(sp.overrides || {}).map(key => ({
                     path: 'scoring.' + key,
@@ -850,10 +859,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     to: sp.rosterProposal.rosterPositions.slice(), note: 'Rule Lab ratification: ' + sp.name,
                     source: 'manual', nowMs: Date.now(),
                 });
-                if (rows.length) C.Bylaws.recordAmendments(lid, rows, { operationId: 'proposal:' + id });
+                if (rows.length) C.Bylaws.recordAmendments(lid, rows, { operationId: 'proposal:' + id, contentFingerprint });
             }
+            assertCurrentProposal();
             C.Proposals.update(latest => {
-                if (!latest.some(proposal => proposal.id === id)) throw new Error('The saved proposal changed. Retry after reopening it.');
+                const row = latest.find(proposal => proposal.id === id);
+                if (!row || C.Proposals.fingerprint(row) !== contentFingerprint) throw new Error('The saved proposal changed. Retry after reopening it.');
                 return latest.map(proposal => proposal.id === id ? { ...proposal, status: 'ratified', ratifiedTs: Date.now(), ratifiedLeagueIds: rlScoped.map(league => String(league.league_id || league.id)) } : proposal);
             });
             return true;
