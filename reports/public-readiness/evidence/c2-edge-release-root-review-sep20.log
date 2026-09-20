@@ -1,0 +1,30 @@
+
+> fantasy-war-room@1.0.0 test:c2-release
+> python3 tests/c2-edge-release.py && node tests/c2-edge-release-schema.cjs
+
+test_catalog_queries_are_fixed_read_only_and_missing_versions_stop (__main__.ReleaseTests) ... ok
+test_deploy_during_download_cannot_produce_mixed_hosted_evidence (__main__.ReleaseTests) ... ok
+test_download_inventory_does_not_lose_cup_engine_outside_functions (__main__.ReleaseTests) ... ok
+test_every_external_or_unknown_function_is_rejected (__main__.ReleaseTests) ... ok
+test_generated_runtime_change_is_not_accepted_as_unchanged_source (__main__.ReleaseTests) ... ok
+test_hosted_drift_rejected_before_any_deployment (__main__.ReleaseTests) ... ok
+test_incomplete_download_cannot_be_recorded_as_reviewed_hosted_state (__main__.ReleaseTests) ... ok
+test_manual_missing_scope_wrong_repository_and_branch_stop (__main__.ReleaseTests) ... ok
+test_new_candidate_commit_requires_new_review (__main__.ReleaseTests) ... ok
+test_push_never_needs_a_manifest_or_token_and_selects_no_functions (__main__.ReleaseTests) ... ok
+test_reviewed_game_scope_and_complete_inputs (__main__.ReleaseTests) ... ok
+test_schema_drift_blocks_even_with_matching_function_bytes (__main__.ReleaseTests) ... ok
+test_schema_prerequisite_cannot_be_dropped_or_replaced_with_billing (__main__.ReleaseTests) ... ok
+test_served_sources_include_generated_and_cross_directory_cup_engine (__main__.ReleaseTests) ... ok
+test_shared_data_and_compiler_changes_invalidate_review (__main__.ReleaseTests) ... ok
+test_single_cup_release_does_not_require_or_select_other_game_runtimes (__main__.ReleaseTests) ... ok
+test_vault_local_unbundle_fallback_retains_complete_source_requirement (__main__.ReleaseTests) ... ok
+test_workflow_has_only_three_explicit_scoped_deployments_and_no_schema_writes (__main__.ReleaseTests) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 26.563s
+
+OK
+PASS actual fixed catalog query detects game RLS/policy weakening without reading user records
+PASS account shape and routine body changes invalidate compatibility even with the same recorded migration
+PASS unexpected table/column grants and indexes change the fingerprint; no migration or provider operation was executed

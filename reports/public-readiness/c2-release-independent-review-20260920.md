@@ -1,0 +1,7 @@
+# Independent C2 game-release review — 2026-09-20
+
+Root independently reviewed frozen fd1d9e8 (integrated as22bb00b), including the exact workflow, manifest/dependency planner, source download closure, schema query, pre/post-deploy checks and actual regression tests. The bounded tooling change is clear. All18 planner/CLI cases and3 actual catalog SQL groups were independently rerun and passed. [Command log](evidence/c2-edge-release-root-review-sep20.log).
+
+Verified ordinary pushes cannot enter the release job; only the canonical C2 main workflow dispatch can select the permanent Cup/Vault/Duat allowlist. No billing/account/provider/admin writes or migration execution remain in this workflow. Candidate/dependency/build hashes, reviewed schema and recorded prerequisites, complete hosted bytes/version/gateway state are checked before a selected deployment and exact candidate bytes again afterward. Integration preserved the newer checkout/deletion tests and all billing tests in the package-script union.
+
+The guard cannot make an external Supabase deployment atomic with its preflight or prevent a different owning repository/operator from deploying. Its exact schema fingerprint can stop on unrelated public routine changes; that requires refreshing reviewed evidence rather than weakening the comparison. Remote library resolution and unavailable Docker/hosted manifests remain separately documented limits. No actual game deployment was performed by this review. Full integrated automated checks are running separately on22bb00b.

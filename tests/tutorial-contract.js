@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const tutorial = read('js/tutorial.js');
@@ -86,14 +87,23 @@ test('app account tutorial state remains server-mediated', () => {
   ok(security.includes("'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'"), 'shared CORS methods should support fw-profile');
 });
 
-test('Supabase deploy workflow ships tutorial state backend', () => {
-  hasEvery(deployWorkflow, [
-    '20260503010000_tutorial_state.sql',
-    'deno check --node-modules-dir=auto "$fn"',
-    'supabase functions deploy fw-profile',
-    'if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then',
-    'SUPABASE_ACCESS_TOKEN repo secret is required',
-  ], 'deploy workflow');
+test('tutorial backend remains validated under the account release owner', () => {
+  ok(deployWorkflow.includes('deno check --node-modules-dir=none --no-lock "$fn"'), 'retained profile source must still be type checked');
+  ok(!deployWorkflow.includes('supabase functions deploy fw-profile'), 'C2 must not overwrite the owning account backend');
+  ok(read('supabase/functions/README.md').includes('skjjcruz/github.com-skjjcruz-owner-dashboard-dev'), 'account release ownership must remain documented');
+  const result = execFileSync('python3', ['-c', `
+import importlib.util
+spec = importlib.util.spec_from_file_location('release', 'scripts/c2-edge-release.py')
+release = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(release)
+try:
+    release.selected_functions(['fw-profile'])
+except release.Rejected:
+    print('account-owner-required')
+else:
+    raise SystemExit('C2 incorrectly accepted the profile backend')
+`], { cwd: ROOT, encoding: 'utf8' });
+  ok(result.trim() === 'account-owner-required', 'actual release planner must reject cross-owner profile deployment');
 });
 
 console.log('\n');

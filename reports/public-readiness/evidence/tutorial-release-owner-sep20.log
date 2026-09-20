@@ -1,0 +1,9 @@
+
+> fantasy-war-room@1.0.0 test:tutorial
+> node tests/tutorial-contract.js
+
+
+War Room assistant tutorial contract tests
+....
+
+PASS 4 tests - 4 passed, 0 failed
