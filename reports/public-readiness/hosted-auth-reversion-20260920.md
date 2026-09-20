@@ -1,6 +1,6 @@
 # Hosted auth source reverted after verified release
 
-Status: **HIGH, current hosted regression observed; not repaired by this lane.** The root agent owns release response. No function deployment, account mutation or provider transaction was performed during this investigation.
+Status: **HIGH regression selectively repaired; durable upstream deployment ownership remains blocked.** The root agent owns release response. No function deployment, account mutation or provider transaction was performed during this investigation.
 
 The read-only upstream native release preflight initially passed for native candidate5e355b6 against freshly downloaded eight account/reset function bundles. After amending only test/workflow compatibility to618c613, the same preflight correctly stopped because hosted `fw-signup` no longer matched the reviewed manifest. [Failure evidence](evidence/auth-reversion-preflight-20260920.log). The candidate's endpoint bytes did not change; the old manifest was preserved.
 
@@ -11,3 +11,11 @@ This reintroduces the already reproduced unauthenticated QA account deletion/rat
 The owning native main is stillaa13193. Its latest visible deployment workflow35511209477 is attempt1 from3ed7c49, completed12:39:36UTC, with no corresponding16:16 run or retry visible. [Workflow evidence](evidence/auth-reversion-latest-workflow-20260920.json). No actor or cause is inferred from that gap. Full downloaded snapshots and per-file diffs are preserved at `/tmp/native-auth-source-drift-20260920`; original observations remain at `/tmp/readiness-native-auth-hosted-20260920`.
 
 Root was notified immediately and reports no deployment after its earlier selective six-account release. Next steps: coordinate deployment ownership/provenance, preserve the hosted source and manifest mismatch, then perform only an explicitly reviewed selective recovery if appropriate. Refreshing expected hashes to accept the old insecure code would defeat the guard. Actual-native source integration remains blocked by workflow-scope/write access, so a future unrelated owning-repository deployment can overwrite isolated hosted fixes unless the owning source is reconciled.
+
+## Root restoration and current evidence
+
+Root selectively restored those seven reviewed account/reset functions from the original reviewed account source0a704ac (root integration129da3d), at16:23:43–16:23:50UTC Sep20. No unrelated billing, provider, admin, frontend or migration release was included. [Deployment record](evidence/auth-reversion-restoration-sep20.json).
+
+All eight account/reset entrypoints and bundled shared files were freshly downloaded in isolated directories and matched the preserved reviewed hashes at16:26:45UTC. [Source verification](evidence/auth-reversion-restored-source-sep20.json). Both controlled profiles remained accessible, the previously revoked session stayed denied, and the same Duat cycle2 Week1 save reopened. [Read-only smoke](evidence/auth-reversion-restored-smoke-sep20.json). The independent native release preflight passed again without relaxing its manifest.
+
+This repairs the observed hosted regression at the verified time. It does not establish why another deployment occurred or prevent recurrence while owning native main retains the stale code. The current GitHub connector and CLI identity both have read-only upstream access; the complete native guarded candidate618c613 remains local after the CLI rejected its fork push for missing workflow scope. Public frontend fac5d81 could be pushed and proposed separately as draft PR1, but that does not repair native backend provenance.

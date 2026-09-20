@@ -1,0 +1,12 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "checkedAt": "2026-09-20T16:26:51.370Z",
+  "status": "passed",
+  "readOnlyAccountAndGameChecks": true,
+  "checks": [
+    "Current controlled c48b3225-82c3-4aa8-9979-d30b7f32118d profile accepted",
+    "Current controlled 19faf319-8466-4aad-874e-8bb43e9a33e6 profile accepted",
+    "Previously revoked session still denied",
+    "Same controlled Duat cycle2 Week1 remains saved and accessible"
+  ]
+}
