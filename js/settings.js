@@ -87,6 +87,8 @@
         const [settingsTab, setSettingsTab] = React.useState('account');
         const [showPw, setShowPw] = React.useState(false);
         const [pwMsg, setPwMsg] = React.useState('');
+        const [pwPending, setPwPending] = React.useState(false);
+        const passwordRequestRef = React.useRef(false);
         const [currentPw, setCurrentPw] = React.useState('');
         const [newPw, setNewPw] = React.useState('');
         const [confirmPw, setConfirmPw] = React.useState('');
@@ -135,36 +137,21 @@
         }
 
         async function handleChangePassword() {
+            if (passwordRequestRef.current) return;
             setPwMsg('');
             if (!currentPw || !newPw || !confirmPw) { setPwMsg('x Fill in all fields'); return; }
             if (newPw !== confirmPw) { setPwMsg('x New passwords do not match'); return; }
-            if (newPw.length < 6) { setPwMsg('x Password must be at least 6 characters'); return; }
+            if (newPw.length < 8 || newPw.length > 1024) { setPwMsg('x Password must be between 8 and 1024 characters'); return; }
+            passwordRequestRef.current = true;
+            setPwPending(true);
             try {
-                // Verify current password against stored hash
-                const AUTH_KEY = 'od_auth_v1';
-                const auth = JSON.parse(localStorage.getItem(AUTH_KEY) || '{}');
-                const encoder = new TextEncoder();
-                const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(currentPw));
-                const currentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
-
-                if (auth.passwordHash && auth.passwordHash !== currentHash) {
-                    // Also try Supabase in case this is a gifted account
-                    const result = await window.OD.verifySupabasePassword(sleeperUsername, currentPw);
-                    if (!result || !result.match) {
-                        setPwMsg('x Current password is incorrect');
-                        return;
-                    }
-                }
-                // Update Supabase
-                await window.OD.updatePassword(sleeperUsername, newPw);
-                // Update localStorage
-                const newHashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(newPw));
-                const newHash = Array.from(new Uint8Array(newHashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
-                localStorage.setItem(AUTH_KEY, JSON.stringify({ ...auth, passwordHash: newHash, isGifted: false }));
-                setCurrentPw(''); setNewPw(''); setConfirmPw('');
-                setPwMsg('ok Password updated');
-            } catch (e) {
-                setPwMsg('x Failed to update password');
+                if (!window.App?.AccountPassword?.change) throw new Error('Account services are still loading. Please try again.');
+                await window.App.AccountPassword.change(currentPw, newPw);
+            } catch (error) {
+                setPwMsg('x ' + (error?.message || 'The password change could not be confirmed. Try signing in with your new password before retrying.'));
+            } finally {
+                passwordRequestRef.current = false;
+                setPwPending(false);
             }
         }
 
@@ -246,8 +233,8 @@
                                 <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
                                 <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
                                 <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-                                <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
-                                {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
+                                <button onClick={handleChangePassword} disabled={pwPending} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>{pwPending ? 'Updating…' : 'Update password'}</button>
+                                {pwMsg && <div role="status" aria-live="polite" style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
                             </div></window.WR.MobileSection>
                             <window.WR.MobileSection title="Sign out" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>ACCOUNT ACTIONS</div>
@@ -385,8 +372,8 @@
                                 <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
                                 <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
                                 <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-                                <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update password</button>
-                                {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg.replace(/^ok /, '').replace(/^x /, '')}</div>}
+                                <button onClick={handleChangePassword} disabled={pwPending} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>{pwPending ? 'Updating…' : 'Update password'}</button>
+                                {pwMsg && <div role="status" aria-live="polite" style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg.replace(/^ok /, '').replace(/^x /, '')}</div>}
                             </>)}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius, 10px)' }}>
@@ -464,8 +451,8 @@
                         <input style={inputStyle} type="password" aria-label="Current password" autoComplete="current-password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
                         <input style={inputStyle} type="password" aria-label="New password" autoComplete="new-password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
                         <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" aria-label="Confirm new password" autoComplete="new-password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-                        <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
-                        {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
+                        <button onClick={handleChangePassword} disabled={pwPending} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>{pwPending ? 'Updating…' : 'Update password'}</button>
+                        {pwMsg && <div role="status" aria-live="polite" style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg}</div>}
                     </div>
 
                     {/* Phase 10: Leaguemate Access card removed per user feedback (2026-04-18) */}

@@ -386,6 +386,10 @@
       (signin ? document.getElementById('identifier') : document.getElementById('signupEmail')).focus();
     }
 
+    if (new URLSearchParams(window.location.search).get('password') === 'changed') {
+      showMessage('Password changed. Sign in with your new password.', 'success');
+    }
+
     async function requestAccount(endpoint, body) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);

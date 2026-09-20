@@ -107,6 +107,7 @@ jobs:
           endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
 
           pending = {
+              '20260918030000': 'supabase/migrations/20260918030000_account_password_change.sql',
               '20260918020000': 'supabase/migrations/20260918020000_account_session_rls.sql',
               '20260918010000': 'supabase/migrations/20260918010000_atomic_password_reset.sql',
               "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
@@ -186,6 +187,7 @@ jobs:
           import json, urllib.request, os, sys
           token = os.environ.get('SUPABASE_ACCESS_TOKEN', '')
           expected = {
+              '20260918030000': 'supabase/migrations/20260918030000_account_password_change.sql',
               '20260918020000': 'supabase/migrations/20260918020000_account_session_rls.sql',
               '20260918010000': 'supabase/migrations/20260918010000_atomic_password_reset.sql',
               "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
@@ -269,6 +271,9 @@ jobs:
 
       - name: Deploy fw-signin function
         run: supabase functions deploy fw-signin --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy fw-change-password function
+        run: supabase functions deploy fw-change-password --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
 
       - name: Deploy fw-profile function
         run: supabase functions deploy fw-profile --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt

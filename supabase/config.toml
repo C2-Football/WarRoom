@@ -31,6 +31,9 @@ verify_jwt = false
 [functions.admin-list-users]
 verify_jwt = false
 
+[functions.fw-change-password]
+verify_jwt = false
+
 [functions.fw-confirm-password-reset]
 verify_jwt = false
 

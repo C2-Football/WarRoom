@@ -54,6 +54,14 @@ function browser({ mounted = true, sdkRejects = false, knownContext = true } = {
         assert(b.log.includes('unmount')); assert(!b.element.textContent.includes('confidential'));
         assert(b.log.some(value => Array.isArray(value) && value[0] === 'oauth-signout' && value[1].scope === 'local'));
     }
+    const changedPassword = browser();
+    changedPassword.context.location.pathname = '/dist-preview/index.html';
+    await changedPassword.context.App.AccountSession.signOut('login.html?password=changed');
+    assert.equal(changedPassword.context.location.href, '../login.html?password=changed');
+    assert.equal(changedPassword.local.getItem('fw_session_v1'), null);
+    const redirect = browser();
+    await redirect.context.App.AccountSession.signOut('https://untrusted.invalid');
+    assert.equal(redirect.context.location.href, 'landing.html');
     const b = browser();
     b.local.setItem('fw_session_v1', JSON.stringify(session('b')));
     // A delayed callback can run before the browser dispatches `storage`.

@@ -161,7 +161,7 @@
         root.location.reload();
         return false;
     }
-    async function signOut() {
+    async function signOut(destination) {
         if (blocked) return;
         const od = App.OD || root.OD, client = safe(() => od?.getClient?.());
         let archived = false;
@@ -183,7 +183,8 @@
             ]);
         } finally {
             if (timer) root.clearTimeout(timer);
-            root.location.href = 'landing.html';
+            const prefix = /\/dist-preview\//.test(root.location?.pathname || '') ? '../' : '';
+            root.location.href = prefix + (destination === 'login.html?password=changed' ? destination : 'landing.html');
         }
     }
     // A changed principal invalidates the entire mounted tree, including stale
