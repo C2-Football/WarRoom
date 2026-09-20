@@ -1,0 +1,3 @@
+PASS: scoped Vault email signup/signin and invite return, unchanged global login, OAuth-only guard, private-safe feedback, replay stats/mail continuity, 14-week playoff limit and labeled mobile navigation.
+(node:97041) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

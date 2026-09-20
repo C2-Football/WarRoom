@@ -1,0 +1,49 @@
+{
+  "origin": "http://localhost:3001",
+  "path": "/",
+  "accountId": "c5fbdc81-d5ac-4118-8547-ed27b28e822b",
+  "roomId": "9abe0f2c-7f52-4035-984a-606a0b121142",
+  "checks": [
+    "real UI sign-in verified exact controlled account",
+    "preserved completed room opened from shelf with account identity intact",
+    "completed room 390x844: no page overflow and league navigation reachable",
+    "completed room 320x740: no page overflow and league navigation reachable",
+    "completed room 844x390: no page overflow and league navigation reachable",
+    "completed room restored after full browser reload"
+  ],
+  "loads": [
+    {
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 22
+    },
+    {
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 22
+    }
+  ],
+  "blocked": [
+    {
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "endpoint": "/rest/v1/gm_strategy"
+    },
+    {
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "endpoint": "/rest/v1/gm_strategy"
+    }
+  ],
+  "passed": true
+}

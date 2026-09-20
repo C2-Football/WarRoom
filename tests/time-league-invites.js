@@ -1,5 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 global.window = globalThis; window.App = {};
 for (const name of ['roster','rules','draft-room','era-rules','types','season','helmet','engine','ai','actions','ui']) require('../js/shared/time-league-' + name + '.js');
 window.requestAnimationFrame = () => 1;
@@ -34,7 +36,7 @@ const draw=()=>room.render(()=>Room(props));
     assert(button(tree,'Open draft room').props.disabled);
     assert(!all(tree).find(node=>node.props.className==='tl-friends-team-editor').props.open,'Helmet customization starts collapsed');
     await named(tree,'Copy invite for Open Owls').props.onClick();tree=draw();
-    let url=new URL(clipboard.at(-1));assert.equal(url.pathname,'/WarRoom-sandbox/index.html');assert.equal(url.searchParams.get('tl_invite'),'owl-code&/+?');assert.equal(url.hash,'');assert.equal([...url.searchParams].length,1);
+    let url=new URL(clipboard.at(-1));assert.equal(url.pathname,'/WarRoom-sandbox/index.html');assert.equal(url.searchParams.get('tl_invite'),'owl-code&/+?');assert.equal(url.hash,'');assert.equal(url.searchParams.get('vault'),'1','Seat links preserve the Vault destination');assert.equal([...url.searchParams].length,2);
     assert(text(tree).includes('Invite copied'));assert(button(tree,'Copied'));
     await named(tree,'Share invite for Open Bears').props.onClick();
     assert.equal(shares.length,1);assert.equal(shares[0].title,'Join Friday Vault');assert.equal(new URL(shares[0].url).searchParams.get('tl_invite'),'bear-code','Sharing targets the selected seat');
@@ -57,5 +59,29 @@ const draw=()=>room.render(()=>Room(props));
     root.states[11]={...meta,draftStarted:true};tree=drawRoot();assert(!all(tree).some(node=>node.type===Room));button(all(tree).find(node=>node.type==='header'),'Invite').props.onClick();tree=drawRoot();assert(all(tree).some(node=>node.type===Room),'Header invitations remain accessible after returning to an existing league');
     root.states[11]={...meta,role:'member',draftStarted:true};tree=drawRoot();assert(button(all(tree).find(node=>node.type==='header'),'Managers'));assert(!button(all(tree).find(node=>node.type==='header'),'Invite'));
     root.states[11]=null;tree=drawRoot();assert(!button(all(tree).find(node=>node.type==='header'),'Invite'),'Device-only solo games do not pretend to have shareable seats');
+    // Execute the actual invite-consumption hook, including legacy links that
+    // do not yet carry vault=1. The URL after claim must survive a fresh render.
+    const appSource = fs.readFileSync(require.resolve('../js/app.js'), 'utf8');
+    const start = appSource.indexOf("const PENDING_INVITE_KEY = 'tl-pending-invite-v1';");
+    const end = appSource.indexOf('const clearPendingInvite', start);
+    assert(start >= 0 && end > start);
+    for (const query of ['?tl_invite=private-seat&keep=1', '?vault=1&tl_invite=private-seat&keep=1']) {
+        const location = new URL('https://c2-football.github.io/WarRoom-sandbox/index.html' + query);
+        const temporary = new Map(); let pending;
+        const context = vm.createContext({ URL, URLSearchParams,
+            window: { location, history: { state: { view: 'hub' }, replaceState(state, title, url) { location.href = String(url); } } },
+            sessionStorage: { setItem(key,value) { temporary.set(key,value); }, getItem(key) { return temporary.get(key) || null; } },
+            useState() { return [null, value => { pending = value; }]; }, useEffect(fn) { fn(); },
+        });
+        vm.runInContext(appSource.slice(start, end), context);
+        assert.equal(pending, 'private-seat');
+        assert.equal(temporary.get('tl-pending-invite-v1'), 'private-seat');
+        assert.equal(location.searchParams.has('tl_invite'), false, 'Private invite leaves the address bar');
+        assert.equal(location.searchParams.get('keep'), '1', 'Unrelated route parameters survive');
+        const initialMode = appSource.match(/const \[timeLeagueMode, setTimeLeagueMode\] = useState\(([^;]+)\);/);
+        assert(initialMode, 'Execute the actual initial destination on reload');
+        context.useState = initial => initial();
+        assert.equal(vm.runInContext('useState(' + initialMode[1] + ')', context), true, 'Consumed invitations reopen The Vault on reload');
+    }
     console.log('PASS: visible multiplayer invites, seat-specific share/copy, sandbox/public/native links, cancellation and clipboard fallback, joined/locked seat guards and commissioner access.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

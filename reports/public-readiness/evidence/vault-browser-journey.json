@@ -1,0 +1,273 @@
+{
+  "observedBeforeInterruption": "2026-09-18",
+  "checkedAfterInterruption": "2026-09-20",
+  "baseline": "5835b115d92ec3e02a7c62da7fa602ae839032da",
+  "ui": "local compiled preview; real Chrome responsive browser",
+  "backend": "hosted Supabase",
+  "newRoomId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+  "oldRoomId": "9abe0f2c-7f52-4035-984a-606a0b121142",
+  "originalReadOnlyVersion": 22,
+  "completeObserved": {
+    "version": 101,
+    "currentWeek": 15,
+    "completedGameweeks": 14,
+    "champion": "Browser Host A",
+    "finalScore": "20.8–3.4",
+    "bothAccountsReloaded": true,
+    "individualRevealsReloaded": true
+  },
+  "pageErrors": [],
+  "scriptedWeekControls": [
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 2 · 4 OF 4\nWeek 2 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 3 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 3 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 3 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 3 · 4 OF 4\nWeek 3 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 4 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 4 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 4 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 4 · 4 OF 4\nWeek 4 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 5 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 5 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 5 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 5 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 5 · 4 OF 4\nWeek 5 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 6 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 6 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 6 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 6 · 4 OF 4\nWeek 6 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 7 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 7 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 7 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 7 · 4 OF 4\nWeek 7 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 8 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 8 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 8 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 8 · 4 OF 4\nWeek 8 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 9 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 9 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 9 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 9 · 4 OF 4\nWeek 9 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 10 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 10 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 10 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 10 · 4 OF 4\nWeek 10 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 11 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 11 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 11 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 11 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 11 · 4 OF 4\nWeek 11 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 12 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 12 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 12 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 12 · 4 OF 4\nWeek 12 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 13 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 13 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "START GAME DAY",
+      "footer": "WEEK 13 · 3 OF 4\nReady for kickoff\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "END WEEK",
+      "footer": "WEEK 13 · 4 OF 4\nWeek 13 recap\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "RUN WAIVERS",
+      "footer": "WEEK 14 · 1 OF 4\nBids & trades\nCommissioner",
+      "actionEvents": []
+    },
+    {
+      "label": "LOCK LINEUP",
+      "footer": "WEEK 14 · 2 OF 4\nDecisions & lineup\nCommissioner",
+      "actionEvents": []
+    }
+  ],
+  "postInterruption": {
+    "sessionLoads401": true,
+    "cause": "Not established; expiry not proven",
+    "contextsClosed": true,
+    "deployedSmoke": "Stopped pending controlled-account records investigation; no verified sign-in checkpoint"
+  }
+}

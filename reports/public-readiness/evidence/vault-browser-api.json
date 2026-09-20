@@ -1,0 +1,3121 @@
+{
+  "runId": "readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755",
+  "oldRoom": "9abe0f2c-7f52-4035-984a-606a0b121142",
+  "newRoomId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+  "events": [
+    {
+      "account": 0,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "9abe0f2c-7f52-4035-984a-606a0b121142",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 22,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "9abe0f2c-7f52-4035-984a-606a0b121142",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 22,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "create",
+      "status": 200,
+      "ok": true,
+      "newRoomId": "e6563c66-2713-4ded-8b1b-c3373261ca41"
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 1,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "claim",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 2,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 2,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "start",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 3,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 3,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "reveal-era",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 4,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 4,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "ready",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "ready",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 5,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 5,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "reveal-era",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 6,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 6,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "ready",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 7,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "ready",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 7,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "draft-clock-start",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 8,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 8,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "draft",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 9,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "draft",
+      "version": 9,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "draft",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 10,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 10,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 11,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 11,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 12,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 13,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 13,
+      "week": 1
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 14,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 14,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 15,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 15,
+      "week": 1
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 16,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 16,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 17,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 18,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 18,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 19,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 19,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "claim",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 20,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 20,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 21,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 21,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 22,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 22,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 23,
+      "week": 2
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 23,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 24,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 24,
+      "week": 2
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 25,
+      "week": 3
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 25,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 26,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 26,
+      "week": 3
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 27,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 27,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 28,
+      "week": 3
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 28,
+      "week": 3
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 29,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 29,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 30,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 30,
+      "week": 3
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 31,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 31,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 32,
+      "week": 4
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 32,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 33,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 33,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 34,
+      "week": 4
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 34,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 35,
+      "week": 4
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 35,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 36,
+      "week": 4
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 36,
+      "week": 4
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 37,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 37,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 38,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 39,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 39,
+      "week": 5
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 40,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 40,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 41,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 41,
+      "week": 5
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 42,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 42,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 43,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 43,
+      "week": 5
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 44,
+      "week": 6
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 44,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 45,
+      "week": 6
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 45,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 46,
+      "week": 6
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 46,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 47,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 47,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 48,
+      "week": 6
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 48,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 49,
+      "week": 6
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 49,
+      "week": 6
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 50,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 50,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 51,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 51,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 52,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 52,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 53,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 53,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 54,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 54,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 55,
+      "week": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 55,
+      "week": 7
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 56,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 57,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 57,
+      "week": 8
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 58,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 58,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 59,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 59,
+      "week": 8
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 60,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 60,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 61,
+      "week": 8
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 61,
+      "week": 8
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 62,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 62,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 63,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 63,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 64,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 64,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 65,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 65,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 66,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 66,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 67,
+      "week": 9
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 67,
+      "week": 9
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 68,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 68,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 69,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 69,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 70,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 70,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 71,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 71,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 72,
+      "week": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 72,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 73,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 73,
+      "week": 10
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 74,
+      "week": 11
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 74,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 75,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 75,
+      "week": 11
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 76,
+      "week": 11
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 76,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 77,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 78,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 78,
+      "week": 11
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 409,
+      "ok": false
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 79,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 79,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 80,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 80,
+      "week": 11
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 81,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 82,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 83,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 84,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 85,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 86,
+      "week": 12
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 87,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 88,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 89,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 90,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 91,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 92,
+      "week": 13
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 93,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "advance-week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 94,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 95,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "process-claims",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 96,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "refresh-trade-offers",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 97,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "finalize-rosters",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "season",
+      "version": 98,
+      "week": 14
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "week",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 99,
+      "week": 15
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 99,
+      "week": 15
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "reveal-years",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 100,
+      "week": 15
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 100,
+      "week": 15
+    },
+    {
+      "account": 0,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "type": "reveal-years",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 101,
+      "week": 15
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 200,
+      "ok": true,
+      "phase": "complete",
+      "version": 101,
+      "week": 15
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 401,
+      "ok": false,
+      "error": "Sign in to play with friends."
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "rowId": "e6563c66-2713-4ded-8b1b-c3373261ca41",
+      "status": 401,
+      "ok": false,
+      "error": "Sign in to play with friends."
+    }
+  ],
+  "blocked": [
+    {
+      "account": 1,
+      "endpoint": "/rest/v1/analytics_events"
+    },
+    {
+      "account": 1,
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "account": 0,
+      "endpoint": "/rest/v1/gm_strategy"
+    },
+    {
+      "account": 0,
+      "endpoint": "/rest/v1/analytics_events"
+    },
+    {
+      "account": 0,
+      "endpoint": "/api/mfl-proxy"
+    },
+    {
+      "account": 1,
+      "endpoint": "/rest/v1/gm_strategy"
+    }
+  ],
+  "errors": [],
+  "pollSummary": [
+    {
+      "account": 0,
+      "op": "profile-get",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "account": 0,
+      "op": "list",
+      "status": 200,
+      "count": 5
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "status": 200,
+      "count": 23171
+    },
+    {
+      "account": 1,
+      "op": "list",
+      "status": 200,
+      "count": 9
+    },
+    {
+      "account": 1,
+      "op": "profile-get",
+      "status": 200,
+      "count": 7
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "status": 200,
+      "count": 23090
+    },
+    {
+      "account": 0,
+      "op": "create",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "account": 1,
+      "op": "claim",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "status": 200,
+      "count": 80
+    },
+    {
+      "account": 0,
+      "op": "ready",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "status": 200,
+      "count": 17
+    },
+    {
+      "account": 1,
+      "op": "ready",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "account": 0,
+      "op": "action",
+      "status": 409,
+      "count": 11
+    },
+    {
+      "account": 1,
+      "op": "action",
+      "status": 409,
+      "count": 10
+    },
+    {
+      "account": 1,
+      "op": "load",
+      "status": 401,
+      "count": 25377
+    },
+    {
+      "account": 0,
+      "op": "load",
+      "status": 401,
+      "count": 25368
+    }
+  ],
+  "blockedCounts": [
+    {
+      "account": 0,
+      "endpoint": "/api/mfl-proxy",
+      "count": 10
+    },
+    {
+      "account": 0,
+      "endpoint": "/rest/v1/gm_strategy",
+      "count": 4
+    },
+    {
+      "account": 0,
+      "endpoint": "/rest/v1/analytics_events",
+      "count": 2531
+    },
+    {
+      "account": 1,
+      "endpoint": "/api/mfl-proxy",
+      "count": 14
+    },
+    {
+      "account": 1,
+      "endpoint": "/rest/v1/gm_strategy",
+      "count": 7
+    },
+    {
+      "account": 1,
+      "endpoint": "/rest/v1/analytics_events",
+      "count": 2454
+    }
+  ]
+}

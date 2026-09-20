@@ -990,6 +990,9 @@
                 try { sessionStorage.setItem(PENDING_INVITE_KEY, code); } catch { /* best effort */ }
                 const url = new URL(window.location.href);
                 url.searchParams.delete('tl_invite');
+                // Keep the game destination after consuming the private code.
+                // A reload must reopen the saved Vault room, not the hub.
+                url.searchParams.set('vault', '1');
                 window.history.replaceState(window.history.state, '', url);
             }
             let stored = null;
