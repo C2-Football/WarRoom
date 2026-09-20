@@ -1,0 +1,29 @@
+[
+  {
+    "anon_execute": false,
+    "arguments": "p_limit integer",
+    "authenticated_execute": false,
+    "definition_md5": "b895a144f322c014bc767e4e71e55dcf",
+    "name": "admin_account_roster",
+    "security_definer": true,
+    "service_execute": true
+  },
+  {
+    "anon_execute": false,
+    "arguments": "p_since timestamp with time zone",
+    "authenticated_execute": false,
+    "definition_md5": "a552c91ff077a0e16fd20b1ec81a06bd",
+    "name": "admin_analytics_report",
+    "security_definer": true,
+    "service_execute": true
+  },
+  {
+    "anon_execute": false,
+    "arguments": "p_since timestamp with time zone",
+    "authenticated_execute": false,
+    "definition_md5": "c4a5744820238eab20256ace99c080b4",
+    "name": "admin_doors_surfaces",
+    "security_definer": true,
+    "service_execute": true
+  }
+]

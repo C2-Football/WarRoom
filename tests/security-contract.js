@@ -199,7 +199,7 @@ test('BYO keys belong to the session adapter and never localStorage', () => {
 test('admin list uses admin role table instead of static bearer secret', () => {
   hasEvery(adminList, [
     'hasAdminRole',
-    'requireActiveAppSession',
+    'resolveAppUserId',
     'auditEvent',
   ], 'admin-list-users');
   ok(!adminList.includes('ADMIN_SECRET'), 'admin-list-users should not use static ADMIN_SECRET');

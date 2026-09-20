@@ -84,7 +84,7 @@ group('admin report');
 
 test('admin analytics endpoint is admin-only and uses server rollup RPC', () => {
   [
-    'requireActiveAppSession',
+    'resolveAppUserId',
     'hasAdminRole',
     "admin.rpc('admin_analytics_report'",
     'auditEvent',

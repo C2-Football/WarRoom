@@ -13,7 +13,13 @@
 // nfl_week_context so one fetch serves every user for hours: Vegas lines drift
 // slowly and schedules are static. Serving N users costs ~6 ESPN calls/day
 // instead of N×weeks.
-import { corsHeaders, handleOptions, json, clientIp } from '../_shared/security.ts';
+//
+// CORS is a deliberate wildcard, NOT the _shared/security.ts allowlist: this
+// relay serves public, read-only league data with no cookies or auth, and the
+// original deploy's bundled allowlist predated dhqfootball.com, which silently
+// blocked every deployed browser from reading the response (the 2026-08-22
+// "scoreboard 404" storm's server half). Per-IP rate limiting below is the
+// abuse control.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3h — odds move, but not minute-to-minute
@@ -22,6 +28,28 @@ const RATE_WINDOW_MS = 5 * 60 * 1000;
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+const CORS: HeadersInit = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET,OPTIONS',
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
+}
+
+function clientIp(req: Request): string {
+  return (
+    req.headers.get('CF-Connecting-IP') ||
+    req.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+    req.headers.get('X-Real-IP') ||
+    'unknown'
+  );
+}
 
 // In-isolate IP rate limit — resets on cold start, which is fine: the point is
 // stopping a tight client loop from turning into an ESPN hammer, not perfect
@@ -36,17 +64,16 @@ function rateLimited(ip: string): boolean {
 }
 
 Deno.serve(async (req: Request) => {
-  const options = handleOptions(req);
-  if (options) return options;
-  if (req.method !== 'GET') return json(req, { error: 'GET only' }, 405);
-  if (rateLimited(clientIp(req))) return json(req, { error: 'Rate limit exceeded. Try again shortly.' }, 429);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'GET') return json({ error: 'GET only' }, 405);
+  if (rateLimited(clientIp(req))) return json({ error: 'Rate limit exceeded. Try again shortly.' }, 429);
 
   const u = new URL(req.url);
   const week = parseInt(u.searchParams.get('week') || '0', 10) || 0;
   const season = parseInt(u.searchParams.get('season') || '0', 10) || 0;
   const seasontype = parseInt(u.searchParams.get('seasontype') || '2', 10) || 2;
   if (week < 0 || week > 22 || (season && (season < 2020 || season > 2100)) || seasontype < 1 || seasontype > 4) {
-    return json(req, { error: 'Invalid week/season/seasontype' }, 400);
+    return json({ error: 'Invalid week/season/seasontype' }, 400);
   }
 
   const admin = (SUPABASE_URL && SERVICE_KEY) ? createClient(SUPABASE_URL, SERVICE_KEY) : null;
@@ -63,7 +90,7 @@ Deno.serve(async (req: Request) => {
       if (row && row.payload && Date.now() - Date.parse(row.updated_at) < CACHE_TTL_MS) {
         return new Response(JSON.stringify(row.payload), {
           status: 200,
-          headers: { ...corsHeaders(req), 'Content-Type': 'application/json', 'X-Wr-Cache': 'hit' },
+          headers: { ...CORS, 'Content-Type': 'application/json', 'X-Wr-Cache': 'hit' },
         });
       }
     } catch (_) { /* cache miss path below */ }
@@ -79,10 +106,10 @@ Deno.serve(async (req: Request) => {
   let payload: unknown;
   try {
     const r = await fetch(api, { headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' } });
-    if (!r.ok) return json(req, { error: 'ESPN scoreboard error ' + r.status }, 502);
+    if (!r.ok) return json({ error: 'ESPN scoreboard error ' + r.status }, 502);
     payload = await r.json();
   } catch (_) {
-    return json(req, { error: 'ESPN scoreboard unreachable' }, 502);
+    return json({ error: 'ESPN scoreboard unreachable' }, 502);
   }
 
   // 3. Cache write (best effort — a failed upsert must not fail the response).
@@ -97,6 +124,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(JSON.stringify(payload), {
     status: 200,
-    headers: { ...corsHeaders(req), 'Content-Type': 'application/json', 'X-Wr-Cache': 'miss' },
+    headers: { ...CORS, 'Content-Type': 'application/json', 'X-Wr-Cache': 'miss' },
   });
 });

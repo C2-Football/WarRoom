@@ -21,7 +21,7 @@ Root separately established that `dhqfootball.com` is served by `skjjcruz/Owner-
 | `fw-delete-account` | Hosted-only entrypoint; separately review cancellation error handling and app/auth ID mapping before claiming deletion recovery. No deletion tested. |
 | `report-bug`, `feature-requests` | Newer committed changes not yet reconciled. |
 | `nfl-scoreboard`, `nfl-depth-charts` | Newer public provider behavior not yet reconciled; scoreboard deliberately uses read-only wildcard CORS. |
-| `ops-email-doctor`, `ops-board-vault` | Hosted-only operational entrypoints. Preserve source and verify their privileged access contract before importing/deploying. |
+| `ops-email-doctor`, `ops-board-vault` | Both current entrypoints are inert retired stubs returning 410 for every request, with no database or secret access; no restoration needed. |
 | `league-cup`, `duat` | Entrypoints match integrated repo exactly, but separately bundled shared helper is older. Duat runtime source is generated and requires its own build/hash proof. |
 | `time-league` | Source download failed; no equivalence claim. |
 | `fw-change-password` | Repository-only, not present in this hosted inventory. Root owns pending release. |
