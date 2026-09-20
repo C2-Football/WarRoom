@@ -1,0 +1,1 @@
+REPRODUCED: actual saved-proposal callback throws on an object instead of a list; original bytes remain.

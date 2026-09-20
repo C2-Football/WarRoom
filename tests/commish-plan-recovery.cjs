@@ -3,15 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const Genesis = require('../js/shared/commish-genesis.js');
+const Proposals = require('../js/shared/commish-proposals.js');
 const source = fs.readFileSync('js/tabs/commissioner-office.js', 'utf8');
 const hook = source.slice(source.indexOf('function useCommishLocalSave()'), source.indexOf('function CommissionerOffice('));
-const proposalCallbacks = source.slice(source.indexOf('    const PROPOSALS_KEY ='), source.indexOf('    const onRatifyProposal ='));
+const proposalCallbacks = source.slice(source.indexOf('    const [savedTick,'), source.indexOf('    const onRatifyProposal ='));
 const resetCallback = source.slice(source.indexOf('    const onResetProposal ='), source.indexOf('    const proposalsEqual ='));
 const genesisCallback = source.slice(source.indexOf('    const onGenesisToggle ='), source.indexOf('    // Governance state:'));
 const records = new Map(), slots = []; let cursor = 0, rejected = true, ticks = 0, guarded;
 const storage = { get: (key, fallback) => records.has(key) ? JSON.parse(records.get(key)) : fallback, set: (key, value) => { if (rejected) return false; records.set(key, JSON.stringify(value)); return true; } };
 global.App.AccountStorage = storage;
-const c = vm.createContext({ console, C: { Genesis }, proposal: { rec: 1 }, rosterProposal: { rosterPositions: ['QB', 'RB', 'TE'] },
+const c = vm.createContext({ console, C: { Genesis, Proposals }, proposal: { rec: 1 }, rosterProposal: { rosterPositions: ['QB', 'RB', 'TE'] },
     window: { App: { AccountStorage: storage, NavigationGuard: { register: fn => { guarded = fn; return () => {}; } } }, addEventListener() {}, removeEventListener() {} },
     React: {
         useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => slots[i] = typeof value === 'function' ? value(slots[i]) : value]; },

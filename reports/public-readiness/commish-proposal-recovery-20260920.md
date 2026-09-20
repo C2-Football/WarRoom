@@ -1,0 +1,15 @@
+# Commissioner proposal corruption and recovery
+
+Worktree `/Users/jacobc/Projects/warroom-readiness-commish-proposals`, branch `codex/readiness-commish-proposal-recovery-20260920`, baseline `d12849d`. C2 product source; this does not add Commissioner to the divergent actual-public repository.
+
+**HIGH recovery defect:** the actual saved-proposal callback throws when its browser storage contains an object instead of an array; the panel also assumes array rows. Invalid JSON previously falls through the storage wrapper to an empty list, allowing a later save to overwrite unreadable data. The actual callback failure is reproduced in `evidence/commish-proposal-baseline-sep20.log`; synthetic local data only.
+
+The checked proposal module reads exact account-scoped raw bytes, validates list/row shape, and blocks create/delete/ratification writes while unreadable. Recovery first confirms a preserved original-byte copy, then confirms starting a new list. A failed backup never clears the original. Failed new-list persistence can retry without duplicate backups; an unconfirmed write does not claim unchanged data. Corrupt earlier archives and observed account/list changes stop recovery. This is synchronous browser storage checking, not a cross-tab database transaction guarantee.
+
+The Rule Lab presents the reason and reachable recovery/download controls. Quota failure retains the draft proposal name and scoring inputs; only a confirmed proposal save clears the name. Recovery copies remain available after new saves and reload. Local ratification still records amendments, never claims to publish provider rules. No backend/database/schema change.
+
+Verification: all existing `test:commish` checks plus10 new actual-module data/recovery groups pass; existing actual plan/ratification callback regressions and39 panel checks pass. Preview compiles147 scripts, canonical player-value twin stays consistent, and focused lint is clean. Full compiled local app with synthetic provider data passes320×700,390×844,844×390: real hub→Commissioner→Rules navigation, corrupt-list recovery, failed backup, exact downloaded original bytes, retained name, successful copy, failed proposal save, retry, reload and reopened saved proposal/copy. No page exceptions or overflow, recovery-copy touch targets≥44px. External writes are blocked. Browser fixtures initially selected hidden responsive elements; selectors now follow the visible workspace navigation without changing product behavior or weakening assertions.
+
+Evidence: `evidence/commish-proposal-{baseline,focused,build,browser}-sep20.log`, `evidence/commish-proposal-browser-sep20.json`, and `evidence/commish-proposals-{320,390,844}.png`. These are local responsive-browser checks, not native/device or server persistence proof.
+
+The new browser journey is registered in the required browser gate. Full integrated43-suite and13-browser gate, independent review, release compatibility and both-site deployment verification remain pending at this checkpoint. Do not call the patch released or the entire Commissioner product ready.

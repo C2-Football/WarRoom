@@ -777,23 +777,19 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     };
 
     // ── Saved proposals + ratification ───────────────────────────────
-    const PROPOSALS_KEY = 'commish_rulelab_proposals';
     const [savedTick, setSavedTick] = React.useState(0);
-    const savedProposals = React.useMemo(() => {
-        try { return (window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []); } catch (e) { return []; }
-    }, [savedTick]);
-    const writeProposals = (list, key = 'proposal-add') => {
+    const proposalRead = React.useMemo(() => C?.Proposals?.read?.() || { list: [], error: 'Saved proposal recovery is still loading. Reload this page to try again.' }, [savedTick]);
+    const savedProposals = proposalRead.list;
+    const proposalCopies = React.useMemo(() => C?.Proposals?.recoveryCopies?.() || [], [savedTick]);
+    const writeProposals = (change, key = 'proposal-add') => {
         const result = localSave.run(key, 'rulelab', () => {
-            if (window.App?.AccountStorage?.set?.(PROPOSALS_KEY, list) !== true) throw new Error('Your rule proposal was not saved. Your inputs remain; free browser storage and retry.');
-            return true;
+            return C.Proposals.update(change);
         }, { discard: key === 'proposal-add' ? onResetProposal : undefined });
         if (result.ok) setSavedTick(t => t + 1);
         return result.ok;
     };
     const onSaveProposal = (name) => {
-        const list = (window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).slice();
-        list.unshift({ id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal, status: 'draft', ts: Date.now() });
-        return writeProposals(list.slice(0, 20));
+        return writeProposals(list => [{ id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal, status: 'draft', ts: Date.now() }, ...list].slice(0, 20));
     };
     const onLoadProposal = (id) => {
         if (!localSave.canLeave()) return;
@@ -809,17 +805,36 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         setCommittedRosterProposal(nextRoster);
     };
     const onDeleteProposal = id => {
-        const saved = writeProposals((window.App?.AccountStorage?.get?.(PROPOSALS_KEY, []) || []).filter(p => p.id !== id), 'proposal-delete:' + id);
+        const saved = writeProposals(list => list.filter(p => p.id !== id), 'proposal-delete:' + id);
         if (saved) localSave.resolve(['proposal-ratify:' + id]);
         return saved;
     };
+    const onRecoverProposals = () => {
+        const result = localSave.run('proposal-recovery', 'rulelab', () => C.Proposals.recover());
+        if (result.ok) localSave.resolve(['proposal-add']);
+        setSavedTick(t => t + 1);
+        return result.ok;
+    };
+    const onExportProposalRecovery = () => localSave.run('proposal-recovery-export', 'rulelab', () => {
+        const current = C.Proposals.read();
+        const copies = C.Proposals.recoveryCopies();
+        if (current.error && current.canRecover) copies.push({ savedAt: new Date().toISOString(), raw: current.raw });
+        if (!copies.length) throw new Error('No preserved proposal copy is available. Reload this account and try again.');
+        const url = URL.createObjectURL(new Blob([JSON.stringify(copies, null, 2)], { type: 'application/json' }));
+        try {
+            const link = document.createElement('a'); link.href = url; link.download = 'commissioner-proposal-recovery.json';
+            document.body.appendChild(link); link.click(); link.remove();
+        } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+        return true;
+    }).ok;
     // Ratify records local amendment intent for the selected leagues. It does
     // not change provider settings; Drift still reviews actual provider edits.
     const onRatifyProposal = id => {
         if (!C?.Bylaws?.recordAmendments || !rlScoped.length) return false;
         const result = localSave.run('proposal-ratify:' + id, 'rulelab', () => {
-            const current = window.App.AccountStorage.get(PROPOSALS_KEY, []);
-            if (!Array.isArray(current)) throw new Error('The saved proposal list could not be read.');
+            const snapshot = C.Proposals.read();
+            if (snapshot.error) throw new Error(snapshot.error);
+            const current = snapshot.list;
             const sp = current.find(proposal => proposal.id === id);
             if (!sp) throw new Error('This proposal is no longer saved. Dismiss this attempt and choose a saved proposal.');
             for (const league of rlScoped) {
@@ -837,9 +852,10 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 });
                 if (rows.length) C.Bylaws.recordAmendments(lid, rows, { operationId: 'proposal:' + id });
             }
-            if (window.App.AccountStorage.set(PROPOSALS_KEY, current.map(proposal => proposal.id === id ? { ...proposal, status: 'ratified', ratifiedTs: Date.now(), ratifiedLeagueIds: rlScoped.map(league => String(league.league_id || league.id)) } : proposal)) !== true) {
-                throw new Error('The proposal status was not saved.');
-            }
+            C.Proposals.update(latest => {
+                if (!latest.some(proposal => proposal.id === id)) throw new Error('The saved proposal changed. Retry after reopening it.');
+                return latest.map(proposal => proposal.id === id ? { ...proposal, status: 'ratified', ratifiedTs: Date.now(), ratifiedLeagueIds: rlScoped.map(league => String(league.league_id || league.id)) } : proposal);
+            });
             return true;
         }, {
             prefix: 'Ratification is incomplete. Some amendment entries may already be saved locally; retry finishes without duplicating them. ',
@@ -1504,6 +1520,11 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                         onSweep={onSweep}
                         sweepBusy={sweepBusy}
                         saved={savedProposals}
+                        savedError={proposalRead.error}
+                        canRecoverSaved={proposalRead.canRecover}
+                        hasRecoveryCopy={proposalCopies.length > 0}
+                        onRecoverSaved={onRecoverProposals}
+                        onExportRecovery={onExportProposalRecovery}
                         onSaveProposal={onSaveProposal}
                         onLoadProposal={onLoadProposal}
                         onDeleteProposal={onDeleteProposal}

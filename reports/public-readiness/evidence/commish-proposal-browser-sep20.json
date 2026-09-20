@@ -1,0 +1,32 @@
+{
+  "evidence": "Actual compiled local app; synthetic provider data, simulated quota failures; no external writes",
+  "results": [
+    {
+      "viewport": {
+        "width": 320,
+        "height": 700
+      },
+      "passed": true,
+      "externalWriteGuard": true,
+      "blockedExternalWrites": 7
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "passed": true,
+      "externalWriteGuard": true,
+      "blockedExternalWrites": 7
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "passed": true,
+      "externalWriteGuard": true,
+      "blockedExternalWrites": 5
+    }
+  ]
+}

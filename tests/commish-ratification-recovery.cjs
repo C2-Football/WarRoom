@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const Bylaws = require('../js/shared/commish-bylaws.js');
+const Proposals = require('../js/shared/commish-proposals.js');
 const records = new Map(); let failKey = null, writes = [];
 const storage = {
     get: (key, fallback) => records.has(key) ? JSON.parse(records.get(key)) : fallback,
@@ -13,7 +14,7 @@ const source = fs.readFileSync('js/tabs/commissioner-office.js', 'utf8');
 const hook = source.slice(source.indexOf('function useCommishLocalSave()'), source.indexOf('function CommissionerOffice('));
 const handler = source.slice(source.indexOf('    const onRatifyProposal ='), source.indexOf('    // ── Ballot handlers'));
 const slots = []; let cursor = 0, savedTicks = 0, guarded;
-const c = vm.createContext({ console, C: { Bylaws }, PROPOSALS_KEY: 'commish_rulelab_proposals', savedProposals: [],
+const c = vm.createContext({ console, C: { Bylaws, Proposals }, PROPOSALS_KEY: 'commish_rulelab_proposals', savedProposals: [],
     rlScoped: [{ league_id: 'L1', scoring_settings: { rec: 0.5, pass_td: 4 }, roster_positions: ['QB', 'RB'] }, { league_id: 'L2', scoring_settings: { rec: 0, pass_td: 4 }, roster_positions: ['QB', 'WR'] }],
     window: { App: { AccountStorage: storage, NavigationGuard: { register: fn => { guarded = fn; return () => {}; } } }, addEventListener() {}, removeEventListener() {} },
     setAckTick() {}, setSavedTick() { savedTicks++; },

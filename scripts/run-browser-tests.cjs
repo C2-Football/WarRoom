@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const suites = [
   'browser-readonly.cjs',
   'browser-qa.js', 'launch-browser-qa.js', 'live-click-paths.js',
-  'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs', 'vault-auth-browser-qa.cjs', 'account-password-browser-qa.cjs', 'empire-seasonal-browser-qa.cjs', 'empire-draft-inventory-browser-qa.cjs', 'league-linked-season-browser-qa.cjs',
+  'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs', 'vault-auth-browser-qa.cjs', 'account-password-browser-qa.cjs', 'empire-seasonal-browser-qa.cjs', 'empire-draft-inventory-browser-qa.cjs', 'league-linked-season-browser-qa.cjs', 'commish-proposal-browser.cjs',
 ];
 async function main() {
   let server;

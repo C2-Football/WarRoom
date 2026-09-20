@@ -303,7 +303,8 @@ function WrCommishRuleLabPanel({
     onReset, onAnalyze, hasUnanalyzedChanges,
     results, presets, baselineScoring, editorKeys: editorKeysProp, currentSlotsByLeague,
     sweepResult, onSweep, sweepBusy,
-    saved, onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
+    saved, savedError, canRecoverSaved, hasRecoveryCopy, onRecoverSaved, onExportRecovery,
+    onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
     onCopyBallot, onExportBallot,
 }) {
     // ── Derived: proposal + presets ──────────────────────────────────
@@ -840,10 +841,16 @@ function WrCommishRuleLabPanel({
 
             {/* ── Saved proposals ───────────────────────────────────────── */}
             <Section folded={phone} title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
+                {savedError && <div role="alert" style={{ fontSize: '16px', lineHeight: 1.5, marginBottom: 12 }}>
+                    <p>{savedError}</p>
+                    {canRecoverSaved && <><button type="button" style={{ ...chipBtn(false), minHeight: 44 }} onClick={onExportRecovery}>Download original data</button>{' '}
+                        <button type="button" style={{ ...chipBtn(true), minHeight: 44 }} onClick={onRecoverSaved}>Preserve a copy &amp; start a new list</button></>}
+                </div>}
+                {hasRecoveryCopy && <div role="status" style={{ fontSize: '16px', lineHeight: 1.5, marginBottom: 12 }}>Your previous proposal data is preserved in this browser. <button type="button" style={{ ...chipBtn(false), minHeight: 44 }} onClick={onExportRecovery}>Download recovery copy</button></div>}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: (saved || []).length ? '10px' : 0 }}>
                     <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
                         style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
-                    <button disabled={!saveName.trim() || (!propKeys.length && !rp)}
+                    <button disabled={!!savedError || !saveName.trim() || (!propKeys.length && !rp)}
                         onClick={() => { if (onSaveProposal?.(saveName.trim()) === true) setSaveName(''); }}
                         style={chipBtn(true, (!saveName.trim() || (!propKeys.length && !rp)) ? { opacity: 0.45, cursor: 'default' } : null)}>
                         Save
