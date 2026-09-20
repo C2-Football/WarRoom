@@ -1,0 +1,30 @@
+
+> fantasy-war-room@1.0.0 test:billing
+> node tests/billing-schema.js && node tests/billing-recovery.cjs && node tests/billing-events-db.cjs
+
+
+War Room billing schema contract tests
+
+  app_users  .
+  products  ...
+  subscriptions  ....
+  security  .
+
+PASS 9 tests - 9 passed, 0 failed
+(node:42246) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual Stripe lifecycle handlers reject failed writes/lookups, retry succeeds, existing trial/annual/store contract remains
+PASS actual RevenueCat lifecycle writes and account queries retry on failure, cancellation preserves access, invalid signature denied
+PASS billing query errors stay truthful, established returns work, invalid returns denied and unsaved customer cannot proceed to checkout
+(node:42249) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS staged rollout starts paused, requires verified writer manifest and full drain, activates once and survives migration replay
+PASS actual SQL migration/replay preserves accounts/gifts, provider purchases remain independent, cancellation differs from expiration and old-period events cannot revoke renewals
+PASS event-ID deduplication, serialized observation leases, expired worker denial and purchase/account binding
+PASS injected aggregate failure rolls back source and receipt; same event safely retries
+PASS legacy RevenueCat bootstrap retains ambiguous purchase with explicit outcome and accepts matching period expiration
+PASS actual Stripe handler/helper/SQL: same-second distinct events, delayed concurrent observation, retry, late snapshot and duplicate handling
+PASS actual RevenueCat handler/helper/SQL: renewal survives another store cancellation and late prior-period expiration; retries deduplicate
+PASS emergency pause preserves receipts/sources, rejects in-flight application, and requires restaging/drain before recovery
+PASS browser roles cannot read private billing state or invoke billing RPCs; service role is allowed
+PGlite executes actual PostgreSQL; it serializes connections. Lease race and rollback cases are real SQL but not independent hosted-connection evidence.

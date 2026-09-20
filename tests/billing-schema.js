@@ -26,6 +26,7 @@ const webhookSource = fs.readFileSync(
   path.join(ROOT, 'supabase', 'functions', 'fw-stripe-webhook', 'index.ts'),
   'utf8'
 );
+const billingEventsMigration = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20260920010000_billing_event_recovery.sql'), 'utf8');
 const signupSource = fs.readFileSync(
   path.join(ROOT, 'supabase', 'functions', 'fw-signup', 'index.ts'),
   'utf8'
@@ -117,8 +118,8 @@ test('signup and checkout normalize legacy product slug aliases before writes', 
   hasEvery(webhookSource, [
     'function normalizeProductSlug',
     "'war-room': 'war_room'",
-    "const productSlug  = normalizeProductSlug(subscription.metadata.product_slug ?? 'war_room');",
-    'product_slug:          productSlug',
+    "productSlug: normalizeProductSlug(subscription.metadata.product_slug ?? 'war_room')",
+    'productSlug: identity.productSlug',
   ], 'webhook product normalization');
   ok(!landingSource.includes("productSlug: 'war-room'"), 'landing signup should not send legacy war-room slug');
 });
@@ -163,11 +164,12 @@ test('subscriptions exposes Stripe lifecycle fields used by webhook', () => {
   ], 'webhook lifecycle writes');
 });
 
-test('subscriptions supports webhook upsert on user_id and product_slug', () => {
+test('transactional billing event application preserves the public user and product row', () => {
   hasEvery(migration, [
     'subscriptions_user_id_product_slug_key unique (user_id, product_slug)',
   ], 'upsert schema contract');
-  ok(webhookSource.includes("onConflict: 'user_id,product_slug'"), 'webhook must upsert on user_id,product_slug');
+  ok(webhookSource.includes('applyBillingEvent(admin,'), 'webhook uses the durable event boundary');
+  ok(billingEventsMigration.includes('on conflict(user_id,product_slug) do update'), 'atomic application preserves the existing public subscription key');
 });
 
 test('subscriptions constrains tier and status values used by functions', () => {

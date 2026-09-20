@@ -55,6 +55,12 @@ verify_jwt = false
 [functions.fw-stripe-webhook]
 verify_jwt = false
 
+[functions.fw-billing-portal]
+verify_jwt = false
+
+[functions.fw-revenuecat-webhook]
+verify_jwt = false
+
 [functions.get-session-token]
 verify_jwt = false
 

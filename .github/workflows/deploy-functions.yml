@@ -71,7 +71,7 @@ jobs:
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
 
       - name: Verify Cup, security and Vault contracts before backend deployment
-        run: npm run test:cup && npm run test:security && npm run test:timeleague
+        run: npm run test:cup && npm run test:security && npm run test:billing && npm run test:timeleague
 
       - name: Verify Duat contracts before backend deployment
         run: npm run test:duat
@@ -108,6 +108,9 @@ jobs:
 
           pending = {
               '20260920030000': 'supabase/migrations/20260920030000_atomic_account_provisioning.sql',
+              '20260710000000': 'supabase/migrations/20260710000000_dhq_pro_billing.sql',
+              '20260724000000': 'supabase/migrations/20260724000000_gift_grants.sql',
+              '20260920010000': 'supabase/migrations/20260920010000_billing_event_recovery.sql',
               '20260918030000': 'supabase/migrations/20260918030000_account_password_change.sql',
               '20260918020000': 'supabase/migrations/20260918020000_account_session_rls.sql',
               '20260918010000': 'supabase/migrations/20260918010000_atomic_password_reset.sql',
@@ -285,6 +288,12 @@ jobs:
 
       - name: Deploy fw-stripe-webhook function
         run: supabase functions deploy fw-stripe-webhook --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy fw-billing-portal function
+        run: supabase functions deploy fw-billing-portal --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy fw-revenuecat-webhook function
+        run: supabase functions deploy fw-revenuecat-webhook --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
 
       - name: Deploy fw-request-password-reset function
         run: supabase functions deploy fw-request-password-reset --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
