@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const suites = [
   'browser-readonly.cjs',
   'browser-qa.js', 'launch-browser-qa.js', 'live-click-paths.js',
-  'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs',
+  'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs', 'vault-auth-browser-qa.cjs',
 ];
 let failed = 0;
 for (const suite of suites) {

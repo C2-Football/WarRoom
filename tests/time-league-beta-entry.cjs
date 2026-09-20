@@ -67,6 +67,17 @@ async function login({ search = '', local = {}, pendingInvite = null, oauth = nu
     page.element('identifier').value = 'sleeper-only'; page.element('password').value = 'test-password';
     await page.submit('panelSignin'); assert.equal(page.requests.length, 0, 'Vault does not treat legacy Sleeper login as an app account');
 
+    const rejectedSession = JSON.stringify({ token: 'server-rejected-token', user: { id: 'app-account', email: 'manager@example.test' } });
+    page = await login({ search: '?vault=1&reauth=1', local: { fw_session_v1: rejectedSession }, pendingInvite: 'still-pending-seat' });
+    assert.equal(page.location.href, 'login.html?vault=1&reauth=1', 'Explicit recovery must not redirect with the rejected credential');
+    assert.equal(page.disk.get('fw_session_v1'), rejectedSession, 'Opening recovery preserves the previous account until a new sign-in succeeds');
+    assert.equal(page.temporary.get('tl-pending-invite-v1'), 'still-pending-seat', 'Authentication failure does not consume a pending seat invitation');
+    assert.equal(page.oauthReads(), 0);
+    page.element('identifier').value = 'manager@example.test'; page.element('password').value = 'test-password';
+    await page.submit('panelSignin');
+    assert.equal(page.location.href, 'index.html?vault=1');
+    assert.equal(JSON.parse(page.disk.get('fw_session_v1')).token, 'app-token', 'Explicit recovery saves the newly authenticated credential');
+
     // Exercise the real root and mobile menu with a minimal rendering host.
     global.window = globalThis; window.App = {};
     for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'types', 'season', 'helmet', 'engine', 'ai', 'actions', 'ui']) require('../js/shared/time-league-' + name + '.js');

@@ -544,6 +544,9 @@
     });
 
     (async function restoreSession() {
+      // An explicit recovery link follows a server-rejected session. Preserve
+      // local work, but do not automatically redirect with that same credential.
+      if (new URLSearchParams(window.location.search).get('reauth') === '1') return;
       // Automatic restoration owns neither the account nor navigation once the
       // user starts a sign-in. Keep that cancellation even if the attempt fails.
       const restoreVersion = accountRequestVersion;

@@ -48,5 +48,36 @@ const deferred = () => { let resolve; const promise = new Promise(finish => { re
     listeners.get('focus')(); stop(); last.resolve({ data: { ok: true, row: { id: 'room', version: 5 } }, error: null }); await flush();
     assert.equal(received.length, 1, 'An old subscription cannot deliver into a newly opened room');
     assert.equal(timers.size, 0); assert.equal(listeners.size, 0);
+    response = async () => ({ error: { context: { status: 401, json: async () => ({ error: 'Invalid session' }) } } });
+    const authErrors = [];
+    Remote.subscribeToLeague('room', () => assert.fail('A rejected session cannot publish a room'), error => authErrors.push(error));
+    const rejectedPoll = timers.values().next().value, rejectedFocus = listeners.get('focus'), rejectedOnline = listeners.get('online');
+    await flush();
+    assert.equal(authErrors.length, 1);
+    assert.equal(authErrors[0].authRequired, true);
+    assert.equal(timers.size, 0, 'Unauthorized polling stops its timer');
+    assert.equal(listeners.size, 0, 'Focus/online cannot keep retrying a rejected session');
+    const rejectedCount = calls.length;
+    rejectedPoll(); rejectedFocus(); rejectedOnline(); await flush();
+    assert.equal((await Remote.writeOnlineLeague('room', { type: 'week' }, 4)).authRequired, true);
+    await assert.rejects(Remote.loadOnlineLeague('room'), error => error.authRequired === true);
+    assert.equal(calls.length, rejectedCount, 'The same rejected credential cannot trigger manual or automatic retry storms');
+    token = 'fresh-session-b';
+    response = async () => ({ data: { ok: true, row: { id: 'room', version: 4 } }, error: null });
+    assert.equal((await Remote.loadOnlineLeague('room')).version, 4, 'A new credential can reopen the saved room');
+    response = async () => ({ error: { context: { status: 403, json: async () => ({ error: 'Not your room' }) } } });
+    await assert.rejects(Remote.loadOnlineLeague('other-room'), error => error.message === 'Not your room' && !error.authRequired);
+    response = async () => ({ data: { ok: true, row: { id: 'room', version: 4 } }, error: null });
+    assert.equal((await Remote.loadOnlineLeague('room')).version, 4, 'Room permission failures do not invalidate a working account');
+    const staleUnauthorized = deferred(); response = () => staleUnauthorized.promise;
+    const outdatedRead = Remote.loadOnlineLeague('room'); token = 'newer-session-b';
+    staleUnauthorized.resolve({ error: { context: { status: 401 } } });
+    await assert.rejects(outdatedRead, error => /session changed/.test(error.message) && !error.authRequired,
+        'A late401 for an older credential cannot invalidate a newer same-account sign-in');
+    response = async body => body.op === 'action'
+        ? { data: { ok: true, version: 5 }, error: null }
+        : { error: { context: { status: 401, json: async () => { throw new Error('Malformed error body'); } } } };
+    assert.deepEqual(await Remote.writeOnlineLeague('room', { type: 'week' }, 4), { ok: true, version: 5, refreshPending: true, authRequired: true },
+        'A saved write followed by rejected authentication stays saved and requires sign-in, never action replay');
     console.log('PASS: authenticated remote reads/writes, account-change isolation, stale-version conflicts, saved-write recovery, nonoverlapping polls, reconnect and unsubscribe cleanup.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

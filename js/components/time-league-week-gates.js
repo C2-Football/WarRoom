@@ -8,7 +8,7 @@
         { id: 'postgame', title: 'Week recap', action: 'advance-week', button: 'End week', tab: 'home', open: 'Week recap' },
     ];
 
-    function WeekGates({ league, onlineMeta, saving, saveError, onRetrySave, dataReady, onAction, onNavigate, currentTab, teamId, playback, messageAction }) {
+    function WeekGates({ league, onlineMeta, saving, authRequired, signInHref = 'login.html?vault=1&reauth=1', saveError, onRetrySave, dataReady, onAction, onNavigate, currentTab, teamId, playback, messageAction }) {
         const [showSettings, setShowSettings] = React.useState(false);
         if (!['season', 'complete'].includes(league.phase)) return null;
         const stage = STAGES.find(row => row.id === league.weekStage) || STAGES[2];
@@ -31,7 +31,9 @@
         const go = (tab, label) => h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate(tab), disabled: busy }, label);
         const advance = () => onAction({ type: mode === 'majority' ? 'vote-advance' : stage.action });
         let primary, secondary;
-        if (saveError) {
+        if (authRequired) {
+            primary = h('a', { className: 'tl-btn primary', href: signInHref }, 'Sign in again');
+        } else if (saveError) {
             primary = h('button', { type: 'button', className: 'tl-btn primary', disabled: saving, onClick: onRetrySave }, saving ? 'Saving…' : 'Retry save');
         } else if (live) {
             primary = currentTab !== 'gameday'
@@ -51,9 +53,9 @@
                 : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : tradeLabel)
                     : stage.id === 'lineup' ? go('trades', tradeLabel) : null;
         }
-        if (!saveError && !live && !incomingOffers && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
-        const title = saveError ? 'Save needs attention' : live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.id === 'postgame' ? `Week ${week} recap` : stage.title;
-        const status = !live && !complete && onlineMeta ? mode === 'majority' ? `${votes.length}/${majority} votes` : mode === 'timed' ? `Deadline: ${deadline.toLocaleString()}` : host ? 'Commissioner' : 'Commissioner advances' : '';
+        if (!authRequired && !saveError && !live && !incomingOffers && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
+        const title = authRequired ? 'Sign-in required' : saveError ? 'Save needs attention' : live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.id === 'postgame' ? `Week ${week} recap` : stage.title;
+        const status = !authRequired && !live && !complete && onlineMeta ? mode === 'majority' ? `${votes.length}/${majority} votes` : mode === 'timed' ? `Deadline: ${deadline.toLocaleString()}` : host ? 'Commissioner' : 'Commissioner advances' : '';
 
         return h('footer', { className: 'tl-week-action-row', 'aria-label': 'Week actions' },
             h('div', { className: 'tl-week-action-inner' },
@@ -61,7 +63,7 @@
                     h('small', null, `WEEK ${week}${!complete ? ` · ${live ? 3 : STAGES.indexOf(stage) + 1} OF 4` : ''}`),
                     h('strong', null, title), status && h('span', null, status)),
                 h('div', { className: 'tl-week-action-buttons' }, secondary, primary),
-                !live && !complete && h('div', { className: 'tl-week-action-more' },
+                !authRequired && !live && !complete && h('div', { className: 'tl-week-action-more' },
                     h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Week options', 'aria-expanded': showSettings, 'aria-controls': 'vault-week-options', onClick: () => setShowSettings(value => !value) }, '•••'),
                     showSettings && h('div', { className: 'tl-week-action-menu', id: 'vault-week-options' },
                         h('div', { className: 'tl-card-title' }, 'This week', h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Close week options', onClick: () => setShowSettings(false) }, '×')),
