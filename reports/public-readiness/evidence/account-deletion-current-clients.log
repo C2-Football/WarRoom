@@ -1,0 +1,3 @@
+PASS actual patched native settings/admin: truthful failure, malformed success, late account switch, store notice and exact paid-confirmation retry
+PASS actual patched public settings/admin: truthful failure, malformed success, late account switch, store notice and exact paid-confirmation retry
+PASS actual patched shared helper refuses mismatched account before request

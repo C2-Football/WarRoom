@@ -1,0 +1,55 @@
+--- a/js/settings.js
++++ b/js/settings.js
+@@ -39,9 +39,13 @@
+     // cleanup + redirect. Returns false if the user backed out or it failed.
+     async function dhqDeleteAccountFlow() {
+         if (!confirm('Delete your Dynasty HQ account? This permanently removes your account, subscription link, and saved data. This cannot be undone.')) return false;
+-        if (!confirm('Last check — are you sure? Your account and data will be gone for good.')) return false;
++        if (!confirm('Last check — are you sure? Your account and data will be gone for good. Stripe subscriptions will be canceled. Apple and Google subscriptions are managed separately in the store and are not canceled by deleting this account.')) return false;
+         try {
+-            await window.OD.deleteAccount();
++            const requestedToken = window.OD.getSessionToken();
++            const result = await window.OD.deleteAccount({ expectedToken: requestedToken });
++            if (window.OD.getSessionToken() !== requestedToken) throw new Error('This response belongs to the previous account. The current account has been left signed in');
++            if (!result || result.ok !== true) throw new Error('Deletion was not confirmed. Your session has been preserved');
++            if (result.managedSubscriptions && result.managedSubscriptions.length) alert('Your account was deleted. Apple or Google store subscriptions must still be managed with the store.');
+             try {
+                 ['fw_session_v1', 'od_auth_v1', 'od_display_name', 'od_avatar_emoji', 'dhq_notify_prefs_v1', 'dhq_owner_club_v1'].forEach(k => localStorage.removeItem(k));
+             } catch { /* best effort */ }
+--- a/admin.html
++++ b/admin.html
+@@ -773,18 +773,18 @@
+     if (!ok) return;
+     try {
+       let res = await requestDelete(email, false);
+-      if (res.status === 409) {
+-        const data = await res.json().catch(() => ({}));
++      let data = await res.json().catch(() => ({}));
++      if (res.status === 409 && data.error === 'paying_customer') {
+         const go = confirm(
+           `⚠️ ${data.message || 'This account has a LIVE PAID subscription.'}
+ 
+-Deleting will cancel their billing. Delete anyway?`);
++Stripe subscriptions will be canceled. Apple and Google subscriptions must be managed with the store. Delete the account?`);
+         if (!go) return;
+         res = await requestDelete(email, true);
++        data = await res.json().catch(() => ({}));
+       }
+-      const data = await res.json().catch(() => ({}));
+       if (res.ok && data.ok) {
+-        alert(`Deleted. (sign-in records removed: ${data.deletedAuthUsers ?? 0})`);
++        alert(`Deleted. (sign-in records removed: ${data.deletedAuthUsers ?? 0})` + (data.managedSubscriptions && data.managedSubscriptions.length ? '\nApple or Google subscriptions must still be managed with the store.' : ''));
+         loadUsers();
+       } else {
+         alert('Delete failed: ' + (data.error || res.status));
+--- a/index.html
++++ b/index.html
+@@ -3012,7 +3012,7 @@
+ <script src="js/shared/title-sweep.js?v=20260805club1"></script>
+ <script src="js/shared/qb-trade-rules.js?v=20260902qbr2"></script>
+ <script src="js/shared/elite-skill-trade-rules.js?v=20260902esr1"></script>
+-<script type="text/babel" src="js/settings.js?v=20260902intel1"></script>
++<script type="text/babel" src="js/settings.js?v=20260920deletion1"></script>
+ <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260906b106a"></script>
+ <script type="text/babel" src="js/post-draft.js?v=20260907b112a"></script>
+ <script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260915truth1"></script>

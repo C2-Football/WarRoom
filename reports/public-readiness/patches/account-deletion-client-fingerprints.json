@@ -1,0 +1,44 @@
+[
+  {
+    "snapshot": "warroom-current-native-source",
+    "file": "js/settings.js",
+    "sourceSha256": "6484f2e4d82cc3a772839df5929827d8a8cfe714ac9bab27be594f48d3d241d7",
+    "candidateSha256": "b10dcc13b5b04b1927746ff033c2e74008d84f151895425b755f1b499ee095f3"
+  },
+  {
+    "snapshot": "warroom-current-native-source",
+    "file": "admin.html",
+    "sourceSha256": "ffa73df28978669fff4612851d41d352e2923659ffa29dd3129962f95309cb5c",
+    "candidateSha256": "58a99203dfc6196224f689b378f9972116f7f188dad7fbadbb063309eea33379"
+  },
+  {
+    "snapshot": "warroom-current-native-source",
+    "file": "index.html",
+    "sourceSha256": "083b3db4be78973f412d39a67a23e868adeb55e4f231f811bad136176cab8441",
+    "candidateSha256": "0226ed473df6554269ebdd487bbfe96419e0efc48ccb6de8c3ceb62793a173f0"
+  },
+  {
+    "snapshot": "warroom-current-public-source",
+    "file": "js/settings.js",
+    "sourceSha256": "2f871564e89188c1949ae232d9a179976bcd9a44b07260bd2d749bdbcf2346d7",
+    "candidateSha256": "87ddedfb51fcda00a7c4f1720673301ea979619bb07f1edc44fbfeae3a3ba6ce"
+  },
+  {
+    "snapshot": "warroom-current-public-source",
+    "file": "admin.html",
+    "sourceSha256": "ffa73df28978669fff4612851d41d352e2923659ffa29dd3129962f95309cb5c",
+    "candidateSha256": "58a99203dfc6196224f689b378f9972116f7f188dad7fbadbb063309eea33379"
+  },
+  {
+    "snapshot": "warroom-current-public-source",
+    "file": "index.html",
+    "sourceSha256": "477c7fabd85b69044579f1699ac0df05b69e52b1d9f7cf791bc6743cc00ccd13",
+    "candidateSha256": "ba66837e74223acc850d5135b28fb6e22387da653e4b468751d104380bad3533"
+  },
+  {
+    "snapshot": "dhq-shared-current-public",
+    "file": "supabase-client.js",
+    "sourceSha256": "5e6c3c3f461904bcfd52a8c9bae650c1e600aea812314f879e366dab211eb360",
+    "candidateSha256": "e8eb7cd763df68f81152cd45ccd5a758be94cecc591c189db0b9a6ed85a5722e"
+  }
+]

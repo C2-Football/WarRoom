@@ -1,0 +1,3 @@
+Check supabase/functions/_shared/account-deletion.ts
+Check supabase/functions/fw-delete-account/index.ts
+Check supabase/functions/admin-delete-user/index.ts

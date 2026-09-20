@@ -1,0 +1,24 @@
+--- a/supabase-client.js
++++ b/supabase-client.js
+@@ -1033,17 +1033,20 @@
+ // Permanently delete the signed-in user's account and all their data.
+ // Required for App Store / Play Store compliance. After success the caller
+ // should sign the user out and return them to the landing screen.
+-window.OD.deleteAccount = async function() {
++window.OD.deleteAccount = async function(options = {}) {
+     if (!isConfigured()) throw new Error('Supabase not configured');
+     const token = getSessionToken();
+     if (!token) throw new Error('You must be logged in to delete your account');
++    if (options.expectedToken && options.expectedToken !== token) throw new Error('The account changed before deletion started. Try again from the current account');
+     const resp = await fetch(BACKEND_ENDPOINTS.fwDeleteAccount, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON },
+         body: JSON.stringify({ confirm: true }),
+     });
+     const result = await resp.json().catch(() => ({}));
++    if (getSessionToken() !== token) throw new Error('This deletion response belongs to the previous account. The current account has been left signed in');
+     if (!resp.ok) throw new Error(result.error || 'Failed to delete account');
++    if (result.ok !== true) throw new Error('Deletion was not confirmed. Your session has been preserved');
+     return result;
+ };
+ 

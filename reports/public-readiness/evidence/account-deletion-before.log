@@ -1,0 +1,28 @@
+(node:39779) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL stripeFailure: failed Stripe cancellation cannot be deletion success
+FAIL billingLookupFailure: Expected "actual" to be strictly unequal to: 200
+FAIL missingStripeConfiguration: Expected "actual" to be strictly unequal to: 200
+FAIL differentAuthIdentity: app UUID must not be used as Auth UUID
++ actual - expected
+
+  [
++   'fixture-app-id'
+-   'fixture-distinct-auth-id'
+  ]
+
+FAIL completeAuthInventory: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    1,
+-   2
+  ]
+
+FAIL authDeleteFailure: Expected "actual" to be strictly unequal to: 200
+FAIL accountLookupFailure: Expected "actual" to be strictly unequal to: 200
+FAIL targetRoleFailure: failed target-role read cannot authorize deleting an admin
+FAIL legacyStripePaidGuard: Expected values to be strictly equal:
+
+200 !== 409
+
