@@ -1,5 +1,7 @@
 # Account deletion: verified outcomes and recoverable failures
 
+> Follow-up release dependency: the durable checkout lifecycle in billing `3df2672` also requires checkout-aware deletion `bb4db0f` and additive migration `20260920060000`. The original candidate below must not be released as complete deletion coverage alongside new checkout attempts. See [checkout-aware deletion evidence and rollout order](account-deletion-checkouts-20260920.md). Independent review of that follow-up is pending.
+
 Branch `codex/readiness-account-deletion-20260920`, baseline `f2f3d819f52aeabf6009c7e98b88069fc17975cd`. This is a local candidate; no hosted account, Auth identity, payment subscription or user data was mutated. No deployment occurred.
 
 ## Reproduced failures
