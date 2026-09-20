@@ -1,62 +1,21 @@
-# Candidate release compatibility and recovery
+# Current release compatibility and recovery
 
-Status: pre-release; no readiness batch deployed. Recovery frontend baseline:
-`5d28f396a3f41f3e95075264ea2890227907c761` on both existing repositories.
+This file supersedes the September 18 pre-release recipe. Current release preparation and verification are recorded in [the September 20 frontend release](release-20260920-batch2.md), with [independent compatibility review](c2-frontend-compatibility-independent-20260920.md).
 
-## Hosted inspection (read-only)
+The last verified C2 frontend revision is `4c4c4e97b742acc5b4696808d290ab1d7784410e` on both destinations. The reviewed candidate retains canonical C2 shared `7bd35313fc78e25a2d1ac24035989673a93f28e6`. The actual public domain uses different owning repositories; these C2 deployments do not publish its pending proposals.
 
-Existing authenticated Supabase CLI access was linked to the already configured
-shared project. Catalog-only queries retrieved no customer rows. Evidence:
-`evidence/hosted-security-before.json` (49/49 public tables have RLS) and
-`evidence/hosted-auth-compatibility-before.json` (columns, indexes, functions).
-The hosted `app_users` and `password_reset_tokens` columns match both new migration
-contracts, including non-null integer session_version default 1, password-change
-and update timestamps, unique token hash and user/token foreign identifiers.
-The old current_app_user_id helper returns the claim UUID without a live session
-version check. The new atomic reset function does not yet exist on the host.
+## Deployment boundary
 
-## Ordered rollout
+Normal C2 pushes validate retained backend source without deploying any Edge Function or applying SQL. Only an explicit committed, reviewed manifest can authorize a manual Cup, Vault or Duat release. Account, billing, deletion and provider functions belong to separate release scopes. Do not use an older blanket migration/deployment workflow.
 
-The canonical backend workflow runs security/Vault/Duat tests, builds runtimes,
-type-checks functions, applies allowlisted migrations in ascending order, records
-and verifies them, then deploys functions. The sandbox repository does not deploy
-the shared backend. The two migrations are additive/idempotent and locally rehearsed
-for grants, replay, transaction rollback, concurrent reset links and revoked versus
-current sessions. No existing user row rewrite, deletion or schema shape change.
+The current frontend changes require only existing backend contracts, including the already deployed password-change endpoint. No game entrypoint changed from the last verified frontend baseline. The pending billing and deletion migrations and writers remain held. The detailed release record identifies all held schema revisions and evidence limits.
 
-1. Publish the verified canonical shared commit and pin both shared workflow inputs;
-   verify vendored consistency. Run integrated candidate gates and independent review.
-2. Deploy canonical main, then sandbox main through their existing workflows. Follow
-   backend and frontend terminal outcomes; pushing alone is not deployment proof.
-3. Inspect recorded migrations and restrictive policies on all existing public RLS
-   tables; use only disposable accounts for reset/concurrency/direct REST checks.
-4. Verify both release.json revisions and cache-busted served asset hashes, then
-   post-deploy browser journeys and resume the original failed Duat campaign.
+Account reset, session revocation, password change and atomic provisioning security corrections have already been selectively applied and source-verified. Another owning deployment previously reverted seven functions; current versions and exact source restoration are recorded in [hosted auth reversion](hosted-auth-reversion-20260920.md). Their permanence remains dependent on owning-source integration and deployment coordination.
 
 ## Practical recovery
 
-Keep the last verified revision and workflow URLs in the release record. Frontend
-regressions can be reverted with an ordinary follow-up commit and both Pages
-workflows; never rewrite shared history. If needed, revert only the defective backend
-runtime component while retaining working security corrections, then redeploy the
-canonical workflow. The Duat packing correction does not alter saved game schema.
+If this frontend batch needs rollback, rerun only the previously successful Pages workflow for `4c4c4e9`: canonical run `35517680678` or sandbox run `35517682249`. Verify the served revision, repository and asset hashes after recovery. Keep the permanent backend guard in current source. Never force shared history or restore the old automatic backend workflow to recover a frontend.
 
-Do not automatically roll back atomic resets or session revocation gates: that would
-reopen known security defects. Their migration protections are additive; recovery
-should repair the function/policy and rerun the idempotent migration when necessary.
-A bad edge-function rollout can be corrected or component-reverted independently of
-these protections. Existing reset links remain usable through the new RPC. Previously
-revoked app sessions may now be denied by direct REST as intended; users sign in again.
+Do not roll back working atomic reset, session revocation or provisioning protections. A backend regression requires a separately reviewed source repair and explicitly scoped release. The sandbox frontend shares the production backend and is never a disposable database.
 
-No production migrations have been applied manually during this investigation.
-Final release SHA, checks, operational postconditions and workflows remain pending.
-
-## Shared dependency checkpoint
-
-Canonical `C2-Football/dhq-shared` main is now verified at
-`7bd35313fc78e25a2d1ac24035989673a93f28e6` after an ordinary fast-forward push.
-Root independently reran 14,560 ranking comparisons and explicit projection parity,
-reviewed immutable-snapshot/live-read behavior, and verified remote ref. WarRoom
-release pin, all shared-loader entry cachebusters and the byte-identical player-value
-twin are updated together. This dependency publication does not deploy either
-WarRoom frontend; candidate validation and deployment remain pending.
+No migration or backend mutation is part of this frontend release. Consult the latest checkpoint and exact release evidence before operating; historical evidence is timestamped proof, not a guarantee that another owning workflow has not changed the host.
