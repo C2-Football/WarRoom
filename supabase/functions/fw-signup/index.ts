@@ -82,33 +82,23 @@ Deno.serve(async (req) => {
     // ── Hash password (PBKDF2 via Web Crypto — no external deps) ─
     const passwordHash = await hashPassword(password);
 
-    const { data: newUser, error: insertErr } = await admin
-      .from('app_users')
-      .insert({
-        email:         normalizedEmail,
-        password_hash: passwordHash,
-        display_name:  (typeof displayName === 'string' ? displayName.trim().slice(0, 120) : '') || normalizedEmail.split('@')[0],
-      })
-      .select('id, email, display_name, created_at, session_version')
-      .single();
-
-    if (insertErr || !newUser) {
-      console.error('Insert error:', insertErr);
-      return json(req, { error: `DB insert failed: ${insertErr?.message ?? insertErr?.code ?? 'unknown'} (${insertErr?.details ?? insertErr?.hint ?? ''})` }, 500);
-    }
-
-    // ── Provision free subscription for chosen product ────────
-    const { error: subscriptionErr } = await admin.from('subscriptions').insert({
-      user_id:      newUser.id,
-      product_slug: productSlug,
-      tier:         'free',
-      status:       'active',
+    // The service-only RPC creates the account and initial access in one
+    // transaction. A provisioning failure cannot expose then delete an account
+    // that a concurrent sign-in has already opened.
+    const { data: created, error: provisionErr } = await admin.rpc('create_app_account', {
+      p_email: normalizedEmail,
+      p_password_hash: passwordHash,
+      p_display_name: (typeof displayName === 'string' ? displayName.trim().slice(0, 120) : '') || normalizedEmail.split('@')[0],
+      p_product_slug: productSlug,
     });
-    if (subscriptionErr) {
-      console.error('Subscription insert error:', subscriptionErr);
-      await admin.from('app_users').delete().eq('id', newUser.id);
-      await auditEvent(admin, req, 'fw_signup', 'failure', { userId: newUser.id, email: normalizedEmail }, { reason: 'subscription_insert_failed', productSlug });
-      return json(req, { error: 'Could not provision product access.' }, 500);
+    if (provisionErr?.code === '23505') {
+      return json(req, { error: 'An account with this email already exists.' }, 409);
+    }
+    const newUser = Array.isArray(created) ? created[0] : null;
+    if (provisionErr || !newUser) {
+      console.error('Account provisioning error:', provisionErr);
+      await auditEvent(admin, req, 'fw_signup', 'failure', { email: normalizedEmail }, { reason: 'account_provisioning_failed', productSlug });
+      return json(req, { error: 'Could not create your account. Try again.' }, 503);
     }
 
     // ── Issue JWT ─────────────────────────────────────────────

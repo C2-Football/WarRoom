@@ -13,6 +13,16 @@ function fixture(slug, options = {}) {
   const user = { id: 'app-a', email, display_name: 'A', session_version: 2, password_hash: 'unchanged-private-hash' };
   const state = { users: options.empty ? [] : [user], subscriptions: [{user_id: 'app-a', product_slug: 'dhq', tier: 'pro', status: 'trialing'}], deletes: [], limits: [], minted: [], authCalls: 0, writes: [], queries: 0 };
   const admin = {
+    async rpc(name,args) {
+      assert.equal(name,'create_app_account');
+      if(options.provisionFailure)return {error:{message:'provisioning unavailable'}};
+      if(state.users.some(row=>row.email===args.p_email))return {error:{code:'23505'}};
+      const row={id:'new-a',email:args.p_email,display_name:args.p_display_name,session_version:1,password_hash:args.p_password_hash};
+      state.users.push(row);
+      if(options.gifted)state.subscriptions.push({user_id:row.id,product_slug:'dhq_gift',tier:'pro',status:'active',expires_at:'2099-01-01T00:00:00Z'});
+      state.subscriptions.push({user_id:row.id,product_slug:args.p_product_slug,tier:'free',status:'active'});
+      return {data:[row]};
+    },
     auth: { getUser: async () => { state.authCalls++; return options.authError ? {error: new Error('invalid')} : {data: {user: {id: 'auth-a', email, email_confirmed_at: options.unconfirmed ? null : '2026-09-20T00:00:00Z', app_metadata: {provider: 'google'}, user_metadata: {full_name: 'A'}}}}; } },
     from(table) {
       const q = { mode: 'read', filters: [], values: null,

@@ -100,36 +100,29 @@ Deno.serve(async (req) => {
 
     let isNew = false;
     if (!appUser) {
-      isNew = true;
-      const { data: created, error: insertErr } = await admin
-        .from('app_users')
-        .insert({
-          email:         normalizedEmail,
-          // Sentinel: never matches a real PBKDF2 "salt:hash", so an OAuth-only
-          // account can never be logged into via the password path.
-          password_hash: `oauth:${provider}`,
-          display_name:  String(metaName || normalizedEmail.split('@')[0]).slice(0, 120),
-        })
-        .select('id, email, display_name, session_version')
-        .single();
-      if (insertErr || !created) {
-        console.error('app_users insert error:', insertErr);
-        await auditEvent(admin, req, 'fw_oauth_sync', 'failure', { email: normalizedEmail }, { reason: 'user_insert_failed' });
-        return json(req, { error: 'Could not create account.' }, 500);
-      }
-      appUser = created;
-
-      const { error: subErr } = await admin.from('subscriptions').insert({
-        user_id:      created.id,
-        product_slug: productSlug,
-        tier:         'free',
-        status:       'active',
+      const { data: created, error: provisionErr } = await admin.rpc('create_app_account', {
+        p_email: normalizedEmail,
+        // Never matches a PBKDF2 credential; provider-only accounts keep the
+        // existing explicit sign-in-method guidance.
+        p_password_hash: `oauth:${provider}`,
+        p_display_name: String(metaName || normalizedEmail.split('@')[0]).slice(0, 120),
+        p_product_slug: productSlug,
       });
-      if (subErr) {
-        console.error('subscription insert error:', subErr);
-        await admin.from('app_users').delete().eq('id', created.id);
-        await auditEvent(admin, req, 'fw_oauth_sync', 'failure', { userId: created.id, email: normalizedEmail }, { reason: 'subscription_insert_failed' });
-        return json(req, { error: 'Could not provision product access.' }, 500);
+      if (provisionErr?.code === '23505') {
+        // A competing signup/exchange committed first. Resume that committed
+        // identity; never erase it or overwrite its password/subscriptions.
+        const { data: winner, error: winnerErr } = await admin.from('app_users')
+          .select('id, email, display_name, session_version').eq('email', normalizedEmail).maybeSingle();
+        if (winnerErr || !winner) return json(req, { error: 'Account setup is temporarily unavailable. Try again.' }, 503);
+        appUser = winner;
+      } else {
+        appUser = Array.isArray(created) ? created[0] : null;
+        if (provisionErr || !appUser) {
+          console.error('Account provisioning error:', provisionErr);
+          await auditEvent(admin, req, 'fw_oauth_sync', 'failure', { email: normalizedEmail }, { reason: 'account_provisioning_failed' });
+          return json(req, { error: 'Could not create account. Try again.' }, 503);
+        }
+        isNew = true;
       }
     } else if (metaName && !appUser.display_name) {
       // Backfill a display name for a pre-existing row that lacked one.

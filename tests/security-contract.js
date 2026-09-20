@@ -165,14 +165,15 @@ test('checkout endpoint enforces CORS helper, rate limits, and audit outcomes', 
   ok(!checkout.includes("'Access-Control-Allow-Origin':  '*'"), 'checkout must not use wildcard CORS');
 });
 
-test('signup validates product slugs and fails if initial subscription cannot be provisioned', () => {
+test('signup validates product slugs and provisions account/access atomically', () => {
   hasEvery(signup, [
     'const VALID_PRODUCT_SLUGS',
     'VALID_PRODUCT_SLUGS.has(productSlug)',
-    'subscriptionErr',
-    'subscription_insert_failed',
-    "await admin.from('app_users').delete().eq('id', newUser.id)",
+    "admin.rpc('create_app_account'",
+    'account_provisioning_failed',
+    "provisionErr?.code === '23505'",
   ], 'fw-signup product provisioning');
+  ok(!signup.includes(".delete()"), 'signup must never delete an exposed account on provisioning failure');
 });
 
 test('AI endpoint uses shared CORS helper instead of wildcard CORS', () => {
