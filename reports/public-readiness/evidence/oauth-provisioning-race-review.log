@@ -1,0 +1,9 @@
+(node:38373) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"firstStatus":500,"concurrentStatus":200,"concurrentId":"fixture-app","issuedTokens":1,"deletedAccounts":1,"accountStillPresent":false}
+Failed original provisioning must not delete an account already resumed by another successful sign-in
++ actual - expected
+
++ undefined
+- 'fixture-app'
+
