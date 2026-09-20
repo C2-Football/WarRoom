@@ -1,0 +1,4 @@
+PASS A real legal bench substitution saves and reloads in cycle2 Week1
+PASS Unowned player rejected without changing saved lineup
+PASS Ready lock prevents subsequent lineup mutation at server boundary
+PASS Original controlled lineup/readiness restored and reopened

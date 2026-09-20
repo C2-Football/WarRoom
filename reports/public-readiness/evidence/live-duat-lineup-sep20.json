@@ -1,0 +1,21 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "roomId": "83614489-2b98-422e-b028-47287873c13e",
+  "startedAt": "2026-09-20T16:11:17.788Z",
+  "status": "passed",
+  "checks": [
+    "A real legal bench substitution saves and reloads in cycle2 Week1",
+    "Unowned player rejected without changing saved lineup",
+    "Ready lock prevents subsequent lineup mutation at server boundary",
+    "Original controlled lineup/readiness restored and reopened"
+  ],
+  "originalLineup": [
+    "player:QB:joshallen:veil:2:2002:2020",
+    "player:RB:tikibarber:veil:2:2002:2000",
+    "player:WR:michaelthomas:veil:2:2002:2010",
+    "player:WR:jamarrchase:veil:2:2002:2020",
+    "player:RB:stevenjackson:veil:2:2002:2000"
+  ],
+  "originalReady": false,
+  "completedAt": "2026-09-20T16:11:50.780Z"
+}

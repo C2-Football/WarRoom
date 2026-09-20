@@ -1,0 +1,28 @@
+
+> fantasy-war-room@1.0.0 test:account-deletion
+> node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-billing-integration.cjs
+
+(node:47255) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS stripeFailure
+PASS billingLookupFailure
+PASS missingStripeConfiguration
+PASS differentAuthIdentity
+PASS completeAuthInventory
+PASS authDeleteFailure
+PASS accountLookupFailure
+PASS targetRoleFailure
+PASS legacyStripePaidGuard
+PASS hiddenStripeAndStoreNotice
+PASS promotionalAccessIsNotStoreBilling
+PASS partialCancellationRetry
+PASS authFailureRetry
+PASS sessionChangeBeforeMutation
+PASS authReappearance
+PASS uncertainCompletionDoesNotEraseReplacement
+PASS actual deletion SQL service-only grants, self/admin authorization and target version guard
+PASS actual SQL refuses stale self session, newly protected target and revoked administrator
+PASS actual SQL inventories hidden provider sources and refuses billing changes before cascade
+PASS actual SQL never erases a replaced or newly created account under the same email
+PASS actual SQL final deletion cascades only the exact unchanged target and preserves unrelated account saves; independent-connection contention not exercised
+PASS actual frozen billing+deletion SQL: RC-selected aggregate retains hidden Stripe inventory, webhook change forces retry, exact final deletion removes linked sources/receipts, later billing cannot recreate account
