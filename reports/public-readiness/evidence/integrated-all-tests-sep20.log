@@ -1,0 +1,110 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 43 test suites…
+
+  ✓ core
+  ✓ design-tokens
+  ✓ landing-content
+  ✓ login-auth
+  ✓ sleeper-connect
+  ✗ sleeper-portfolio
+  ✓ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing
+  ✓ security
+  ✓ native
+  ✓ bug-capture
+  ✓ analytics
+  ✓ tutorial
+  ✓ rookies
+  ✓ rookie-capital
+  ✓ rookie-fields
+  ✓ redraft
+  ✓ live-scores
+  ✓ dashboard-league
+  ✓ fa-market
+  ✓ stats
+  ✓ forecast-ledger
+  ✓ cup
+  ✓ chopped
+  ✓ first-class
+  ✓ workspaces
+  ✓ empire
+  ✓ commish
+  ✓ timeleague
+  ✗ duat
+
+────────────────────────────────────────────────────────────────
+FAILED: sleeper-portfolio
+────────────────────────────────────────────────────────────────
+ℹ todo 0
+ℹ duration_ms 93.471458
+
+✖ failing tests:
+
+test at tests/sleeper-portfolio.cjs:148:1
+✖ shared player context and Empire mark partial coverage without counting failed rosters as empty (3.927833ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /loaded leagues/. Input:
+  
+  'Dynasty DHQ'
+  
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/sleeper-portfolio.cjs:162:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Dynasty DHQ',
+    expected: /loaded leagues/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+────────────────────────────────────────────────────────────────
+FAILED: duat
+────────────────────────────────────────────────────────────────
+✖ missing loader and completed group without its component expose a recoverable error (0.363083ms)
+  ReferenceError: cancelLinkedLeagueRoute is not defined
+      at openDuat (evalmachine.<anonymous>:6:5)
+      at evalmachine.<anonymous>:26:49
+      at /Users/jacobc/Projects/warroom-public-readiness/tests/duat-ui-loading.js:194:43
+      at Array.forEach (<anonymous>)
+      at Object.draw (/Users/jacobc/Projects/warroom-public-readiness/tests/duat-ui-loading.js:194:23)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/duat-ui-loading.js:361:14)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+
+test at tests/duat-ui-loading.js:373:1
+✖ already executed raw-development game opens without a loader (0.369875ms)
+  ReferenceError: cancelLinkedLeagueRoute is not defined
+      at Object.openDuat (evalmachine.<anonymous>:6:5)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-public-readiness/tests/duat-ui-loading.js:378:21)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+FAIL  43 suites in 81.0s — 41 passed, 2 failed, 0 quarantined

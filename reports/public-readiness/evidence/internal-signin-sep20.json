@@ -1,0 +1,16 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "at": "2026-09-20T15:46:37.066Z",
+  "setup": "internal operator SQL; not public signup proof",
+  "checks": [
+    {
+      "name": "Password sign-in/profile preserve exact free identity; Vault and Duat collections empty",
+      "userId": "c48b3225-82c3-4aa8-9979-d30b7f32118d"
+    },
+    {
+      "name": "Password sign-in/profile preserve exact free identity; Vault and Duat collections empty",
+      "userId": "19faf319-8466-4aad-874e-8bb43e9a33e6"
+    }
+  ],
+  "status": "passed"
+}

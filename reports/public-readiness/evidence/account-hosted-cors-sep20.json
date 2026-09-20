@@ -1,0 +1,71 @@
+{
+  "at": "2026-09-20T15:47:15.507Z",
+  "checks": [
+    {
+      "name": "fw-signup",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    },
+    {
+      "name": "fw-signin",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    },
+    {
+      "name": "fw-profile",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    },
+    {
+      "name": "fw-oauth-sync",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    },
+    {
+      "name": "fw-refresh-session",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    },
+    {
+      "name": "fw-change-password",
+      "allowedOrigins": [
+        "https://dhqfootball.com",
+        "https://www.dhqfootball.com",
+        "https://c2-football.github.io",
+        "capacitor://localhost",
+        "https://localhost"
+      ],
+      "untrustedOriginExcluded": true
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "startedAt": "2026-09-20T15:47:24.662Z",
+  "checks": [
+    {
+      "name": "Anonymous campaign access denied",
+      "at": "2026-09-20T15:47:25.226Z"
+    },
+    {
+      "name": "Created isolated sourcebook dynasty",
+      "at": "2026-09-20T15:47:27.318Z"
+    },
+    {
+      "name": "Nonmember cannot load private campaign",
+      "at": "2026-09-20T15:47:28.928Z"
+    },
+    {
+      "name": "Second controlled account claimed isolated invitation",
+      "at": "2026-09-20T15:47:29.442Z"
+    },
+    {
+      "name": "Member projection hides invitation codes and private allocations",
+      "at": "2026-09-20T15:47:31.760Z"
+    },
+    {
+      "name": "Cross-faction intent rejected at server boundary",
+      "at": "2026-09-20T15:47:32.657Z"
+    },
+    {
+      "name": "Ordinary member cannot advance host journey",
+      "at": "2026-09-20T15:47:33.659Z"
+    },
+    {
+      "name": "Concurrent readiness has one winner and replay is idempotent",
+      "at": "2026-09-20T15:47:39.894Z"
+    },
+    {
+      "name": "Two-account live draft and archaeology complete",
+      "phase": "season",
+      "at": "2026-09-20T15:49:36.392Z"
+    },
+    {
+      "name": "Private council exchange persists only for its manager",
+      "at": "2026-09-20T15:49:45.466Z"
+    },
+    {
+      "name": "Historical week 1 saved and reopened",
+      "week": 2,
+      "phase": "season",
+      "at": "2026-09-20T15:49:59.942Z"
+    },
+    {
+      "name": "Historical week 2 saved and reopened",
+      "week": 3,
+      "phase": "season",
+      "at": "2026-09-20T15:50:20.034Z"
+    },
+    {
+      "name": "Historical week 3 saved and reopened",
+      "week": 4,
+      "phase": "season",
+      "at": "2026-09-20T15:50:38.745Z"
+    },
+    {
+      "name": "Historical week 4 saved and reopened",
+      "week": 5,
+      "phase": "season",
+      "at": "2026-09-20T15:50:56.804Z"
+    },
+    {
+      "name": "Historical week 5 saved and reopened",
+      "week": 6,
+      "phase": "season",
+      "at": "2026-09-20T15:51:16.724Z"
+    },
+    {
+      "name": "Historical week 6 saved and reopened",
+      "week": 7,
+      "phase": "season",
+      "at": "2026-09-20T15:51:36.365Z"
+    },
+    {
+      "name": "Historical week 7 saved and reopened",
+      "week": 8,
+      "phase": "season",
+      "at": "2026-09-20T15:51:54.619Z"
+    },
+    {
+      "name": "Historical week 8 saved and reopened",
+      "week": 9,
+      "phase": "season",
+      "at": "2026-09-20T15:52:12.860Z"
+    },
+    {
+      "name": "Historical week 9 saved and reopened",
+      "week": 10,
+      "phase": "season",
+      "at": "2026-09-20T15:52:33.508Z"
+    },
+    {
+      "name": "Historical week 10 saved and reopened",
+      "week": 11,
+      "phase": "season",
+      "at": "2026-09-20T15:52:51.517Z"
+    },
+    {
+      "name": "Historical week 11 saved and reopened",
+      "week": 12,
+      "phase": "season",
+      "at": "2026-09-20T15:53:10.535Z"
+    },
+    {
+      "name": "Historical week 12 saved and reopened",
+      "week": 13,
+      "phase": "season",
+      "at": "2026-09-20T15:53:34.873Z"
+    },
+    {
+      "name": "Historical week 13 saved and reopened",
+      "week": 14,
+      "phase": "season",
+      "at": "2026-09-20T15:53:54.999Z"
+    },
+    {
+      "name": "Historical week 14 saved and reopened",
+      "week": 15,
+      "phase": "season",
+      "at": "2026-09-20T15:54:13.646Z"
+    },
+    {
+      "name": "Historical week 15 saved and reopened",
+      "week": 16,
+      "phase": "season",
+      "at": "2026-09-20T15:54:38.322Z"
+    },
+    {
+      "name": "Historical week 16 saved and reopened",
+      "week": 17,
+      "phase": "season",
+      "at": "2026-09-20T15:54:58.000Z"
+    },
+    {
+      "name": "Historical week 17 saved and reopened",
+      "week": 18,
+      "phase": "complete",
+      "at": "2026-09-20T15:55:25.823Z"
+    },
+    {
+      "name": "Season completes with 17 historical results and years still concealed",
+      "at": "2026-09-20T15:55:25.831Z"
+    },
+    {
+      "name": "Year recap is private to requesting manager",
+      "at": "2026-09-20T15:55:35.120Z"
+    },
+    {
+      "name": "Subsequent dynasty cycle starts and reloads",
+      "cycle": 2,
+      "at": "2026-09-20T15:55:57.070Z"
+    },
+    {
+      "name": "Second cycle draft reaches playable Week 1",
+      "at": "2026-09-20T15:58:37.159Z"
+    }
+  ],
+  "requests": 298,
+  "responses": [
+    {
+      "at": "2026-09-20T15:47:25.224Z",
+      "op": "list",
+      "status": 401,
+      "message": "Sign in to play The Duat with friends."
+    },
+    {
+      "at": "2026-09-20T15:47:28.928Z",
+      "op": "load",
+      "status": 403,
+      "message": "You do not have a faction in this campaign."
+    },
+    {
+      "at": "2026-09-20T15:47:32.656Z",
+      "op": "action",
+      "type": "name-alliance",
+      "status": 403,
+      "message": "You can only control your own faction."
+    },
+    {
+      "at": "2026-09-20T15:47:33.658Z",
+      "op": "action",
+      "type": "start-draft",
+      "status": 403,
+      "message": "Only the host can advance the campaign."
+    },
+    {
+      "at": "2026-09-20T15:47:35.482Z",
+      "op": "action",
+      "type": "set-ready",
+      "status": 409,
+      "message": "Someone else acted first. Reload the campaign."
+    }
+  ],
+  "roomId": "83614489-2b98-422e-b028-47287873c13e",
+  "completedAt": "2026-09-20T15:58:37.160Z",
+  "status": "passed"
+}

@@ -1,0 +1,5 @@
+PASS Current sessions read only their own controlled account before reset
+PASS Hosted competing reset links commit exactly one password rotation
+PASS Password version increments once, both links consumed, old Edge and direct REST reads revoked
+PASS New sign-in restores access; unrelated account stays active; prior password and replayed links fail
+PASS Isolated game collections remain accessible after password reset

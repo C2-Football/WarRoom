@@ -1,0 +1,5 @@
+PASS missing current projections ignore historical bridge and retain visible unpriced seasonal holdings
+PASS retry restores actual engine season values without age pruning; unimplemented seasonal assessments stay explicitly unavailable
+PASS rendered scenario uses seasonal values with hypothetical and keeper limits
+PASS phone/landscape overflow, seasonal rankings and competitive review remain usable
+{"status":"passed","fixtureOnly":true,"externalWritesBlocked":true,"backendDisabled":true}

@@ -1,0 +1,31 @@
+PASS Anonymous campaign access denied
+PASS Created isolated sourcebook dynasty
+PASS Nonmember cannot load private campaign
+PASS Second controlled account claimed isolated invitation
+PASS Member projection hides invitation codes and private allocations
+PASS Cross-faction intent rejected at server boundary
+PASS Ordinary member cannot advance host journey
+PASS Concurrent readiness has one winner and replay is idempotent
+PASS Two-account live draft and archaeology complete
+PASS Private council exchange persists only for its manager
+PASS Historical week 1 saved and reopened
+PASS Historical week 2 saved and reopened
+PASS Historical week 3 saved and reopened
+PASS Historical week 4 saved and reopened
+PASS Historical week 5 saved and reopened
+PASS Historical week 6 saved and reopened
+PASS Historical week 7 saved and reopened
+PASS Historical week 8 saved and reopened
+PASS Historical week 9 saved and reopened
+PASS Historical week 10 saved and reopened
+PASS Historical week 11 saved and reopened
+PASS Historical week 12 saved and reopened
+PASS Historical week 13 saved and reopened
+PASS Historical week 14 saved and reopened
+PASS Historical week 15 saved and reopened
+PASS Historical week 16 saved and reopened
+PASS Historical week 17 saved and reopened
+PASS Season completes with 17 historical results and years still concealed
+PASS Year recap is private to requesting manager
+PASS Subsequent dynasty cycle starts and reloads
+PASS Second cycle draft reaches playable Week 1

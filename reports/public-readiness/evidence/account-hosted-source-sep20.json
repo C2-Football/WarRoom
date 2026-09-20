@@ -1,0 +1,185 @@
+{
+  "sourceRevision": "0a704ac3010b14daf3c29a3c1e222ce57c7a1d2f",
+  "checkedAt": "2026-09-20T15:45:10.861716+00:00",
+  "functions": [
+    {
+      "name": "fw-signup",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/entitlements.ts",
+          "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df"
+        },
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-signup/index.ts",
+          "sha256": "654f766e0f0f678542f4b9a0d096c09aeddfdcb8cb6cf2f08f0ba1ac92354a07"
+        }
+      ]
+    },
+    {
+      "name": "fw-signin",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/entitlements.ts",
+          "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df"
+        },
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-signin/index.ts",
+          "sha256": "8814d2778fb2249f58e7717f5acf85db8641fa6c1a49a866eda4b8890b261f21"
+        }
+      ]
+    },
+    {
+      "name": "fw-profile",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/entitlements.ts",
+          "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df"
+        },
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-profile/index.ts",
+          "sha256": "4829a022ad4315a3666dfe0c9520bc225c6db50ea8dc78394883c2fa412dcaf1"
+        }
+      ]
+    },
+    {
+      "name": "fw-oauth-sync",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/entitlements.ts",
+          "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df"
+        },
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-oauth-sync/index.ts",
+          "sha256": "a2e2235685cadd69d719519b387f507e1257a2f9784eeceabb4c29c1a3cd8eec"
+        }
+      ]
+    },
+    {
+      "name": "fw-refresh-session",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/entitlements.ts",
+          "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df"
+        },
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-refresh-session/index.ts",
+          "sha256": "84d892431ef112cdbdb6695f3baca8452d280b50fd596d549fad3015dd3aaa4b"
+        }
+      ]
+    },
+    {
+      "name": "fw-change-password",
+      "sources": [
+        {
+          "file": "supabase/functions/_shared/security.ts",
+          "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+        },
+        {
+          "file": "supabase/functions/fw-change-password/index.ts",
+          "sha256": "f8ddfdf77bf5066a05150ce287c101980370589d70f18f9cb6624b3535269988"
+        }
+      ]
+    }
+  ],
+  "metadata": [
+    {
+      "created_at": 1773787426148,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_f503ff2c-58ba-443c-b68d-8c9f1aa47625_204/source/supabase/functions/fw-signup/index.ts",
+      "ezbr_sha256": "e637065bd670833ccc679f75a561f8a47eddcecdcc20831886e0a31ea9dee65d",
+      "id": "f503ff2c-58ba-443c-b68d-8c9f1aa47625",
+      "import_map": false,
+      "name": "fw-signup",
+      "slug": "fw-signup",
+      "status": "ACTIVE",
+      "updated_at": 1789919057204,
+      "verify_jwt": false,
+      "version": 204
+    },
+    {
+      "created_at": 1773787428001,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_04ce07c3-d9be-4e59-a457-2176e3cab167_203/source/supabase/functions/fw-signin/index.ts",
+      "ezbr_sha256": "f08f16ac36803e4f6fc1894a41f8dd507153537a71e8ec4c1ddf7becd786ce20",
+      "id": "04ce07c3-d9be-4e59-a457-2176e3cab167",
+      "import_map": false,
+      "name": "fw-signin",
+      "slug": "fw-signin",
+      "status": "ACTIVE",
+      "updated_at": 1789919058860,
+      "verify_jwt": false,
+      "version": 203
+    },
+    {
+      "created_at": 1777818293638,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_da329e07-d34b-4609-9bef-8ee96646ef25_171/source/supabase/functions/fw-profile/index.ts",
+      "ezbr_sha256": "72a14d044c14926260faa59e07655480092b5ea638a83ffeb5148b8bbb284ba5",
+      "id": "da329e07-d34b-4609-9bef-8ee96646ef25",
+      "import_map": false,
+      "name": "fw-profile",
+      "slug": "fw-profile",
+      "status": "ACTIVE",
+      "updated_at": 1789919060397,
+      "verify_jwt": false,
+      "version": 171
+    },
+    {
+      "created_at": 1780951899887,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_4b8ab584-d198-45fc-b484-a3e116502056_75/source/supabase/functions/fw-oauth-sync/index.ts",
+      "ezbr_sha256": "5b2239f3819b9d89baebc541f1da75f5d0b3b3a822893a310809be0a8f75727a",
+      "id": "4b8ab584-d198-45fc-b484-a3e116502056",
+      "import_map": false,
+      "name": "fw-oauth-sync",
+      "slug": "fw-oauth-sync",
+      "status": "ACTIVE",
+      "updated_at": 1789919061799,
+      "verify_jwt": false,
+      "version": 75
+    },
+    {
+      "created_at": 1783798332521,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_b8732825-ec36-447f-b558-4039773bc8eb_34/source/supabase/functions/fw-refresh-session/index.ts",
+      "ezbr_sha256": "bd35fff6c29ede1abc38334c261efb8d27182dda170716f8a11b2fef252c5df6",
+      "id": "b8732825-ec36-447f-b558-4039773bc8eb",
+      "import_map": false,
+      "name": "fw-refresh-session",
+      "slug": "fw-refresh-session",
+      "status": "ACTIVE",
+      "updated_at": 1789919063050,
+      "verify_jwt": false,
+      "version": 34
+    },
+    {
+      "created_at": 1789919064345,
+      "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_fa44fd93-9d7e-4405-a497-62e3707317b1_1/source/supabase/functions/fw-change-password/index.ts",
+      "ezbr_sha256": "6e9c6387e382ff635dfce3e9c96314716e01e967753ab875058812ce3d7c1fb4",
+      "id": "fa44fd93-9d7e-4405-a497-62e3707317b1",
+      "import_map": false,
+      "name": "fw-change-password",
+      "slug": "fw-change-password",
+      "status": "ACTIVE",
+      "updated_at": 1789919064345,
+      "verify_jwt": false,
+      "version": 1
+    }
+  ],
+  "status": "passed"
+}

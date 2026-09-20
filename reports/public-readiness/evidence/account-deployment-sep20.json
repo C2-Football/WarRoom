@@ -1,0 +1,21 @@
+{
+  "sourceRevision": "0a704ac3010b14daf3c29a3c1e222ce57c7a1d2f",
+  "startedAt": "2026-09-20T15:44:16.274119+00:00",
+  "scope": [
+    "fw-signup",
+    "fw-signin",
+    "fw-profile",
+    "fw-oauth-sync",
+    "fw-refresh-session",
+    "fw-change-password"
+  ],
+  "completed": [
+    "fw-signup",
+    "fw-signin",
+    "fw-profile",
+    "fw-oauth-sync",
+    "fw-refresh-session",
+    "fw-change-password"
+  ],
+  "completedAt": "2026-09-20T15:44:24.511272+00:00"
+}

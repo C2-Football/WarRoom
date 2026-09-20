@@ -1,0 +1,28 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "startedAt": "2026-09-20T16:03:23.683Z",
+  "checks": [
+    {
+      "name": "Current sessions read only their own controlled account before reset"
+    },
+    {
+      "name": "Hosted competing reset links commit exactly one password rotation",
+      "statuses": [
+        400,
+        200
+      ]
+    },
+    {
+      "name": "Password version increments once, both links consumed, old Edge and direct REST reads revoked"
+    },
+    {
+      "name": "New sign-in restores access; unrelated account stays active; prior password and replayed links fail"
+    },
+    {
+      "name": "Isolated game collections remain accessible after password reset"
+    }
+  ],
+  "status": "passed",
+  "realCustomerRecordsTouched": false,
+  "completedAt": "2026-09-20T16:03:40.449Z"
+}

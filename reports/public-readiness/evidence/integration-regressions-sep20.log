@@ -1,0 +1,33 @@
+(node:41044) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the Duat group includes world and presentation exactly once in dependency order (2.040334ms)
+✔ actual browser modules initialize the country campaign and presentation without CommonJS fallbacks (429.451708ms)
+✔ Chapter II awakens the ruler and full army together, then travels to a distinct illustrated culture (159.116792ms)
+✔ shared updates reveal the whole current army without skipping a reader past an earlier culture (39.579417ms)
+✔ readiness and an in-flight reveal keep secret roster content sealed until authoritative data arrives (38.725833ms)
+✔ a reader who misses multiple shared updates can still awaken the known earlier army locally (41.619542ms)
+✔ legacy revealed saves show every player without timers, preserve final completion and handle a missing illustration (39.367333ms)
+✔ permitted live ruler rename keeps the reveal consistent while preserving original and added journal prose through reload (263.443417ms)
+✔ a failed world dependency keeps the game unmounted even when presentation loaded; retry reloads (3.967167ms)
+✔ successful group completion mounts the game and repeat entry does not load it twice (0.82975ms)
+✔ entering, finishing load, and leaving a game reset inherited scroll while ordinary renders retain reading position (0.61025ms)
+✔ missing loader and completed group without its component expose a recoverable error (0.787083ms)
+✔ already executed raw-development game opens without a loader (0.297209ms)
+✔ all failed details retain known league count without inventing rosters (1.73875ms)
+✔ partial success publishes usable leagues with an explicit unknown remainder (0.488417ms)
+✔ fast leagues stream before slow ones and final order stays in provider order (2.756917ms)
+✔ refresh preserves failed leagues as explicitly stale while updating successful ones (0.410709ms)
+✔ unavailable or malformed league list retains last data; verified empty list clears removed leagues (0.326042ms)
+✔ duplicate league IDs cannot inflate coverage and slow requests eventually release retry (7.498ms)
+✔ previous data cannot cross a provider identity or season (0.4005ms)
+✔ app refresh returns actual data even when React defers updater callbacks; concurrent retries share work (0.5985ms)
+✔ late completion from an old season cannot overwrite or finish a newer refresh (0.428708ms)
+✔ shared player context and Empire mark partial coverage without counting failed rosters as empty (3.522959ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1198.730625
