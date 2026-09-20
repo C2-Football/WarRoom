@@ -89,3 +89,10 @@ verify_jwt = false
 
 [functions.time-league]
 verify_jwt = false
+
+# Provider exchange and version-checked session refresh authenticate internally.
+[functions.fw-oauth-sync]
+verify_jwt = false
+
+[functions.fw-refresh-session]
+verify_jwt = false

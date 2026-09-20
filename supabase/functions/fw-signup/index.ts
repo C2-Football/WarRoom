@@ -7,28 +7,29 @@
  * Returns: { token, user: { id, email, displayName } }
  *
  * Uses Web Crypto PBKDF2 for password hashing (no external deps).
- * Required built-in secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET
+ * Required built-in secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { SignJWT } from 'npm:jose';
 import {
   auditEvent,
   checkRateLimit,
   clientIp,
   handleOptions,
   json,
+  isReservedTestEmail,
   normalizeEmail,
 } from '../_shared/security.ts';
+import { mintAppSessionJWT, resolveEntitlements } from '../_shared/entitlements.ts';
 
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const JWT_SECRET           = Deno.env.get('JWT_SECRET')!;
-const VALID_PRODUCT_SLUGS  = new Set(['war_room', 'dynast_hq', 'bundle']);
+const VALID_PRODUCT_SLUGS  = new Set(['war_room', 'dynast_hq', 'bundle', 'dhq']);
 
 Deno.serve(async (req) => {
   const options = handleOptions(req);
   if (options) return options;
+  if (req.method !== 'POST') return json(req, { error: 'Method not allowed.' }, 405);
 
   try {
     const { email, password, displayName, productSlug: rawProductSlug = 'war_room' } = await req.json();
@@ -42,14 +43,22 @@ Deno.serve(async (req) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return json(req, { error: 'Invalid email address.' }, 400);
     }
-    if (password.length < 8) {
-      return json(req, { error: 'Password must be at least 8 characters.' }, 400);
+    if (typeof password !== 'string' || password.length < 8 || password.length > 1024) {
+      return json(req, { error: 'Password must be between 8 and 1024 characters.' }, 400);
     }
     if (!VALID_PRODUCT_SLUGS.has(productSlug)) {
       return json(req, { error: 'Unknown product.' }, 400);
     }
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    // Existing QA addresses may use reserved domains, but public signup never
+    // resets accounts or bypasses abuse limits. Explicit resets belong to the
+    // authenticated administrator workflow, not an unauthenticated identity.
+    const isDesignatedQa = testResetEmails().has(normalizedEmail);
+    if (!isDesignatedQa && isReservedTestEmail(normalizedEmail)) {
+      await auditEvent(admin, req, 'fw_signup', 'blocked', { email: normalizedEmail }, { reason: 'reserved_test_domain' });
+      return json(req, { error: 'That email domain is reserved for testing and cannot receive mail. Use a real address.' }, 400);
+    }
     const ipLimit = await checkRateLimit(admin, 'fw-signup:ip', clientIp(req), { limit: 10, windowSeconds: 3600, lockoutSeconds: 3600 });
     const emailLimit = await checkRateLimit(admin, 'fw-signup:email', normalizedEmail, { limit: 3, windowSeconds: 3600, lockoutSeconds: 3600 });
     if (!ipLimit.allowed || !emailLimit.allowed) {
@@ -58,12 +67,13 @@ Deno.serve(async (req) => {
     }
 
     // ── Check for existing account ────────────────────────────
-    const { data: existing } = await admin
+    const { data: existing, error: lookupErr } = await admin
       .from('app_users')
       .select('id')
       .eq('email', normalizedEmail)
       .maybeSingle();
 
+    if (lookupErr) return json(req, { error: 'Account lookup is temporarily unavailable. Try again.' }, 503);
     if (existing) {
       await auditEvent(admin, req, 'fw_signup', 'failure', { email: normalizedEmail }, { reason: 'email_exists' });
       return json(req, { error: 'An account with this email already exists.' }, 409);
@@ -77,7 +87,7 @@ Deno.serve(async (req) => {
       .insert({
         email:         normalizedEmail,
         password_hash: passwordHash,
-        display_name:  displayName?.trim() || normalizedEmail.split('@')[0],
+        display_name:  (typeof displayName === 'string' ? displayName.trim().slice(0, 120) : '') || normalizedEmail.split('@')[0],
       })
       .select('id, email, display_name, created_at, session_version')
       .single();
@@ -102,7 +112,17 @@ Deno.serve(async (req) => {
     }
 
     // ── Issue JWT ─────────────────────────────────────────────
-    const token = await mintJWT(newUser.id, newUser.email, 'free', [productSlug], newUser.session_version || 1);
+    // The insert trigger may also attach an existing owner-granted gift. Read
+    // the same subscriptions as sign-in/profile before stamping the session.
+    let tier: 'pro' | 'free';
+    let products: string[];
+    try {
+      ({ tier, products } = await resolveEntitlements(admin, newUser.id));
+    } catch (err) {
+      console.error('fw-signup entitlements error:', err);
+      return json(req, { error: 'Your account was created, but the session could not start. Sign in to continue.' }, 503);
+    }
+    const token = await mintAppSessionJWT({ userId: newUser.id, email: newUser.email, tier, products, sessionVersion: newUser.session_version || 1 });
     await auditEvent(admin, req, 'fw_signup', 'success', { userId: newUser.id, email: normalizedEmail }, { productSlug });
 
     return json(req, {
@@ -111,8 +131,8 @@ Deno.serve(async (req) => {
         id:          newUser.id,
         email:       newUser.email,
         displayName: newUser.display_name,
-        tier:        'free',
-        products:    [productSlug],
+        tier,
+        products,
       },
     });
 
@@ -137,21 +157,15 @@ async function hashPassword(password: string): Promise<string> {
   return `${toHex(salt)}:${toHex(new Uint8Array(bits))}`;
 }
 
-async function mintJWT(
-  userId: string,
-  email: string,
-  tier: string,
-  products: string[],
-  sessionVersion: number,
-): Promise<string> {
-  const secret = new TextEncoder().encode(JWT_SECRET);
-  return new SignJWT({ role: 'authenticated', app_metadata: { user_id: userId, email, tier, products, session_version: sessionVersion } })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuer(SUPABASE_URL + '/auth/v1')
-    .setSubject(userId)
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(secret);
+// Designated QA addresses may use reserved test domains. This allowlist never
+// authorizes deleting an existing account or bypassing signup limits.
+function testResetEmails(): Set<string> {
+  return new Set(
+    (Deno.env.get('TEST_RESET_EMAILS') || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
 }
 
 function normalizeProductSlug(value: unknown): string {

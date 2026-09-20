@@ -1,0 +1,873 @@
+{
+  "repo_revision": "4642e3e99185459b892819c54f83ba8133448633",
+  "snapshot_date": "2026-09-20",
+  "remote_source": "Supabase functions download --use-api, each function isolated",
+  "functions": [
+    {
+      "slug": "ai-analyze",
+      "version": 285,
+      "files": [
+        {
+          "file": "ai-analyze/index.ts",
+          "status": "changed",
+          "local_sha256": "90ea640f8b0cd0a516dd20c3b425f6a39dff2bb12b731b5a1b4d7d28e09d6011",
+          "hosted_sha256": "4bc29e39dca03bd02ca7eaa79061fa3eb862e6693c676f642d76a2bb3dbbd58e",
+          "local_lines": 1726,
+          "hosted_lines": 3174
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:57.390000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "fcb03a7941d9d8a24fadf4bf22830f19fd5e8329ab6f8121d4bb1575fcf2fc5a"
+    },
+    {
+      "slug": "set-password",
+      "version": 198,
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        },
+        {
+          "file": "set-password/index.ts",
+          "status": "changed",
+          "local_sha256": "94adf9db2275d5a3c576223119389a0e1d210869441f2629adc4e5509117524a",
+          "hosted_sha256": "3bf86461ca6630c9ee4e382c72a93347140486b242a0062eff71b47eda947e59",
+          "local_lines": 135,
+          "hosted_lines": 121
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:34.496000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "963530a47d9a2695dc6987c54afbc7fc0e5a57c3db994b8ecdcee79ffff8fbb8"
+    },
+    {
+      "slug": "fw-signup",
+      "version": 203,
+      "files": [
+        {
+          "file": "fw-signup/index.ts",
+          "status": "changed",
+          "local_sha256": "2c7b56d21e06a7b7137ca209a3539c07eda32da0d650c3e2c26ab5512834eb01",
+          "hosted_sha256": "30d1f2ca20c8943fb22afed2400e15302adce7e9e5c94ab9c64f9999c2217793",
+          "local_lines": 168,
+          "hosted_lines": 186
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+          "local_lines": 0,
+          "hosted_lines": 73
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:23.590000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "825490ca1dc9f6abe6c7fdb636807efaff33903089102815b5b0987d650dda0e"
+    },
+    {
+      "slug": "fw-signin",
+      "version": 202,
+      "files": [
+        {
+          "file": "fw-signin/index.ts",
+          "status": "changed",
+          "local_sha256": "367ffc93f33954371a16ee2b3cc1d13c7d50963e6b7c0cb324a5273d0db30f1a",
+          "hosted_sha256": "dc349e1042bd3b46ff03f50bd44c3d55d0f1f875a6dcd8774829a9cbe3489bc5",
+          "local_lines": 161,
+          "hosted_lines": 134
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+          "local_lines": 0,
+          "hosted_lines": 73
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:22.018000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "34f64b92d2cee11b4a4778d10023c415fd797272c93df57d81b6fb784380364f"
+    },
+    {
+      "slug": "fw-create-checkout",
+      "version": 201,
+      "files": [
+        {
+          "file": "fw-create-checkout/index.ts",
+          "status": "changed",
+          "local_sha256": "f609df97a5e8c74f5486ee8d4b83640dceceac117950d275126d34cb27f7bf80",
+          "hosted_sha256": "83ddc15be1e50330f322a5738bd1d7c3bda7990811aafc95beedf8612ef3a8c5",
+          "local_lines": 156,
+          "hosted_lines": 178
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:05.117000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "e0df6cb6edb140d79996a106307c7f8ff420a83fda2a1eb548315e2b696ea1d8"
+    },
+    {
+      "slug": "fw-stripe-webhook",
+      "version": 197,
+      "files": [
+        {
+          "file": "fw-stripe-webhook/index.ts",
+          "status": "changed",
+          "local_sha256": "3bc8e1994f0def5758c912acb6fa1a16fd400dc77be9bde56fa2f1e0819c52ca",
+          "hosted_sha256": "29ca5fa2d7ef09cbf4fe29ab7cd29e60a400b9a0e497aa37dd52139ab5149998",
+          "local_lines": 184,
+          "hosted_lines": 198
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:25.583000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "22dd35ea5f784360a39ee0df807a6a4aba37fa3d41e0e6136b088c27df775f26"
+    },
+    {
+      "slug": "admin-list-users",
+      "version": 199,
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        },
+        {
+          "file": "admin-list-users/index.ts",
+          "status": "changed",
+          "local_sha256": "5f29a435f6667d04d7bc15f4fcb92bc0ddacbd65fdb17318d63eb75da6aa07de",
+          "hosted_sha256": "2a7029b1737b9612dd08bb46067c90f85a77e80672941c4eaed0975f95c0a036",
+          "local_lines": 87,
+          "hosted_lines": 147
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:52.388000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "d82f457ae4b83176dc84661a0d9070992e2e1419e2b386b1821b513408307bda"
+    },
+    {
+      "slug": "espn-proxy",
+      "version": 117,
+      "files": [
+        {
+          "file": "espn-proxy/index.ts",
+          "status": "changed",
+          "local_sha256": "f715cd8d21b5f1134b55b421844427b1b04fae673710db7bb83fd9031cb776d7",
+          "hosted_sha256": "b2a0add7abdd859ea17141d3b05430b4c8af6ac2abc75ce135d39ce3f2c6a40d",
+          "local_lines": 89,
+          "hosted_lines": 67
+        },
+        {
+          "file": "_shared/cors.ts",
+          "status": "changed",
+          "local_sha256": "8aaf29b970481e79e5bd40a6a153ceca050da2270060c7a93a520c999eedad0e",
+          "hosted_sha256": "37f1b6f075e6d06c5524613e18248be832004fbcac12507fb176fd497d214c03",
+          "local_lines": 50,
+          "hosted_lines": 55
+        },
+        {
+          "file": "_shared/rate-limit.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "237da7f082344e8ce28a21307b0f71c73f5ab343c8ca311902b7d71d00927bbf",
+          "local_lines": 0,
+          "hosted_lines": 97
+        }
+      ],
+      "updated_at_utc": "2026-09-18T21:13:37.189000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "06520e049f2163a17f14c5689536fc6fa979ac05f92fdbf5a449bee0f5b57148"
+    },
+    {
+      "slug": "fw-request-password-reset",
+      "version": 172,
+      "files": [
+        {
+          "file": "fw-request-password-reset/index.ts",
+          "status": "identical",
+          "local_sha256": "1e1bfb33bbbac1ee2891d9f6b04c4f13e89953070e8e2e83dbba5206dc32d69d",
+          "hosted_sha256": "1e1bfb33bbbac1ee2891d9f6b04c4f13e89953070e8e2e83dbba5206dc32d69d",
+          "local_lines": 174,
+          "hosted_lines": 174
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "identical",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "local_lines": 247,
+          "hosted_lines": 247
+        }
+      ],
+      "updated_at_utc": "2026-09-20T15:11:25.802000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "6a152a0bb737c582201aeac2533d083741c80e01ae7bfe851ae43d2d42022efb"
+    },
+    {
+      "slug": "fw-confirm-password-reset",
+      "version": 172,
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "status": "identical",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "local_lines": 247,
+          "hosted_lines": 247
+        },
+        {
+          "file": "fw-confirm-password-reset/index.ts",
+          "status": "identical",
+          "local_sha256": "263260d8d46c3916de47a89c238a5b5e3d81eff3079b8d239b52bc3801294767",
+          "hosted_sha256": "263260d8d46c3916de47a89c238a5b5e3d81eff3079b8d239b52bc3801294767",
+          "local_lines": 80,
+          "hosted_lines": 80
+        }
+      ],
+      "updated_at_utc": "2026-09-20T15:11:24.749000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "cf24a609218b9df42740a79ddc62d0fbb063b866855bf300191afec71e6fb623"
+    },
+    {
+      "slug": "admin-analytics-report",
+      "version": 187,
+      "files": [
+        {
+          "file": "admin-analytics-report/index.ts",
+          "status": "changed",
+          "local_sha256": "6a84b0441f0868ecca9b0820b41400dc8f4b1d12470b7721fd8755594a48215c",
+          "hosted_sha256": "4aa9d2db97c29970e46f9ae62c751fc9410ad79b8470c5f3edf2c9a1d091c9ff",
+          "local_lines": 57,
+          "hosted_lines": 578
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-20T12:39:33.560000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "b75eaabee32693c716e47027d944ea334271dec1855d82227e56be778d8abdb1"
+    },
+    {
+      "slug": "fw-profile",
+      "version": 170,
+      "files": [
+        {
+          "file": "fw-profile/index.ts",
+          "status": "changed",
+          "local_sha256": "413cee14f8a0d77a5f5a8dd152b2ec77f9089b88173b14a932307d10a1e39eee",
+          "hosted_sha256": "42a2437613bd6d787eb06fd52c42510ffb9b33eb9f658845b6530f2e94660097",
+          "local_lines": 128,
+          "hosted_lines": 135
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:14.635000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "d63b56d289e9f40cc8ac215c775dd0d78d5a9ac579f2c5a01e3ce0fff8067f29"
+    },
+    {
+      "slug": "get-session-token",
+      "version": 169,
+      "files": [
+        {
+          "file": "get-session-token/index.ts",
+          "status": "identical",
+          "local_sha256": "673fb0583ce0bffef7a1916c17bf15573823833726b69e8f6fa0fb45a511a1ce",
+          "hosted_sha256": "673fb0583ce0bffef7a1916c17bf15573823833726b69e8f6fa0fb45a511a1ce",
+          "local_lines": 154,
+          "hosted_lines": 154
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:27.155000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "d7dc25df60a1673e68caf64fa18ec6a8b3242a85712076a345986df7a56cb9d8"
+    },
+    {
+      "slug": "mfl-proxy",
+      "version": 124,
+      "files": [
+        {
+          "file": "mfl-proxy/index.ts",
+          "status": "changed",
+          "local_sha256": "6264b57594c8411d19a82e29c0bc193094a20dbe217df4b45b2504715acfa97e",
+          "hosted_sha256": "4e2b837011e43c11ebe4a80c4c141642107f97e65a1a7ba9fb1d28744db0fabb",
+          "local_lines": 145,
+          "hosted_lines": 138
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "a2cc8fd66c5a6b1abc51426dd0c26978bdd4da1e9235799fe193846538327d74",
+          "local_lines": 247,
+          "hosted_lines": 270
+        }
+      ],
+      "updated_at_utc": "2026-09-18T21:13:57.396000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "6e2fbc7c9feedd8e9b8f2d5af52c286b7fca5fa1e1b5405241c18e5ab5f49739"
+    },
+    {
+      "slug": "yahoo-proxy",
+      "version": 111,
+      "files": [
+        {
+          "file": "yahoo-proxy/index.ts",
+          "status": "changed",
+          "local_sha256": "7f7d9dca2a7514b7e9268c883a5007fc02d62dd5ec16e34ea7726405ebc541a7",
+          "hosted_sha256": "38416a7b4351d6a606f15c1655615b657496879aad224fd2499b27fe461c6a0e",
+          "local_lines": 382,
+          "hosted_lines": 387
+        },
+        {
+          "file": "_shared/cors.ts",
+          "status": "changed",
+          "local_sha256": "8aaf29b970481e79e5bd40a6a153ceca050da2270060c7a93a520c999eedad0e",
+          "hosted_sha256": "37f1b6f075e6d06c5524613e18248be832004fbcac12507fb176fd497d214c03",
+          "local_lines": 50,
+          "hosted_lines": 55
+        },
+        {
+          "file": "_shared/rate-limit.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "237da7f082344e8ce28a21307b0f71c73f5ab343c8ca311902b7d71d00927bbf",
+          "local_lines": 0,
+          "hosted_lines": 97
+        }
+      ],
+      "updated_at_utc": "2026-09-18T21:14:03.084000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "4a3e161820196737605b5aef91533b032fe48a57a38335ac72dabbd94fbdd580"
+    },
+    {
+      "slug": "fw-delete-account",
+      "version": 74,
+      "files": [
+        {
+          "file": "fw-delete-account/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "6a731fc6830baac131aaae717d56b362f85b5a546d8010b04dc62abccb78b321",
+          "local_lines": 0,
+          "hosted_lines": 104
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:06.823000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "c0ff529edcf5a80bbb3643700ad2c03d2f5cd46befdb4d45706913369569b5b3"
+    },
+    {
+      "slug": "fw-oauth-sync",
+      "version": 74,
+      "files": [
+        {
+          "file": "fw-oauth-sync/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "4157db4dae3490eab74c52fbb3724b16c43fc231976ce6b4139acb9ce25ebb14",
+          "local_lines": 0,
+          "hosted_lines": 191
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+          "local_lines": 0,
+          "hosted_lines": 73
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:10.794000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "5fc82d3badeab8f9efce0b30f1393b72a35e4eb9187c2e94607e69c918afe5da"
+    },
+    {
+      "slug": "ai-feedback",
+      "version": 157,
+      "files": [
+        {
+          "file": "ai-feedback/index.ts",
+          "status": "changed",
+          "local_sha256": "553cf0b61234966b8f238f91be3e8999a4e3012f2becb612ed261281f1bba5eb",
+          "hosted_sha256": "419d2ac6431201875f20d027dc8cc240027544fac9c1f8a5f039fdf534531e41",
+          "local_lines": 153,
+          "hosted_lines": 153
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:59.060000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "7ae33aaa01371a729c463cec289e1dc30c03a1fa1f23a99377ef7d8157425f7a"
+    },
+    {
+      "slug": "fw-revenuecat-webhook",
+      "version": 53,
+      "files": [
+        {
+          "file": "fw-revenuecat-webhook/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "b89ec4723a4e4a874d2aab7eb3ab4d1733db09e108101b2e7bf992d56fd03f89",
+          "local_lines": 0,
+          "hosted_lines": 235
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:20.218000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "27a0e57c488354bed4556e4592c6758dc30cf0a299c44c815a11f09cf7ed030b"
+    },
+    {
+      "slug": "report-bug",
+      "version": 8,
+      "files": [
+        {
+          "file": "report-bug/index.ts",
+          "status": "changed",
+          "local_sha256": "3c0b0feef981f2e5d9977599d6e25a0b4483ec7534564f517a12ddf62b60d629",
+          "hosted_sha256": "a395930ed2d49d4d5c7870765c1c2f524593fd38e6113abc8ffd3df8c93c530a",
+          "local_lines": 176,
+          "hosted_lines": 228
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "a2cc8fd66c5a6b1abc51426dd0c26978bdd4da1e9235799fe193846538327d74",
+          "local_lines": 247,
+          "hosted_lines": 270
+        }
+      ],
+      "updated_at_utc": "2026-08-31T22:05:07.205000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "2550fc7a4fc112059fa7992050855903e9fcfef4b2806ee0ca5d63bf0f815115"
+    },
+    {
+      "slug": "feature-requests",
+      "version": 8,
+      "files": [
+        {
+          "file": "feature-requests/index.ts",
+          "status": "changed",
+          "local_sha256": "20e8396d0979f680ea47f6ea26330d2c260e9adf8566b237a8e5a4191083d56e",
+          "hosted_sha256": "edcc62223f7dc86a7156fb2ba8bb4c5bcde463d82c8377f4c736625ce0ab9a0f",
+          "local_lines": 192,
+          "hosted_lines": 222
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "a2cc8fd66c5a6b1abc51426dd0c26978bdd4da1e9235799fe193846538327d74",
+          "local_lines": 247,
+          "hosted_lines": 270
+        }
+      ],
+      "updated_at_utc": "2026-08-31T22:04:28.235000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "6c3d8d1b228329f63016c5bf24a2a41c2f69ecf5571cda9c752e27ce008ea76a"
+    },
+    {
+      "slug": "fw-refresh-session",
+      "version": 33,
+      "files": [
+        {
+          "file": "fw-refresh-session/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "81ef2efdbcab453617739f0f38c36e908592c011b073a784711707896d85679a",
+          "local_lines": 0,
+          "hosted_lines": 93
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+          "local_lines": 0,
+          "hosted_lines": 73
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:16.816000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "f0d2594efd930fedbd0d7be5a0a13a81a73102a257c20da6de800b2fcf76efd8"
+    },
+    {
+      "slug": "admin-delete-user",
+      "version": 31,
+      "files": [
+        {
+          "file": "admin-delete-user/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "972781c87ee46fdd12952c8bfbf2832de382ac0f7429880caa9744f7962c52d3",
+          "local_lines": 0,
+          "hosted_lines": 145
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:49.070000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "829bb98ee401cb026791fb8476bd01fff3eb7df7d9dc0d2e9ef2249454bd82d5"
+    },
+    {
+      "slug": "fw-billing-portal",
+      "version": 23,
+      "files": [
+        {
+          "file": "fw-billing-portal/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "6006a370f96fa4d7f00ce9702fa7c9960c63c0663cd2195ff50b54fa6cec19fd",
+          "local_lines": 0,
+          "hosted_lines": 104
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:01.387000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "5cac8fe5622e7be633bd9c908591064229bcccf742e587c3a02c5850688249ee"
+    },
+    {
+      "slug": "admin-grant-pro",
+      "version": 22,
+      "files": [
+        {
+          "file": "admin-grant-pro/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "77e051ae653de8148c62065189275d8d63b5a0e41c28602e907364b08343f378",
+          "local_lines": 0,
+          "hosted_lines": 161
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:50.587000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "dc6e136363145afde325b2f373a3c441943220781d779ecbc4423f49e7945dbb"
+    },
+    {
+      "slug": "admin-support-queue",
+      "version": 21,
+      "files": [
+        {
+          "file": "admin-support-queue/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "ea8f7597c5401c26397c5b83ec9953c80c029678bf55e999a9c159bd2768bf29",
+          "local_lines": 0,
+          "hosted_lines": 82
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:54.667000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "a2bfe9a4d51ab4f610e5006bdeaf2be6db3efa2c99ba7985ee9d75fc7cd1d9dd"
+    },
+    {
+      "slug": "admin-audit-log",
+      "version": 21,
+      "files": [
+        {
+          "file": "admin-audit-log/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "e092afeffd28861cda3f61c8ee43c492378408986e701531c41c29d89fa45405",
+          "local_lines": 0,
+          "hosted_lines": 53
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:45.858000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "c93d59c13c09d2610aef66e08da0f3a9ff4ad31d4956c9dd728d47a6084a6afa"
+    },
+    {
+      "slug": "admin-billing-summary",
+      "version": 20,
+      "files": [
+        {
+          "file": "admin-billing-summary/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "c46524c3df63a5df2756fa6112dd911900e5a232bfcafb3c49b0aa54129328f1",
+          "local_lines": 0,
+          "hosted_lines": 97
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+          "local_lines": 247,
+          "hosted_lines": 285
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:41:47.456000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "3c096f38232d03dc1f45e36ce32d3940fb26ddb15dba3de69c5810617af82085"
+    },
+    {
+      "slug": "nfl-scoreboard",
+      "version": 86,
+      "files": [
+        {
+          "file": "nfl-scoreboard/index.ts",
+          "status": "changed",
+          "local_sha256": "6c73f8eee39bbcf81189b3c8afc2dd1ebaec4352e28b5deee2a83c283e9ef577",
+          "hosted_sha256": "31f84c3768910b079d86096ec61952ef69a0d96371f4b9661db65c4283c805d0",
+          "local_lines": 102,
+          "hosted_lines": 129
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:30.422000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "5e063ff4c313c356e9f516297195ebe19f4d67343d22149b27e5a4a9eca8243c"
+    },
+    {
+      "slug": "ops-email-doctor",
+      "version": 7,
+      "files": [
+        {
+          "file": "ops-email-doctor/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "42c36f5fe40c5e2900e3b3fc86c606754f5593c1c0522fad19e40d0b7865610c",
+          "local_lines": 0,
+          "hosted_lines": 10
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:32.625000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "e07f2dc8af09fa0536b7e6e1a2c5b51027521daf2dbed70520d025eb32b548af"
+    },
+    {
+      "slug": "nfl-depth-charts",
+      "version": 5,
+      "files": [
+        {
+          "file": "nfl-depth-charts/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "900e50f20e8e762f5f319c144a83b28d77f69dee76718b324eb3001b127140b9",
+          "local_lines": 0,
+          "hosted_lines": 155
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:28.879000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "f06a2f56646ef0356bf0c81b21acecc5fc119e65b28e25fca0be5f12d33c0629"
+    },
+    {
+      "slug": "ops-board-vault",
+      "version": 4,
+      "files": [
+        {
+          "file": "ops-board-vault/index.ts",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "5a7f2c0cc7dca0f3a2c3eb198a142e8269e23a8934b56a744cc219d299070824",
+          "local_lines": 0,
+          "hosted_lines": 11
+        }
+      ],
+      "updated_at_utc": "2026-09-19T21:42:31.477000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "2ad5e01dfebeec52e2607ad2a42a92e20011bd240309f99905496d97b962c9e7"
+    },
+    {
+      "slug": "league-cup",
+      "version": 51,
+      "files": [
+        {
+          "file": "league-cup/index.ts",
+          "status": "identical",
+          "local_sha256": "d20869696ebafd5737d5f3e3ee92fdf4bf07917816804b749466b1ab20bd5928",
+          "hosted_sha256": "d20869696ebafd5737d5f3e3ee92fdf4bf07917816804b749466b1ab20bd5928",
+          "local_lines": 92,
+          "hosted_lines": 92
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "8ca777a71a7456387c793cecfc97e4abeaf7b8cda792e24f4ae5fdf40719bf5c",
+          "local_lines": 247,
+          "hosted_lines": 196
+        }
+      ],
+      "updated_at_utc": "2026-09-18T21:12:01.815000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "6bcf46068d0ceb9a7d30e5f44d086f096f79b16dda7014f9d8faa500f88b977d"
+    },
+    {
+      "slug": "time-league",
+      "version": 40,
+      "files": [],
+      "updated_at_utc": "2026-09-16T02:48:40.506000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "444a39c416670a1c9d0c27727aa0835d1af0cea072b7be72ee05550b9e4a383f"
+    },
+    {
+      "slug": "duat",
+      "version": 29,
+      "files": [
+        {
+          "file": "duat/runtime.js",
+          "status": "hosted-only",
+          "local_sha256": null,
+          "hosted_sha256": "c145bd99137372be33d5d8b6df0ffef16a4fb93878ffa0e3da1e3760c8a7d399",
+          "local_lines": 0,
+          "hosted_lines": 5699
+        },
+        {
+          "file": "duat/index.ts",
+          "status": "identical",
+          "local_sha256": "929bdda351d8a3df9f61788aa94f30fb879ea4d3e92c1c63bf8b1eb300179af8",
+          "hosted_sha256": "929bdda351d8a3df9f61788aa94f30fb879ea4d3e92c1c63bf8b1eb300179af8",
+          "local_lines": 185,
+          "hosted_lines": 185
+        },
+        {
+          "file": "_shared/security.ts",
+          "status": "changed",
+          "local_sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+          "hosted_sha256": "8ca777a71a7456387c793cecfc97e4abeaf7b8cda792e24f4ae5fdf40719bf5c",
+          "local_lines": 247,
+          "hosted_lines": 196
+        }
+      ],
+      "updated_at_utc": "2026-09-18T21:12:16.256000+00:00",
+      "verify_jwt": false,
+      "bundle_sha256": "a205473ff22bb4c2fad572b7cdfb2dbffd34fff203f2c685139816a118c43667"
+    }
+  ]
+}

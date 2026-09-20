@@ -1,0 +1,456 @@
+{
+  "native_repo": "skjjcruz/github.com-skjjcruz-owner-dashboard-dev",
+  "native_revision": "aa13193b28c552f977fa36a4683bb3a688d3da4f",
+  "functions": [
+    {
+      "slug": "ai-analyze",
+      "files": [
+        {
+          "file": "ai-analyze/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "set-password",
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "set-password/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-signup",
+      "files": [
+        {
+          "file": "fw-signup/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-signin",
+      "files": [
+        {
+          "file": "fw-signin/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-create-checkout",
+      "files": [
+        {
+          "file": "fw-create-checkout/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-stripe-webhook",
+      "files": [
+        {
+          "file": "fw-stripe-webhook/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-list-users",
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "admin-list-users/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "espn-proxy",
+      "files": [
+        {
+          "file": "espn-proxy/index.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/cors.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/rate-limit.ts",
+          "native_status": "missing"
+        }
+      ]
+    },
+    {
+      "slug": "fw-request-password-reset",
+      "files": [
+        {
+          "file": "fw-request-password-reset/index.ts",
+          "native_status": "different"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "fw-confirm-password-reset",
+      "files": [
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        },
+        {
+          "file": "fw-confirm-password-reset/index.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "admin-analytics-report",
+      "files": [
+        {
+          "file": "admin-analytics-report/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-profile",
+      "files": [
+        {
+          "file": "fw-profile/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "get-session-token",
+      "files": [
+        {
+          "file": "get-session-token/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "mfl-proxy",
+      "files": [
+        {
+          "file": "mfl-proxy/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "yahoo-proxy",
+      "files": [
+        {
+          "file": "yahoo-proxy/index.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/cors.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/rate-limit.ts",
+          "native_status": "missing"
+        }
+      ]
+    },
+    {
+      "slug": "fw-delete-account",
+      "files": [
+        {
+          "file": "fw-delete-account/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-oauth-sync",
+      "files": [
+        {
+          "file": "fw-oauth-sync/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "ai-feedback",
+      "files": [
+        {
+          "file": "ai-feedback/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-revenuecat-webhook",
+      "files": [
+        {
+          "file": "fw-revenuecat-webhook/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "report-bug",
+      "files": [
+        {
+          "file": "report-bug/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "feature-requests",
+      "files": [
+        {
+          "file": "feature-requests/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "fw-refresh-session",
+      "files": [
+        {
+          "file": "fw-refresh-session/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/entitlements.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-delete-user",
+      "files": [
+        {
+          "file": "admin-delete-user/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "fw-billing-portal",
+      "files": [
+        {
+          "file": "fw-billing-portal/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-grant-pro",
+      "files": [
+        {
+          "file": "admin-grant-pro/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-support-queue",
+      "files": [
+        {
+          "file": "admin-support-queue/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-audit-log",
+      "files": [
+        {
+          "file": "admin-audit-log/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "admin-billing-summary",
+      "files": [
+        {
+          "file": "admin-billing-summary/index.ts",
+          "native_status": "identical"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "nfl-scoreboard",
+      "files": [
+        {
+          "file": "nfl-scoreboard/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "ops-email-doctor",
+      "files": [
+        {
+          "file": "ops-email-doctor/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "nfl-depth-charts",
+      "files": [
+        {
+          "file": "nfl-depth-charts/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "ops-board-vault",
+      "files": [
+        {
+          "file": "ops-board-vault/index.ts",
+          "native_status": "identical"
+        }
+      ]
+    },
+    {
+      "slug": "league-cup",
+      "files": [
+        {
+          "file": "league-cup/index.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    },
+    {
+      "slug": "time-league",
+      "files": []
+    },
+    {
+      "slug": "duat",
+      "files": [
+        {
+          "file": "duat/runtime.js",
+          "native_status": "missing"
+        },
+        {
+          "file": "duat/index.ts",
+          "native_status": "missing"
+        },
+        {
+          "file": "_shared/security.ts",
+          "native_status": "different"
+        }
+      ]
+    }
+  ]
+}

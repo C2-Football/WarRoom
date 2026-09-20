@@ -65,12 +65,13 @@ async function plans() {
     async sign() { return 'synthetic-token'; }
   }
   const signDb = { from(table) { return {
-    select() { return this; }, eq() { return this; }, update() { return this; },
+    select() { return this; }, eq() { return this; }, in() { return this; }, update() { return this; },
     async maybeSingle() { return { data: { id: 'free-user', email: 'test@example.invalid', password_hash: hash, session_version: 1 } }; },
     then(resolve) { resolve({ data: table === 'subscriptions' ? [{ product_slug: 'bundle', tier: 'free', status: 'active' }] : null, error: null }); },
   }; } };
+  const entitlements = load('supabase/functions/_shared/entitlements.ts', { ...base, SignJWT: JWT }).context;
   const signin = load('supabase/functions/fw-signin/index.ts', {
-    ...base, createClient: () => signDb, normalizeEmail: s => s.toLowerCase(), clearRateLimit: async () => {}, SignJWT: JWT,
+    resolveEntitlements: entitlements.resolveEntitlements, mintAppSessionJWT: entitlements.mintAppSessionJWT, ...base, createClient: () => signDb, normalizeEmail: s => s.toLowerCase(), clearRateLimit: async () => {}, SignJWT: JWT,
   });
   assert.equal((await signin.handler({ method: 'POST', json: async () => ({ email: 'test@example.invalid', password }) })).status, 200);
   assert.equal(claims.app_metadata.tier, 'free');

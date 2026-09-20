@@ -1,0 +1,24 @@
+{
+  "app_user_triggers": [
+    "apply_gift_grant_on_signup",
+    "trg_app_users_updated_at"
+  ],
+  "product_slugs": [
+    "bundle",
+    "dhq",
+    "dhq_gift",
+    "dynast_hq",
+    "war_room"
+  ],
+  "recorded_migrations": [
+    "20260710000000",
+    "20260724000000"
+  ],
+  "subscriptions_columns": [
+    "billing_period",
+    "current_period_end",
+    "expires_at",
+    "rc_app_user_id",
+    "store"
+  ]
+}
