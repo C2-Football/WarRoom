@@ -1,0 +1,109 @@
+
+> fantasy-war-room@1.0.0 test:browser
+> npm run build:preview && node scripts/run-browser-tests.cjs
+
+
+> fantasy-war-room@1.0.0 build:preview
+> npm run sync:shared && node scripts/build-preview.cjs
+
+
+> fantasy-war-room@1.0.0 sync:shared
+> node scripts/sync-reconai-shared.cjs
+
+[sync-reconai-shared] Copied 30 files to reconai-shared/
+[sync-reconai-shared] player-value.js twin in sync (not vendored — hand-maintained)
+[sync-reconai-shared] Vendored 3 rookie CSVs into draft-war-room/
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/world.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/provinces.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/draft/command-center.js as it exceeds the max of 500KB.
+Compiled 147 Babel scripts into dist-preview/
+(node:75136) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running browser-readonly.cjs
+PASS browser mutation isolation: external writes denied before fixtures, local preflight, sanitized diagnostics; public read failures retry
+PASS browser-readonly.cjs
+
+Running browser-qa.js
+..............................................................................................................................
+PASS browser QA - 126 checks
+PASS browser-qa.js
+
+Running launch-browser-qa.js
+......
+PASS launch browser QA - 6 flows
+PASS launch-browser-qa.js
+
+Running live-click-paths.js
+.........................................
+PASS live click-path QA - 41 passed, 0 cases failed (0 findings)
+PASS live-click-paths.js
+
+Running draft-browser-qa.js
+.........
+PASS draft browser QA - 9 checks
+PASS draft-browser-qa.js
+
+Running league-skin-browser-qa.js
+
+PASS league skin browser QA - redraft/dynasty product skin matrix
+PASS league-skin-browser-qa.js
+
+Running empire-save-browser-qa.cjs
+{"status":"passed","viewport":"390x844","checks":["failed save visible","draft retained","saved record unchanged","hub navigation preserves unsaved draft","browser back preserves draft and URL","retry persists","reload restores"],"externalWriteGuard":true,"blockedExternalWrites":4}
+PASS empire-save-browser-qa.cjs
+
+Running vault-auth-browser-qa.cjs
+Fixture server ready; launching Chrome
+Fixture authenticated room opened
+320px401 recovery is reachable and polling stopped
+PASS Vault401 browser recovery: saved room, stopped retries,320px hit target, explicit real form flow, fresh-credential reopen; isolated fixtures only
+PASS vault-auth-browser-qa.cjs
+
+Running account-password-browser-qa.cjs
+{"viewport":{"width":320,"height":740},"calls":2,"checks":["real hub account entry","actual password inputs","wrong-password retains fields","retry disabled while pending","acknowledged change signs out","offline save retained","login success guidance"],"externalMutationGuard":true,"blockedOtherWrites":0}
+{"viewport":{"width":390,"height":844},"calls":2,"checks":["real hub account entry","actual password inputs","wrong-password retains fields","retry disabled while pending","acknowledged change signs out","offline save retained","login success guidance"],"externalMutationGuard":true,"blockedOtherWrites":0}
+{"viewport":{"width":844,"height":390},"calls":2,"checks":["real hub account entry","actual password inputs","wrong-password retains fields","retry disabled while pending","acknowledged change signs out","offline save retained","login success guidance"],"externalMutationGuard":true,"blockedOtherWrites":0}
+PASS account-password-browser-qa.cjs
+
+Running empire-seasonal-browser-qa.cjs
+PASS missing current projections ignore historical bridge and retain visible unpriced seasonal holdings
+PASS retry restores actual engine season values without age pruning; unimplemented seasonal assessments stay explicitly unavailable
+PASS rendered scenario uses seasonal values with hypothetical and keeper limits
+PASS phone/landscape overflow, seasonal rankings and competitive review remain usable
+{"status":"passed","fixtureOnly":true,"externalWritesBlocked":true,"backendDisabled":true}
+PASS empire-seasonal-browser-qa.cjs
+
+Running empire-draft-inventory-browser-qa.cjs
+PASS initial failed progress shows verified future rights only with current-year unknown
+PASS retry verifies pre-draft 2026 holdings without changing future years
+PASS consumed dynasty slot and completed redraft rights disappear from current draft capital
+PASS refresh failure keeps explicit saved inventory, no false Synced, and no overflow at 320/390/844
+PASS completed draft retry removes every consumed current-year right and preserves eight dynasty future picks
+{"status":"passed","externalWriteGuard":true,"backendDisabled":true,"fixtureOnly":true}
+PASS empire-draft-inventory-browser-qa.cjs
+
+Running league-linked-season-browser-qa.cjs
+PASS historical bookmark and reload preserve 2025 identity and Stats
+PASS Home and actual browser Back/Forward retain old route without mixing current portfolio
+PASS selecting current league remounts 2026 context after historical view
+PASS 503 gives readable reachable recovery at 320/390/844 widths; Retry opens exact same link
+PASS unconnected historical ID never loads roster and can return home
+PASS canceled slow historical response cannot replace newly selected current league
+{
+  "status": "passed",
+  "checks": [
+    "historical bookmark and reload preserve 2025 identity and Stats",
+    "Home and actual browser Back/Forward retain old route without mixing current portfolio",
+    "selecting current league remounts 2026 context after historical view",
+    "503 gives readable reachable recovery at 320/390/844 widths; Retry opens exact same link",
+    "unconnected historical ID never loads roster and can return home",
+    "canceled slow historical response cannot replace newly selected current league"
+  ],
+  "externalWriteGuard": true,
+  "backendDisabled": true,
+  "blockedExternalWrites": 0
+}
+PASS league-linked-season-browser-qa.cjs
+
+PASS browser gate: 12 passed, 0 failed; all 12 suites attempted
