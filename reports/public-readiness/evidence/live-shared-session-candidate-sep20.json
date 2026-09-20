@@ -1,0 +1,92 @@
+{
+  "startedAt": "2026-09-20T18:40:24.543Z",
+  "candidateRevision": "a980bfc",
+  "sharedRevision": "624e41a",
+  "candidateFilesInjected": true,
+  "backend": "existing production, owned QA account only",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "checks": [
+    "Actual candidate email sign-in against existing backend establishes the exact owned QA account and opens onboarding",
+    "Actual integrated shared module accepts the hosted issuer and loads explicit matching profile entitlements",
+    "Browser reload preserves the same valid account"
+  ],
+  "blocked": [
+    {
+      "method": "POST",
+      "path": "/rest/v1/analytics_events"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/analytics_events"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/analytics_events"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/analytics_events"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/analytics_events"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.sleeper.app/v1/state/nfl"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.fantasycalc.com/values/current"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.myfantasyleague.com/2026/export"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.myfantasyleague.com/2026/export"
+    },
+    {
+      "method": "GET",
+      "path": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/nfl-depth-charts"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.sleeper.app/v1/state/nfl"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.fantasycalc.com/values/current"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.myfantasyleague.com/2026/export"
+    },
+    {
+      "method": "GET",
+      "path": "https://api.myfantasyleague.com/2026/export"
+    },
+    {
+      "method": "GET",
+      "path": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/nfl-depth-charts"
+    }
+  ],
+  "status": "passed",
+  "sharedModuleHash": "6959455d01a017d550a31f504327627d79e8893db88dd1cfbf0fd4038013e0bf",
+  "pageErrors": [],
+  "profileReads": 3,
+  "overflow": false,
+  "completedAt": "2026-09-20T18:40:30.629Z"
+}
