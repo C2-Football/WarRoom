@@ -1,0 +1,67 @@
+[
+  {
+    "created_at": 1773787426148,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_f503ff2c-58ba-443c-b68d-8c9f1aa47625_203/source/supabase/functions/fw-signup/index.ts",
+    "ezbr_sha256": "825490ca1dc9f6abe6c7fdb636807efaff33903089102815b5b0987d650dda0e",
+    "id": "f503ff2c-58ba-443c-b68d-8c9f1aa47625",
+    "import_map": false,
+    "name": "fw-signup",
+    "slug": "fw-signup",
+    "status": "ACTIVE",
+    "updated_at": 1789854143590,
+    "verify_jwt": false,
+    "version": 203
+  },
+  {
+    "created_at": 1773787428001,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_04ce07c3-d9be-4e59-a457-2176e3cab167_202/source/supabase/functions/fw-signin/index.ts",
+    "ezbr_sha256": "34f64b92d2cee11b4a4778d10023c415fd797272c93df57d81b6fb784380364f",
+    "id": "04ce07c3-d9be-4e59-a457-2176e3cab167",
+    "import_map": false,
+    "name": "fw-signin",
+    "slug": "fw-signin",
+    "status": "ACTIVE",
+    "updated_at": 1789854142018,
+    "verify_jwt": false,
+    "version": 202
+  },
+  {
+    "created_at": 1777818293638,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_da329e07-d34b-4609-9bef-8ee96646ef25_170/source/supabase/functions/fw-profile/index.ts",
+    "ezbr_sha256": "d63b56d289e9f40cc8ac215c775dd0d78d5a9ac579f2c5a01e3ce0fff8067f29",
+    "id": "da329e07-d34b-4609-9bef-8ee96646ef25",
+    "import_map": false,
+    "name": "fw-profile",
+    "slug": "fw-profile",
+    "status": "ACTIVE",
+    "updated_at": 1789854134635,
+    "verify_jwt": false,
+    "version": 170
+  },
+  {
+    "created_at": 1780951899887,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_4b8ab584-d198-45fc-b484-a3e116502056_74/source/supabase/functions/fw-oauth-sync/index.ts",
+    "ezbr_sha256": "5fc82d3badeab8f9efce0b30f1393b72a35e4eb9187c2e94607e69c918afe5da",
+    "id": "4b8ab584-d198-45fc-b484-a3e116502056",
+    "import_map": false,
+    "name": "fw-oauth-sync",
+    "slug": "fw-oauth-sync",
+    "status": "ACTIVE",
+    "updated_at": 1789854130794,
+    "verify_jwt": false,
+    "version": 74
+  },
+  {
+    "created_at": 1783798332521,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_b8732825-ec36-447f-b558-4039773bc8eb_33/source/supabase/functions/fw-refresh-session/index.ts",
+    "ezbr_sha256": "f0d2594efd930fedbd0d7be5a0a13a81a73102a257c20da6de800b2fcf76efd8",
+    "id": "b8732825-ec36-447f-b558-4039773bc8eb",
+    "import_map": false,
+    "name": "fw-refresh-session",
+    "slug": "fw-refresh-session",
+    "status": "ACTIVE",
+    "updated_at": 1789854136816,
+    "verify_jwt": false,
+    "version": 33
+  }
+]

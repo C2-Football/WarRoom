@@ -1,0 +1,13 @@
+
+> fantasy-war-room@1.0.0 test:billing
+> node tests/billing-schema.js
+
+
+War Room billing schema contract tests
+
+  app_users  .
+  products  ...
+  subscriptions  ....
+  security  .
+
+PASS 9 tests - 9 passed, 0 failed

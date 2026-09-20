@@ -1,0 +1,6 @@
+
+> fantasy-war-room@1.0.0 test:login-auth
+> node tests/login-auth-contract.js && node tests/auth-request-recovery.cjs
+
+login auth contract ok (20 session restoration scenarios)
+PASS auth request recovery: offline/server/malformed reset, retry, session validation, duplicate submissions, timeout, OAuth rejection and confirmed password changes

@@ -1,0 +1,6 @@
+Check supabase/functions/fw-signup/index.ts
+Check supabase/functions/fw-signin/index.ts
+Check supabase/functions/fw-profile/index.ts
+Check supabase/functions/fw-oauth-sync/index.ts
+Check supabase/functions/fw-refresh-session/index.ts
+Check supabase/functions/fw-change-password/index.ts

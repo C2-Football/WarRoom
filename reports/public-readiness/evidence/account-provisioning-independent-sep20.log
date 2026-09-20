@@ -1,0 +1,6 @@
+(node:39639) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual SQL creates account/access/gift atomically, rolls back failed access, preserves existing saves/passwords, replays safely and only grants service access
+PASS actual OAuth handler failed first setup cannot erase a concurrent successful account/session/save; retry resumes winner
+PASS actual competing OAuth requests resume one committed identity and one initial subscription (PGlite serial SQL, independent connection contention unproven)
+PASS actual competing signup returns conflict without overwriting/deleting OAuth winner or unrelated saves
