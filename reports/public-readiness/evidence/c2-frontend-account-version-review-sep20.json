@@ -1,0 +1,54 @@
+{
+  "observed_at_utc": "2026-09-20T17:16:39.789792+00:00",
+  "read_only": true,
+  "checks": [
+    {
+      "name": "fw-signup",
+      "expected_version": 206,
+      "current_version": 206,
+      "match": true
+    },
+    {
+      "name": "fw-signin",
+      "expected_version": 205,
+      "current_version": 205,
+      "match": true
+    },
+    {
+      "name": "fw-request-password-reset",
+      "expected_version": 174,
+      "current_version": 174,
+      "match": true
+    },
+    {
+      "name": "fw-confirm-password-reset",
+      "expected_version": 174,
+      "current_version": 174,
+      "match": true
+    },
+    {
+      "name": "fw-profile",
+      "expected_version": 173,
+      "current_version": 173,
+      "match": true
+    },
+    {
+      "name": "fw-oauth-sync",
+      "expected_version": 77,
+      "current_version": 77,
+      "match": true
+    },
+    {
+      "name": "fw-refresh-session",
+      "expected_version": 36,
+      "current_version": 36,
+      "match": true
+    },
+    {
+      "name": "fw-change-password",
+      "expected_version": 1,
+      "current_version": 1,
+      "match": true
+    }
+  ]
+}

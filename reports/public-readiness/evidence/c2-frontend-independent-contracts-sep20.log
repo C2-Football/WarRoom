@@ -1,0 +1,64 @@
+(node:79696) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual endpoint/SQL changes only signed account, accepts signin PBKDF, invalidates old app sessions/reset links and preserves both accounts games; replay, input, method and rate guards
+PASS transaction rollback/retry, competing actual handlers with one winner, stale snapshots and service-only grants; PGlite serializes connections, separate hosted contention remains required
+PASS actual client correct endpoint/legacy reauthentication, explicit acknowledgment, wrong-password/network/timeout recovery, provider guidance and late account-switch isolation
+PASS actual Settings callback prevents duplicate submissions, retains entered fields after failure and permits retry
+PASS: source-real Vault401 UI preserves saved room, disables shared actions, offers reachable explicit sign-in and resumes an authenticated snapshot.
+(node:79698) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: visible multiplayer invites, seat-specific share/copy, sandbox/public/native links, cancellation and clipboard fallback, joined/locked seat guards and commissioner access.
+✔ historical links resolve the provider season and ownership before loading its roster, including co-owners (2.759291ms)
+✔ unconnected or invalid season links cannot become private league context or trigger roster requests (2.204541ms)
+✔ malformed or failed details remain unavailable and the same link can recover on retry (8.961958ms)
+✔ an account change during metadata lookup prevents membership requests and any result (0.462625ms)
+✔ actual route controller recovers after an error without mixing historical leagues into current portfolio (1.096042ms)
+✔ actual route controller cannot reopen a canceled link or publish a delayed prior-account response (0.810792ms)
+✔ initial route reports an unconnected account and allows late provider hydration to supersede lookup (1.609083ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21.866375
+✔ completed drafts consume current rights even while league still says pre_draft; future dynasty rights remain (2.985083ms)
+✔ in-progress drafts remove the consumed original slots, including acquired picks, rather than the picking roster (0.356625ms)
+✔ draft settings establish actual current rounds without changing future league rounds (0.162916ms)
+✔ unknown draft progress never creates current holdings and blocks complete capital claims (0.981041ms)
+✔ unmappable, malformed, or conflicting draft picks remain unknown; exact duplicates do not consume twice (0.544875ms)
+✔ failed refresh retains explicit stale progress, retry consumes the draft, and a different season cannot reuse it (0.304208ms)
+✔ timeout and account changes cannot start a later picks read or publish verified progress (6.539334ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14.629625
+(node:79701) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ redraft and keeper use current-season league prices, never dynasty age pruning, tiers or power rank (2.921709ms)
+✔ missing player, historical book and unknown format remain unpriced with ownership intact (0.9575ms)
+✔ mixed portfolio does not sum different bases; dynasty signals and scenario rows remain correctly scoped (7.415917ms)
+✔ seasonal concentration remains an actionable review without invented acceptance, premium or sale instruction (0.500333ms)
+✔ explicit season loading requests matching current/prior years, failure recovers and late account callbacks cannot publish (7.894ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22.743291
+(node:79702) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual preference/follow-up callbacks report rejected writes, save notes/activity together, preserve partial-state truth, retry only activity, and verify clipboard success
+PASS actual follow-up drawer retains failed inputs, prevents close/navigation/actions, preserves edits across activity refresh, retries, discards only edits, and reports clipboard failure
+PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments
+PASS actual drift checks/acknowledgment/panel preserve failed baseline and pending state, commit ledger before baseline once, retry without duplicates, and reject stale-account writes
+(node:79704) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual proposal/checklist callbacks preserve failed records and editor values, retry latest rules, remove only after confirmed save, and discard only unsaved proposal inputs
