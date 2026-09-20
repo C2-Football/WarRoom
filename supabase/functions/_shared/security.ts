@@ -12,7 +12,17 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://127.0.0.1:3002',
   'https://jcc100218.github.io',
   'https://c2-football.github.io',
+  'https://skjjcruz.github.io',
   'https://warroom.skjjcruz.com',
+  // Live marketing/app domain (dhqfootball.com cutover).
+  'https://dhqfootball.com',
+  'https://www.dhqfootball.com',
+  // Capacitor native app origins. iOS serves the bundled web app from the
+  // 'capacitor' scheme; Android uses the 'https' scheme (see
+  // capacitor.config.json androidScheme). Without these the WebView's fetch to
+  // this function is blocked by CORS and every AI call fails to load.
+  'capacitor://localhost',
+  'https://localhost',
 ];
 
 export function corsHeaders(req: Request): HeadersInit {
@@ -21,7 +31,8 @@ export function corsHeaders(req: Request): HeadersInit {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  const allowed = configured.length ? configured : DEFAULT_ALLOWED_ORIGINS;
+  // Preserve supported public/native origins alongside explicit configuration.
+  const allowed = [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured])];
   const allowOrigin = allowed.includes(origin) ? origin : allowed[0] || origin || '';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -61,7 +72,7 @@ export function decodeJwtPayload(authHeader: string | null): Record<string, any>
   const payload = token.split('.')[1];
   if (!payload) return null;
   try {
-    return JSON.parse(atob(payload));
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
   } catch {
     return null;
   }
@@ -126,6 +137,16 @@ export function normalizeEmail(value: unknown): string {
   return String(value || '').trim().toLowerCase();
 }
 
+const RESERVED_TEST_TLDS = new Set(['invalid', 'test', 'example', 'localhost']);
+const RESERVED_TEST_DOMAINS = new Set(['example.com', 'example.net', 'example.org']);
+export function isReservedTestEmail(email: string): boolean {
+  const at = email.lastIndexOf('@');
+  if (at < 0) return false;
+  const domain = email.slice(at + 1);
+  const tld = domain.slice(domain.lastIndexOf('.') + 1);
+  return RESERVED_TEST_TLDS.has(tld) || RESERVED_TEST_DOMAINS.has(domain) || domain.endsWith('.example.com');
+}
+
 export async function sha256Hex(value: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -182,6 +203,36 @@ export async function clearRateLimit(admin: SupabaseClient, scope: string, ident
   try {
     await admin.from('auth_rate_limits').delete().eq('scope', scope).eq('identifier', identifier.slice(0, 300));
   } catch {}
+}
+
+// Compatibility for callers that accept verified Supabase OAuth sessions.
+export async function resolveAppUserId(
+  admin: SupabaseClient,
+  req: Request,
+): Promise<{ userId: string; email: string | null } | null> {
+  const session = await requireActiveAppSession(admin, req);
+  if (session) return { userId: session.userId, email: session.email };
+
+  const token = bearerToken(req);
+  if (!token) return null;
+  // A rejected app token must never regain authority through OAuth fallback.
+  // Decoding is used only to deny; Auth still verifies every accepted token.
+  const metadata = decodeJwtPayload(token)?.app_metadata;
+  if (metadata && ['user_id', 'session_version'].some(key => Object.prototype.hasOwnProperty.call(metadata, key))) return null;
+  try {
+    const { data, error } = await admin.auth.getUser(token);
+    const email = normalizeEmail(data?.user?.email);
+    if (error || !email || !data?.user?.email_confirmed_at) return null;
+    const { data: u } = await admin
+      .from('app_users')
+      .select('id, email')
+      .eq('email', email)
+      .maybeSingle();
+    if (!u) return null;
+    return { userId: u.id, email: u.email };
+  } catch {
+    return null;
+  }
 }
 
 export async function hasAdminRole(admin: SupabaseClient, userId: string | null | undefined): Promise<boolean> {

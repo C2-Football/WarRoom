@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-09-20",
+  "projectRef": "sxshiqyxhhifvtfqawbq",
+  "resetRoute": {"url": "https://dhqfootball.com/reset-password.html", "status": 200, "wwwRedirectsToCanonical": true, "postsToConfiguredConfirmEndpoint": true},
+  "envSecretNamesPresent": ["APP_ALLOWED_ORIGINS", "PASSWORD_RESET_REPLY_TO", "RESEND_API_KEY", "TEST_RESET_EMAILS"],
+  "envResetUrlOverridePresent": false,
+  "envResetSenderOverridePresent": false,
+  "vaultResendKeyPresent": false,
+  "vaultSenderPresent": false,
+  "recentDeliveryOutcomeGroupsLast7Days": [],
+  "hostedBefore": {"fw-request-password-reset": 171, "fw-confirm-password-reset": 171, "fw-oauth-sync": 74},
+  "emailsSent": 0,
+  "databaseMutations": 0,
+  "deliveryVerified": false
+}

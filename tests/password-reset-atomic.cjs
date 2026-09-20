@@ -33,6 +33,7 @@ const request = body => new Request('https://example.invalid/reset', { method: '
     let rpcFailure = false, tokenFailure = false, lookupFailure = false, deliveries = 0;
     const admin = {
       async rpc(name, args) {
+        if (name === 'get_app_secret') return { data: null };
         assert.equal(name, 'confirm_app_password_reset');
         if (rpcFailure) return { error: new Error('isolated RPC outage') };
         try { return { data: await q('select * from confirm_app_password_reset($1,$2)', [args.p_token_hash, args.p_password_hash]) }; }
@@ -61,7 +62,7 @@ const request = body => new Request('https://example.invalid/reset', { method: '
     assert.equal(configuredRedirect.headers.get('location'), 'https://example.invalid/reset-password.html?token=escaped%20token');
     confirmLoaded.context.Deno.env.get = () => '';
     const defaultRedirect = await confirm(new Request('https://example.invalid/reset?token=public-route'));
-    assert.equal(defaultRedirect.headers.get('location'), 'https://c2-football.github.io/WarRoom/reset-password.html?token=public-route');
+    assert.equal(defaultRedirect.headers.get('location'), 'https://dhqfootball.com/reset-password.html?token=public-route');
     confirmLoaded.context.Deno.env.get = key => key === 'APP_RESET_URL' ? 'https://legacy.example.invalid/reset.html?flow=reset' : '';
     assert.equal((await confirm(new Request('https://example.invalid/reset?token=legacy-route'))).headers.get('location'), 'https://legacy.example.invalid/reset.html?flow=reset&token=legacy-route');
     confirmLoaded.context.Deno.env.get = () => '';
@@ -150,8 +151,8 @@ const request = body => new Request('https://example.invalid/reset', { method: '
     assert.equal(deliveries, 1);
     assert.equal(issued.body.emailSent, true);
     assert.ok(issued.body.resetToken);
-    assert.equal(new URL(issued.body.resetUrl).origin, 'https://c2-football.github.io');
-    assert.equal(new URL(issued.body.resetUrl).pathname, '/WarRoom/reset-password.html');
+    assert.equal(new URL(issued.body.resetUrl).origin, 'https://dhqfootball.com');
+    assert.equal(new URL(issued.body.resetUrl).pathname, '/reset-password.html');
     assert.equal(new URL(issued.body.resetUrl).searchParams.get('token'), issued.body.resetToken);
     assert.equal((await q('select count(*)::int as n from password_reset_tokens where token_hash=$1', [hash(issued.body.resetToken)]))[0].n, 1);
     assert.equal((await reset(issued.body.resetToken)).status, 200);

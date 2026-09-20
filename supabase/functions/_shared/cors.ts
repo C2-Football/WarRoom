@@ -1,13 +1,23 @@
 const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:3002",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:3001",
-  "http://127.0.0.1:3002",
-  "https://c2-football.github.io",
-  "https://jcc100218.github.io",
-  "https://warroom.skjjcruz.com",
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  'https://jcc100218.github.io',
+  'https://c2-football.github.io',
+  'https://skjjcruz.github.io',
+  'https://warroom.skjjcruz.com',
+  // Live marketing/app domain (dhqfootball.com cutover).
+  'https://dhqfootball.com',
+  'https://www.dhqfootball.com',
+  // Capacitor native app origins. iOS serves the bundled web app from the
+  // 'capacitor' scheme; Android uses the 'https' scheme (see
+  // capacitor.config.json androidScheme). Without these the WebView's fetch to
+  // this function is blocked by CORS and every AI call fails to load.
+  'capacitor://localhost',
+  'https://localhost',
 ];
 
 export function allowedOrigins(): string[] {
@@ -15,7 +25,7 @@ export function allowedOrigins(): string[] {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-  return configured.length ? configured : DEFAULT_ALLOWED_ORIGINS;
+  return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured])];
 }
 
 export function corsHeaders(req: Request): HeadersInit {

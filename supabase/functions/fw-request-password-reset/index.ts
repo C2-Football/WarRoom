@@ -68,10 +68,10 @@ Deno.serve(async (req) => {
       throw tokenError;
     }
 
-    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://c2-football.github.io/WarRoom/reset-password.html';
+    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://dhqfootball.com/reset-password.html';
     const resetUrl = resetBase ? `${resetBase}${resetBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(resetToken)}` : null;
     const delivery = resetUrl
-      ? await sendPasswordResetEmail(user.email, resetUrl, expiresAt)
+      ? await sendPasswordResetEmail(admin, user.email, resetUrl, expiresAt)
       : { sent: false, reason: 'missing_reset_url' };
 
     await auditEvent(admin, req, 'password_reset_requested', delivery.sent ? 'success' : 'failure', { userId: user.id, email: normalizedEmail }, {
@@ -90,15 +90,28 @@ Deno.serve(async (req) => {
   }
 });
 
+// Retain the established env-first Vault fallback without exposing its values.
+// deno-lint-ignore no-explicit-any
+async function getVaultSecret(admin: any, name: string): Promise<string | null> {
+  try {
+    const { data } = await admin.rpc('get_app_secret', { secret_name: name });
+    const value = typeof data === 'string' ? data.trim() : '';
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
 async function sendPasswordResetEmail(
+  admin: any,
   to: string,
   resetUrl: string,
   expiresAt: string,
 ): Promise<{ sent: boolean; provider?: string; reason?: string }> {
-  const apiKey = Deno.env.get('RESEND_API_KEY') || '';
+  const apiKey = Deno.env.get('RESEND_API_KEY') || (await getVaultSecret(admin, 'RESEND_API_KEY')) || '';
   if (!apiKey) return { sent: false, provider: 'resend', reason: 'missing_resend_api_key' };
 
-  const from = Deno.env.get('PASSWORD_RESET_FROM_EMAIL') || 'Dynasty HQ <onboarding@resend.dev>';
+  const from = Deno.env.get('PASSWORD_RESET_FROM_EMAIL') || (await getVaultSecret(admin, 'PASSWORD_RESET_FROM_EMAIL')) || 'Dynasty HQ <noreply@dhqfootball.com>';
   const replyTo = Deno.env.get('PASSWORD_RESET_REPLY_TO') || undefined;
   const expiresText = new Date(expiresAt).toLocaleString('en-US', {
     dateStyle: 'medium',

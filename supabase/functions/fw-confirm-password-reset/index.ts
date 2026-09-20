@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
   if (req.method === 'GET') {
     const token = new URL(req.url).searchParams.get('token') || '';
-    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://c2-football.github.io/WarRoom/reset-password.html';
+    const resetBase = Deno.env.get('PASSWORD_RESET_URL') || Deno.env.get('APP_RESET_URL') || 'https://dhqfootball.com/reset-password.html';
     const redirectUrl = `${resetBase}${resetBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
     return Response.redirect(redirectUrl, 302);
   }
