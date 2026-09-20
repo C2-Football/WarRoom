@@ -1,0 +1,77 @@
+
+> fantasy-war-room@1.0.0 test:empire
+> node tests/empire-values.js && node tests/empire-decisions.js && node tests/empire-scenarios.cjs && node --test tests/empire-pick-coverage.cjs tests/empire-pick-formats.cjs tests/empire-draft-inventory.cjs
+
+  ok  slotsFromRoster: superflex creates real QB demand; bench is ignored
+  ok  superflex prices quarterbacks above an otherwise identical 1QB league
+  ok  a scoring change moves the position it touches — and only that position
+  ok  identical leagues quote identical prices — nothing drifts on its own
+  ok  one freak valuation cannot rescale a league board
+  ok  every league is re-anchored to the common scale
+  ok  arbitrage names the high and low book and the capturable gap
+  ok  the superflex premium lands on MARGINAL quarterbacks, not elite ones
+  ok  spread() returns null for a player only one league prices
+  ok  ownership: a shared player owned in both books is framed as leverage, not a trade instruction
+  ok  ownership: owned in the high book, free agent in the low book
+  ok  ownership: owned by a rival in the other book reads as intel, not an instruction
+  ok  ownership: rows touching your roster sort ahead of pure market intel
+  ok  ownership: spreadMine ALWAYS agrees with the note — a THIRD league does not count
+  ok  ownership: spreadMine is true exactly when the note describes your roster
+  ok  ownership: with no myUserId, nobody reads as yours and nothing crashes
+  ok  a pre-draft league is not marked at all — an empty book is not a cheap book
+  ok  ownership: rostered by someone (not me) in both books reads as pure intel
+  ok  formatOf reads Sleeper league types, chopped included
+  ok  a league that cannot be priced is reported, not silently dropped
+  ok  build refuses gracefully with no leagues
+
+PASS: 21 tests
+  ok  track captures recommendation context once
+  ok  update records workflow, review date, note and realized delta
+  ok  summary separates active and terminal decisions
+  ok  remove is explicit and safe
+  ok  failed journal writes preserve the saved record and allow one successful retry
+  ok  actual journal UI retains failed drafts, merges newer edits and retries safely
+
+PASS 6 tests
+(node:32645) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ok player shock conserves value and ranks proportional league impact
+ok team correlation aggregates different players and positions across leagues
+ok guardrails round down whole league ownership and include unvalued players
+ok zero, total loss, invalid inputs, stale target and missing values stay honest
+ok duplicates and excluded league assets cannot inflate the scenario
+ok scenario action capability excludes Chopped and disabled trading
+ok interactive controls recompute results and route trading and non-trading leagues
+PASS 7 scenario tests
+(node:32660) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completed drafts consume current rights even while league still says pre_draft; future dynasty rights remain (4.698917ms)
+✔ in-progress drafts remove the consumed original slots, including acquired picks, rather than the picking roster (0.579334ms)
+✔ draft settings establish actual current rounds without changing future league rounds (0.187625ms)
+✔ unknown draft progress never creates current holdings and blocks complete capital claims (1.187625ms)
+✔ unmappable, malformed, or conflicting draft picks remain unknown; exact duplicates do not consume twice (0.838583ms)
+✔ failed refresh retains explicit stale progress, retry consumes the draft, and a different season cannot reuse it (0.339708ms)
+✔ timeout and account changes cannot start a later picks read or publish verified progress (6.140583ms)
+✔ HTTP, network and malformed pick failures cannot become verified zero transfers or own-pick capital (5.429417ms)
+✔ a verified empty feed proves own-pick holdings; transferred picks use normalized owners (0.70325ms)
+✔ failed refresh keeps labeled prior good ownership; retry replaces it; other seasons cannot reuse it (1.383459ms)
+✔ duplicate rows cannot inflate acquired picks; conflicting owners fail rather than guessing (0.274ms)
+✔ partial pick coverage excludes unknown holdings and cannot generate full-portfolio capital claims (0.505125ms)
+✔ a slow provider times out and non-Sleeper connections never query the wrong provider (5.920834ms)
+✔ actual Empire hydration retains snapshots when roster refresh creates new league objects (1.273ms)
+(node:32667) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ seasonal draft ownership follows the canonical one-year horizon without dynasty prices or future-capital advice (4.106708ms)
+✔ keeper future rights survive but unknown costs and eligibility cannot become dynasty capital value (0.27025ms)
+✔ dynasty ownership and valuation remain unchanged; mixed totals do not pass off partial values as full portfolio value (0.345125ms)
+✔ explicit zero-format and league overrides win over vestigial keeper settings; unknown format remains unpriced (0.271667ms)
+✔ scenario loss remains player-only regardless of verified keeper or dynasty draft rights (0.380209ms)
+✔ blank format placeholders fall through exactly like canonical LeagueSkin while numeric zero remains explicit (0.263833ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 414.27325

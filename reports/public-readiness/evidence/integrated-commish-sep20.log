@@ -1,0 +1,539 @@
+
+> fantasy-war-room@1.0.0 test:commish
+> node tests/commish-foundation.js && node tests/commish-coefficient.js && node tests/commish-radar.js && node tests/commish-bench.js && node tests/commish-drift.js && node tests/commish-calendar.js && node tests/commish-programme.js && node tests/commish-network-panel.js && node tests/commish-people-panel.js && node tests/commish-command-panel.js && node tests/commish-rulelab.js && node tests/commish-renewal.js && node tests/commish-genesis.js && node tests/commish-rulelab-panel.js && node tests/commish-bylaws.js && node tests/commish-treasury.js && node tests/commish-triage.js && node tests/commish-prefs.js && node tests/commish-tasks.js && node tests/commish-followups.js && node tests/commish-schedule.js && node tests/commish-schedule-nfl.js && node tests/commish-save-recovery.cjs && node tests/commish-followup-recovery.cjs && node tests/commish-plan-recovery.cjs && node tests/commish-ratification-recovery.cjs && node tests/commish-drift-recovery.cjs
+
+  ok  discovery: only leagues where MY user carries is_owner
+  ok  discovery: no user id → nothing (never guess)
+  ok  graph: joins one human across leagues on user_id
+  ok  graph: overlap lists 2+-league humans, excludes me, desc order
+  ok  graph: open seats — unowned roster and departed owner
+  ok  graph: records and pf carried per team
+
+PASS 6 tests — 6 passed, 0 failed
+  ok  aggregate: cross-league all-play totals match hand computation
+  ok  per-league: each seat rated on its own ledger, record passed through
+  ok  delta: rating minus rating-with-latest-week-excluded (tie reconstructed)
+  ok  delta: null when there is no prior week anywhere
+  ok  provisional: under 20 counted games flags, 20+ does not
+  ok  ordering: rating desc, null ratings last regardless of name
+  ok  missing ledger / unmatched seat: skipped honestly, never fabricated
+  ok  gamesTotal: sums counted all-play games across all humans
+  ok  empty inputs: no people → empty rows, zero games
+
+9 passed, 0 failed
+PASS commish-coefficient
+  ok  txn attribution: roster_ids reaches the right roster only
+  ok  txn attribution: adds/drops maps attribute when roster_ids is silent
+  ok  txn attribution: latest touch wins; string/number roster ids match
+  ok  txn attribution: commissioner txns never reset a member clock
+  ok  txn attribution: future-dated txn clamps to 0, never negative
+  ok  in-season: silent (>21d) + OUT starter → DARK
+  ok  in-season: never transacted + empty slot → DARK
+  ok  in-season: silent (>21d) but clean lineup → WATCH, not DARK
+  ok  in-season: active but one OUT starter → WATCH
+  ok  in-season: 2 bye starters → WATCH; 1 bye → OK
+  ok  in-season: recent txn + healthy lineup → OK (Questionable does not count)
+  ok  injury statuses: OUT/IR/PUP/SUS/NA/COV all count, case-insensitive
+  ok  empty slots: falsy and "0" starters entries both count
+  ok  offseason (week 0): lineup disaster is neutral; txn fuses are longer
+  ok  offseason: never transacted → DARK
+  ok  no starters data in-season → offseason thresholds apply
+  ok  person: 2+ teams all DARK → DARK_ALL ("life happened")
+  ok  person: dark in one league, alive in the other → DARK_ONE
+  ok  person: single-team person DARK → DARK_ONE, never DARK_ALL
+  ok  person: WATCH only → FADING; all OK → ACTIVE with null checkin
+  ok  sort: worst-first — DARK_ALL, DARK_ONE, FADING, ACTIVE
+  ok  checkin: deterministic — same inputs → identical text (template fallback)
+  ok  checkin: DARK_ONE names the dark league; DARK_ALL stays human, no league name
+  ok  checkin: never drafted for myself even when DARK
+  ok  integration: buildMemberGraph output feeds buildRadar directly
+  ok  empty inputs: no graph, no txns → empty people, never a throw
+  ok  fetchRadarInputs: uses stubbed global fetchers, skips mfl_
+  ok  fetchRadarInputs: no fetchers at all → empty maps, never a throw
+
+PASS 28 tests — 28 passed, 0 failed
+  ok  bench: fixture sanity — open seat found, u4 spans two leagues
+  ok  bench: candidates exclude the seat league members and me
+  ok  bench: transparent scoring — every point has a stated reason
+  ok  bench: ranking order is score desc, name asc on ties; limit respected
+  ok  bench: multi-league bonus caps at +2
+  ok  bench: no radar at all → radarClass null, score still computed
+  ok  bench: radar accepted as object-rows and as rows array
+  ok  prospectus: with values → top-5 assets sorted desc, real facts
+  ok  prospectus: no values → NO rankings, counts only, honest pitch
+  ok  prospectus: deterministic — same seat, same pitch every time
+  ok  prospectus: missing roster degrades honestly, never throws
+  ok  folder: five sections, every title and body a non-empty string
+  ok  folder: welcome detects full PPR + superflex + league size
+  ok  folder: half-PPR and standard scoring lines; no superflex when absent
+  ok  folder: roster section names assets with values, counts without
+  ok  folder: rivals list carries records and flags multi-league citizens
+  ok  folder: first-90-days picks up waiver day (Sleeper 2=Wednesday) and deadline
+  ok  folder: trade_deadline sentinel 99 (no deadline) is not surfaced
+  ok  folder: house rules verbatim when digest provided, honest line when not
+
+PASS 19 tests — 19 passed, 0 failed
+  ok  first run stores a baseline and reports no changes
+  ok  unchanged re-check is quiet and carries baselineTs
+  ok  unhydrated league (no settings, no scoring) refuses to baseline
+  ok  scoring mutation is detected with exact from/to
+  ok  volatile counters (leg / last_scored_leg / last_report) are ignored
+  ok  settings and roster_positions changes both surface
+  ok  added leaf has from:null, removed leaf has to:null
+  ok  pending dedupe keeps ORIGINAL from across two successive edits
+  ok  re-detecting the same drift preserves the original detectedAt
+  ok  a leaf edited back to baseline before ack drops out of pending
+  ok  acknowledge folds pending into baseline and grows history
+  ok  acknowledge folds a removed leaf out of the baseline
+  ok  acknowledge with nothing pending returns null and leaves history alone
+  ok  history caps at 50 groups, newest first
+  ok  leagues are isolated: L2 drift never bleeds into L1
+
+PASS 15 tests — 15 passed, 0 failed
+  ok  weekToDate: week 1 lands on the season start itself
+  ok  weekToDate: week N advances (N−1) × 7 days
+  ok  weekToDate: bad week or unparsable start date → null, never a fake date
+  ok  calendar: emits drafts + deadlines + playoffs with correct shapes
+  ok  calendar: sorted by ts, null-ts (TBD draft) sinks last
+  ok  calendar: no seasonStartDate → week events keep ts=null instead of guessing
+  ok  conflicts: two drafts 2h apart → draft_overlap
+  ok  conflicts: drafts 4h apart → no overlap
+  ok  conflicts: sharedHumans = humans in BOTH leagues, excluding me and single-league members
+  ok  conflicts: suggestion targets the later-created draft (bigger snowflake id)
+  ok  conflicts: solver skips a +1-day slot already holding a draft, goes −1 day
+  ok  conflicts: past overlaps are ignored (radar looks forward from nowMs)
+  ok  conflicts: completed drafts and TBD (ts=null) drafts never conflict
+  ok  conflicts: 2+ deadlines in the same NFL week cluster; lone deadline does not
+  ok  loadDrafts: maps Sleeper fields, failure → [], MFL skipped
+
+15 passed, 0 failed
+PASS commish-calendar
+  ok  programme: composes from the latest counted week
+  ok  programme: pairing is correct — winners, losers, margins
+  ok  programme: nail-biter (margin < 6) outranks the blowout as headline
+  ok  programme: with no close game, the biggest blowout is the headline
+  ok  programme: top score is the week high, named via the ledger
+  ok  programme: no matchupIds → headline falls back to the top score
+  ok  programme: dead-tie game is flagged and never crowns a winner
+  ok  programme: empty state when the ledger counted no weeks
+  ok  programme: empty state when the counted week has no score rows
+  ok  programme: luckNote picks the robbed team (allPlayPct ≥ .5, most negative luck)
+  ok  programme: luckNote falls back to the most positive luck when nobody was robbed
+  ok  programme: flat luck across the board → no luckNote (honest empty)
+  ok  programme: standingsTop3 follows ledger order
+  ok  programme: an explicitly pinned COUNTED week is honored; uncounted is not
+  ok  programme: deterministic — identical inputs compose identical pages
+  ok  buildAll: one programme per league, input order, per-league honesty
+
+16 passed, 0 failed
+PASS commish-programme
+WrCommishCoefficientPanel
+  ok  hero line + scale subtext render
+  ok  meta counts humans and all-play games
+  ok  overlap strip: sentence + chip with league count
+  ok  ratings, movement arrows, provisional badge
+  ok  zero-game human shows dashes, never a fake 0-0
+  ok  me row is gold-highlighted and tagged (you)
+  ok  caption present
+  ok  per-league breakdown hidden until row click, shown after
+  ok  null-rating league line is honest, not numeric
+  ok  no rows at all → members empty state
+  ok  rows without ratings → offseason empty state, network still shown
+  ok  missing coefficient/graph props degrade to empty state, no throw
+WrCommishProgrammePanel
+  ok  header tagline renders
+  ok  card carries the export DOM id contract
+  ok  masthead: league name + WK n
+  ok  headline + results capped at 3 with honest overflow line
+  ok  scores align via toFixed(1)
+  ok  luck note + standings top-3 with tie-aware records
+  ok  empty programme cards print reason-specific copy
+  ok  Export All fires the callback; per-card export absent without wrExport
+  ok  per-card export appears with wrExport, only on non-empty cards
+  ok  no onExportAll fn / all-empty list → no Export All button
+  ok  empty programmes list → honest empty state
+
+PASS: 23 tests
+(node:32567) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+WrCommishPeoplePanel contract
+  ok  component is assigned to window and renders a tree
+  ok  doctrine caption leads the Dave Alarm
+  ok  DARK_ALL chip reads DARK — ALL LEAGUES
+  ok  DARK_ONE chip names the dark league
+  ok  FADING and ACTIVE chips render, and people keep engine order (worst first)
+  ok  check-in quote renders for DARK_* only
+  ok  one status dot per team, tooltip explains the signals honestly
+  ok  open seat shows league, reason, bench candidate with fit score + reason chips
+  ok  prospectus pitch renders with its own copy button
+  ok  day one folder renders every section title and body
+  ok  day one folder is labelled a draft and names who it was written for
+  ok  a folder with no recruitName still says who it is for, without inventing a name
+  ok  copy buttons fall back to onCopy when navigator.clipboard is absent
+  ok  folder Copy all concatenates titles + bodies
+  ok  navigator.clipboard.writeText is preferred over onCopy
+  ok  no radar, no seats prop, no folders → honest empties, no crash
+  ok  seats: [] → the green all-clear line
+  ok  seat with no bench/prospectus computed → honest blanks, no crash
+  ok  folder with empty sections → honest regenerate line
+
+PASS: 19 passed, 0 failed
+(node:32568) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+Commissioner command panel — responsive grid
+  ok  desktop (no phone, no narrowGrid) keeps the fluid eight-column grid
+  ok  phone with no narrowGrid prop still gets the narrow grid (back-compat)
+  ok  portrait tablet — narrowGrid true while phone is false — gets the narrow grid
+  ok  narrowGrid false overrides phone true — the prop wins when given
+  ok  narrow grid scrolls horizontally and pins the league column
+  ok  desktop grid has no scroll wrapper and nothing pinned
+  ok  desk cards go two-up when narrow, four-up on desktop
+  ok  every domain column renders a header button that opens its hub
+PASS: 8 passed, 0 failed
+(node:32569) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  presets: cover the canonical proposals and compose as plain objects
+  ok  scorePlayerWeek: TE premium applies only when position is TE
+  ok  scorePlayerWeek: missing stat line scores 0
+  ok  rescoreSeason: as-played roster-weeks match hand computation, garbage recorded points ignored
+  ok  rescoreSeason: empty slots skipped; a started player missing from stats registers 0 in playerTotals
+  ok  runProposal: empty proposal → zero diff everywhere (rounding cancels by construction)
+  ok  runProposal: TE premium moves only TEs
+  ok  runProposal: standings flip on the hand-built season (PPR + TE premium)
+  ok  runProposal: playoff field in/out is correct and named
+  ok  runProposal: teamDeltas sorted by gain desc with exact values
+  ok  runProposal: playerDeltas carry the right signs (a nerf produces losers)
+  ok  runProposal: proposerNote is the honest disclosure, only when myRosterId is supplied
+  ok  runProposal: empty season is reported honestly, never fabricated
+  ok  runOmnibus: each league is diffed against its OWN current scoring
+  ok  v2 optimal mode: refields the best lineup from the full roster
+  ok  v2 roster proposal: superflex flips both runs to best-lineup and labels it
+  ok  v2 scoring-only proposals still run as-played
+  ok  v2 position share: TE premium moves TE relevance and says by how much
+  ok  v2 spearman: identity is 1, full reversal is -1
+  ok  v2 sweep: finds the exact threshold where the league flips
+  ok  v2 ballot: states methodology, the flip, and the proposer disclosure
+  ok  v2 sweepValuesFor: brackets reality for fractional, integer, and unscored keys
+  ok  v2 mergeSweeps: consensus is the value every season agrees on
+  ok  v2 mergeSweeps: a never-moving season vetoes consensus; a no-data season does not
+  ok  loadSeasonStats: one cached load per season, weeks keyed 1..18
+  ok  loadSeasonLineups: maps matchups and drops weeks without two real scores
+
+PASS 26 tests — 26 passed, 0 failed
+  ok  baseline: unknown-to-radar person with no ledgers sits at 0.85 SAFE
+  ok  isMe is excluded from the forecast entirely
+  ok  radar ACTIVE: 0.85 + 0.08 = 0.93, factor shown
+  ok  radar FADING: 0.85 - 0.10 = 0.75 — exactly on the SAFE edge
+  ok  radar DARK_ONE: 0.85 - 0.20 = 0.65 WATCH, factor names the dark league
+  ok  radar DARK_ALL: 0.85 - 0.35 = 0.50 — exactly on the WATCH edge
+  ok  band AT_RISK below the .5 edge: DARK_ALL + bad-and-unlucky = 0.40
+  ok  season: bottom-quartile with negative luck = -0.10 ("bad AND unlucky")
+  ok  season: bottom-quartile with luck >= 0 = -0.05 ("just bad")
+  ok  season: top-half all-play = +0.05
+  ok  season: middle of the pack (not bottom quartile, not top half) moves nothing
+  ok  season: robbed (luck <= -1.5, allPlayPct >= .5) stacks with top-half: +0.05 - 0.08
+  ok  season: two teams each contribute their own arc
+  ok  season: league without a ledger (or person not in rows) contributes nothing
+  ok  season: integrates with a real Luck.buildLedger (field-name compatibility)
+  ok  multi-league: +0.04 for a second league, +0.08 for a third, capped there
+  ok  clamp floor: pile-on cannot go below 0.05
+  ok  clamp ceiling: stacked positives cannot exceed 0.98
+  ok  offseason: no ledgers at all → activity_only + honesty factor prepended to everyone
+  ok  offseason: ledgers present but zero counted weeks still reads activity_only
+  ok  in-season: any counted week → behavior+season, no honesty factor
+  ok  people sorted riskiest first; summary counts the bands
+  ok  plays: only WATCH/AT_RISK get plays, capped at 2, grounded in fired factors
+  ok  plays: deterministic — same inputs, identical output twice
+  ok  plays: AlexVoice.pick is used when present (seeded seam), fallback is variants[0]
+  ok  fetchForecastInputs: builds a ledger per Sleeper league, skips mfl_ and failures
+  ok  fetchForecastInputs: no App.Luck → empty ledgers, never a throw
+
+PASS 27 tests — 27 passed, 0 failed
+  ok  fully ready league scores 100 with no blockers
+  ok  items carry kind auto|manual and constitution item is always present
+  ok  league without an id returns null — nothing honest to score
+  ok  future scheduled draft counts done
+  ok  past scheduled draft that never completed is NOT done
+  ok  completed draft counts done even in the past — detail says already drafted
+  ok  draft with ts null (time TBD) is NOT done
+  ok  no draft event at all is NOT done
+  ok  another league's draft never satisfies this league
+  ok  non-draft calendar events (deadline/playoffs) are ignored
+  ok  driftResult null → not done, detail "not checked yet"
+  ok  failed drift save never claims settings are ready
+  ok  firstRun drift counts done
+  ok  clean drift (no pending changes) counts done
+  ok  pending drift changes block, with the count in the detail
+  ok  no seats for this league counts done (other leagues' seats ignored)
+  ok  open seats block, with roster + reason in the detail
+  ok  trade_deadline 1..18 counts done; 0 / missing / 19 do not
+  ok  rosters present vs absent
+  ok  constitution flag drives the item; false points at Settings → league docs
+  ok  manual items default to done:false with the canonical labels
+  ok  dues detail says DHQ never handles money — it is a note-to-self
+  ok  toggleManual flips + persists via the Map fallback
+  ok  toggleManual twice returns to false and re-stamps ts
+  ok  toggleManual rejects unknown items and missing league ids
+  ok  manual state is per-league — L2 toggles never bleed into L1
+  ok  manual param overrides storage when provided (test seam)
+  ok  manualDefaults returns fresh copies (mutations never leak)
+  ok  pct = round(100 × done/total) across auto + manual
+  ok  shell league blocks on everything except seats (no open-seat entries = filled)
+  ok  blockers order structure before paperwork
+  ok  a done item never appears among the blockers
+  ok  buildAll sorts lowest pct first — the neediest league leads
+  ok  buildAll routes per-league drift + constitution and skips id-less leagues
+  ok  buildAll ties break alphabetically for a stable board
+  ok  rejected checklist save preserves the recorded state and a retry flips once
+
+PASS 36 tests — 36 passed, 0 failed
+WrCommishRuleLabPanel — proposal bench
+  ok  renders one chip per preset, no Clear when nothing staged
+  ok  active chip = gold border, value-matched (full PPR lit, half dark)
+  ok  chips COMPOSE: tapping TE premium on top of full PPR merges overrides
+  ok  tapping an active chip toggles its keys OFF
+  ok  same-key preset retunes rather than stacking (half → full)
+  ok  summary line: baseline-aware "rec 0.5 → 1.0" + bonus "+1.0"
+  ok  summary line without baseline never invents a "from"
+  ok  Clear button appears with a staged proposal and empties it
+  ok  presets fall back to the engine global when prop absent
+  ok  no presets anywhere → honest engine-not-loaded line, no throw
+  ok  bare render with no props at all does not throw
+WrCommishRuleLabPanel — status states
+  ok  loading names the season being replayed
+  ok  empty status → honest no-weeks line
+  ok  error status → plain failure line
+  ok  idle status → stage-a-proposal prompt
+  ok  methodology caption is verbatim and present in every status
+WrCommishRuleLabPanel — ready results
+  ok  per-league sections with season + weeks meta
+  ok  verdict: #1 seed flip line in gold
+  ok  verdict: playoff field IN green / OUT red
+  ok  quiet league: no-change verdict + field unchanged + standings hold
+  ok  standings shift: moved rows only, capped at 8, with the overflow note
+  ok  standings Δ arrows: ▲ for climbs, ▼ for drops
+  ok  team deltas: top 3 + bottom 3 only, one-decimal, middle teams cut
+  ok  player movers: two columns, capped 8 each
+  ok  proposer disclosure renders amber with the ballot line
+  ok  per-league empty result prints the engine reason verbatim
+  ok  ready with no leagues → honest line
+  ok  tables sit inside overflowX wrappers
+  ok  wind tunnel: key picker select renders grouped options from the baseline keys
+  ok  wind tunnel: Sweep it passes the selected key with null values and the allSeasons flag
+  ok  wind tunnel: Every season toggle only appears with 2+ available seasons
+  ok  wind tunnel: multi-season result renders the season×value grid and the consensus verdict
+  ok  scope: a chip per league plus an All-leagues omnibus, active one lit
+  ok  scope: a single league hides the picker (nothing to choose)
+  ok  scope: selecting a league reports its id
+  ok  editorKeys prop drives the editor, not just the baseline keys
+  ok  omnibus: warns that there is no single baseline to edit against
+  ok  summary line never invents a "from" value it does not know
+  ok  proposal name stays available after failed save and clears only after success
+
+PASS: 39 tests
+(node:32573) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  parser: realistic constitution → ids, headings, order
+  ok  parser: ALL-CAPS lines ≤ 60 chars are headings
+  ok  parser: an ALL-CAPS line over 60 chars stays body text
+  ok  parser: numbered and Roman heading styles
+  ok  parser: Roman numerals convert in ARTICLE headings
+  ok  parser: markdown # and ## headings
+  ok  parser: no headings at all → single doc clause
+  ok  parser: empty / null input → []
+  ok  parser: heading whitespace normalized, body kept verbatim
+  ok  parser: duplicate heading ids deduped in document order
+  ok  search: heading match outranks body match
+  ok  search: term frequency ranks the waiver-dense clause first
+  ok  search: word-start matching — waiver hits waivers, not mid-word
+  ok  search: snippet windows ±120 chars with ellipses
+  ok  search: heading-only hit falls back to the body lead as snippet
+  ok  search: empty query or no hits → []
+  ok  ruling context: question, top clauses verbatim with ids, never-invent instruction
+  ok  ruling context: caps at top 3 matched clauses
+  ok  ruling context: derives matches itself when none are passed
+  ok  ruling context: no matches still carries the instruction (silence stays silence)
+  ok  amendments: append stamps ts and normalizes the row
+  ok  amendments: newest first
+  ok  amendments: cap at 100, oldest pruned
+  ok  amendments: unknown source normalizes to manual; drift_ack kept
+  ok  amendments: leagues isolated; empty/unknown league is safe
+
+PASS 25 tests — 25 passed, 0 failed
+  ok  leaguesafe.com https URL is accepted and stored
+  ok  www.leaguesafe.com is accepted (subdomains of the trusted host)
+  ok  evil.com is rejected and NOTHING is stored
+  ok  lookalike host evilleaguesafe.com is rejected (endsWith is not enough)
+  ok  http:// (non-https) leaguesafe URL is rejected
+  ok  unparseable URL is rejected, null clears an existing link
+  ok  sheet URL: docs.google.com accepted, other Google hosts and http rejected
+  ok  leagueSafe and sheet links live side by side in one ledger
+  ok  markPaid creates an entry with paid/note/ts
+  ok  markPaid upsert: flipping paid keeps the existing note
+  ok  markPaid upsert: adding a note keeps the existing paid flag
+  ok  markPaid with a missing leagueId or userId returns null, stores nothing
+  ok  buildTreasury lists EVERY league member; unmarked appear paid:false
+  ok  buildTreasury excludes members of other leagues
+  ok  buildTreasury sorts unpaid-first, then by name
+  ok  buildTreasury pct math: 1/3 → 33, 2/3 → 67
+  ok  buildTreasury carries the links; empty league is total:0 pct:0
+  ok  csv: "Team Name,Paid" header is detected and skipped
+  ok  csv: reversed "Status,Owner" header maps nameCol:1 paidCol:0
+  ok  csv: headerless input defaults to columns 0/1 and keeps the first row
+  ok  csv: a first ROW whose cell literally says "paid" is not eaten as a header
+  ok  csv: paid-truthy matrix
+  ok  csv: exact display-name match is case-insensitive
+  ok  csv: containment matches in either direction
+  ok  csv: a name containing TWO members is ambiguous → unmatched, never guessed
+  ok  csv: two members sharing a display name make an exact match ambiguous
+  ok  csv: quoted cells with commas parse; unknown names land in unmatched
+  ok  applyCsv marks every matched entry and returns the count
+  ok  applyCsv with nothing matched (or nothing at all) returns 0
+  ok  Map fallback stores JSON under commish_treasury_<leagueId>, no aliasing
+  ok  leagues are isolated: L2 bookkeeping never bleeds into L1
+  ok  fetchPublishedSheet refuses non-docs.google.com and http URLs without fetching
+  ok  fetchPublishedSheet appends output=csv to /pub links, leaves others as-is
+  ok  fetchPublishedSheet returns null on non-200 or a throwing fetch
+
+PASS 34 tests — 34 passed, 0 failed
+  ok  WEIGHTS is exported and carries every documented base weight
+  ok  tier boundaries: 70 = NOW, 69.9 = SOON, 40 = SOON, 39.9 = BACKLOG
+  ok  tier boundary end-to-end: renewal_AT_RISK at p=0.20 scores exactly 70 → NOW
+  ok  blast radius: person weight × (1 + 0.08 × (leagueCount − 1))
+  ok  blast radius clamps at 100 — a 3-league DARK_ALL cannot exceed the scale
+  ok  conflicts take +2 per shared human on top of the base weight
+  ok  a deadline cluster is one row spanning every league in the week
+  ok  offseason clamp: person items are ×0.55 and hard-capped at SOON
+  ok  offseason clamp leaves non-person kinds alone
+  ok  offseason clamp does not touch renewal — August is exactly when it is fixable
+  ok  person rollup: a 3-league dark human is ONE row carrying 3 league tags
+  ok  person rollup: ACTIVE + SAFE produces no row at all
+  ok  rollup: one row per league for genesis / drift / dues / constitution
+  ok  an empty constitutions map means "we never looked", not "everyone is lawless"
+  ok  drift_other_path is used when nothing scoring-shaped moved
+  ok  a first-run drift baseline is never a finding
+  ok  Rule Lab contributes nothing — it is a tool, not an obligation
+  ok  an open seat escalates to 92 when the draft is inside 14 days
+  ok  genesis: an unscheduled draft is one row and never doubles with the checklist row
+  ok  genesis: a booked draft inside 30 days with <50% readiness scores 80
+  ok  genesis never demands a draft date once the season is under way
+  ok  byCell emits a value for EVERY league × domain pair (28 for 4 leagues)
+  ok  notYet marks coefficient + programmes in the offseason, and clears in season
+  ok  notYet is per league — a league whose own leg lags still reads not-yet
+  ok  scoredWeeks ignores a stale leg left over from last season
+  ok  sort is deterministic and independent of input ordering
+  ok  sort: score desc, then dueTs asc with nulls last, then league name, then id
+  ok  diagnosis: genesis form when the top NOW item is an unscheduled draft
+  ok  diagnosis: people form when the top NOW item is a human
+  ok  diagnosis: operations form when the top NOW item is settings drift
+  ok  diagnosis: empty queue names the next dated item instead of congratulating
+  ok  diagnosis: empty queue with an empty calendar says so honestly
+  ok  diagnosis: work with no NOW item does not get inflated into a crisis
+  ok  drift_acked_no_note fires only when ack history is actually supplied
+  ok  every item carries the full contract: domain, hub, action verb, metric
+  ok  an empty desk still returns a well-formed envelope
+
+PASS 36 tests — 36 passed, 0 failed
+  ok  leagues are managed by default (opt-out, never opt-in)
+  ok  switching a league off removes it and persists
+  ok  all domains alert by default at the lowest floor
+  ok  a domain switched off is silenced; floor raises the bar
+  ok  done suppresses the item while the problem is unchanged
+  ok  done RELEASES when the underlying number moves — the honesty rule
+  ok  skip snoozes until its deadline, then returns on its own
+  ok  hidden stays hidden regardless of age, but is recoverable
+  ok  filter suppresses by unmanaged league, domain switch and floor
+  ok  a multi-league item survives if ANY of its leagues is managed
+  ok  countTiers recounts over the filtered set, so pills match the rows
+  ok  filter never throws on junk input
+
+PASS 12 tests — 12 passed, 0 failed
+  ok  add: rejects a blank title
+  ok  add: defaults type to task, trims title/note, unknown type falls back
+  ok  add: accepts milestone/event types, a due date and a league scope
+  ok  list: newest add first
+  ok  toggleDone: flips done and stamps doneTs; unknown id is a no-op returning null
+  ok  remove: deletes the item and reports whether anything was removed
+  ok  asEvents: shapes items like Calendar.buildCalendar output, with custom:true
+  ok  asEvents: an unknown leagueId falls back to "League <id>" rather than null
+  ok  mergeSorted: interleaves auto + manual by ts, null-ts sinks last
+
+9 passed, 0 failed
+  ok  default message is grounded in the item and league
+  ok  save preserves editable message, note and due date
+  ok  events append and drive reversible status
+  ok  summary counts open, done and due follow-ups
+
+PASS 4 tests
+  ok  even team count: N-1 rounds, no bye, every pair meets exactly once
+  ok  odd team count: a synthetic BYE seat keeps every round a perfect matching
+  ok  weeks shorter than a full cycle truncates, not errors
+  ok  weeks beyond one cycle repeats it (double round-robin = each pair meets twice)
+  ok  fewer than 2 teams yields an empty, non-throwing result
+  ok  a pin places the round already containing that pair onto the requested week
+  ok  pinning never invents a pairing or drops a real one — schedule stays a valid round-robin
+  ok  two pins that would force the same round onto two different weeks: first wins, loser reported
+  ok  two pins targeting the same week with different rounds: second is rejected, not silently dropped
+  ok  a pin naming a pair that never plays each other is reported, not silently ignored
+  ok  a pin targeting a week outside the schedule length is reported
+  ok  no pins: weeks fill in original round order, deterministically
+  ok  even league: forcing a pairing is a pure matching transposition (nobody vanishes)
+  ok  odd league: forcing the bye team into a game transfers the bye, and validate() flags the resulting imbalance
+  ok  forcing an already-true pairing is a no-op, not an error
+  ok  a team cannot be forced to play itself
+  ok  forcing a team not scheduled that week at all errors instead of corrupting the week
+  ok  forcing on a week that does not exist errors
+  ok  a fresh, unedited round-robin validates clean: even games, even byes, no warnings
+  ok  a pair displaced to ZERO meetings by forcePairing is caught, not hidden by a sparse count
+  ok  two consecutive byes for the same team are flagged (never auto-fixed)
+  ok  division annotation is read-only: it marks weeks, it never re-generates them
+  ok  no divisions given: schedule passes through unchanged
+  ok  mergeActuals: a real result overwrites the plan for that week only
+  ok  toText renders byes and resolves display names
+  ok  toCSV escapes a comma in a team name
+  ok  fetchActualMatchups groups Sleeper matchup rows by matchup_id into pairs
+  ok  fetchActualMatchups drops any non-pair group instead of guessing a partner
+  ok  fetchActualMatchups never throws on a failed response or a network error
+
+29 passed, 0 failed
+PASS commish-schedule
+  ok  division rotation matches the owner's own worked example exactly
+  ok  the 3-year cycle repeats exactly (2024 = 2021, 2025 = 2022, ...)
+  ok  rotation is undefined for anything other than exactly 4 divisions
+  ok  inter-division block is a complete 4x4 sweep, each pair exactly once
+  ok  ranks by wins desc, fpts as the tiebreak — matching the real tied rows
+  ok  eligible only for exactly 4 divisions of equal size
+  ok  produces exactly 14 weeks, each covering all 16 teams exactly once
+  ok  weeks 8-9 and 10-11 are balanced at 8 games each — regression for a real bug
+  ok  every team plays exactly 14 games
+  ok  every division pair meets exactly twice (excluding lottery-week coincidences)
+  ok  the full-division inter-division sweep is a complete 4x4, each pair exactly once
+  ok  rank-week opponents (8-9) always share the SAME prior-season rank
+  ok  weeks 10-11 are marked lottery; every other week is planned
+  ok  a true first season (no prior standings) falls back honestly, not silently
+  ok  an ineligible league (not 4 equal divisions) returns null, not a broken schedule
+  ok  retargetPairToWeek requires candidateWeeks — the ambiguity it exists to remove
+  ok  retargetPairToWeek only searches the given window — regression for a real bug
+  ok  retargetPairToWeek swaps the WHOLE matching, not just one of its two pairs
+  ok  retargeting to the week the pair is already on is a no-op
+  ok  a pair outside the given window is reported, not guessed at
+  ok  flexFinalWeeks retargets every division's current #1-vs-#2 onto week 14
+  ok  flexFinalWeeks reports, rather than silently fabricates, a division missing standings data
+  ok  flexFinalWeeks flexes divisions WITH data even when others have none
+
+23 passed, 0 failed
+PASS commish-schedule-nfl
+PASS task/dues writes report quota rejection, preserve saved work, retry once, and import the ledger atomically; undated tasks stay unscheduled
+PASS actual Commissioner callbacks retain errors until matching recovery, block navigation, distinguish validation/storage, and keep typed task form open until one durable save
+(node:32586) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32587) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual preference/follow-up callbacks report rejected writes, save notes/activity together, preserve partial-state truth, retry only activity, and verify clipboard success
+PASS actual follow-up drawer retains failed inputs, prevents close/navigation/actions, preserves edits across activity refresh, retries, discards only edits, and reports clipboard failure
+PASS actual proposal/checklist callbacks preserve failed records and editor values, retry latest rules, remove only after confirmed save, and discard only unsaved proposal inputs
+PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments
+PASS actual drift checks/acknowledgment/panel preserve failed baseline and pending state, commit ledger before baseline once, retry without duplicates, and reject stale-account writes
+(node:32604) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

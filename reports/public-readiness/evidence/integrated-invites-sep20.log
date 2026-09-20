@@ -1,0 +1,3 @@
+(node:32673) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: visible multiplayer invites, seat-specific share/copy, sandbox/public/native links, cancellation and clipboard fallback, joined/locked seat guards and commissioner access.
