@@ -1,0 +1,42 @@
+[
+  {
+    "accountIndex": 0,
+    "function": "fw-profile",
+    "status": 401,
+    "error": "Unauthorized"
+  },
+  {
+    "accountIndex": 0,
+    "function": "time-league",
+    "status": 401,
+    "ok": false,
+    "error": "Sign in to play with friends."
+  },
+  {
+    "accountIndex": 0,
+    "function": "duat",
+    "status": 401,
+    "ok": false,
+    "error": "Sign in to play The Duat with friends."
+  },
+  {
+    "accountIndex": 1,
+    "function": "fw-profile",
+    "status": 401,
+    "error": "Unauthorized"
+  },
+  {
+    "accountIndex": 1,
+    "function": "time-league",
+    "status": 401,
+    "ok": false,
+    "error": "Sign in to play with friends."
+  },
+  {
+    "accountIndex": 1,
+    "function": "duat",
+    "status": 401,
+    "ok": false,
+    "error": "Sign in to play The Duat with friends."
+  }
+]

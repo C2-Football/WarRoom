@@ -43,3 +43,15 @@ after the pinned shared sync, the full security suite passed. See
 Both initial CI runs passed. Initial Pages workflows are still running. The
 workflow repair will be pushed normally to both main branches and verified at its
 new revision; no manual migration or test bypass was used.
+
+## Verified release and subsequent continuity
+
+Repair revision `cce62340d06714e6c5a4710d2aa94e4227e0de9e` succeeded:
+
+- [Canonical backend](https://github.com/C2-Football/WarRoom/actions/runs/35395124404)
+- [Production Pages](https://github.com/C2-Football/WarRoom/actions/runs/35395124398) and [CI](https://github.com/C2-Football/WarRoom/actions/runs/35395124402)
+- [Sandbox Pages](https://github.com/C2-Football/WarRoom-sandbox/actions/runs/35395166945) and [CI](https://github.com/C2-Football/WarRoom-sandbox/actions/runs/35395166993)
+
+Sep20 verification matched revision/environment, 326 served asset hashes and 12 entries on each site (`evidence/release-cce6234.json`). A first attempt hit one HTTP503; immediate retry and complete rerun succeeded. The original failure remains recorded. SQL catalog confirms both migrations and all49 restrictive session policies (`evidence/hosted-release-cce6234.json`).
+
+These are dated observations, not permanent guarantees. A later PPG change from another authorized task advanced both main branches to4c4c4e9 and was incorporated. Separately deployed old reset code was discovered live onSep20, while the SQL migrations remain intact. Old controlled test records were deliberately removed by an owner-directed cleanup onSep19. See `hosted-continuity-20260920.md` for exact current limitations and repair follow-through. No entire-product or full-suite readiness claim is made.

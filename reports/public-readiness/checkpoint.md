@@ -1,6 +1,6 @@
 # Readiness checkpoint
 
-Updated: 2026-09-18. State: **active implementation and controlled integration testing**.
+Updated: 2026-09-20. State: **active implementation and controlled integration testing**.
 
 ## Baseline and working state
 
@@ -11,11 +11,8 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
   callbacks, truthful pick-feed coverage, draft fixes and shared performance are
   integrated, including reviewed Commissioner task/dues, format-specific picks and
   both OAuth/cross-tab authentication race fixes.
-- Both WarRoom main branches fast-forward pushed to `898c374` at21:03UTC.
-  Both CI runs passed. Pages are running; canonical backend failed before any
-  migration/deploy because its security test lacked vendored shared storage.
-  Pinned checkout/sync workflow repair is independently reviewed and passes a clean
-  checkout reproduction/full security rerun. No hosted migration claim yet. See `release-20260918-batch1.md` for exact workflow links.
+- First repair batch `cce6234`: canonical backend, both CI and both Pages workflows succeeded. Both hosted sites verified at that revision with 326 asset hashes and 12 entries each. A later independently authorized mobile PPG release `4c4c4e9` is now both main branches and has been fast-forward incorporated locally. See `release-20260918-batch1.md`.
+- Hosted SQL migrations and all 49 restrictive session gates are present. **Hosted reset function source drift discovered Sep20:** a Sep19 deployment replaced both reset endpoints with old source. Root is restoring only these verified endpoints and will download/recheck exact source afterward. See `hosted-continuity-20260920.md`.
 - Canonical shared dependency published and pinned
   `7bd35313fc78e25a2d1ac24035989673a93f28e6`; remote main verified. Primary shared
   checkout fast-forwarded cleanly, vendored sync and player-value twin agree.
@@ -36,7 +33,7 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
 - Password reset now atomic in the candidate, including password/session version
   change and consumption of all reset links. Database RLS revocation gate protects
   existing public RLS tables. Local database concurrency/rollback/old-session tests
-  and independent reviews pass. **Neither migration nor backend is live yet.**
+  and independent reviews pass. Both migrations are live; reset Edge source was subsequently replaced and is being repaired (see continuity report).
 - Duat runtime packs exact historical records, shares immutable season indexes and
   avoids repeated candidate scans. 392 Duat checks and original-vs-new engine parity
   pass. See duat-runtime-batch1.md and independent review. Hosted proof pending.
@@ -64,10 +61,9 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
   browser journeys or auction/bid privacy coverage.
 - Duat room `d5038ca0-15c5-4acf-b7c4-f08e1283161f`: two-account role/private-state/
   competing readiness tests pass, then actual draft load fails HTTP 546 compute.
-  Keep this original room for post-release recovery. Script
+  Original room was intentionally removed by owner-directed cleanup on Sep19; original recovery is now unavailable. Script
   `tmp/public-readiness/live-duat.cjs`; evidence/live-duat.json records failure.
-  Candidate runtime correction remains hosted-unverified. Do not create a new room
-  to hide recovery failure. Check report stage before resuming after a later cycle.
+  Candidate runtime correction remains hosted-unverified. Any new controlled run must preserve the original failure and cleanup evidence, and must not be called recovery of the original room. Check report stage before resuming after a later cycle.
 
 ## Current ownership and queued work
 
@@ -78,16 +74,12 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
   the legacy/admin endpoint and fail403. New app rotation is under development,
   not part of this release. Its report is in that worktree.
 - Security agent: Commissioner follow-ups/preferences `c2bf7e5` and Genesis/proposals
-  `ac502dd` ready and independently reviewed; queue for next integration. Remaining
-  ratification/drift/schedule recovery continues isolated.
+  `ac502dd` ready and independently reviewed; queue for next integration. Ratification `042b13d` and drift `5833bc7` also independently reviewed and queued; schedule/malformed-save recovery continues isolated.
 - Inventory agent: historical deep-link fix `8b28c0e` ready; review reports `8c8765e`
   and `3893a33` queued. Now investigating consumed draft rights, followed by Empire
   seasonal player advice, in `warroom-readiness-empire-seasonal`.
-- Native/browser agent: real controlled-account Vault browser journey. Original
-  completed room reopened by both users unchangedv22; new isolated Browser Vault
-  `e6563c66-2713-4ded-8b1b-c3373261ca41` created/joined through UI. Invite reload loses
-  Vault context; isolated correction underway. **Defer account password changes and
-  reset contention until this agent finishes its active sessions.**
+- Native/browser agent: actual two-account, 14-week Vault browser completion/reload passed Sep18. Invite-context fix and evidence committed `eb8bae0`, queued for integration. All controlled contexts closed after interruption. Now fixing 401 polling/re-authentication with isolated regressions; no hosted account in use.
+- Old controlled accounts and all three rooms are absent. Scoped audit events confirm owner-directed deletion on Sep19 16:42UTC; no release data-loss attribution. Never rerun original-account mutation scripts. New controlled runs require separate names/files/evidence.
 
 ## Release gate and next executable steps
 
@@ -101,19 +93,10 @@ Updated: 2026-09-18. State: **active implementation and controlled integration t
    evidence. Keep original failure log. Other product source remains identical.
 3. Analytics detail inspection: one older individual WIP assertion still reports
    missing landing funnel telemetry. This remains open; no full diagnostics pass.
-4. Main branches now898c374; production Pages35394776267, backend35394776278,
-   CI35394776358; sandbox Pages35394794390 and CI35394794265 running. Sandbox
-   backend intentionally skipped. Wait for terminal statuses, then run
-   `verify-release.cjs 898c374a5d1b8a6a9cc63c5376e0f18cdbac1533`.
-5. Inspect `verify-hosted-release.sql` catalog evidence for migration records,
-   restrictive gates and grants; verify public reset redirect resolves. No hosted
-   migration has been applied manually in this goal.
-6. Resume original Duat room via `tmp/public-readiness/live-duat.cjs` after backend
-   deployment. Preserve first failure evidence and record recovery/new cycles.
-7. After Vault browser agent releases its sessions, run prepared
-   `tmp/public-readiness/live-reset.cjs`: exact controlled account identities,
-   competing reset links, old-session Edge/REST revocation, replay, fresh login and
-   existing game retention. Private plan prevents blind mutation reruns.
+4. Main branches and integration now `4c4c4e9` (PPG addition preserves repair batch). Verify the current served revision as well as the recorded `cce6234` asset proof.
+5. All 49 restrictive policies, helper grants and reset SQL atomicity catalog assertions pass. Restore the two reset endpoints after separately deployed old code was observed; download and compare source, then recheck public reset routing.
+6. Original Duat recovery unavailable after deliberate cleanup. Establish a distinct controlled run only after verifying isolation; preserve original compute failure. Complete hosted Duat lifecycle/recovery and Vault private-bid coverage.
+7. Old-account reset script is forbidden to rerun. Adapt to a distinct, exactly identified run with its own private plan, verify account/room isolation, then test competing reset links and old Edge/REST revocation. Do not run while another agent owns those sessions.
 8. Integrate queued reviewed product batches and continue the remaining acceptance
    matrix. Account settings, Commissioner stores, seasonal Empire advice, historical
    routes, browser game completion and operational diagnostics remain unfinished.
