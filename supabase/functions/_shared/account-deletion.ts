@@ -1,3 +1,4 @@
+import { retireAccountCheckouts } from './account-deletion-checkouts.ts';
 // Account deletion spans independent systems. Preserve the app account until
 // every required external operation is confirmed; never claim cross-service
 // atomicity. A failed or uncertain response remains safely retryable.
@@ -44,12 +45,12 @@ export async function performAccountDeletion(options: {
   const {admin, actorId, actorVersion, self, force, stripeSecret, revalidate} = options;
   const email = normalize(options.email);
   const params = {p_actor_id: actorId, p_actor_version: actorVersion, p_email: email, p_self: self};
-  let confirmedStripe = 0, removedAuth = 0, billingMayHaveChanged = false;
+  let confirmedStripe = 0, removedAuth = 0, expiredCheckouts = 0, billingMayHaveChanged = false;
   const snapshot = async () => {
     if (!await revalidate()) throw new AccountDeletionError('Your session changed. Sign in again before retrying deletion.', 401);
     const {data, error} = await admin.rpc('inspect_account_deletion', params);
     if (error) throw new AccountDeletionError(error.code === '42501' ? 'Account authorization changed. Sign in again or contact support.' : 'Account and billing records could not be checked. Your account has not been deleted. Try again.', error.code === '42501' ? 403 : 503);
-    if (!data || data.actor?.id !== actorId || data.actor?.session_version !== actorVersion || data.email !== email || data.self !== self || !Array.isArray(data.subscriptions) || !Array.isArray(data.sources)) throw new AccountDeletionError('Account details could not be verified. Your account has not been deleted. Try again.');
+    if (!data || data.actor?.id !== actorId || data.actor?.session_version !== actorVersion || data.email !== email || data.self !== self || !Array.isArray(data.subscriptions) || !Array.isArray(data.sources) || !Array.isArray(data.checkout_attempts)) throw new AccountDeletionError('Account details could not be verified. Your account has not been deleted. Try again.');
     return data;
   };
   try {
@@ -83,10 +84,25 @@ export async function performAccountDeletion(options: {
       const current = await snapshot();
       if (JSON.stringify(current) !== JSON.stringify(initial)) throw new AccountDeletionError('Account or billing state changed. Your account has not been deleted. Retry deletion to use the current records.', 409);
     };
+    const checkoutSubscriptions = new Map<string, string>();
+    const confirmCheckoutChange = () => {
+      if (!self && !force) throw new AccountDeletionError('paying_customer', 409, {
+        message: 'This account has a Stripe checkout or subscription. Confirm again to close its checkout links, cancel Stripe subscriptions, and delete the account.', managedSubscriptions,
+      });
+    };
+    expiredCheckouts = await retireAccountCheckouts({
+      snapshot: initial, stripeSecret, check, onExpired: () => { expiredCheckouts++; },
+      beforeMutation: () => { confirmCheckoutChange(); billingMayHaveChanged = true; },
+      subscription: (id, customer) => { confirmCheckoutChange(); stripeIds.add(id); checkoutSubscriptions.set(id, customer); },
+      fail: (message, status = 503) => new AccountDeletionError(message, status),
+    });
     const stripeRead = async (id: string) => {
       const response = await fetch('https://api.stripe.com/v1/subscriptions/' + encodeURIComponent(id), {headers: {Authorization: 'Bearer ' + stripeSecret}, signal: AbortSignal.timeout(12000)});
       const data = await response.json().catch(() => null);
       if (!response.ok || data?.id !== id || typeof data?.status !== 'string') throw new AccountDeletionError('Stripe cancellation could not be verified. Your account has not been deleted. Try again.');
+      const expectedCustomer = checkoutSubscriptions.get(id);
+      const customer = typeof data.customer === 'string' ? data.customer : data.customer?.id;
+      if (expectedCustomer && (customer !== expectedCustomer || (data.metadata?.user_id && data.metadata.user_id !== initial.target?.id))) throw new AccountDeletionError('Checkout subscription ownership could not be verified. Your account has not been deleted. Contact support.');
       return data;
     };
     for (const id of stripeIds) {
@@ -117,11 +133,11 @@ export async function performAccountDeletion(options: {
     const {data: completed, error} = await admin.rpc('finalize_account_deletion', {...params,p_snapshot: initial});
     if (error) throw new AccountDeletionError(error.code === '40001' ? 'Account or billing state changed. Retry deletion.' : 'Account deletion was not confirmed. Try again.', error.code === '40001' ? 409 : 503);
     if (typeof completed?.deletedAppUser !== 'boolean') throw new AccountDeletionError('Account deletion was not confirmed. Sign in again to check its status.');
-    return {ok: true, deletedAppUser: completed.deletedAppUser, deletedAuthUsers: removedAuth, canceledStripeSubscriptions: confirmedStripe, managedSubscriptions};
+    return {ok: true, deletedAppUser: completed.deletedAppUser, deletedAuthUsers: removedAuth, canceledStripeSubscriptions: confirmedStripe, expiredCheckoutSessions: expiredCheckouts, managedSubscriptions};
   } catch (error) {
     const failure = error instanceof AccountDeletionError ? error : new AccountDeletionError('Deletion was interrupted. Your account may still be present. Try again.');
     if (billingMayHaveChanged || confirmedStripe || removedAuth) failure.message += ' Some billing cancellations or sign-in removals may already have completed; retrying will check their current status.';
-    failure.details = {...failure.details, canceledStripeSubscriptions: confirmedStripe, deletedAuthUsers: removedAuth, billingMayHaveChanged};
+    failure.details = {...failure.details, canceledStripeSubscriptions: confirmedStripe, expiredCheckoutSessions: expiredCheckouts, deletedAuthUsers: removedAuth, billingMayHaveChanged};
     throw failure;
   }
 }

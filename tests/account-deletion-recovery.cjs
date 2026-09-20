@@ -10,6 +10,7 @@ const appId = 'fixture-app-id';
 const authId = 'fixture-distinct-auth-id';
 function fixture(slug, options = {}) {
   const state = {app: {id: appId, email, session_version: 2}, actorVersion: 2, appDeletes: 0, authDeletes: [], authUsers: new Map([[authId,{id:authId,email}]]), stripeStates: new Map(), fetches: [], pages: [], sequence: []};
+  if (options.customerId) state.app.stripe_customer_id = options.customerId;
   const subscriptions = options.subscriptions || [{user_id: appId, tier: 'pro', status: 'active', store: 'stripe', stripe_subscription_id: 'sub_fixture'}];
   const admin = {
     auth: {admin: {
@@ -26,8 +27,9 @@ function fixture(slug, options = {}) {
       const target = state.app;
       if(options.accountReadFailure || options.subscriptionReadFailure || options.targetRoleFailure)return {error:{message:'controlled snapshot read failure'}};
       if(params.p_actor_version!==state.actorVersion)return {error:{code:'42501'}};
-      const snapshot={actor:{id:params.p_actor_id,session_version:state.actorVersion},target:target?{...target}:null,email:params.p_email,self:params.p_self,subscriptions,sources:options.sources||[]};
-      if(name==='inspect_account_deletion')return {data:snapshot};
+      const snapshot={actor:{id:params.p_actor_id,session_version:state.actorVersion},target:target?{...target}:null,email:params.p_email,self:params.p_self,subscriptions,sources:options.sources||[],checkout_attempts:options.checkoutAttempts||[]};
+      if(options.omitCheckoutInventory)delete snapshot.checkout_attempts;
+      if(name==='inspect_account_deletion')return {data:structuredClone(snapshot)};
       assert.equal(name,'finalize_account_deletion');
       if(JSON.stringify(snapshot)!==JSON.stringify(params.p_snapshot))return {error:{code:'40001'}};
       state.appDeletes++;state.sequence.push('app');state.app=null;if(options.lostFinalResponse)throw Error('controlled lost response after commit');return {data:{deletedAppUser:true}};
@@ -57,11 +59,13 @@ function fixture(slug, options = {}) {
   const fetchFixture=async (url, init={}) => {
     const method=init.method||'GET',id=url.split('/').at(-1);state.fetches.push({url,method});state.sequence.push('stripe');
     if(options.onFetch)await options.onFetch(state,method,id);
+    if (options.checkoutFetch && url.includes('/checkout/sessions')) return options.checkoutFetch(url, init, state);
     const failed=options.stripeFailure||options.stripeFailureFor===id;
     if(method==='DELETE'&&!failed)state.stripeStates.set(id,'canceled');
-    return {ok:!failed,status:failed?503:200,json:async()=>({id,status:state.stripeStates.get(id)||'active'})};
+    return {ok:!failed,status:failed?503:200,json:async()=>({id,status:state.stripeStates.get(id)||'active',...(options.customerId?{customer:options.customerId}:{}),...(options.stripeResponseExtra||{})})};
   };
-  const helper=load('supabase/functions/_shared/account-deletion.ts',{fetch:fetchFixture}).context;
+  const checkouts=load('supabase/functions/_shared/account-deletion-checkouts.ts',{fetch:fetchFixture}).context;
+  const helper=load('supabase/functions/_shared/account-deletion.ts',{fetch:fetchFixture,retireAccountCheckouts:checkouts.retireAccountCheckouts}).context;
   let handler;
   load(path.relative(root, path.join(sourceRoot, 'supabase/functions', slug, 'index.ts')), {
     Deno: {env: {get: name => name === 'STRIPE_SECRET_KEY' ? (options.noStripeSecret ? '' : 'synthetic-fixture-key') : 'synthetic-config'}, serve: fn => {handler=fn;}},
@@ -100,4 +104,6 @@ const tests = {
   async authReappearance() {const options={subscriptions:[],reappearAfterDelete:true},x=fixture('fw-delete-account',options);const r=await x.call();assert.equal(r.status,409);assert(x.state.app);assert.deepEqual(x.state.authDeletes,[authId],'newly observed identity is not implicitly erased');assert.equal(r.body.deletedAuthUsers,1);options.reappearAfterDelete=false;assert.equal((await x.call()).status,200);},
   async uncertainCompletionDoesNotEraseReplacement() {const x=fixture('fw-delete-account',{subscriptions:[],lostFinalResponse:true});const r=await x.call();assert.equal(r.status,503);assert.match(r.body.error,/may still be present/);assert.equal(x.state.appDeletes,1);x.state.app={id:'new-app-after-deletion',email,session_version:1};assert.equal((await x.call()).status,401);assert.equal(x.state.app.id,'new-app-after-deletion');assert.equal(x.state.appDeletes,1);},
 };
-(async()=>{let failed=0;for(const [name,run]of Object.entries(tests)){try{await run();console.log('PASS '+name);}catch(error){failed++;console.error('FAIL '+name+': '+error.message);}}if(failed)process.exitCode=1;})().catch(error=>{console.error(error);process.exitCode=1;});
+if(require.main===module)(async()=>{let failed=0;for(const [name,run]of Object.entries(tests)){try{await run();console.log('PASS '+name);}catch(error){failed++;console.error('FAIL '+name+': '+error.message);}}if(failed)process.exitCode=1;})().catch(error=>{console.error(error);process.exitCode=1;});
+
+module.exports={fixture};
