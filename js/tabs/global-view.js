@@ -301,6 +301,7 @@ function buildEmpirePortfolioModel(input) {
             tier,
             tierColor: tierColor(tier),
             status,
+            assessmentReady: !!assessment,
             needs: (assessment?.needs || []).slice(0, 3).map(n => typeof n === 'string' ? n : n.pos || n.label).filter(Boolean),
             strengths: (assessment?.strengths || []).slice(0, 3).map(s => typeof s === 'string' ? s : s.pos || s.label).filter(Boolean),
             powerRank: ranksReady && rosterPlayers.length ? powerRank || null : null,
@@ -531,8 +532,8 @@ function buildEmpirePortfolioModel(input) {
         {
             key: 'assessments',
             label: 'Team reads',
-            status: assessedLeagueCount === provinces.filter(p => p.format === 'dynasty').length ? 'ready' : assessedLeagueCount > 0 ? 'partial' : 'degraded',
-            detail: assessedLeagueCount + ' dynasty leagues assessed; seasonal rosters use current-season values, keeper economics require actual terms',
+            status: provinces.length && assessedLeagueCount === provinces.length ? 'ready' : assessedLeagueCount > 0 ? 'partial' : 'degraded',
+            detail: assessedLeagueCount + '/' + provinces.length + ' leagues assessed' + (provinces.some(p => p.format !== 'dynasty') ? '; seasonal health and needs unavailable; keeper economics require actual terms' : '; dynasty roster reads'),
         },
     ];
     const qualityRank = { ready: 0, partial: 1, loading: 1, degraded: 2, missing: 3 };
@@ -2590,7 +2591,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                         <div>
                                             <strong>{asset.leagueName}</strong>
                                             <span>{province?.tier || 'UNKNOWN'} - {province?.recordLabel || ((province?.wins || 0) + '-' + (province?.losses || 0))} - HP {province?.healthScore ?? 'No read'}</span>
-                                            <em>{province?.needs?.length ? 'Needs: ' + province.needs.join(', ') : 'No critical need flagged'}</em>
+                                            <em>{!province?.assessmentReady ? 'Needs assessment unavailable' : province.needs?.length ? 'Needs: ' + province.needs.join(', ') : 'No critical need flagged'}</em>
                                         </div>
                                         <b>{asset.value != null ? empireCompact(asset.value) + ' ' + asset.valueLabel : 'Value unavailable'}</b>
                                     </button>
@@ -2636,8 +2637,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <section className="empire-panel">
                             <div className="empire-panel-head"><strong>Roster Direction</strong><em>{province.status}</em></div>
                             <div className="empire-stack">
-                                <div className="empire-quality" style={{ '--tone': province.tierColor }}><span>Strengths</span><strong>{province.strengths.length ? province.strengths.join(', ') : 'None flagged'}</strong><em>Current roster edge</em></div>
-                                <div className="empire-quality" style={{ '--tone': 'var(--k-e74c3c, #e74c3c)' }}><span>Needs</span><strong>{province.needs.length ? province.needs.join(', ') : 'None flagged'}</strong><em>Upgrade lanes</em></div>
+                                <div className="empire-quality" style={{ '--tone': province.tierColor }}><span>Strengths</span><strong>{!province.assessmentReady ? 'Assessment unavailable' : province.strengths.length ? province.strengths.join(', ') : 'None flagged'}</strong><em>Current roster edge</em></div>
+                                <div className="empire-quality" style={{ '--tone': 'var(--k-e74c3c, #e74c3c)' }}><span>Needs</span><strong>{!province.assessmentReady ? 'Assessment unavailable' : province.needs.length ? province.needs.join(', ') : 'None flagged'}</strong><em>Upgrade lanes</em></div>
                                 <div className="empire-quality" style={{ '--tone': 'var(--purple)' }}><span>Draft Capital</span><strong>{province.pickFeedPresent ? leaguePicks.length + (province.currentDraftUnknown ? ' known picks' : province.pickFeedReady ? ' picks' : ' saved picks') : 'Unavailable'}</strong><em>{province.pickFeedPresent ? leaguePicks.filter(p => p.acquired).length + ' acquired' : 'Ownership has not been verified'}</em></div>
                             </div>
                         </section>

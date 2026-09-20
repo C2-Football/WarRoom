@@ -19,6 +19,9 @@ test('redraft and keeper use current-season league prices, never dynasty age pru
   const p = model([league(type)], { [String(type)]: book() });
   assert.equal(p.assets[0].value, 6000); assert.equal(p.assets[0].dhq, null);
   assert.equal(p.provinces[0].powerRank, 1, 'season value reverses the dynasty rank');
+  assert.equal(p.provinces[0].assessmentReady, false);
+  assert.equal(p.dataQuality.items.find(item => item.key === 'assessments').status, 'degraded');
+  assert.match(p.dataQuality.items.find(item => item.key === 'assessments').detail, /seasonal health and needs unavailable/);
   assert.equal(p.provinces[0].totalDHQ, null); assert.equal(p.provinces[0].healthScore, null);
   assert.equal(p.totals.totalValue, 6000); assert.equal(p.totals.valueBasis, 'seasonal');
   assert.equal(p.ageAllocation.length, 0); assert(!p.signals.some(s => s.type === 'age' || s.type === 'strategy'));
@@ -43,6 +46,8 @@ test('missing player, historical book and unknown format remain unpriced with ow
 
 test('mixed portfolio does not sum different bases; dynasty signals and scenario rows remain correctly scoped', () => {
  const p = model([league(2), league(0)], { '0': book() });
+ assert.equal(p.dataQuality.items.find(item => item.key === 'assessments').status, 'partial');
+ assert.equal(model([league(2)]).dataQuality.items.find(item => item.key === 'assessments').status, 'ready');
  assert.equal(p.totals.totalDHQ, 100); assert.equal(p.totals.totalValue, null); assert.equal(p.totals.useValueShare, false);
  const age = p.signals.find(s => s.type === 'age'); assert.match(age.body, /dynasty/); assert.match(age.body, /excludes seasonal and keeper/);
  const r = context.buildEmpireScenario(p, { target: 'veteran', drop: 50 });

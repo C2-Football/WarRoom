@@ -43,7 +43,13 @@ const base = (process.env.READINESS_PREVIEW_ORIGIN || 'http://127.0.0.1:3503') +
   assert.equal(await notice.getAttribute('open'), null, 'successful retry restores compact notice');
   await page.waitForFunction(() => [...document.querySelectorAll('.empire-asset-row')].some(row => /Season value/.test(row.innerText)));
   assert.equal(await page.getByText('Post-window value needs pruning', { exact: true }).count(), 0);
-  console.log('PASS retry restores actual engine season values without age pruning');
+  await page.locator('.empire-asset-row').first().click();
+  assert.match(await page.locator('.empire-detail').innerText(), /Needs assessment unavailable/);
+  await page.locator('.empire-league-card').first().click();
+  assert.match(await page.locator('.empire-detail').innerText(), /Assessment unavailable/);
+  assert.doesNotMatch(await page.locator('.empire-detail').innerText(), /None flagged/);
+  await page.getByRole('button', { name: 'Back to Empire', exact: true }).click();
+  console.log('PASS retry restores actual engine season values without age pruning; unimplemented seasonal assessments stay explicitly unavailable');
   await page.getByRole('button', { name: 'Portfolio Lab', exact: true }).click();
   assert.match(await page.getByTestId('empire-portfolio-lab').innerText(), /Season value/);
   assert.match(await page.getByTestId('empire-portfolio-lab').innerText(), /hypothetical value change/);

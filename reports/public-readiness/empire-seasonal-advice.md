@@ -30,3 +30,11 @@ Browser evidence is controlled local runtime evidence, not deployed/physical-dev
 2. Canonical `dhq-shared/team-assess.js` `buildPicksByOwner`/`picksAssessment` still invent current+2-year rights for every format and consumed drafts. Its global assessment cache fingerprints transfer count rather than contents, so same-count ownership updates also need review. Requires a canonical shared commit and root pin coordination.
 3. Inline Empire `renderTradeDeskDetail` passes the selected league and season stats to `TradeCalcTab`; its `ensureRos` still implicitly reads prior/projection data from global `S`, and value access depends on current global league identity. Reproduce and repair that separate cross-league handoff before claiming all Empire format advice ready. The manual path remains visible; this batch does not claim its calculations are verified.
 4. Seasonal team health/needs remain unscored until the shared assessment supports a verified seasonal basis. This is an explicit remaining feature-correctness dependency, not a passed requirement.
+
+## Independent review and honesty correction, September 20
+
+Native/mobile reviewer independently reviewed `d490983`, reran `test:empire` and the actual Chrome seasonal fixture, and found no material pricing/scenario regression. One copy defect was identified: a seasonal-only portfolio marked Team reads ready because both dynasty counts were zero, while detail cards said no needs were flagged.
+
+The follow-up counts all loaded leagues for assessment coverage, explicitly reports unavailable seasonal health/needs, and keeps unknown detail reads distinct from assessed empty findings. The actual model regressions now distinguish seasonal-only degraded, mixed partial, and fully assessed dynasty ready. The matching preview build and Chrome browser fixture passed; the browser opens a player and league detail and verifies unavailable wording rather than `None flagged`. Existing 320/390/landscape and seasonal recovery checks still pass.
+
+Seasonal health/needs remain an open implementation requirement. The canonical shared lane is paused cleanly at `7bd3531` pending comparison with newly identified current production shared source; no shared behavior has been published by this agent.
