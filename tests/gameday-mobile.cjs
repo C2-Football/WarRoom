@@ -39,7 +39,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390 } = {}) {
                 ActionBar: ({ visible, ...props }) => visible ? h('actionbar', props) : null,
             },
             App: {
-                WeeklyProj: { optimalForRoster: () => result, formStats: () => null },
+                WeeklyProj: { optimalForRoster: () => result, formStats: pid => pid === 'c' ? null : { rollingPPG: pid === 'a' ? 0 : -2.5, high: 0, low: -2.5, games: 2, recentCount: 2 } },
                 StartSit: { normSlot: s => s, FLEX_ALLOWED: {}, BASE_POSITIONS: new Set(['QB', 'RB', 'WR']) },
                 NflContext: { loadScores: async () => games, gameStatus: game => game?.state || 'unknown' },
                 LeagueLiveScores: {
@@ -99,6 +99,10 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     const missingRow = select(plan, n => n.type === 'button' && textOf(n).includes('Missing Starter'));
     assert.match(textOf(missingRow), /—Proj/); assert.doesNotMatch(textOf(missingRow), /100/);
     const starter = select(plan, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
+    assert.match(textOf(starter), /0\.0Proj0\.0L5 PPG/, 'projection and zero PPG are visible without opening the player');
+    assert.match(textOf(missingRow), /—Proj—L5 PPG/, 'missing PPG stays unavailable');
+    const negativeRow = select(plan, n => n.type === 'button' && textOf(n).includes('Negative Starter'));
+    assert.match(textOf(negativeRow), /-2\.5Proj-2\.5L5 PPG/, 'negative PPG is preserved');
     starter.props.onClick(); await active.render();
     assert.equal(button(active.out, 'Empty this slot').props.disabled, true, 'started player must remain locked');
     assert(!all(active.out).some(n => n.type === 'button' && textOf(n).includes('Bench Option')), 'started-game picker cannot propose replacements');

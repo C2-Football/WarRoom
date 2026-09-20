@@ -1099,24 +1099,25 @@ function LineupTab({
 
 
 
-        // Phone rows keep player, slot and one projection visible. A tap opens
-        // eligible replacements and the deeper matchup/form context.
+        // Phone rows keep the projection and selected-window PPG visible together.
+        // A tap opens eligible replacements and deeper matchup/form context.
         const slotRow = (sl) => {
             const pid = workingAssign[sl.idx] || null;
             const slotLabel = sl.slotName.replace('_', ' ');
             const open = openSlot === sl.idx;
             if (!pid) {
                 return <MobilePlayerRow key={sl.idx} pos={SLOT_SHORT[sl.slotName] || sl.slotName} name="Empty — tap to set" tag={slotLabel}
-                    slots={[{ label: 'PROJ', value: '—', tone: 'mute' }]} accent={open ? 'gold' : undefined}
+                    slots={[{ label: 'PROJ', value: '—', tone: 'mute' }, { label: formWinLabel + ' PPG', value: '—' }]} accent={open ? 'gold' : undefined}
                     onClick={() => setOpenSlot(open ? null : sl.idx)} />;
             }
             const meta = pmeta(pid), proj = projOf(pid), pts = proj && proj.points;
             const status = (proj && proj.injuryStatus) || '';
             const opp = proj && proj.opponent;
             const tag = [slotLabel, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null].filter(Boolean).join(' · ');
+            const fs = formOf(pid);
             const atRisk = !!status || (proj && proj.available === false);
             return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} tag={tag}
-                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }]}
+                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(fs?.rollingPPG) ? fs.rollingPPG.toFixed(1) : '—' }]}
                 accent={open ? 'gold' : atRisk ? 'risk' : undefined}
                 onClick={() => setOpenSlot(open ? null : sl.idx)} />;
         };
@@ -1124,7 +1125,7 @@ function LineupTab({
         // Eligible-player picker (openSlot) — a WR.Sheet instead of the
         // desktop inline expansion; rows drive the EXACT same assign/empty
         // setters. Form stats + the L3/L5/L8/SZN window ride here (the
-        // Form/Hi/Lo columns stay dropped from phone rows).
+        // Hi/Lo columns stay in the picker).
         const openSl = openSlot != null ? startingSlots.find(sl => sl.idx === openSlot) : null;
         const openPid = openSl ? (workingAssign[openSl.idx] || null) : null;
         const openElig = openSl ? eligibleFor(openSl) : [];
@@ -1137,7 +1138,7 @@ function LineupTab({
             const fs = formOf(epid);
             return <MobilePlayerRow key={epid} pos={meta.pos || '?'} name={meta.name}
                 tag={[isCur ? 'IN' : null, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null, pro ? 'Matchup ' + (proj?.matchupGrade || '—') : null].filter(Boolean).join(' · ')}
-                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel, value: fs ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
+                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(fs?.rollingPPG) ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
                 accent={isCur ? 'gold' : undefined}
                 onClick={() => { canChangePlayer(openPid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
         };
