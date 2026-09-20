@@ -9,6 +9,23 @@ The table below inventories the requested C2 source baseline. It is **not a comp
 
 The two C2 sites are verified at `4c4c4e9`, each326 asset hashes/13 checks, and remain supported release destinations. Actual custom-domain b132 has no `release.json` and uses app asset `977b18c616`; C2 served-asset proof does not establish its revision. Newer public/native account, billing, engine and RevenueCat behavior must be preserved. Full C2 backend deployment is held while agents reconcile it with current hosted source. See [checkpoint](checkpoint.md), [hosted continuity](hosted-continuity-20260920.md), and `evidence/current-frontend-domains-sep20.json`.
 
+## Current evidence by release owner — September20 checkpoint
+
+The older table below remains a baseline inventory. Current verified/reviewed status is:
+
+| Area | Current evidence and remaining required work |
+| --- | --- |
+| C2 suite release | Both C2 frontends remain verified at4c4c4e9. New integrated51ef4e3 includes reviewed frontend/game/account fixes, checkout/deletion recovery, and the permanent game-only release guard. Corrected broad checks pass43/43 with0quarantines; browser/build checks are running and this candidate is not released. |
+| Hosted accounts | Eight account/reset source bundles were verified restored at16:26UTC; versions remain unchanged at16:54UTC. Controlled reset/password races and revoked-session denial pass. Repeated external reversion remains an ownership/operations blocker; owning native source still requires integration. |
+| Actual public arrival | fac5d81 candidate password sign-in reached actual hosted league onboarding with the isolated account. Five phone browser configurations and independent review pass; draft publicPR1 is open. Separate OAuth/account-switch and provider connection changes are in review, not deployed. |
+| Actual public league onboarding | Source offers Sleeper/MFL/ESPN. Unlike the older C2 baseline, actual public MFL_ENABLED and ESPN_ENABLED are true. MFL has an automatic hydration path. ESPN retains enabled infrastructure but hides its connector card and lacks a stored-connection hydration path; a full ESPN journey remains a known high-priority gap. Local connection requests/save/retry/account-boundary fixes are being reviewed; destination fixtures are not full league journeys. |
+| Empire / shared capital | C2 fixes passed focused/browser/full gates earlier. Actual public uses a different shared engine atdedbb161 and keeps Empire in Labs. Actual shared capital candidate4880edd preserves the current owner engine decisions and completed dynasty horizon; independent review found an MFL incomplete-board gap. Trade Center and upstream provider-loading follow-through remain open. |
+| Commissioner / Wire / Draft / Cup | C2 implementations and earlier focused checks exist. Complete current user journeys, applicable hosted authorization, current-provider and post-deployment proof remain unfinished. Actual public lacks several C2 product implementations; it must not be treated as the same served suite. |
+| Vault / Duat | Earlier controlled Vault API/browser lifecycle passed before the owner deleted that run's data. Sep20 fresh Duat two-account complete17-week season, second cycle, lineup save/reload and privacy/competition API checks pass. Current deployed full browser journeys, Vault reconnect/private-bid follow-through and final release proof remain open. |
+| Native packaging / billing | Actual native web staging candidate4e11942 and billing clientff7674f are independently reviewed. Billing is draft nativePR322. Auth618c613 guarded candidate cannot be pushed with current workflow scope. No native binary/install/device/store or real purchase/restore proof; RevenueCat transfer ownership configuration and coordinated backend cutover remain blocked. |
+
+The C2 backend guard in22bb00b permanently permits only Cup/Vault/Duat manual reviewed releases. Ordinary pushes validate without backend writes; automatic migrations and account/billing/admin/provider deployments were removed after repository ownership was verified. Existing source and tests are retained for reconciliation. This does not control other owning repositories or operators.
+
 ## Applications, surfaces, and context contracts
 
 | Surface | Actual entry / source | Primary acceptance journey and current evidence |
