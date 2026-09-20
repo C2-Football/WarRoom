@@ -1,0 +1,3 @@
+Check supabase/functions/fw-confirm-password-reset/index.ts
+Check supabase/functions/fw-request-password-reset/index.ts
+Check supabase/functions/fw-change-password/index.ts

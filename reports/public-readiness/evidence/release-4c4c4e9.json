@@ -1,0 +1,3322 @@
+{
+  "expectedRevision": "4c4c4e97b742acc5b4696808d290ab1d7784410e",
+  "startedAt": "2026-09-20T15:15:35.747Z",
+  "environments": [
+    {
+      "repo": "WarRoom",
+      "base": "https://c2-football.github.io/WarRoom/",
+      "checks": [
+        "Exact deployed revision and repository",
+        "index.html: compiled and content-hashed local scripts",
+        "draft-warroom.html: compiled and content-hashed local scripts",
+        "free-agency.html: compiled and content-hashed local scripts",
+        "trade-calculator.html: compiled and content-hashed local scripts",
+        "draft-war-room/index.html: compiled and content-hashed local scripts",
+        "landing.html: HTTP 200",
+        "login.html: HTTP 200",
+        "onboarding.html: HTTP 200",
+        "reset-password.html: HTTP 200",
+        "ai-settings.html: HTTP 200",
+        "upgrade.html: HTTP 200",
+        "gift.html: HTTP 200"
+      ],
+      "assets": [
+        {
+          "path": "charts.js",
+          "bytes": 6377,
+          "hash": "bb99b9565f"
+        },
+        {
+          "path": "college-stats.js",
+          "bytes": 3065,
+          "hash": "ef22b739ae"
+        },
+        {
+          "path": "data/duat/lore-catalog.json",
+          "bytes": 54989,
+          "hash": "fc60312804"
+        },
+        {
+          "path": "draft-history.js",
+          "bytes": 3982,
+          "hash": "0a02a5dd2a"
+        },
+        {
+          "path": "draft-war-room/csv-loader.js",
+          "bytes": 5762,
+          "hash": "492179b13b"
+        },
+        {
+          "path": "draft-war-room/supabase-config.js",
+          "bytes": 292,
+          "hash": "21c0ac75b3"
+        },
+        {
+          "path": "draft-war-room/supabase-draft-client.js",
+          "bytes": 3597,
+          "hash": "191fecaf74"
+        },
+        {
+          "path": "duat-council.css",
+          "bytes": 4777,
+          "hash": "83a8fea2a6"
+        },
+        {
+          "path": "duat-dynasty.css",
+          "bytes": 10856,
+          "hash": "5d4103a491"
+        },
+        {
+          "path": "duat-faction-marks.css",
+          "bytes": 1953,
+          "hash": "f6710e2b41"
+        },
+        {
+          "path": "duat-heptad.css",
+          "bytes": 14529,
+          "hash": "4bc9c6d4b9"
+        },
+        {
+          "path": "duat-home-mobile.css",
+          "bytes": 4104,
+          "hash": "bbacf42f05"
+        },
+        {
+          "path": "duat-identity-library.css",
+          "bytes": 4380,
+          "hash": "e7fc903d42"
+        },
+        {
+          "path": "duat-library.css",
+          "bytes": 10556,
+          "hash": "c6830843ff"
+        },
+        {
+          "path": "duat-map.css",
+          "bytes": 5369,
+          "hash": "044b175343"
+        },
+        {
+          "path": "duat-mobile-flow.css",
+          "bytes": 5351,
+          "hash": "d7ec53d026"
+        },
+        {
+          "path": "duat-phone.css",
+          "bytes": 17571,
+          "hash": "5b63af7a1b"
+        },
+        {
+          "path": "duat-rituals.css",
+          "bytes": 14162,
+          "hash": "21973e785b"
+        },
+        {
+          "path": "duat-season-home.css",
+          "bytes": 16681,
+          "hash": "f9893bcfd6"
+        },
+        {
+          "path": "duat-weekly-flow.css",
+          "bytes": 6889,
+          "hash": "2651dd2d3f"
+        },
+        {
+          "path": "duat.css",
+          "bytes": 40794,
+          "hash": "d2524ca180"
+        },
+        {
+          "path": "images/duat/crests/carthage.png",
+          "bytes": 36275,
+          "hash": "f5a34aaf3b"
+        },
+        {
+          "path": "images/duat/crests/china.png",
+          "bytes": 63900,
+          "hash": "f4879064a7"
+        },
+        {
+          "path": "images/duat/crests/egypt.png",
+          "bytes": 70284,
+          "hash": "7ce64994ef"
+        },
+        {
+          "path": "images/duat/crests/gaul.png",
+          "bytes": 36746,
+          "hash": "2c98817275"
+        },
+        {
+          "path": "images/duat/crests/greece.png",
+          "bytes": 30750,
+          "hash": "60d55e5f1e"
+        },
+        {
+          "path": "images/duat/crests/india.png",
+          "bytes": 48533,
+          "hash": "b1a05dbcab"
+        },
+        {
+          "path": "images/duat/crests/inis-fail.png",
+          "bytes": 109238,
+          "hash": "f6df4575c4"
+        },
+        {
+          "path": "images/duat/crests/japan.png",
+          "bytes": 35448,
+          "hash": "77fe1b2a86"
+        },
+        {
+          "path": "images/duat/crests/mayans.png",
+          "bytes": 53473,
+          "hash": "b867a9f163"
+        },
+        {
+          "path": "images/duat/crests/mesopotamia.png",
+          "bytes": 72927,
+          "hash": "e1f2ca36fe"
+        },
+        {
+          "path": "images/duat/crests/nubia.png",
+          "bytes": 18581,
+          "hash": "faf8fe59bd"
+        },
+        {
+          "path": "images/duat/crests/rome.png",
+          "bytes": 107977,
+          "hash": "921fe0615d"
+        },
+        {
+          "path": "images/duat/crests/vikings.png",
+          "bytes": 112821,
+          "hash": "0054a27a6f"
+        },
+        {
+          "path": "images/duat/crests/warhorsemen.png",
+          "bytes": 94190,
+          "hash": "bb21c4248f"
+        },
+        {
+          "path": "images/duat/excavation.webp",
+          "bytes": 283806,
+          "hash": "c6a49f88e1"
+        },
+        {
+          "path": "images/duat/expeditions/aksum.webp",
+          "bytes": 245032,
+          "hash": "68cff3fc81"
+        },
+        {
+          "path": "images/duat/expeditions/aztecs.webp",
+          "bytes": 191948,
+          "hash": "3c4f455ad6"
+        },
+        {
+          "path": "images/duat/expeditions/carthage.webp",
+          "bytes": 222970,
+          "hash": "463d7db327"
+        },
+        {
+          "path": "images/duat/expeditions/china.webp",
+          "bytes": 231144,
+          "hash": "5b14d78aab"
+        },
+        {
+          "path": "images/duat/expeditions/egypt.webp",
+          "bytes": 205342,
+          "hash": "04ebf74a81"
+        },
+        {
+          "path": "images/duat/expeditions/england.webp",
+          "bytes": 187056,
+          "hash": "ee890a060c"
+        },
+        {
+          "path": "images/duat/expeditions/gaul.webp",
+          "bytes": 268592,
+          "hash": "8d4868caf5"
+        },
+        {
+          "path": "images/duat/expeditions/greece.webp",
+          "bytes": 244824,
+          "hash": "4fa9ec1b5d"
+        },
+        {
+          "path": "images/duat/expeditions/inca.webp",
+          "bytes": 320754,
+          "hash": "fdb41151f4"
+        },
+        {
+          "path": "images/duat/expeditions/india.webp",
+          "bytes": 230814,
+          "hash": "1feab06332"
+        },
+        {
+          "path": "images/duat/expeditions/inis-fail.webp",
+          "bytes": 268410,
+          "hash": "7be106b5ac"
+        },
+        {
+          "path": "images/duat/expeditions/japan.webp",
+          "bytes": 244452,
+          "hash": "76d7dfe4ad"
+        },
+        {
+          "path": "images/duat/expeditions/khmer.webp",
+          "bytes": 266198,
+          "hash": "6b293a852e"
+        },
+        {
+          "path": "images/duat/expeditions/korea.webp",
+          "bytes": 212232,
+          "hash": "830d4aa63d"
+        },
+        {
+          "path": "images/duat/expeditions/majapahit.webp",
+          "bytes": 264856,
+          "hash": "bf73125e25"
+        },
+        {
+          "path": "images/duat/expeditions/mali.webp",
+          "bytes": 205108,
+          "hash": "7b1b211cab"
+        },
+        {
+          "path": "images/duat/expeditions/mayans.webp",
+          "bytes": 259440,
+          "hash": "eb69f6a0ef"
+        },
+        {
+          "path": "images/duat/expeditions/mesopotamia.webp",
+          "bytes": 229500,
+          "hash": "0dba14f253"
+        },
+        {
+          "path": "images/duat/expeditions/mongols.webp",
+          "bytes": 169916,
+          "hash": "f77545f89a"
+        },
+        {
+          "path": "images/duat/expeditions/nubia.webp",
+          "bytes": 189240,
+          "hash": "05906d1dfe"
+        },
+        {
+          "path": "images/duat/expeditions/persia.webp",
+          "bytes": 231972,
+          "hash": "6d07dab134"
+        },
+        {
+          "path": "images/duat/expeditions/poland.webp",
+          "bytes": 210434,
+          "hash": "54141cc694"
+        },
+        {
+          "path": "images/duat/expeditions/portugal.webp",
+          "bytes": 176120,
+          "hash": "41617960c5"
+        },
+        {
+          "path": "images/duat/expeditions/provenance-set-a.json",
+          "bytes": 26091,
+          "hash": "19d44c3c31"
+        },
+        {
+          "path": "images/duat/expeditions/provenance-set-b.json",
+          "bytes": 34689,
+          "hash": "12d7338aae"
+        },
+        {
+          "path": "images/duat/expeditions/rome.webp",
+          "bytes": 211906,
+          "hash": "b7ce673c47"
+        },
+        {
+          "path": "images/duat/expeditions/siam.webp",
+          "bytes": 233548,
+          "hash": "1d874fbc4a"
+        },
+        {
+          "path": "images/duat/expeditions/vikings.webp",
+          "bytes": 224522,
+          "hash": "6c3746b6de"
+        },
+        {
+          "path": "images/duat/expeditions/warhorsemen.webp",
+          "bytes": 250454,
+          "hash": "b4c0440168"
+        },
+        {
+          "path": "images/duat/expeditions/zulu.webp",
+          "bytes": 224670,
+          "hash": "c51643c5b1"
+        },
+        {
+          "path": "images/duat/hero.webp",
+          "bytes": 249132,
+          "hash": "b00bb96b43"
+        },
+        {
+          "path": "images/duat/horus.webp",
+          "bytes": 291924,
+          "hash": "5808fbb3f8"
+        },
+        {
+          "path": "images/duat/janus.webp",
+          "bytes": 256306,
+          "hash": "f2e7a2b240"
+        },
+        {
+          "path": "images/duat/kratos.webp",
+          "bytes": 258906,
+          "hash": "f434e24bfc"
+        },
+        {
+          "path": "images/duat/manifest.json",
+          "bytes": 11706,
+          "hash": "756231d0b2"
+        },
+        {
+          "path": "images/duat/pantheon-atlas.provenance.json",
+          "bytes": 2175,
+          "hash": "152258ea57"
+        },
+        {
+          "path": "images/duat/pantheon-atlas.webp",
+          "bytes": 407948,
+          "hash": "6396db89c9"
+        },
+        {
+          "path": "js/app.js",
+          "bytes": 63961,
+          "hash": "53873b3645"
+        },
+        {
+          "path": "js/components.js",
+          "bytes": 23595,
+          "hash": "b28905ebc6"
+        },
+        {
+          "path": "js/components/chop-block-panel.js",
+          "bytes": 7200,
+          "hash": "1899500cba"
+        },
+        {
+          "path": "js/components/commish-command-panel.js",
+          "bytes": 22829,
+          "hash": "81c888e139"
+        },
+        {
+          "path": "js/components/commish-genesis-panel.js",
+          "bytes": 10843,
+          "hash": "db80f5c629"
+        },
+        {
+          "path": "js/components/commish-governance-panel.js",
+          "bytes": 10651,
+          "hash": "87056f8b60"
+        },
+        {
+          "path": "js/components/commish-network-panel.js",
+          "bytes": 11860,
+          "hash": "8d7224cce0"
+        },
+        {
+          "path": "js/components/commish-ops-panel.js",
+          "bytes": 15174,
+          "hash": "ae93924156"
+        },
+        {
+          "path": "js/components/commish-people-panel.js",
+          "bytes": 12132,
+          "hash": "ff8a04c940"
+        },
+        {
+          "path": "js/components/commish-rulelab-panel.js",
+          "bytes": 35178,
+          "hash": "e64be3b50e"
+        },
+        {
+          "path": "js/components/commish-schedule-panel.js",
+          "bytes": 14613,
+          "hash": "14c2dd84ff"
+        },
+        {
+          "path": "js/components/commish-sidebar.js",
+          "bytes": 18396,
+          "hash": "662be9f61e"
+        },
+        {
+          "path": "js/components/cup-honours.js",
+          "bytes": 4962,
+          "hash": "39ae77e292"
+        },
+        {
+          "path": "js/components/duat-council.js",
+          "bytes": 6799,
+          "hash": "5d925377d9"
+        },
+        {
+          "path": "js/components/duat-faction-marks.js",
+          "bytes": 12391,
+          "hash": "94dc675a06"
+        },
+        {
+          "path": "js/components/duat-heptad.js",
+          "bytes": 25249,
+          "hash": "8d0bb7f79d"
+        },
+        {
+          "path": "js/components/duat-identity-library.js",
+          "bytes": 9477,
+          "hash": "3d4b96e466"
+        },
+        {
+          "path": "js/components/duat-library.js",
+          "bytes": 16418,
+          "hash": "161bb656b8"
+        },
+        {
+          "path": "js/components/duat-mystery.js",
+          "bytes": 4737,
+          "hash": "72aeb892b7"
+        },
+        {
+          "path": "js/components/duat-presentation.js",
+          "bytes": 43223,
+          "hash": "0ba7652cbb"
+        },
+        {
+          "path": "js/components/duat-rituals.js",
+          "bytes": 20256,
+          "hash": "d0f3bccd6c"
+        },
+        {
+          "path": "js/components/duat-season-home.js",
+          "bytes": 20739,
+          "hash": "6df90f52b4"
+        },
+        {
+          "path": "js/components/duat-weekly-flow.js",
+          "bytes": 15969,
+          "hash": "5016c044a6"
+        },
+        {
+          "path": "js/components/league-live-scoreboard.js",
+          "bytes": 16832,
+          "hash": "b2b3137fa6"
+        },
+        {
+          "path": "js/components/league-wire-portfolio.js",
+          "bytes": 6548,
+          "hash": "8c23e4967b"
+        },
+        {
+          "path": "js/components/league-wire.js",
+          "bytes": 35455,
+          "hash": "5aab3bec3d"
+        },
+        {
+          "path": "js/components/manual-seasons-editor.js",
+          "bytes": 5893,
+          "hash": "925a5f76aa"
+        },
+        {
+          "path": "js/components/player-card.js",
+          "bytes": 41495,
+          "hash": "a07d981cb4"
+        },
+        {
+          "path": "js/components/season-odds-panel.js",
+          "bytes": 15475,
+          "hash": "59b1230a00"
+        },
+        {
+          "path": "js/components/time-league-activity-panel.js",
+          "bytes": 1023,
+          "hash": "f3ca9a8915"
+        },
+        {
+          "path": "js/components/time-league-career-panel.js",
+          "bytes": 3394,
+          "hash": "22595d1616"
+        },
+        {
+          "path": "js/components/time-league-career-view.js",
+          "bytes": 2331,
+          "hash": "ad47dbd02c"
+        },
+        {
+          "path": "js/components/time-league-ceremony.js",
+          "bytes": 3613,
+          "hash": "817a878a32"
+        },
+        {
+          "path": "js/components/time-league-community-panel.js",
+          "bytes": 8822,
+          "hash": "b7884cfc50"
+        },
+        {
+          "path": "js/components/time-league-draft-controls.js",
+          "bytes": 13482,
+          "hash": "684e5b6718"
+        },
+        {
+          "path": "js/components/time-league-draft-panel.js",
+          "bytes": 40987,
+          "hash": "3c1cfa477d"
+        },
+        {
+          "path": "js/components/time-league-draft-roster.js",
+          "bytes": 2622,
+          "hash": "92f81af6e7"
+        },
+        {
+          "path": "js/components/time-league-gamecast-panel.js",
+          "bytes": 20771,
+          "hash": "c9105ddc6a"
+        },
+        {
+          "path": "js/components/time-league-helmet.js",
+          "bytes": 6716,
+          "hash": "0889b502f9"
+        },
+        {
+          "path": "js/components/time-league-home-panel.js",
+          "bytes": 12049,
+          "hash": "e472d00de3"
+        },
+        {
+          "path": "js/components/time-league-profile-panel.js",
+          "bytes": 5544,
+          "hash": "fe7fe83f08"
+        },
+        {
+          "path": "js/components/time-league-rivals-panel.js",
+          "bytes": 12222,
+          "hash": "c69d8838ec"
+        },
+        {
+          "path": "js/components/time-league-setup-panel.js",
+          "bytes": 29665,
+          "hash": "796ebadae6"
+        },
+        {
+          "path": "js/components/time-league-standings-panel.js",
+          "bytes": 6068,
+          "hash": "bdff5d53d1"
+        },
+        {
+          "path": "js/components/time-league-stats-panel.js",
+          "bytes": 7277,
+          "hash": "07f2fb9b30"
+        },
+        {
+          "path": "js/components/time-league-team-panel.js",
+          "bytes": 51570,
+          "hash": "d618dbc2af"
+        },
+        {
+          "path": "js/components/time-league-week-gates.js",
+          "bytes": 5249,
+          "hash": "981b65ec8c"
+        },
+        {
+          "path": "js/components/woeppel-cup-panel.js",
+          "bytes": 41127,
+          "hash": "33c3802b60"
+        },
+        {
+          "path": "js/components/wr-primitives.js",
+          "bytes": 34334,
+          "hash": "36a499eca5"
+        },
+        {
+          "path": "js/core.js",
+          "bytes": 17931,
+          "hash": "00febe8fea"
+        },
+        {
+          "path": "js/draft-room.js",
+          "bytes": 158827,
+          "hash": "bd86d83c5c"
+        },
+        {
+          "path": "js/draft/alex-call.js",
+          "bytes": 5387,
+          "hash": "1824976cc0"
+        },
+        {
+          "path": "js/draft/alex-edge-glow.js",
+          "bytes": 1995,
+          "hash": "8f89115b56"
+        },
+        {
+          "path": "js/draft/alex-stream.js",
+          "bytes": 7024,
+          "hash": "4301b966d5"
+        },
+        {
+          "path": "js/draft/analyst-mock.js",
+          "bytes": 28346,
+          "hash": "882164b6b6"
+        },
+        {
+          "path": "js/draft/ask-window.js",
+          "bytes": 14726,
+          "hash": "e0b6af2d68"
+        },
+        {
+          "path": "js/draft/big-board.js",
+          "bytes": 32243,
+          "hash": "5b3fac7088"
+        },
+        {
+          "path": "js/draft/command-center.js",
+          "bytes": 255449,
+          "hash": "4df257c60d"
+        },
+        {
+          "path": "js/draft/context.js",
+          "bytes": 21187,
+          "hash": "855debc483"
+        },
+        {
+          "path": "js/draft/cpu-engine.js",
+          "bytes": 1106,
+          "hash": "481ea11497"
+        },
+        {
+          "path": "js/draft/draft-grid.js",
+          "bytes": 11536,
+          "hash": "ad91480883"
+        },
+        {
+          "path": "js/draft/exports.js",
+          "bytes": 6241,
+          "hash": "abc429c4f3"
+        },
+        {
+          "path": "js/draft/ghost-replay.js",
+          "bytes": 2818,
+          "hash": "e34dbba4e4"
+        },
+        {
+          "path": "js/draft/live-analytics.js",
+          "bytes": 14799,
+          "hash": "5ac2cddb01"
+        },
+        {
+          "path": "js/draft/live-decision-engine.js",
+          "bytes": 27009,
+          "hash": "3bf1604953"
+        },
+        {
+          "path": "js/draft/live-pick-brief.js",
+          "bytes": 20224,
+          "hash": "8e2eb63c3d"
+        },
+        {
+          "path": "js/draft/live-room-engine.js",
+          "bytes": 11561,
+          "hash": "ca87285dcc"
+        },
+        {
+          "path": "js/draft/live-room.js",
+          "bytes": 18947,
+          "hash": "f6d7673860"
+        },
+        {
+          "path": "js/draft/live-sync.js",
+          "bytes": 6812,
+          "hash": "9a42d9a26b"
+        },
+        {
+          "path": "js/draft/opponent-intel.js",
+          "bytes": 16303,
+          "hash": "fbf11233ca"
+        },
+        {
+          "path": "js/draft/persistence.js",
+          "bytes": 3013,
+          "hash": "0d3ea4a4ed"
+        },
+        {
+          "path": "js/draft/persona.js",
+          "bytes": 3515,
+          "hash": "3c292654ff"
+        },
+        {
+          "path": "js/draft/scenarios.js",
+          "bytes": 2554,
+          "hash": "dce007df7c"
+        },
+        {
+          "path": "js/draft/scouting.js",
+          "bytes": 2805,
+          "hash": "1b60b93d43"
+        },
+        {
+          "path": "js/draft/state.js",
+          "bytes": 69765,
+          "hash": "b6d9c131fe"
+        },
+        {
+          "path": "js/draft/styles.js",
+          "bytes": 1147,
+          "hash": "02e886f838"
+        },
+        {
+          "path": "js/draft/trade-helpers.js",
+          "bytes": 4847,
+          "hash": "0c5d262970"
+        },
+        {
+          "path": "js/draft/trade-modal.js",
+          "bytes": 9115,
+          "hash": "efd87be960"
+        },
+        {
+          "path": "js/draft/trade-proposer.js",
+          "bytes": 43357,
+          "hash": "686dccfe6e"
+        },
+        {
+          "path": "js/draft/trade-simulator.js",
+          "bytes": 29885,
+          "hash": "4e3d7ce5c9"
+        },
+        {
+          "path": "js/duat/army-generation.js",
+          "bytes": 11344,
+          "hash": "850f54b160"
+        },
+        {
+          "path": "js/duat/campaign.js",
+          "bytes": 34475,
+          "hash": "18ed0f78df"
+        },
+        {
+          "path": "js/duat/conquest.js",
+          "bytes": 20757,
+          "hash": "aff44f4b0f"
+        },
+        {
+          "path": "js/duat/council-state.js",
+          "bytes": 3521,
+          "hash": "d2e85883d1"
+        },
+        {
+          "path": "js/duat/dynasty.js",
+          "bytes": 40844,
+          "hash": "0958de70d8"
+        },
+        {
+          "path": "js/duat/favor-availability.js",
+          "bytes": 8577,
+          "hash": "d05688700f"
+        },
+        {
+          "path": "js/duat/favors.js",
+          "bytes": 8453,
+          "hash": "dac675f777"
+        },
+        {
+          "path": "js/duat/heptad.js",
+          "bytes": 9642,
+          "hash": "d0183c7f62"
+        },
+        {
+          "path": "js/duat/identity-library.js",
+          "bytes": 127737,
+          "hash": "78c83a2aea"
+        },
+        {
+          "path": "js/duat/lore.js",
+          "bytes": 61337,
+          "hash": "0a5f6d6d85"
+        },
+        {
+          "path": "js/duat/map.js",
+          "bytes": 4006,
+          "hash": "63c7ed4e08"
+        },
+        {
+          "path": "js/duat/mystery.js",
+          "bytes": 8283,
+          "hash": "6f6606fbaf"
+        },
+        {
+          "path": "js/duat/personalities.js",
+          "bytes": 59784,
+          "hash": "7a396cc5ab"
+        },
+        {
+          "path": "js/duat/provinces.js",
+          "bytes": 6697161,
+          "hash": "1b3cd552be"
+        },
+        {
+          "path": "js/duat/remote.js",
+          "bytes": 934,
+          "hash": "3268794def"
+        },
+        {
+          "path": "js/duat/rituals.js",
+          "bytes": 22815,
+          "hash": "f32789184a"
+        },
+        {
+          "path": "js/duat/rules.js",
+          "bytes": 28109,
+          "hash": "67c98bc001"
+        },
+        {
+          "path": "js/duat/season-home.js",
+          "bytes": 8948,
+          "hash": "6818d79076"
+        },
+        {
+          "path": "js/duat/session.js",
+          "bytes": 7809,
+          "hash": "7134a74e8d"
+        },
+        {
+          "path": "js/duat/storage.js",
+          "bytes": 2944,
+          "hash": "9527de4f54"
+        },
+        {
+          "path": "js/duat/strategy.js",
+          "bytes": 3817,
+          "hash": "d8527c3109"
+        },
+        {
+          "path": "js/duat/vendor/lz-string-1.5.0.js",
+          "bytes": 4815,
+          "hash": "0b0c3db2b7"
+        },
+        {
+          "path": "js/duat/weekly-flow.js",
+          "bytes": 13016,
+          "hash": "b9e2bba71c"
+        },
+        {
+          "path": "js/duat/weekly-progress.js",
+          "bytes": 4214,
+          "hash": "4db6f01e65"
+        },
+        {
+          "path": "js/duat/world.js",
+          "bytes": 579904,
+          "hash": "124d3d7870"
+        },
+        {
+          "path": "js/export.js",
+          "bytes": 1032,
+          "hash": "e4fc218598"
+        },
+        {
+          "path": "js/free-agency.js",
+          "bytes": 110626,
+          "hash": "ae885e4690"
+        },
+        {
+          "path": "js/league-detail.js",
+          "bytes": 113742,
+          "hash": "933c4401f5"
+        },
+        {
+          "path": "js/league-skin.js",
+          "bytes": 11358,
+          "hash": "a7533a179c"
+        },
+        {
+          "path": "js/mock-draft.js",
+          "bytes": 24228,
+          "hash": "a35163e3fe"
+        },
+        {
+          "path": "js/module-loader.js",
+          "bytes": 1397,
+          "hash": "2e570fa769"
+        },
+        {
+          "path": "js/post-draft.js",
+          "bytes": 5667,
+          "hash": "5cf7afa316"
+        },
+        {
+          "path": "js/pro-launch.js",
+          "bytes": 18141,
+          "hash": "499b596719"
+        },
+        {
+          "path": "js/settings.js",
+          "bytes": 30942,
+          "hash": "706ee36d9e"
+        },
+        {
+          "path": "js/shared/account-storage.js",
+          "bytes": 6294,
+          "hash": "1382651e72"
+        },
+        {
+          "path": "js/shared/achievements.js",
+          "bytes": 5251,
+          "hash": "c23effa2bf"
+        },
+        {
+          "path": "js/shared/adp-market.js",
+          "bytes": 4842,
+          "hash": "c531f3db04"
+        },
+        {
+          "path": "js/shared/ai-access.js",
+          "bytes": 5274,
+          "hash": "f66981d57c"
+        },
+        {
+          "path": "js/shared/alex-settings.js",
+          "bytes": 2068,
+          "hash": "4d992f86ed"
+        },
+        {
+          "path": "js/shared/alex-voice.js",
+          "bytes": 2553,
+          "hash": "30747f9a43"
+        },
+        {
+          "path": "js/shared/availability-forecast.js",
+          "bytes": 1859,
+          "hash": "494cecf298"
+        },
+        {
+          "path": "js/shared/chop-odds.js",
+          "bytes": 3736,
+          "hash": "08df2d3287"
+        },
+        {
+          "path": "js/shared/chopped.js",
+          "bytes": 1321,
+          "hash": "c4a7db7161"
+        },
+        {
+          "path": "js/shared/commish-bench.js",
+          "bytes": 6714,
+          "hash": "a700d95530"
+        },
+        {
+          "path": "js/shared/commish-bylaws.js",
+          "bytes": 4554,
+          "hash": "96623197f7"
+        },
+        {
+          "path": "js/shared/commish-calendar.js",
+          "bytes": 4814,
+          "hash": "84b9e1bbad"
+        },
+        {
+          "path": "js/shared/commish-coefficient.js",
+          "bytes": 1885,
+          "hash": "61cc6fedcf"
+        },
+        {
+          "path": "js/shared/commish-drift.js",
+          "bytes": 2380,
+          "hash": "a9d57adc3f"
+        },
+        {
+          "path": "js/shared/commish-engine.js",
+          "bytes": 2511,
+          "hash": "82655accae"
+        },
+        {
+          "path": "js/shared/commish-followups.js",
+          "bytes": 2549,
+          "hash": "2092961c0e"
+        },
+        {
+          "path": "js/shared/commish-genesis.js",
+          "bytes": 5248,
+          "hash": "7b1f793cfa"
+        },
+        {
+          "path": "js/shared/commish-prefs.js",
+          "bytes": 3177,
+          "hash": "24f264c276"
+        },
+        {
+          "path": "js/shared/commish-programme.js",
+          "bytes": 3985,
+          "hash": "0346c657d2"
+        },
+        {
+          "path": "js/shared/commish-radar.js",
+          "bytes": 4947,
+          "hash": "2ec80ace68"
+        },
+        {
+          "path": "js/shared/commish-renewal.js",
+          "bytes": 4880,
+          "hash": "476dc9ab4a"
+        },
+        {
+          "path": "js/shared/commish-rulelab.js",
+          "bytes": 13366,
+          "hash": "11c6977ea3"
+        },
+        {
+          "path": "js/shared/commish-schedule-nfl.js",
+          "bytes": 4569,
+          "hash": "48a0ea253f"
+        },
+        {
+          "path": "js/shared/commish-schedule.js",
+          "bytes": 5568,
+          "hash": "354b6ae862"
+        },
+        {
+          "path": "js/shared/commish-tasks.js",
+          "bytes": 2156,
+          "hash": "59d0520389"
+        },
+        {
+          "path": "js/shared/commish-treasury.js",
+          "bytes": 4362,
+          "hash": "b2d349b614"
+        },
+        {
+          "path": "js/shared/commish-triage.js",
+          "bytes": 18698,
+          "hash": "73d8728e57"
+        },
+        {
+          "path": "js/shared/dashboard-league-data.js",
+          "bytes": 8487,
+          "hash": "4a4b662fa3"
+        },
+        {
+          "path": "js/shared/dashboard-league-layout.js",
+          "bytes": 816,
+          "hash": "4d27a93c52"
+        },
+        {
+          "path": "js/shared/draft-gameplan.js",
+          "bytes": 4930,
+          "hash": "3e720f5aa1"
+        },
+        {
+          "path": "js/shared/draft-profile-data.js",
+          "bytes": 131290,
+          "hash": "9fa5f8f230"
+        },
+        {
+          "path": "js/shared/empire-decisions.js",
+          "bytes": 2912,
+          "hash": "7eb9cde4e5"
+        },
+        {
+          "path": "js/shared/empire-values.js",
+          "bytes": 3860,
+          "hash": "c323568b90"
+        },
+        {
+          "path": "js/shared/fa-market-data.js",
+          "bytes": 1306,
+          "hash": "974743a222"
+        },
+        {
+          "path": "js/shared/faab-engine.js",
+          "bytes": 4352,
+          "hash": "de8117cb8c"
+        },
+        {
+          "path": "js/shared/feedback-hub.js",
+          "bytes": 16072,
+          "hash": "fedd47ce0f"
+        },
+        {
+          "path": "js/shared/forecast-archive.js",
+          "bytes": 1426,
+          "hash": "fd69abfdd3"
+        },
+        {
+          "path": "js/shared/forecast-ledger.js",
+          "bytes": 8730,
+          "hash": "dd20fc0998"
+        },
+        {
+          "path": "js/shared/gm-mode.js",
+          "bytes": 9673,
+          "hash": "7b40584619"
+        },
+        {
+          "path": "js/shared/league-history.js",
+          "bytes": 12306,
+          "hash": "110ffed9e1"
+        },
+        {
+          "path": "js/shared/league-live-scores.js",
+          "bytes": 3916,
+          "hash": "95a9d3d9fe"
+        },
+        {
+          "path": "js/shared/league-live-standings.js",
+          "bytes": 4888,
+          "hash": "db078768d8"
+        },
+        {
+          "path": "js/shared/league-live-table.js",
+          "bytes": 3511,
+          "hash": "0713467759"
+        },
+        {
+          "path": "js/shared/league-stats.js",
+          "bytes": 14761,
+          "hash": "334620e6e0"
+        },
+        {
+          "path": "js/shared/league-wire-cache.js",
+          "bytes": 1834,
+          "hash": "30451ff734"
+        },
+        {
+          "path": "js/shared/league-wire-chronicles-data.js",
+          "bytes": 58281,
+          "hash": "507653d83c"
+        },
+        {
+          "path": "js/shared/league-wire-chronicles.js",
+          "bytes": 5393,
+          "hash": "002486c4fb"
+        },
+        {
+          "path": "js/shared/league-wire-journal.js",
+          "bytes": 16120,
+          "hash": "886ac1e256"
+        },
+        {
+          "path": "js/shared/league-wire-portfolio.js",
+          "bytes": 3730,
+          "hash": "a1d8d66a73"
+        },
+        {
+          "path": "js/shared/league-workspaces.js",
+          "bytes": 4225,
+          "hash": "a58ded4480"
+        },
+        {
+          "path": "js/shared/lineup-forecast-snapshots.js",
+          "bytes": 1239,
+          "hash": "f5d7845ee0"
+        },
+        {
+          "path": "js/shared/luck-engine.js",
+          "bytes": 2796,
+          "hash": "35c238074a"
+        },
+        {
+          "path": "js/shared/matchup.js",
+          "bytes": 4917,
+          "hash": "63d5b4822d"
+        },
+        {
+          "path": "js/shared/navigation-guard.js",
+          "bytes": 357,
+          "hash": "80b3223843"
+        },
+        {
+          "path": "js/shared/nfl-context.js",
+          "bytes": 3836,
+          "hash": "804ccdd6c1"
+        },
+        {
+          "path": "js/shared/player-notebook.js",
+          "bytes": 8539,
+          "hash": "7d539e1e6c"
+        },
+        {
+          "path": "js/shared/playoff-odds.js",
+          "bytes": 5639,
+          "hash": "697f0c1481"
+        },
+        {
+          "path": "js/shared/pro-gate.js",
+          "bytes": 646,
+          "hash": "d408581bac"
+        },
+        {
+          "path": "js/shared/roster-cutdown.js",
+          "bytes": 1488,
+          "hash": "eac0f26212"
+        },
+        {
+          "path": "js/shared/saved-reports.js",
+          "bytes": 2046,
+          "hash": "a3cf8a45a8"
+        },
+        {
+          "path": "js/shared/saved-views.js",
+          "bytes": 6196,
+          "hash": "3f14899cf7"
+        },
+        {
+          "path": "js/shared/shared-loader.js",
+          "bytes": 2214,
+          "hash": "23751556d1"
+        },
+        {
+          "path": "js/shared/snapshot-store.js",
+          "bytes": 3754,
+          "hash": "ade1df2767"
+        },
+        {
+          "path": "js/shared/startsit-engine.js",
+          "bytes": 5640,
+          "hash": "d722df5685"
+        },
+        {
+          "path": "js/shared/stat-catalog.js",
+          "bytes": 7924,
+          "hash": "21b6ddefb3"
+        },
+        {
+          "path": "js/shared/sync-manager.js",
+          "bytes": 1279,
+          "hash": "ab687e439a"
+        },
+        {
+          "path": "js/shared/time-league-achievements.js",
+          "bytes": 3890,
+          "hash": "f3263da37d"
+        },
+        {
+          "path": "js/shared/time-league-actions.js",
+          "bytes": 9376,
+          "hash": "92cd3ee06c"
+        },
+        {
+          "path": "js/shared/time-league-ai.js",
+          "bytes": 14539,
+          "hash": "6bda1a0005"
+        },
+        {
+          "path": "js/shared/time-league-career-store.js",
+          "bytes": 930,
+          "hash": "dc62cd09a9"
+        },
+        {
+          "path": "js/shared/time-league-career.js",
+          "bytes": 2971,
+          "hash": "b3f4f5ab20"
+        },
+        {
+          "path": "js/shared/time-league-draft-clock.js",
+          "bytes": 1294,
+          "hash": "86ba552f60"
+        },
+        {
+          "path": "js/shared/time-league-draft-room.js",
+          "bytes": 1227,
+          "hash": "ae212677a6"
+        },
+        {
+          "path": "js/shared/time-league-engine.js",
+          "bytes": 50634,
+          "hash": "44421009f2"
+        },
+        {
+          "path": "js/shared/time-league-era-rules.js",
+          "bytes": 4267,
+          "hash": "86d146321a"
+        },
+        {
+          "path": "js/shared/time-league-gamecast.js",
+          "bytes": 7628,
+          "hash": "dbfbfb1b46"
+        },
+        {
+          "path": "js/shared/time-league-helmet-artwork.js",
+          "bytes": 2101,
+          "hash": "acffe67ab0"
+        },
+        {
+          "path": "js/shared/time-league-helmet-sources.js",
+          "bytes": 40609,
+          "hash": "f5bf34b074"
+        },
+        {
+          "path": "js/shared/time-league-helmet.js",
+          "bytes": 10681,
+          "hash": "21d9c76a1a"
+        },
+        {
+          "path": "js/shared/time-league-hidden-years.js",
+          "bytes": 4107,
+          "hash": "d4a70851be"
+        },
+        {
+          "path": "js/shared/time-league-player-cards.js",
+          "bytes": 2604,
+          "hash": "fc784b9322"
+        },
+        {
+          "path": "js/shared/time-league-player-stats.js",
+          "bytes": 4056,
+          "hash": "d0f5c249f0"
+        },
+        {
+          "path": "js/shared/time-league-profile.js",
+          "bytes": 3343,
+          "hash": "04e0bc390c"
+        },
+        {
+          "path": "js/shared/time-league-public-state.js",
+          "bytes": 10363,
+          "hash": "804763fd48"
+        },
+        {
+          "path": "js/shared/time-league-remote-client.js",
+          "bytes": 2536,
+          "hash": "569ffc01b6"
+        },
+        {
+          "path": "js/shared/time-league-rivals.js",
+          "bytes": 43066,
+          "hash": "00a278f63b"
+        },
+        {
+          "path": "js/shared/time-league-roster.js",
+          "bytes": 2269,
+          "hash": "efbb3138e2"
+        },
+        {
+          "path": "js/shared/time-league-rules.js",
+          "bytes": 287,
+          "hash": "146ee62bf7"
+        },
+        {
+          "path": "js/shared/time-league-season.js",
+          "bytes": 12311,
+          "hash": "6878c13380"
+        },
+        {
+          "path": "js/shared/time-league-storage.js",
+          "bytes": 1551,
+          "hash": "68de5c7d69"
+        },
+        {
+          "path": "js/shared/time-league-strategy.js",
+          "bytes": 11309,
+          "hash": "40515fecc3"
+        },
+        {
+          "path": "js/shared/time-league-types.js",
+          "bytes": 275,
+          "hash": "f086210ada"
+        },
+        {
+          "path": "js/shared/time-league-ui.js",
+          "bytes": 1236,
+          "hash": "c7a1a87ebd"
+        },
+        {
+          "path": "js/shared/trend-badge.js",
+          "bytes": 520,
+          "hash": "9646e21cbe"
+        },
+        {
+          "path": "js/shared/txn-store.js",
+          "bytes": 1829,
+          "hash": "25f2cca0d3"
+        },
+        {
+          "path": "js/shared/viewport.js",
+          "bytes": 1519,
+          "hash": "b7ef21c64d"
+        },
+        {
+          "path": "js/shared/weekly-proj.js",
+          "bytes": 7973,
+          "hash": "571e2ca40b"
+        },
+        {
+          "path": "js/shared/woeppel-cup.js",
+          "bytes": 14768,
+          "hash": "b4bbefadcc"
+        },
+        {
+          "path": "js/shared/wr-ai-context.js",
+          "bytes": 5570,
+          "hash": "2feb680cef"
+        },
+        {
+          "path": "js/tabs/alex-insights.js",
+          "bytes": 67351,
+          "hash": "a9e17a4485"
+        },
+        {
+          "path": "js/tabs/analytics.js",
+          "bytes": 81713,
+          "hash": "e6283302fe"
+        },
+        {
+          "path": "js/tabs/calendar.js",
+          "bytes": 11026,
+          "hash": "832a82fba1"
+        },
+        {
+          "path": "js/tabs/commissioner-office.js",
+          "bytes": 43319,
+          "hash": "47d7116dc3"
+        },
+        {
+          "path": "js/tabs/compare.js",
+          "bytes": 105094,
+          "hash": "420dcccfc7"
+        },
+        {
+          "path": "js/tabs/dashboard.js",
+          "bytes": 71487,
+          "hash": "cbe14b8dfa"
+        },
+        {
+          "path": "js/tabs/duat.js",
+          "bytes": 61718,
+          "hash": "23d4673d3c"
+        },
+        {
+          "path": "js/tabs/flash-brief.js",
+          "bytes": 37891,
+          "hash": "d5e64f4d3c"
+        },
+        {
+          "path": "js/tabs/global-view.js",
+          "bytes": 187129,
+          "hash": "5087c5a0f0"
+        },
+        {
+          "path": "js/tabs/league-central.js",
+          "bytes": 30255,
+          "hash": "1cd450b844"
+        },
+        {
+          "path": "js/tabs/league-map.js",
+          "bytes": 106912,
+          "hash": "d6d063e184"
+        },
+        {
+          "path": "js/tabs/lineup.js",
+          "bytes": 81191,
+          "hash": "744cf158df"
+        },
+        {
+          "path": "js/tabs/my-team.js",
+          "bytes": 103360,
+          "hash": "f541e4df5e"
+        },
+        {
+          "path": "js/tabs/stats.js",
+          "bytes": 31990,
+          "hash": "88cc860689"
+        },
+        {
+          "path": "js/tabs/strategy-editor.js",
+          "bytes": 31564,
+          "hash": "98c575b7e0"
+        },
+        {
+          "path": "js/tabs/time-league.js",
+          "bytes": 117739,
+          "hash": "388361dec5"
+        },
+        {
+          "path": "js/tabs/trophy-room.js",
+          "bytes": 61381,
+          "hash": "c064a6a5fd"
+        },
+        {
+          "path": "js/theme.js",
+          "bytes": 13998,
+          "hash": "8a3b0c8e4f"
+        },
+        {
+          "path": "js/trade-calc.js",
+          "bytes": 195615,
+          "hash": "2525bb3684"
+        },
+        {
+          "path": "js/tutorial.js",
+          "bytes": 3878,
+          "hash": "4a56e2d613"
+        },
+        {
+          "path": "js/utils/gamelog-engine.js",
+          "bytes": 2214,
+          "hash": "916c02e294"
+        },
+        {
+          "path": "js/utils/nfl-byes.js",
+          "bytes": 1174,
+          "hash": "b19183eef3"
+        },
+        {
+          "path": "js/utils/player-value.js",
+          "bytes": 13382,
+          "hash": "cce8f695c7"
+        },
+        {
+          "path": "js/utils/schedule-engine.js",
+          "bytes": 3692,
+          "hash": "111a2e1c84"
+        },
+        {
+          "path": "js/utils/sos-engine.js",
+          "bytes": 3840,
+          "hash": "d25c2e9d38"
+        },
+        {
+          "path": "js/widgets/analyst-mock.js",
+          "bytes": 3927,
+          "hash": "669cd06cc7"
+        },
+        {
+          "path": "js/widgets/competitive-tiers.js",
+          "bytes": 26422,
+          "hash": "18166e91be"
+        },
+        {
+          "path": "js/widgets/draft-capital.js",
+          "bytes": 20010,
+          "hash": "82fed9f438"
+        },
+        {
+          "path": "js/widgets/faab-command.js",
+          "bytes": 5081,
+          "hash": "23b81ae431"
+        },
+        {
+          "path": "js/widgets/gap-plan.js",
+          "bytes": 11519,
+          "hash": "f72962705e"
+        },
+        {
+          "path": "js/widgets/league-calendar.js",
+          "bytes": 4659,
+          "hash": "768f25f5d5"
+        },
+        {
+          "path": "js/widgets/league-landscape.js",
+          "bytes": 19532,
+          "hash": "4813776338"
+        },
+        {
+          "path": "js/widgets/league-progress.js",
+          "bytes": 8431,
+          "hash": "3801255554"
+        },
+        {
+          "path": "js/widgets/lineup-check.js",
+          "bytes": 3748,
+          "hash": "8851d9613a"
+        },
+        {
+          "path": "js/widgets/market-radar.js",
+          "bytes": 33043,
+          "hash": "5b2315b6cf"
+        },
+        {
+          "path": "js/widgets/my-trophies.js",
+          "bytes": 17434,
+          "hash": "a051f5a841"
+        },
+        {
+          "path": "js/widgets/player-tags.js",
+          "bytes": 10343,
+          "hash": "f3396ee9b7"
+        },
+        {
+          "path": "js/widgets/power-rankings.js",
+          "bytes": 22676,
+          "hash": "8a41723483"
+        },
+        {
+          "path": "js/widgets/roster-pulse.js",
+          "bytes": 19504,
+          "hash": "7bb24b0a50"
+        },
+        {
+          "path": "js/widgets/window-forecast.js",
+          "bytes": 12145,
+          "hash": "b3ad143cf3"
+        }
+      ],
+      "release": {
+        "revision": "4c4c4e97b742acc5b4696808d290ab1d7784410e",
+        "builtAt": "2026-09-20T14:52:53.419Z",
+        "environment": "C2-Football/WarRoom"
+      },
+      "status": "passed"
+    },
+    {
+      "repo": "WarRoom-sandbox",
+      "base": "https://c2-football.github.io/WarRoom-sandbox/",
+      "checks": [
+        "Exact deployed revision and repository",
+        "index.html: compiled and content-hashed local scripts",
+        "draft-warroom.html: compiled and content-hashed local scripts",
+        "free-agency.html: compiled and content-hashed local scripts",
+        "trade-calculator.html: compiled and content-hashed local scripts",
+        "draft-war-room/index.html: compiled and content-hashed local scripts",
+        "landing.html: HTTP 200",
+        "login.html: HTTP 200",
+        "onboarding.html: HTTP 200",
+        "reset-password.html: HTTP 200",
+        "ai-settings.html: HTTP 200",
+        "upgrade.html: HTTP 200",
+        "gift.html: HTTP 200"
+      ],
+      "assets": [
+        {
+          "path": "charts.js",
+          "bytes": 6377,
+          "hash": "bb99b9565f"
+        },
+        {
+          "path": "college-stats.js",
+          "bytes": 3065,
+          "hash": "ef22b739ae"
+        },
+        {
+          "path": "data/duat/lore-catalog.json",
+          "bytes": 54989,
+          "hash": "fc60312804"
+        },
+        {
+          "path": "draft-history.js",
+          "bytes": 3982,
+          "hash": "0a02a5dd2a"
+        },
+        {
+          "path": "draft-war-room/csv-loader.js",
+          "bytes": 5762,
+          "hash": "492179b13b"
+        },
+        {
+          "path": "draft-war-room/supabase-config.js",
+          "bytes": 292,
+          "hash": "21c0ac75b3"
+        },
+        {
+          "path": "draft-war-room/supabase-draft-client.js",
+          "bytes": 3597,
+          "hash": "191fecaf74"
+        },
+        {
+          "path": "duat-council.css",
+          "bytes": 4777,
+          "hash": "83a8fea2a6"
+        },
+        {
+          "path": "duat-dynasty.css",
+          "bytes": 10856,
+          "hash": "5d4103a491"
+        },
+        {
+          "path": "duat-faction-marks.css",
+          "bytes": 1953,
+          "hash": "f6710e2b41"
+        },
+        {
+          "path": "duat-heptad.css",
+          "bytes": 14529,
+          "hash": "4bc9c6d4b9"
+        },
+        {
+          "path": "duat-home-mobile.css",
+          "bytes": 4104,
+          "hash": "bbacf42f05"
+        },
+        {
+          "path": "duat-identity-library.css",
+          "bytes": 4380,
+          "hash": "e7fc903d42"
+        },
+        {
+          "path": "duat-library.css",
+          "bytes": 10556,
+          "hash": "c6830843ff"
+        },
+        {
+          "path": "duat-map.css",
+          "bytes": 5369,
+          "hash": "044b175343"
+        },
+        {
+          "path": "duat-mobile-flow.css",
+          "bytes": 5351,
+          "hash": "d7ec53d026"
+        },
+        {
+          "path": "duat-phone.css",
+          "bytes": 17571,
+          "hash": "5b63af7a1b"
+        },
+        {
+          "path": "duat-rituals.css",
+          "bytes": 14162,
+          "hash": "21973e785b"
+        },
+        {
+          "path": "duat-season-home.css",
+          "bytes": 16681,
+          "hash": "f9893bcfd6"
+        },
+        {
+          "path": "duat-weekly-flow.css",
+          "bytes": 6889,
+          "hash": "2651dd2d3f"
+        },
+        {
+          "path": "duat.css",
+          "bytes": 40794,
+          "hash": "d2524ca180"
+        },
+        {
+          "path": "images/duat/crests/carthage.png",
+          "bytes": 36275,
+          "hash": "f5a34aaf3b"
+        },
+        {
+          "path": "images/duat/crests/china.png",
+          "bytes": 63900,
+          "hash": "f4879064a7"
+        },
+        {
+          "path": "images/duat/crests/egypt.png",
+          "bytes": 70284,
+          "hash": "7ce64994ef"
+        },
+        {
+          "path": "images/duat/crests/gaul.png",
+          "bytes": 36746,
+          "hash": "2c98817275"
+        },
+        {
+          "path": "images/duat/crests/greece.png",
+          "bytes": 30750,
+          "hash": "60d55e5f1e"
+        },
+        {
+          "path": "images/duat/crests/india.png",
+          "bytes": 48533,
+          "hash": "b1a05dbcab"
+        },
+        {
+          "path": "images/duat/crests/inis-fail.png",
+          "bytes": 109238,
+          "hash": "f6df4575c4"
+        },
+        {
+          "path": "images/duat/crests/japan.png",
+          "bytes": 35448,
+          "hash": "77fe1b2a86"
+        },
+        {
+          "path": "images/duat/crests/mayans.png",
+          "bytes": 53473,
+          "hash": "b867a9f163"
+        },
+        {
+          "path": "images/duat/crests/mesopotamia.png",
+          "bytes": 72927,
+          "hash": "e1f2ca36fe"
+        },
+        {
+          "path": "images/duat/crests/nubia.png",
+          "bytes": 18581,
+          "hash": "faf8fe59bd"
+        },
+        {
+          "path": "images/duat/crests/rome.png",
+          "bytes": 107977,
+          "hash": "921fe0615d"
+        },
+        {
+          "path": "images/duat/crests/vikings.png",
+          "bytes": 112821,
+          "hash": "0054a27a6f"
+        },
+        {
+          "path": "images/duat/crests/warhorsemen.png",
+          "bytes": 94190,
+          "hash": "bb21c4248f"
+        },
+        {
+          "path": "images/duat/excavation.webp",
+          "bytes": 283806,
+          "hash": "c6a49f88e1"
+        },
+        {
+          "path": "images/duat/expeditions/aksum.webp",
+          "bytes": 245032,
+          "hash": "68cff3fc81"
+        },
+        {
+          "path": "images/duat/expeditions/aztecs.webp",
+          "bytes": 191948,
+          "hash": "3c4f455ad6"
+        },
+        {
+          "path": "images/duat/expeditions/carthage.webp",
+          "bytes": 222970,
+          "hash": "463d7db327"
+        },
+        {
+          "path": "images/duat/expeditions/china.webp",
+          "bytes": 231144,
+          "hash": "5b14d78aab"
+        },
+        {
+          "path": "images/duat/expeditions/egypt.webp",
+          "bytes": 205342,
+          "hash": "04ebf74a81"
+        },
+        {
+          "path": "images/duat/expeditions/england.webp",
+          "bytes": 187056,
+          "hash": "ee890a060c"
+        },
+        {
+          "path": "images/duat/expeditions/gaul.webp",
+          "bytes": 268592,
+          "hash": "8d4868caf5"
+        },
+        {
+          "path": "images/duat/expeditions/greece.webp",
+          "bytes": 244824,
+          "hash": "4fa9ec1b5d"
+        },
+        {
+          "path": "images/duat/expeditions/inca.webp",
+          "bytes": 320754,
+          "hash": "fdb41151f4"
+        },
+        {
+          "path": "images/duat/expeditions/india.webp",
+          "bytes": 230814,
+          "hash": "1feab06332"
+        },
+        {
+          "path": "images/duat/expeditions/inis-fail.webp",
+          "bytes": 268410,
+          "hash": "7be106b5ac"
+        },
+        {
+          "path": "images/duat/expeditions/japan.webp",
+          "bytes": 244452,
+          "hash": "76d7dfe4ad"
+        },
+        {
+          "path": "images/duat/expeditions/khmer.webp",
+          "bytes": 266198,
+          "hash": "6b293a852e"
+        },
+        {
+          "path": "images/duat/expeditions/korea.webp",
+          "bytes": 212232,
+          "hash": "830d4aa63d"
+        },
+        {
+          "path": "images/duat/expeditions/majapahit.webp",
+          "bytes": 264856,
+          "hash": "bf73125e25"
+        },
+        {
+          "path": "images/duat/expeditions/mali.webp",
+          "bytes": 205108,
+          "hash": "7b1b211cab"
+        },
+        {
+          "path": "images/duat/expeditions/mayans.webp",
+          "bytes": 259440,
+          "hash": "eb69f6a0ef"
+        },
+        {
+          "path": "images/duat/expeditions/mesopotamia.webp",
+          "bytes": 229500,
+          "hash": "0dba14f253"
+        },
+        {
+          "path": "images/duat/expeditions/mongols.webp",
+          "bytes": 169916,
+          "hash": "f77545f89a"
+        },
+        {
+          "path": "images/duat/expeditions/nubia.webp",
+          "bytes": 189240,
+          "hash": "05906d1dfe"
+        },
+        {
+          "path": "images/duat/expeditions/persia.webp",
+          "bytes": 231972,
+          "hash": "6d07dab134"
+        },
+        {
+          "path": "images/duat/expeditions/poland.webp",
+          "bytes": 210434,
+          "hash": "54141cc694"
+        },
+        {
+          "path": "images/duat/expeditions/portugal.webp",
+          "bytes": 176120,
+          "hash": "41617960c5"
+        },
+        {
+          "path": "images/duat/expeditions/provenance-set-a.json",
+          "bytes": 26091,
+          "hash": "19d44c3c31"
+        },
+        {
+          "path": "images/duat/expeditions/provenance-set-b.json",
+          "bytes": 34689,
+          "hash": "12d7338aae"
+        },
+        {
+          "path": "images/duat/expeditions/rome.webp",
+          "bytes": 211906,
+          "hash": "b7ce673c47"
+        },
+        {
+          "path": "images/duat/expeditions/siam.webp",
+          "bytes": 233548,
+          "hash": "1d874fbc4a"
+        },
+        {
+          "path": "images/duat/expeditions/vikings.webp",
+          "bytes": 224522,
+          "hash": "6c3746b6de"
+        },
+        {
+          "path": "images/duat/expeditions/warhorsemen.webp",
+          "bytes": 250454,
+          "hash": "b4c0440168"
+        },
+        {
+          "path": "images/duat/expeditions/zulu.webp",
+          "bytes": 224670,
+          "hash": "c51643c5b1"
+        },
+        {
+          "path": "images/duat/hero.webp",
+          "bytes": 249132,
+          "hash": "b00bb96b43"
+        },
+        {
+          "path": "images/duat/horus.webp",
+          "bytes": 291924,
+          "hash": "5808fbb3f8"
+        },
+        {
+          "path": "images/duat/janus.webp",
+          "bytes": 256306,
+          "hash": "f2e7a2b240"
+        },
+        {
+          "path": "images/duat/kratos.webp",
+          "bytes": 258906,
+          "hash": "f434e24bfc"
+        },
+        {
+          "path": "images/duat/manifest.json",
+          "bytes": 11706,
+          "hash": "756231d0b2"
+        },
+        {
+          "path": "images/duat/pantheon-atlas.provenance.json",
+          "bytes": 2175,
+          "hash": "152258ea57"
+        },
+        {
+          "path": "images/duat/pantheon-atlas.webp",
+          "bytes": 407948,
+          "hash": "6396db89c9"
+        },
+        {
+          "path": "js/app.js",
+          "bytes": 63961,
+          "hash": "53873b3645"
+        },
+        {
+          "path": "js/components.js",
+          "bytes": 23595,
+          "hash": "b28905ebc6"
+        },
+        {
+          "path": "js/components/chop-block-panel.js",
+          "bytes": 7200,
+          "hash": "1899500cba"
+        },
+        {
+          "path": "js/components/commish-command-panel.js",
+          "bytes": 22829,
+          "hash": "81c888e139"
+        },
+        {
+          "path": "js/components/commish-genesis-panel.js",
+          "bytes": 10843,
+          "hash": "db80f5c629"
+        },
+        {
+          "path": "js/components/commish-governance-panel.js",
+          "bytes": 10651,
+          "hash": "87056f8b60"
+        },
+        {
+          "path": "js/components/commish-network-panel.js",
+          "bytes": 11860,
+          "hash": "8d7224cce0"
+        },
+        {
+          "path": "js/components/commish-ops-panel.js",
+          "bytes": 15174,
+          "hash": "ae93924156"
+        },
+        {
+          "path": "js/components/commish-people-panel.js",
+          "bytes": 12132,
+          "hash": "ff8a04c940"
+        },
+        {
+          "path": "js/components/commish-rulelab-panel.js",
+          "bytes": 35178,
+          "hash": "e64be3b50e"
+        },
+        {
+          "path": "js/components/commish-schedule-panel.js",
+          "bytes": 14613,
+          "hash": "14c2dd84ff"
+        },
+        {
+          "path": "js/components/commish-sidebar.js",
+          "bytes": 18396,
+          "hash": "662be9f61e"
+        },
+        {
+          "path": "js/components/cup-honours.js",
+          "bytes": 4962,
+          "hash": "39ae77e292"
+        },
+        {
+          "path": "js/components/duat-council.js",
+          "bytes": 6799,
+          "hash": "5d925377d9"
+        },
+        {
+          "path": "js/components/duat-faction-marks.js",
+          "bytes": 12391,
+          "hash": "94dc675a06"
+        },
+        {
+          "path": "js/components/duat-heptad.js",
+          "bytes": 25249,
+          "hash": "8d0bb7f79d"
+        },
+        {
+          "path": "js/components/duat-identity-library.js",
+          "bytes": 9477,
+          "hash": "3d4b96e466"
+        },
+        {
+          "path": "js/components/duat-library.js",
+          "bytes": 16418,
+          "hash": "161bb656b8"
+        },
+        {
+          "path": "js/components/duat-mystery.js",
+          "bytes": 4737,
+          "hash": "72aeb892b7"
+        },
+        {
+          "path": "js/components/duat-presentation.js",
+          "bytes": 43223,
+          "hash": "0ba7652cbb"
+        },
+        {
+          "path": "js/components/duat-rituals.js",
+          "bytes": 20256,
+          "hash": "d0f3bccd6c"
+        },
+        {
+          "path": "js/components/duat-season-home.js",
+          "bytes": 20739,
+          "hash": "6df90f52b4"
+        },
+        {
+          "path": "js/components/duat-weekly-flow.js",
+          "bytes": 15969,
+          "hash": "5016c044a6"
+        },
+        {
+          "path": "js/components/league-live-scoreboard.js",
+          "bytes": 16832,
+          "hash": "b2b3137fa6"
+        },
+        {
+          "path": "js/components/league-wire-portfolio.js",
+          "bytes": 6548,
+          "hash": "8c23e4967b"
+        },
+        {
+          "path": "js/components/league-wire.js",
+          "bytes": 35455,
+          "hash": "5aab3bec3d"
+        },
+        {
+          "path": "js/components/manual-seasons-editor.js",
+          "bytes": 5893,
+          "hash": "925a5f76aa"
+        },
+        {
+          "path": "js/components/player-card.js",
+          "bytes": 41495,
+          "hash": "a07d981cb4"
+        },
+        {
+          "path": "js/components/season-odds-panel.js",
+          "bytes": 15475,
+          "hash": "59b1230a00"
+        },
+        {
+          "path": "js/components/time-league-activity-panel.js",
+          "bytes": 1023,
+          "hash": "f3ca9a8915"
+        },
+        {
+          "path": "js/components/time-league-career-panel.js",
+          "bytes": 3394,
+          "hash": "22595d1616"
+        },
+        {
+          "path": "js/components/time-league-career-view.js",
+          "bytes": 2331,
+          "hash": "ad47dbd02c"
+        },
+        {
+          "path": "js/components/time-league-ceremony.js",
+          "bytes": 3613,
+          "hash": "817a878a32"
+        },
+        {
+          "path": "js/components/time-league-community-panel.js",
+          "bytes": 8822,
+          "hash": "b7884cfc50"
+        },
+        {
+          "path": "js/components/time-league-draft-controls.js",
+          "bytes": 13482,
+          "hash": "684e5b6718"
+        },
+        {
+          "path": "js/components/time-league-draft-panel.js",
+          "bytes": 40987,
+          "hash": "3c1cfa477d"
+        },
+        {
+          "path": "js/components/time-league-draft-roster.js",
+          "bytes": 2622,
+          "hash": "92f81af6e7"
+        },
+        {
+          "path": "js/components/time-league-gamecast-panel.js",
+          "bytes": 20771,
+          "hash": "c9105ddc6a"
+        },
+        {
+          "path": "js/components/time-league-helmet.js",
+          "bytes": 6716,
+          "hash": "0889b502f9"
+        },
+        {
+          "path": "js/components/time-league-home-panel.js",
+          "bytes": 12049,
+          "hash": "e472d00de3"
+        },
+        {
+          "path": "js/components/time-league-profile-panel.js",
+          "bytes": 5544,
+          "hash": "fe7fe83f08"
+        },
+        {
+          "path": "js/components/time-league-rivals-panel.js",
+          "bytes": 12222,
+          "hash": "c69d8838ec"
+        },
+        {
+          "path": "js/components/time-league-setup-panel.js",
+          "bytes": 29665,
+          "hash": "796ebadae6"
+        },
+        {
+          "path": "js/components/time-league-standings-panel.js",
+          "bytes": 6068,
+          "hash": "bdff5d53d1"
+        },
+        {
+          "path": "js/components/time-league-stats-panel.js",
+          "bytes": 7277,
+          "hash": "07f2fb9b30"
+        },
+        {
+          "path": "js/components/time-league-team-panel.js",
+          "bytes": 51570,
+          "hash": "d618dbc2af"
+        },
+        {
+          "path": "js/components/time-league-week-gates.js",
+          "bytes": 5249,
+          "hash": "981b65ec8c"
+        },
+        {
+          "path": "js/components/woeppel-cup-panel.js",
+          "bytes": 41127,
+          "hash": "33c3802b60"
+        },
+        {
+          "path": "js/components/wr-primitives.js",
+          "bytes": 34334,
+          "hash": "36a499eca5"
+        },
+        {
+          "path": "js/core.js",
+          "bytes": 17931,
+          "hash": "00febe8fea"
+        },
+        {
+          "path": "js/draft-room.js",
+          "bytes": 158827,
+          "hash": "bd86d83c5c"
+        },
+        {
+          "path": "js/draft/alex-call.js",
+          "bytes": 5387,
+          "hash": "1824976cc0"
+        },
+        {
+          "path": "js/draft/alex-edge-glow.js",
+          "bytes": 1995,
+          "hash": "8f89115b56"
+        },
+        {
+          "path": "js/draft/alex-stream.js",
+          "bytes": 7024,
+          "hash": "4301b966d5"
+        },
+        {
+          "path": "js/draft/analyst-mock.js",
+          "bytes": 28346,
+          "hash": "882164b6b6"
+        },
+        {
+          "path": "js/draft/ask-window.js",
+          "bytes": 14726,
+          "hash": "e0b6af2d68"
+        },
+        {
+          "path": "js/draft/big-board.js",
+          "bytes": 32243,
+          "hash": "5b3fac7088"
+        },
+        {
+          "path": "js/draft/command-center.js",
+          "bytes": 255449,
+          "hash": "4df257c60d"
+        },
+        {
+          "path": "js/draft/context.js",
+          "bytes": 21187,
+          "hash": "855debc483"
+        },
+        {
+          "path": "js/draft/cpu-engine.js",
+          "bytes": 1106,
+          "hash": "481ea11497"
+        },
+        {
+          "path": "js/draft/draft-grid.js",
+          "bytes": 11536,
+          "hash": "ad91480883"
+        },
+        {
+          "path": "js/draft/exports.js",
+          "bytes": 6241,
+          "hash": "abc429c4f3"
+        },
+        {
+          "path": "js/draft/ghost-replay.js",
+          "bytes": 2818,
+          "hash": "e34dbba4e4"
+        },
+        {
+          "path": "js/draft/live-analytics.js",
+          "bytes": 14799,
+          "hash": "5ac2cddb01"
+        },
+        {
+          "path": "js/draft/live-decision-engine.js",
+          "bytes": 27009,
+          "hash": "3bf1604953"
+        },
+        {
+          "path": "js/draft/live-pick-brief.js",
+          "bytes": 20224,
+          "hash": "8e2eb63c3d"
+        },
+        {
+          "path": "js/draft/live-room-engine.js",
+          "bytes": 11561,
+          "hash": "ca87285dcc"
+        },
+        {
+          "path": "js/draft/live-room.js",
+          "bytes": 18947,
+          "hash": "f6d7673860"
+        },
+        {
+          "path": "js/draft/live-sync.js",
+          "bytes": 6812,
+          "hash": "9a42d9a26b"
+        },
+        {
+          "path": "js/draft/opponent-intel.js",
+          "bytes": 16303,
+          "hash": "fbf11233ca"
+        },
+        {
+          "path": "js/draft/persistence.js",
+          "bytes": 3013,
+          "hash": "0d3ea4a4ed"
+        },
+        {
+          "path": "js/draft/persona.js",
+          "bytes": 3515,
+          "hash": "3c292654ff"
+        },
+        {
+          "path": "js/draft/scenarios.js",
+          "bytes": 2554,
+          "hash": "dce007df7c"
+        },
+        {
+          "path": "js/draft/scouting.js",
+          "bytes": 2805,
+          "hash": "1b60b93d43"
+        },
+        {
+          "path": "js/draft/state.js",
+          "bytes": 69765,
+          "hash": "b6d9c131fe"
+        },
+        {
+          "path": "js/draft/styles.js",
+          "bytes": 1147,
+          "hash": "02e886f838"
+        },
+        {
+          "path": "js/draft/trade-helpers.js",
+          "bytes": 4847,
+          "hash": "0c5d262970"
+        },
+        {
+          "path": "js/draft/trade-modal.js",
+          "bytes": 9115,
+          "hash": "efd87be960"
+        },
+        {
+          "path": "js/draft/trade-proposer.js",
+          "bytes": 43357,
+          "hash": "686dccfe6e"
+        },
+        {
+          "path": "js/draft/trade-simulator.js",
+          "bytes": 29885,
+          "hash": "4e3d7ce5c9"
+        },
+        {
+          "path": "js/duat/army-generation.js",
+          "bytes": 11344,
+          "hash": "850f54b160"
+        },
+        {
+          "path": "js/duat/campaign.js",
+          "bytes": 34475,
+          "hash": "18ed0f78df"
+        },
+        {
+          "path": "js/duat/conquest.js",
+          "bytes": 20757,
+          "hash": "aff44f4b0f"
+        },
+        {
+          "path": "js/duat/council-state.js",
+          "bytes": 3521,
+          "hash": "d2e85883d1"
+        },
+        {
+          "path": "js/duat/dynasty.js",
+          "bytes": 40844,
+          "hash": "0958de70d8"
+        },
+        {
+          "path": "js/duat/favor-availability.js",
+          "bytes": 8577,
+          "hash": "d05688700f"
+        },
+        {
+          "path": "js/duat/favors.js",
+          "bytes": 8453,
+          "hash": "dac675f777"
+        },
+        {
+          "path": "js/duat/heptad.js",
+          "bytes": 9642,
+          "hash": "d0183c7f62"
+        },
+        {
+          "path": "js/duat/identity-library.js",
+          "bytes": 127737,
+          "hash": "78c83a2aea"
+        },
+        {
+          "path": "js/duat/lore.js",
+          "bytes": 61337,
+          "hash": "0a5f6d6d85"
+        },
+        {
+          "path": "js/duat/map.js",
+          "bytes": 4006,
+          "hash": "63c7ed4e08"
+        },
+        {
+          "path": "js/duat/mystery.js",
+          "bytes": 8283,
+          "hash": "6f6606fbaf"
+        },
+        {
+          "path": "js/duat/personalities.js",
+          "bytes": 59784,
+          "hash": "7a396cc5ab"
+        },
+        {
+          "path": "js/duat/provinces.js",
+          "bytes": 6697161,
+          "hash": "1b3cd552be"
+        },
+        {
+          "path": "js/duat/remote.js",
+          "bytes": 934,
+          "hash": "3268794def"
+        },
+        {
+          "path": "js/duat/rituals.js",
+          "bytes": 22815,
+          "hash": "f32789184a"
+        },
+        {
+          "path": "js/duat/rules.js",
+          "bytes": 28109,
+          "hash": "67c98bc001"
+        },
+        {
+          "path": "js/duat/season-home.js",
+          "bytes": 8948,
+          "hash": "6818d79076"
+        },
+        {
+          "path": "js/duat/session.js",
+          "bytes": 7809,
+          "hash": "7134a74e8d"
+        },
+        {
+          "path": "js/duat/storage.js",
+          "bytes": 2944,
+          "hash": "9527de4f54"
+        },
+        {
+          "path": "js/duat/strategy.js",
+          "bytes": 3817,
+          "hash": "d8527c3109"
+        },
+        {
+          "path": "js/duat/vendor/lz-string-1.5.0.js",
+          "bytes": 4815,
+          "hash": "0b0c3db2b7"
+        },
+        {
+          "path": "js/duat/weekly-flow.js",
+          "bytes": 13016,
+          "hash": "b9e2bba71c"
+        },
+        {
+          "path": "js/duat/weekly-progress.js",
+          "bytes": 4214,
+          "hash": "4db6f01e65"
+        },
+        {
+          "path": "js/duat/world.js",
+          "bytes": 579904,
+          "hash": "124d3d7870"
+        },
+        {
+          "path": "js/export.js",
+          "bytes": 1032,
+          "hash": "e4fc218598"
+        },
+        {
+          "path": "js/free-agency.js",
+          "bytes": 110626,
+          "hash": "ae885e4690"
+        },
+        {
+          "path": "js/league-detail.js",
+          "bytes": 113742,
+          "hash": "933c4401f5"
+        },
+        {
+          "path": "js/league-skin.js",
+          "bytes": 11358,
+          "hash": "a7533a179c"
+        },
+        {
+          "path": "js/mock-draft.js",
+          "bytes": 24228,
+          "hash": "a35163e3fe"
+        },
+        {
+          "path": "js/module-loader.js",
+          "bytes": 1397,
+          "hash": "2e570fa769"
+        },
+        {
+          "path": "js/post-draft.js",
+          "bytes": 5667,
+          "hash": "5cf7afa316"
+        },
+        {
+          "path": "js/pro-launch.js",
+          "bytes": 18141,
+          "hash": "499b596719"
+        },
+        {
+          "path": "js/settings.js",
+          "bytes": 30942,
+          "hash": "706ee36d9e"
+        },
+        {
+          "path": "js/shared/account-storage.js",
+          "bytes": 6294,
+          "hash": "1382651e72"
+        },
+        {
+          "path": "js/shared/achievements.js",
+          "bytes": 5251,
+          "hash": "c23effa2bf"
+        },
+        {
+          "path": "js/shared/adp-market.js",
+          "bytes": 4842,
+          "hash": "c531f3db04"
+        },
+        {
+          "path": "js/shared/ai-access.js",
+          "bytes": 5274,
+          "hash": "f66981d57c"
+        },
+        {
+          "path": "js/shared/alex-settings.js",
+          "bytes": 2068,
+          "hash": "4d992f86ed"
+        },
+        {
+          "path": "js/shared/alex-voice.js",
+          "bytes": 2553,
+          "hash": "30747f9a43"
+        },
+        {
+          "path": "js/shared/availability-forecast.js",
+          "bytes": 1859,
+          "hash": "494cecf298"
+        },
+        {
+          "path": "js/shared/chop-odds.js",
+          "bytes": 3736,
+          "hash": "08df2d3287"
+        },
+        {
+          "path": "js/shared/chopped.js",
+          "bytes": 1321,
+          "hash": "c4a7db7161"
+        },
+        {
+          "path": "js/shared/commish-bench.js",
+          "bytes": 6714,
+          "hash": "a700d95530"
+        },
+        {
+          "path": "js/shared/commish-bylaws.js",
+          "bytes": 4554,
+          "hash": "96623197f7"
+        },
+        {
+          "path": "js/shared/commish-calendar.js",
+          "bytes": 4814,
+          "hash": "84b9e1bbad"
+        },
+        {
+          "path": "js/shared/commish-coefficient.js",
+          "bytes": 1885,
+          "hash": "61cc6fedcf"
+        },
+        {
+          "path": "js/shared/commish-drift.js",
+          "bytes": 2380,
+          "hash": "a9d57adc3f"
+        },
+        {
+          "path": "js/shared/commish-engine.js",
+          "bytes": 2511,
+          "hash": "82655accae"
+        },
+        {
+          "path": "js/shared/commish-followups.js",
+          "bytes": 2549,
+          "hash": "2092961c0e"
+        },
+        {
+          "path": "js/shared/commish-genesis.js",
+          "bytes": 5248,
+          "hash": "7b1f793cfa"
+        },
+        {
+          "path": "js/shared/commish-prefs.js",
+          "bytes": 3177,
+          "hash": "24f264c276"
+        },
+        {
+          "path": "js/shared/commish-programme.js",
+          "bytes": 3985,
+          "hash": "0346c657d2"
+        },
+        {
+          "path": "js/shared/commish-radar.js",
+          "bytes": 4947,
+          "hash": "2ec80ace68"
+        },
+        {
+          "path": "js/shared/commish-renewal.js",
+          "bytes": 4880,
+          "hash": "476dc9ab4a"
+        },
+        {
+          "path": "js/shared/commish-rulelab.js",
+          "bytes": 13366,
+          "hash": "11c6977ea3"
+        },
+        {
+          "path": "js/shared/commish-schedule-nfl.js",
+          "bytes": 4569,
+          "hash": "48a0ea253f"
+        },
+        {
+          "path": "js/shared/commish-schedule.js",
+          "bytes": 5568,
+          "hash": "354b6ae862"
+        },
+        {
+          "path": "js/shared/commish-tasks.js",
+          "bytes": 2156,
+          "hash": "59d0520389"
+        },
+        {
+          "path": "js/shared/commish-treasury.js",
+          "bytes": 4362,
+          "hash": "b2d349b614"
+        },
+        {
+          "path": "js/shared/commish-triage.js",
+          "bytes": 18698,
+          "hash": "73d8728e57"
+        },
+        {
+          "path": "js/shared/dashboard-league-data.js",
+          "bytes": 8487,
+          "hash": "4a4b662fa3"
+        },
+        {
+          "path": "js/shared/dashboard-league-layout.js",
+          "bytes": 816,
+          "hash": "4d27a93c52"
+        },
+        {
+          "path": "js/shared/draft-gameplan.js",
+          "bytes": 4930,
+          "hash": "3e720f5aa1"
+        },
+        {
+          "path": "js/shared/draft-profile-data.js",
+          "bytes": 131290,
+          "hash": "9fa5f8f230"
+        },
+        {
+          "path": "js/shared/empire-decisions.js",
+          "bytes": 2912,
+          "hash": "7eb9cde4e5"
+        },
+        {
+          "path": "js/shared/empire-values.js",
+          "bytes": 3860,
+          "hash": "c323568b90"
+        },
+        {
+          "path": "js/shared/fa-market-data.js",
+          "bytes": 1306,
+          "hash": "974743a222"
+        },
+        {
+          "path": "js/shared/faab-engine.js",
+          "bytes": 4352,
+          "hash": "de8117cb8c"
+        },
+        {
+          "path": "js/shared/feedback-hub.js",
+          "bytes": 16072,
+          "hash": "fedd47ce0f"
+        },
+        {
+          "path": "js/shared/forecast-archive.js",
+          "bytes": 1426,
+          "hash": "fd69abfdd3"
+        },
+        {
+          "path": "js/shared/forecast-ledger.js",
+          "bytes": 8730,
+          "hash": "dd20fc0998"
+        },
+        {
+          "path": "js/shared/gm-mode.js",
+          "bytes": 9673,
+          "hash": "7b40584619"
+        },
+        {
+          "path": "js/shared/league-history.js",
+          "bytes": 12306,
+          "hash": "110ffed9e1"
+        },
+        {
+          "path": "js/shared/league-live-scores.js",
+          "bytes": 3916,
+          "hash": "95a9d3d9fe"
+        },
+        {
+          "path": "js/shared/league-live-standings.js",
+          "bytes": 4888,
+          "hash": "db078768d8"
+        },
+        {
+          "path": "js/shared/league-live-table.js",
+          "bytes": 3511,
+          "hash": "0713467759"
+        },
+        {
+          "path": "js/shared/league-stats.js",
+          "bytes": 14761,
+          "hash": "334620e6e0"
+        },
+        {
+          "path": "js/shared/league-wire-cache.js",
+          "bytes": 1834,
+          "hash": "30451ff734"
+        },
+        {
+          "path": "js/shared/league-wire-chronicles-data.js",
+          "bytes": 58281,
+          "hash": "507653d83c"
+        },
+        {
+          "path": "js/shared/league-wire-chronicles.js",
+          "bytes": 5393,
+          "hash": "002486c4fb"
+        },
+        {
+          "path": "js/shared/league-wire-journal.js",
+          "bytes": 16120,
+          "hash": "886ac1e256"
+        },
+        {
+          "path": "js/shared/league-wire-portfolio.js",
+          "bytes": 3730,
+          "hash": "a1d8d66a73"
+        },
+        {
+          "path": "js/shared/league-workspaces.js",
+          "bytes": 4225,
+          "hash": "a58ded4480"
+        },
+        {
+          "path": "js/shared/lineup-forecast-snapshots.js",
+          "bytes": 1239,
+          "hash": "f5d7845ee0"
+        },
+        {
+          "path": "js/shared/luck-engine.js",
+          "bytes": 2796,
+          "hash": "35c238074a"
+        },
+        {
+          "path": "js/shared/matchup.js",
+          "bytes": 4917,
+          "hash": "63d5b4822d"
+        },
+        {
+          "path": "js/shared/navigation-guard.js",
+          "bytes": 357,
+          "hash": "80b3223843"
+        },
+        {
+          "path": "js/shared/nfl-context.js",
+          "bytes": 3836,
+          "hash": "804ccdd6c1"
+        },
+        {
+          "path": "js/shared/player-notebook.js",
+          "bytes": 8539,
+          "hash": "7d539e1e6c"
+        },
+        {
+          "path": "js/shared/playoff-odds.js",
+          "bytes": 5639,
+          "hash": "697f0c1481"
+        },
+        {
+          "path": "js/shared/pro-gate.js",
+          "bytes": 646,
+          "hash": "d408581bac"
+        },
+        {
+          "path": "js/shared/roster-cutdown.js",
+          "bytes": 1488,
+          "hash": "eac0f26212"
+        },
+        {
+          "path": "js/shared/saved-reports.js",
+          "bytes": 2046,
+          "hash": "a3cf8a45a8"
+        },
+        {
+          "path": "js/shared/saved-views.js",
+          "bytes": 6196,
+          "hash": "3f14899cf7"
+        },
+        {
+          "path": "js/shared/shared-loader.js",
+          "bytes": 2214,
+          "hash": "23751556d1"
+        },
+        {
+          "path": "js/shared/snapshot-store.js",
+          "bytes": 3754,
+          "hash": "ade1df2767"
+        },
+        {
+          "path": "js/shared/startsit-engine.js",
+          "bytes": 5640,
+          "hash": "d722df5685"
+        },
+        {
+          "path": "js/shared/stat-catalog.js",
+          "bytes": 7924,
+          "hash": "21b6ddefb3"
+        },
+        {
+          "path": "js/shared/sync-manager.js",
+          "bytes": 1279,
+          "hash": "ab687e439a"
+        },
+        {
+          "path": "js/shared/time-league-achievements.js",
+          "bytes": 3890,
+          "hash": "f3263da37d"
+        },
+        {
+          "path": "js/shared/time-league-actions.js",
+          "bytes": 9376,
+          "hash": "92cd3ee06c"
+        },
+        {
+          "path": "js/shared/time-league-ai.js",
+          "bytes": 14539,
+          "hash": "6bda1a0005"
+        },
+        {
+          "path": "js/shared/time-league-career-store.js",
+          "bytes": 930,
+          "hash": "dc62cd09a9"
+        },
+        {
+          "path": "js/shared/time-league-career.js",
+          "bytes": 2971,
+          "hash": "b3f4f5ab20"
+        },
+        {
+          "path": "js/shared/time-league-draft-clock.js",
+          "bytes": 1294,
+          "hash": "86ba552f60"
+        },
+        {
+          "path": "js/shared/time-league-draft-room.js",
+          "bytes": 1227,
+          "hash": "ae212677a6"
+        },
+        {
+          "path": "js/shared/time-league-engine.js",
+          "bytes": 50634,
+          "hash": "44421009f2"
+        },
+        {
+          "path": "js/shared/time-league-era-rules.js",
+          "bytes": 4267,
+          "hash": "86d146321a"
+        },
+        {
+          "path": "js/shared/time-league-gamecast.js",
+          "bytes": 7628,
+          "hash": "dbfbfb1b46"
+        },
+        {
+          "path": "js/shared/time-league-helmet-artwork.js",
+          "bytes": 2101,
+          "hash": "acffe67ab0"
+        },
+        {
+          "path": "js/shared/time-league-helmet-sources.js",
+          "bytes": 40609,
+          "hash": "f5bf34b074"
+        },
+        {
+          "path": "js/shared/time-league-helmet.js",
+          "bytes": 10681,
+          "hash": "21d9c76a1a"
+        },
+        {
+          "path": "js/shared/time-league-hidden-years.js",
+          "bytes": 4107,
+          "hash": "d4a70851be"
+        },
+        {
+          "path": "js/shared/time-league-player-cards.js",
+          "bytes": 2604,
+          "hash": "fc784b9322"
+        },
+        {
+          "path": "js/shared/time-league-player-stats.js",
+          "bytes": 4056,
+          "hash": "d0f5c249f0"
+        },
+        {
+          "path": "js/shared/time-league-profile.js",
+          "bytes": 3343,
+          "hash": "04e0bc390c"
+        },
+        {
+          "path": "js/shared/time-league-public-state.js",
+          "bytes": 10363,
+          "hash": "804763fd48"
+        },
+        {
+          "path": "js/shared/time-league-remote-client.js",
+          "bytes": 2536,
+          "hash": "569ffc01b6"
+        },
+        {
+          "path": "js/shared/time-league-rivals.js",
+          "bytes": 43066,
+          "hash": "00a278f63b"
+        },
+        {
+          "path": "js/shared/time-league-roster.js",
+          "bytes": 2269,
+          "hash": "efbb3138e2"
+        },
+        {
+          "path": "js/shared/time-league-rules.js",
+          "bytes": 287,
+          "hash": "146ee62bf7"
+        },
+        {
+          "path": "js/shared/time-league-season.js",
+          "bytes": 12311,
+          "hash": "6878c13380"
+        },
+        {
+          "path": "js/shared/time-league-storage.js",
+          "bytes": 1551,
+          "hash": "68de5c7d69"
+        },
+        {
+          "path": "js/shared/time-league-strategy.js",
+          "bytes": 11309,
+          "hash": "40515fecc3"
+        },
+        {
+          "path": "js/shared/time-league-types.js",
+          "bytes": 275,
+          "hash": "f086210ada"
+        },
+        {
+          "path": "js/shared/time-league-ui.js",
+          "bytes": 1236,
+          "hash": "c7a1a87ebd"
+        },
+        {
+          "path": "js/shared/trend-badge.js",
+          "bytes": 520,
+          "hash": "9646e21cbe"
+        },
+        {
+          "path": "js/shared/txn-store.js",
+          "bytes": 1829,
+          "hash": "25f2cca0d3"
+        },
+        {
+          "path": "js/shared/viewport.js",
+          "bytes": 1519,
+          "hash": "b7ef21c64d"
+        },
+        {
+          "path": "js/shared/weekly-proj.js",
+          "bytes": 7973,
+          "hash": "571e2ca40b"
+        },
+        {
+          "path": "js/shared/woeppel-cup.js",
+          "bytes": 14768,
+          "hash": "b4bbefadcc"
+        },
+        {
+          "path": "js/shared/wr-ai-context.js",
+          "bytes": 5570,
+          "hash": "2feb680cef"
+        },
+        {
+          "path": "js/tabs/alex-insights.js",
+          "bytes": 67351,
+          "hash": "a9e17a4485"
+        },
+        {
+          "path": "js/tabs/analytics.js",
+          "bytes": 81713,
+          "hash": "e6283302fe"
+        },
+        {
+          "path": "js/tabs/calendar.js",
+          "bytes": 11026,
+          "hash": "832a82fba1"
+        },
+        {
+          "path": "js/tabs/commissioner-office.js",
+          "bytes": 43319,
+          "hash": "47d7116dc3"
+        },
+        {
+          "path": "js/tabs/compare.js",
+          "bytes": 105094,
+          "hash": "420dcccfc7"
+        },
+        {
+          "path": "js/tabs/dashboard.js",
+          "bytes": 71487,
+          "hash": "cbe14b8dfa"
+        },
+        {
+          "path": "js/tabs/duat.js",
+          "bytes": 61718,
+          "hash": "23d4673d3c"
+        },
+        {
+          "path": "js/tabs/flash-brief.js",
+          "bytes": 37891,
+          "hash": "d5e64f4d3c"
+        },
+        {
+          "path": "js/tabs/global-view.js",
+          "bytes": 187129,
+          "hash": "5087c5a0f0"
+        },
+        {
+          "path": "js/tabs/league-central.js",
+          "bytes": 30255,
+          "hash": "1cd450b844"
+        },
+        {
+          "path": "js/tabs/league-map.js",
+          "bytes": 106912,
+          "hash": "d6d063e184"
+        },
+        {
+          "path": "js/tabs/lineup.js",
+          "bytes": 81191,
+          "hash": "744cf158df"
+        },
+        {
+          "path": "js/tabs/my-team.js",
+          "bytes": 103360,
+          "hash": "f541e4df5e"
+        },
+        {
+          "path": "js/tabs/stats.js",
+          "bytes": 31990,
+          "hash": "88cc860689"
+        },
+        {
+          "path": "js/tabs/strategy-editor.js",
+          "bytes": 31564,
+          "hash": "98c575b7e0"
+        },
+        {
+          "path": "js/tabs/time-league.js",
+          "bytes": 117739,
+          "hash": "388361dec5"
+        },
+        {
+          "path": "js/tabs/trophy-room.js",
+          "bytes": 61381,
+          "hash": "c064a6a5fd"
+        },
+        {
+          "path": "js/theme.js",
+          "bytes": 13998,
+          "hash": "8a3b0c8e4f"
+        },
+        {
+          "path": "js/trade-calc.js",
+          "bytes": 195615,
+          "hash": "2525bb3684"
+        },
+        {
+          "path": "js/tutorial.js",
+          "bytes": 3878,
+          "hash": "4a56e2d613"
+        },
+        {
+          "path": "js/utils/gamelog-engine.js",
+          "bytes": 2214,
+          "hash": "916c02e294"
+        },
+        {
+          "path": "js/utils/nfl-byes.js",
+          "bytes": 1174,
+          "hash": "b19183eef3"
+        },
+        {
+          "path": "js/utils/player-value.js",
+          "bytes": 13382,
+          "hash": "cce8f695c7"
+        },
+        {
+          "path": "js/utils/schedule-engine.js",
+          "bytes": 3692,
+          "hash": "111a2e1c84"
+        },
+        {
+          "path": "js/utils/sos-engine.js",
+          "bytes": 3840,
+          "hash": "d25c2e9d38"
+        },
+        {
+          "path": "js/widgets/analyst-mock.js",
+          "bytes": 3927,
+          "hash": "669cd06cc7"
+        },
+        {
+          "path": "js/widgets/competitive-tiers.js",
+          "bytes": 26422,
+          "hash": "18166e91be"
+        },
+        {
+          "path": "js/widgets/draft-capital.js",
+          "bytes": 20010,
+          "hash": "82fed9f438"
+        },
+        {
+          "path": "js/widgets/faab-command.js",
+          "bytes": 5081,
+          "hash": "23b81ae431"
+        },
+        {
+          "path": "js/widgets/gap-plan.js",
+          "bytes": 11519,
+          "hash": "f72962705e"
+        },
+        {
+          "path": "js/widgets/league-calendar.js",
+          "bytes": 4659,
+          "hash": "768f25f5d5"
+        },
+        {
+          "path": "js/widgets/league-landscape.js",
+          "bytes": 19532,
+          "hash": "4813776338"
+        },
+        {
+          "path": "js/widgets/league-progress.js",
+          "bytes": 8431,
+          "hash": "3801255554"
+        },
+        {
+          "path": "js/widgets/lineup-check.js",
+          "bytes": 3748,
+          "hash": "8851d9613a"
+        },
+        {
+          "path": "js/widgets/market-radar.js",
+          "bytes": 33043,
+          "hash": "5b2315b6cf"
+        },
+        {
+          "path": "js/widgets/my-trophies.js",
+          "bytes": 17434,
+          "hash": "a051f5a841"
+        },
+        {
+          "path": "js/widgets/player-tags.js",
+          "bytes": 10343,
+          "hash": "f3396ee9b7"
+        },
+        {
+          "path": "js/widgets/power-rankings.js",
+          "bytes": 22676,
+          "hash": "8a41723483"
+        },
+        {
+          "path": "js/widgets/roster-pulse.js",
+          "bytes": 19504,
+          "hash": "7bb24b0a50"
+        },
+        {
+          "path": "js/widgets/window-forecast.js",
+          "bytes": 12145,
+          "hash": "b3ad143cf3"
+        }
+      ],
+      "release": {
+        "revision": "4c4c4e97b742acc5b4696808d290ab1d7784410e",
+        "builtAt": "2026-09-20T14:53:32.172Z",
+        "environment": "C2-Football/WarRoom-sandbox"
+      },
+      "status": "passed"
+    }
+  ],
+  "status": "passed",
+  "completedAt": "2026-09-20T15:15:44.650Z"
+}

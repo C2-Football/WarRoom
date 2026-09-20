@@ -1,0 +1,5 @@
+PASS: source-real Vault401 UI preserves saved room, disables shared actions, offers reachable explicit sign-in and resumes an authenticated snapshot.
+PASS: authenticated remote reads/writes, account-change isolation, stale-version conflicts, saved-write recovery, nonoverlapping polls, reconnect and unsubscribe cleanup.
+PASS: scoped Vault email signup/signin and invite return, unchanged global login, OAuth-only guard, private-safe feedback, replay stats/mail continuity, 14-week playoff limit and labeled mobile navigation.
+(node:34003) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

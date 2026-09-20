@@ -1,0 +1,6 @@
+Uploading asset (fw-request-password-reset): supabase/functions/fw-request-password-reset/index.ts
+Uploading asset (fw-request-password-reset): supabase/functions/_shared/security.ts
+Deployed Functions on project sxshiqyxhhifvtfqawbq: fw-request-password-reset
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/sxshiqyxhhifvtfqawbq/functions
+A new version of Supabase CLI is available: v2.117.0 (currently installed v2.84.2)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

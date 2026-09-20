@@ -1,6 +1,6 @@
 # Hosted continuity — 2026-09-20
 
-Status: investigation resolved for missing controlled records; reset endpoint drift repair in progress. Full suite readiness remains open.
+Status: controlled-record absence explained; reset endpoints reconciled, restored and source-verified Sep20. Full suite readiness remains open.
 
 ## Controlled data deliberately removed
 
@@ -17,3 +17,10 @@ Canonical backend workflow35395124404 succeeded Sep18 and deployed both reset en
 The SQL atomic-reset and RLS migrations remain present. Actual catalog assertions verify 49/49 restrictive gates, matching USING/WITH CHECK, roles/ALL scope, service-only atomic reset grants and the version-aware identity helper. The actual local SQL/handler regression passed again before restoring endpoints.
 
 Independent review blocked a verbatim repository redeploy before any mutation: that would remove newer hosted sender/Vault delivery paths and live/native CORS origins. The security agent is reconciling hosted operational changes with tested atomic reset/rate-limit behavior in an isolated worktree. No restoration/deployment has occurred yet. No database/account mutation or email is needed for this reconciliation. Download restored functions and compare exact source/shared security; test redirect and page HTTP200. Hosted reset contention remains separate controlled-account evidence, pending a fresh isolated run.
+
+
+## Restoration completed and release provenance corrected
+
+After the above review, commit `4642e3e99185459b892819c54f83ba8133448633` reconciled current delivery/Vault sender fallback and web/native origins with the atomic reset and durable rate-limit protections. Root selectively deployed only `fw-confirm-password-reset` and `fw-request-password-reset`. Fresh downloaded copies of both entrypoints and their shared security module exactly match reviewed source. Synthetic confirmation GET302 leads to `https://dhqfootball.com/reset-password.html?token=readiness-routing-only`, which serves200. Allowed production/native CORS origins and arbitrary-origin rejection were checked. See `evidence/reset-restored-verified-sep20.json` and reset deploy logs. This involved no email sending, account/password change, or real token consumption. Hosted reset contention and email delivery remain unverified.
+
+Current native repository `skjjcruz/github.com-skjjcruz-owner-dashboard-dev` at `aa13193` matches hosted account/billing source and explains newer operational behavior absent from the C2 repository. Public `dhqfootball.com` deploys from separate `skjjcruz/Owner-Dashboard---V6` at `db1701f`. Keep full C2 backend deployment paused; reconcile current auth, billing, legacy and proxy behavior before any further release. Current actual public repository access is read-only. C2 main/sandbox independently verified at `4c4c4e9` are separate frontend destinations.

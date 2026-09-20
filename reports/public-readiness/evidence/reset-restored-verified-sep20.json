@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-20T15:12:08.112Z",
+  "sourceRevision": "4642e3e99185459b892819c54f83ba8133448633",
+  "scope": [
+    "fw-confirm-password-reset",
+    "fw-request-password-reset"
+  ],
+  "sources": [
+    {
+      "name": "fw-confirm-password-reset/index.ts",
+      "sha256": "263260d8d46c3916de47a89c238a5b5e3d81eff3079b8d239b52bc3801294767"
+    },
+    {
+      "name": "fw-request-password-reset/index.ts",
+      "sha256": "1e1bfb33bbbac1ee2891d9f6b04c4f13e89953070e8e2e83dbba5206dc32d69d"
+    },
+    {
+      "name": "_shared/security.ts",
+      "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b"
+    }
+  ],
+  "checks": [
+    "GET redirects to current domain reset form HTTP200",
+    "Both endpoint preflights preserve verified web/native origins and reject arbitrary origin"
+  ],
+  "noEmailOrAccountMutation": true
+}

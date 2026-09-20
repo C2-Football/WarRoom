@@ -1,115 +1,51 @@
 # Readiness checkpoint
 
-Updated: 2026-09-20. State: **active implementation and controlled integration testing**.
+Updated: 2026-09-20. State: **active implementation; suite NOT READY**. Goal remains active.
 
-## Baseline and working state
+## Current repositories and release authority
 
-- Source checkout `/Users/jacobc/Projects/warroom`, main at
-  `5d28f396a3f41f3e95075264ea2890227907c761`; unrelated untracked work preserved.
-- Integration `/Users/jacobc/Projects/warroom-public-readiness`, branch
-  `codex/public-readiness-20260918`, frozen integrated product revision `d5cf58d`. Empire journal retries/navigation, account
-  callbacks, truthful pick-feed coverage, draft fixes and shared performance are
-  integrated, including reviewed Commissioner task/dues, format-specific picks and
-  both OAuth/cross-tab authentication race fixes.
-- First repair batch `cce6234`: canonical backend, both CI and both Pages workflows succeeded. Both hosted sites verified at that revision with 326 asset hashes and 12 entries each. A later independently authorized mobile PPG release `4c4c4e9` is now both main branches and has been fast-forward incorporated locally. See `release-20260918-batch1.md`.
-- Hosted SQL migrations and all 49 restrictive session gates are present. **Hosted reset function source drift discovered Sep20:** a Sep19 deployment replaced both reset endpoints with old source. Root is restoring only these verified endpoints and will download/recheck exact source afterward. See `hosted-continuity-20260920.md`.
-- Canonical shared dependency published and pinned
-  `7bd35313fc78e25a2d1ac24035989673a93f28e6`; remote main verified. Primary shared
-  checkout fast-forwarded cleanly, vendored sync and player-value twin agree.
-- `node_modules` is an untracked symlink to original dependencies; never stage it.
-  Local Node 25.8.1; CI Node 20. Preview running on localhost:3028.
-- Persistent goal thread `01a0b5f1-9d40-7202-a6a8-27887434173c` active.
-  Astra/Ultra and Prevent sleep could not be independently verified: Computer Use
-  refused access to Codex settings; no bypass attempted.
+- Original `/Users/jacobc/Projects/warroom` is preserved, including unrelated PPG edits and untracked reports/mockups. Never clean/reset it.
+- Integration `/Users/jacobc/Projects/warroom-public-readiness`, branch `codex/public-readiness-20260918`, current product revision `4642e3e99185459b892819c54f83ba8133448633`.
+- **Actual public domain `https://dhqfootball.com/` deploys from `skjjcruz/Owner-Dashboard---V6`, main `db1701fd2e840e40184f645d1d50c4ec5a39d79c` (b132).** Detached read-only snapshot: `/Users/jacobc/Projects/warroom-current-public-source`. This newer web-only app is a separate repository from the C2 deployments. Current GitHub identity `jcc100218` has pull but no push/maintain/admin authority on it.
+- **Current native/backend source** is `skjjcruz/github.com-skjjcruz-owner-dashboard-dev`, main `aa13193b28c552f977fa36a4683bb3a688d3da4f` (b132a), snapshot `/Users/jacobc/Projects/warroom-current-native-source`. Its account/billing entrypoints match the hosted source; proxies/Vault/Duat have additional source provenance to reconcile. Preserve current RevenueCat, gifting, native origins, delivery and entitlement behavior.
+- Actual public Pages workflow uses `skjjcruz/DHQ-Shared` without a pinned revision. The C2 shared dependency is a distinct repository. Owner commits restore market-blended values and retain injured players; compare these decisions before proposing shared changes.
+- C2 origin `C2-Football/WarRoom` and sandbox `C2-Football/WarRoom-sandbox` both main `4c4c4e97b742acc5b4696808d290ab1d7784410e`. Both served deployments independently verified: 326 asset hashes and 13 entry checks each (`evidence/release-4c4c4e9.json`). This does **not** verify the custom-domain frontend.
+- C2 canonical shared pin `7bd35313fc78e25a2d1ac24035989673a93f28e6`; canonical checkout and vendored player-value twin agree. First batch `cce6234` release workflows succeeded; see `release-20260918-batch1.md`.
+- **Hold the full C2 backend workflow:** it would overwrite newer hosted functionality until reconciliation is complete. Only two independently reviewed reset endpoints were selectively restored Sep20, as described below. No other new batch is deployed.
+- `node_modules` is an untracked dependency symlink; never stage. Node25.8.1 locally/20 CI; Deno2.9.6 type checks available. Preview on localhost:3043 (old3028 stopped).
+- Persistent goal `01a0b5f1-9d40-7202-a6a8-27887434173c` active. Astra/Ultra and Prevent sleep were not independently verified; Computer Use refused Codex settings access and no bypass was attempted.
 
-## Integrated fixes and evidence
+## Integrated work and current validation
 
-- Arrival/auth request failures, duplicate submissions, OAuth/session restoration,
-  transactional account switch, account-scoped storage and onboarding identity
-  guards. Fixture browser journeys and actual callback/unit tests pass; real OAuth,
-  checkout and email delivery still require separate verification.
-- Validated Sleeper connection, incomplete portfolio coverage, stale-good data and
-  retry. Account context preserved; no failed refresh represented as complete.
-- Password reset now atomic in the candidate, including password/session version
-  change and consumption of all reset links. Database RLS revocation gate protects
-  existing public RLS tables. Local database concurrency/rollback/old-session tests
-  and independent reviews pass. Both migrations are live; reset Edge source was subsequently replaced and is being repaired (see continuity report).
-- Duat runtime packs exact historical records, shares immutable season indexes and
-  avoids repeated candidate scans. 392 Duat checks and original-vs-new engine parity
-  pass. See duat-runtime-batch1.md and independent review. Hosted proof pending.
-- Safe native staging includes only compiled allowlisted public assets and verifies
-  manifest hashes. Native archive guard remains enforced; distribution provenance
-  is unresolved, and build/install/device/store are not verified.
-- Responsive draft overflow and redraft specificity corrections are integrated.
-  Hydrated responsive matrix126 and live click41 pass on the integrated candidate.
-  Shared ranking correction removes the reproduced phone stall. Final draft helper
-  now waits for the phone renderer and proves actual tap reachability; 9 checks pass.
+- First released batch: auth request/retry/account-switch isolation, validated Sleeper connections and incomplete/stale portfolio states, Empire journal save recovery, Commissioner task/dues persistence, format-aware picks, atomic reset/session RLS, packed Duat runtime and responsive draft/native staging protections.
+- Current unpublished integration adds Commissioner preferences/follow-ups/Genesis/proposals/ratification/drift recovery; historical-season deep links; consumed draft rights; Vault invitation recovery and rejected-session polling/sign-in recovery; Settings password rotation; reconciliation of current reset delivery/origins with atomic security.
+- Settings rotation uses an authenticated dedicated endpoint plus transactional password/session/reset-token change. Wrong-current-password, races, rollback, account switching, duplicate submission, legacy/provider handling and local browser recovery pass. New endpoint and migration `20260918030000_account_password_change.sql` are **not deployed/applied**. See `account-password-independent-review.md` and account password report/evidence.
+- Focused integrated Commissioner, Empire, workspaces, account callbacks, security, Vault auth and build checks pass. Actual Chrome fixtures pass Settings at320/390/844, Vault401 recovery at320, historical route/failure/retry matrix and consumed draft inventory. Deno checks pass reset/request/password entrypoints. These browser tests deliberately block external writes and are not hosted-account proof.
+- First release candidate `d5cf58d`: full npm test43 suites pass,0 suite quarantines, ESLint0 errors/33 warnings, production build pass; full browser gate ultimately passed after a reviewed locator correction with actual phone tap proof. This historical result is not a broad pass for the newer integrated candidate. One older individual analytics WIP assertion remains open.
+- Queued: independently reviewed Empire seasonal valuation batch `d490983` (minor truthful-copy correction pending); Vault FAAB privacy handler/database fixture coverage `69ef42f`; independent seasonal review `16a078e`.
 
-## Controlled hosted evidence
+## Hosted backend and controlled data
 
-- Supabase project `sxshiqyxhhifvtfqawbq` is shared by both frontends. Root worktree
-  linked through the existing CLI authorization. Read-only catalog query confirms
-  all 49 current public tables have RLS; see evidence/hosted-security-before.json.
-- Two disposable accounts created after source review and verified initially empty
-  Vault/Duat collections. Credentials/tokens only in mode-0600
-  `tmp/public-readiness/accounts.private.json`; never commit or print contents.
-- Run ID `readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755`.
-- Vault room `9abe0f2c-7f52-4035-984a-606a0b121142`: live API journey PASSED from
-  invite/join through sealed draft, controlled competing writes, season completion,
-  winner and other-account reopening. Anonymous/nonmember/host-role and private
-  response checks pass. See evidence/live-vault.json. This is API proof, not all
-  browser journeys or auction/bid privacy coverage.
-- Duat room `d5038ca0-15c5-4acf-b7c4-f08e1283161f`: two-account role/private-state/
-  competing readiness tests pass, then actual draft load fails HTTP 546 compute.
-  Original room was intentionally removed by owner-directed cleanup on Sep19; original recovery is now unavailable. Script
-  `tmp/public-readiness/live-duat.cjs`; evidence/live-duat.json records failure.
-  Candidate runtime correction remains hosted-unverified. Any new controlled run must preserve the original failure and cleanup evidence, and must not be called recovery of the original room. Check report stage before resuming after a later cycle.
+- All frontends use production Supabase `sxshiqyxhhifvtfqawbq`; sandbox is not a disposable database. Existing CLI authorized; no customer records mutated in current reconciliation.
+- Read-only catalog proves all49 public tables have restrictive session-version RLS gates; atomic reset and gate migrations remain present. Source downloaded from34/35 hosted functions; Vault large download needs retry.
+- Sep19 independently deployed old reset code had lost atomicity and pointed confirmation at a dead domain. Sep20 root selectively deployed reconciled `fw-confirm-password-reset` and `fw-request-password-reset` from4642e3e, preserving current delivery and origins. Post-deploy downloaded source and shared security are byte-identical to reviewed candidate. Synthetic GET redirects to live dhqfootball.com reset form200. Web/native allowed origins verified; arbitrary origin excluded. **No email delivery, password/account mutation or hosted reset contention tested in this restoration.** Evidence `evidence/reset-restored-verified-sep20.json`.
+- Original controlled run `readiness-20260918-99b2f837-2a00-4a2d-b337-a17ce0164755`: mode0600 `tmp/public-readiness/accounts.private.json`, never print/stage/reuse. Two accounts and three rooms were deliberately removed by owner-directed admin cleanup Sep19 16:42:36UTC, confirmed by scoped retained audits. Absence is not attributed to this release.
+- Historical Vault API room `9abe0f2c-7f52-4035-984a-606a0b121142`: two-account sealed draft, competing actions and completion passed. Historical browser room `e6563c66-2713-4ded-8b1b-c3373261ca41`: all14 weeks, playoff/champion, reload/year reveal passed with local frontend and hosted backend. Preserve evidence; neither is current deployed-browser proof.
+- Original Duat room `d5038ca0-15c5-4acf-b7c4-f08e1283161f`: role/privacy/readiness passed, draft load failedHTTP546. Original recovery unavailable after intentional cleanup. Packed runtime parity and local suite pass; new hosted complete lifecycle still required.
+- No controlled live accounts currently in use. Public allowlisted QA signup/OAuth in current hosted source destructively deletes/recreates existing accounts; reserved fake domains require an exact configured allowlist entry. Do not use this unsafe flow or invent deliverable addresses. Fresh runs require a safe non-destructive account path and separately verified empty scope/new evidence.
 
-## Current ownership and queued work
+## Ownership and next executable actions
 
-- Root: first repair release, hosted verification and original Duat recovery.
-  Next root lane is Settings password rotation in isolated
-  `warroom-readiness-account-settings` / `codex/readiness-account-settings-20260918`.
-  Actual callback/client/endpoint reproduction proves ordinary app accounts call
-  the legacy/admin endpoint and fail403. New app rotation is under development,
-  not part of this release. Its report is in that worktree.
-- Security agent: Commissioner follow-ups/preferences `c2bf7e5` and Genesis/proposals
-  `ac502dd` ready and independently reviewed; queue for next integration. Ratification `042b13d` and drift `5833bc7` also independently reviewed and queued; schedule/malformed-save recovery continues isolated.
-- Inventory agent: historical deep-link fix `8b28c0e` ready; review reports `8c8765e`
-  and `3893a33` queued. Now investigating consumed draft rights, followed by Empire
-  seasonal player advice, in `warroom-readiness-empire-seasonal`.
-- Native/browser agent: actual two-account, 14-week Vault browser completion/reload passed Sep18. Invite-context fix and evidence committed `eb8bae0`, queued for integration. All controlled contexts closed after interruption. Now fixing 401 polling/re-authentication with isolated regressions; no hosted account in use.
-- Old controlled accounts and all three rooms are absent. Scoped audit events confirm owner-directed deletion on Sep19 16:42UTC; no release data-loss attribution. Never rerun original-account mutation scripts. New controlled runs require separate names/files/evidence.
+1. Security agent owns current native/hosted auth/account reconciliation: preserve entitlements/native/ops behavior, remove public destructive QA cleanup, restore strict session/OAuth/rate/error handling and refresh/reset race protection. Isolated source/handler tests pass; independent review and integration pending. Commissioner schedule/malformed-save work is paused safely for later.
+2. Native agent owns legacy credential and Yahoo/ESPN/MFL reconciliation: preserve admin/CAS/stored-state/session revocation guards and current provider operations; also fixes reproduced legacy hash-upgrade race. No deploy. Vault FAAB fixtures are independently ready.
+3. Product agent owns billing reliability: preserve existing Stripe/RevenueCat/gift rules, check all storage failures, durable dedup/order and independent provider state. No real charges/webhooks. Shared-engine changes pause until actual public source decisions are compared.
+4. Root updates actual release-path record, reviews/integrates queued batches, prepares compatible public frontend corrections and reviews backend reconciliation. Never deploy the full stale backend set. Track actual custom-domain access as a release dependency; no user action requested while productive authorized work remains.
+5. Once coherent, run full automated/browser candidate checks, safe migration rehearsals and independent review. Only then selective backend release with recovery/source comparison, appropriate frontend release verification and fresh isolated hosted journeys.
+6. Continue unfinished primary journeys: hosted Duat and Vault private bids/reconnects, account email/OAuth/onboarding/billing, Commissioner remaining saves, Wire/history/scoring/providers, Draft/Cup authorization, mobile keyboard/safe-area/accessibility/performance and diagnostics. No product is fully signed off.
 
-## Release gate and next executable steps
+## External boundaries
 
-1. Integrated product source `d5cf58d`: `npm test`43 pass/0 fail/0 suite quarantines;
-   ESLint0 errors/33 warnings; production build148 JSX/259 minified modules passes.
-   Detailed evidence and qualifications: `candidate-d5cf58d.md`.
-2. Full browser run6 pass/1 draft failure. Reproduction established a transient
-   desktop-row locator during phone resizing; test-only correction waits for actual
-   phone rows and adds trial tap/center-hit assertions. Independent review clear;
-   full draft rerun9 pass. All7 browser gate entries now have passing candidate
-   evidence. Keep original failure log. Other product source remains identical.
-3. Analytics detail inspection: one older individual WIP assertion still reports
-   missing landing funnel telemetry. This remains open; no full diagnostics pass.
-4. Main branches and integration now `4c4c4e9` (PPG addition preserves repair batch). Verify the current served revision as well as the recorded `cce6234` asset proof.
-5. All 49 restrictive policies, helper grants and reset SQL atomicity catalog assertions pass. Restore the two reset endpoints after separately deployed old code was observed; download and compare source, then recheck public reset routing.
-6. Original Duat recovery unavailable after deliberate cleanup. Establish a distinct controlled run only after verifying isolation; preserve original compute failure. Complete hosted Duat lifecycle/recovery and Vault private-bid coverage.
-7. Old-account reset script is forbidden to rerun. Adapt to a distinct, exactly identified run with its own private plan, verify account/room isolation, then test competing reset links and old Edge/REST revocation. Do not run while another agent owns those sessions.
-8. Integrate queued reviewed product batches and continue the remaining acceptance
-   matrix. Account settings, Commissioner stores, seasonal Empire advice, historical
-   routes, browser game completion and operational diagnostics remain unfinished.
-
-## Outstanding scope and external boundaries
-
-- Commissioner silent saves, other suite save/recovery/error paths, historical
-  deep-link season restoration, full public onboarding/account/settings flows,
-  format-correct Empire scenarios, Wire/history, Draft and server authorization
-  checks remain in scope. See inventory.md; no product is fully ready yet.
-- Vault archive provenance conflicts with the native distribution restriction.
-  Existing source notes mark older local Kaggle/PFR history non-distributable;
-  no cleared complete replacement identified. Do not bypass guard or silently
-  truncate promised history. Native toolchain/device/store evidence absent.
-- No external action requested while independent authorized work remains. Public
-  pricing/policies/legal/store approval claims must not be invented.
+- Actual production repository is currently read-only through configured GitHub identity; prepare concrete compatible work before requesting missing release authority if needed.
+- Native archive includes historical data documented local-only; distribution provenance unresolved. Safe compiled-asset staging guard stays enforced. No complete native build/install/device/store evidence; actual current native repo still needs its own packaging audit.
+- Sleeper commercial-use permission is a documented prerequisite to verify, not a claim that no prior agreement exists. Do not contact providers, buy services, change policy/pricing, accept contracts or issue announcements.
+- No readiness claim or background activity claim beyond actual evidence. Productive work continues; missing external access is not a reason to abandon independent authorized paths.

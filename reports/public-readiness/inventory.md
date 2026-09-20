@@ -1,6 +1,13 @@
-# Public readiness inventory — 2026-09-18
+# Public readiness inventory — baseline Sep18, release-path correction Sep20
 
 Baseline inspected: `warroom` / `5d28f396a3f41f3e95075264ea2890227907c761` (`main`). This is source inventory and isolated reproduction evidence, not a launch sign-off. The original checkout contains unrelated untracked mockups and reports; leave them untouched. Root integration branch: `codex/public-readiness-20260918` in `warroom-public-readiness`.
+
+
+## Current release-path correction (2026-09-20)
+
+The table below inventories the requested C2 source baseline. It is **not a complete inventory of the actual current public source**. Live DNS/HTTP and GitHub Pages configuration identify `dhqfootball.com` as `skjjcruz/Owner-Dashboard---V6` at `db1701fd2e840e40184f645d1d50c4ec5a39d79c`. The native/backend repository is `skjjcruz/github.com-skjjcruz-owner-dashboard-dev` at `aa13193b28c552f977fa36a4683bb3a688d3da4f`; current auth/billing source matches hosted deployments. Both have detached local snapshots named `warroom-current-public-source` and `warroom-current-native-source`. Current GitHub identity has read-only access to the actual public repository. Its Pages workflow consumes separate `skjjcruz/DHQ-Shared` main without a pin.
+
+The two C2 sites are verified at `4c4c4e9`, each326 asset hashes/13 checks, and remain supported release destinations. Actual custom-domain b132 has no `release.json` and uses app asset `977b18c616`; C2 served-asset proof does not establish its revision. Newer public/native account, billing, engine and RevenueCat behavior must be preserved. Full C2 backend deployment is held while agents reconcile it with current hosted source. See [checkpoint](checkpoint.md), [hosted continuity](hosted-continuity-20260920.md), and `evidence/current-frontend-domains-sep20.json`.
 
 ## Applications, surfaces, and context contracts
 

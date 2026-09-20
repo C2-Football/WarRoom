@@ -1,0 +1,6 @@
+PASS initial failed progress shows verified future rights only with current-year unknown
+PASS retry verifies pre-draft 2026 holdings without changing future years
+PASS consumed dynasty slot and completed redraft rights disappear from current draft capital
+PASS refresh failure keeps explicit saved inventory, no false Synced, and no overflow at 320/390/844
+PASS completed draft retry removes every consumed current-year right and preserves eight dynasty future picks
+{"status":"passed","externalWriteGuard":true,"backendDisabled":true,"fixtureOnly":true}

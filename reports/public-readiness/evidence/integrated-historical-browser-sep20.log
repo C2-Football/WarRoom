@@ -1,0 +1,20 @@
+PASS historical bookmark and reload preserve 2025 identity and Stats
+PASS Home and actual browser Back/Forward retain old route without mixing current portfolio
+PASS selecting current league remounts 2026 context after historical view
+PASS 503 gives readable reachable recovery at 320/390/844 widths; Retry opens exact same link
+PASS unconnected historical ID never loads roster and can return home
+PASS canceled slow historical response cannot replace newly selected current league
+{
+  "status": "passed",
+  "checks": [
+    "historical bookmark and reload preserve 2025 identity and Stats",
+    "Home and actual browser Back/Forward retain old route without mixing current portfolio",
+    "selecting current league remounts 2026 context after historical view",
+    "503 gives readable reachable recovery at 320/390/844 widths; Retry opens exact same link",
+    "unconnected historical ID never loads roster and can return home",
+    "canceled slow historical response cannot replace newly selected current league"
+  ],
+  "externalWriteGuard": true,
+  "backendDisabled": true,
+  "blockedExternalWrites": 0
+}
