@@ -1,0 +1,142 @@
+[
+  {
+    "function": "fw-signup",
+    "files": [
+      {
+        "path": "supabase/functions/fw-signup/index.ts",
+        "sha256": "30d1f2ca20c8943fb22afed2400e15302adce7e9e5c94ab9c64f9999c2217793",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "changed": false
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-signin",
+    "files": [
+      {
+        "path": "supabase/functions/fw-signin/index.ts",
+        "sha256": "dc349e1042bd3b46ff03f50bd44c3d55d0f1f875a6dcd8774829a9cbe3489bc5",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "changed": false
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-profile",
+    "files": [
+      {
+        "path": "supabase/functions/fw-profile/index.ts",
+        "sha256": "42a2437613bd6d787eb06fd52c42510ffb9b33eb9f658845b6530f2e94660097",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-oauth-sync",
+    "files": [
+      {
+        "path": "supabase/functions/fw-oauth-sync/index.ts",
+        "sha256": "4157db4dae3490eab74c52fbb3724b16c43fc231976ce6b4139acb9ce25ebb14",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "changed": false
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-refresh-session",
+    "files": [
+      {
+        "path": "supabase/functions/fw-refresh-session/index.ts",
+        "sha256": "81ef2efdbcab453617739f0f38c36e908592c011b073a784711707896d85679a",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "changed": false
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-change-password",
+    "files": [
+      {
+        "path": "supabase/functions/fw-change-password/index.ts",
+        "sha256": "f8ddfdf77bf5066a05150ce287c101980370589d70f18f9cb6624b3535269988",
+        "changed": false
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "changed": false
+      }
+    ]
+  },
+  {
+    "function": "fw-request-password-reset",
+    "files": [
+      {
+        "path": "supabase/functions/fw-request-password-reset/index.ts",
+        "sha256": "77d710c75ce8edbcfb8b3cea97c2046adf70164e885363f66cf956efc6b8f151",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      }
+    ]
+  },
+  {
+    "function": "fw-confirm-password-reset",
+    "files": [
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+        "changed": true
+      },
+      {
+        "path": "supabase/functions/fw-confirm-password-reset/index.ts",
+        "sha256": "1241ad83c349c7bdaf0d4bfd21258cec73806995afcba899d1cc735e1f5a8521",
+        "changed": true
+      }
+    ]
+  }
+]

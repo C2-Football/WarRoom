@@ -1,0 +1,58 @@
+[
+  {
+    "slug": "fw-signup",
+    "version": 205,
+    "updated_at": 1789920969532,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_f503ff2c-58ba-443c-b68d-8c9f1aa47625_205/source/supabase/functions/fw-signup/index.ts"
+  },
+  {
+    "slug": "fw-signin",
+    "version": 204,
+    "updated_at": 1789920967853,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_04ce07c3-d9be-4e59-a457-2176e3cab167_204/source/supabase/functions/fw-signin/index.ts"
+  },
+  {
+    "slug": "fw-request-password-reset",
+    "version": 173,
+    "updated_at": 1789920966219,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_289e9ed5-5c58-4782-98b2-8e69b0f83371_173/source/supabase/functions/fw-request-password-reset/index.ts"
+  },
+  {
+    "slug": "fw-confirm-password-reset",
+    "version": 173,
+    "updated_at": 1789920958614,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_3c4136ea-f310-45c5-bb2b-0a2e4421fd99_173/source/supabase/functions/fw-confirm-password-reset/index.ts"
+  },
+  {
+    "slug": "fw-profile",
+    "version": 172,
+    "updated_at": 1789920962751,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_da329e07-d34b-4609-9bef-8ee96646ef25_172/source/supabase/functions/fw-profile/index.ts"
+  },
+  {
+    "slug": "fw-oauth-sync",
+    "version": 76,
+    "updated_at": 1789920960818,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_4b8ab584-d198-45fc-b484-a3e116502056_76/source/supabase/functions/fw-oauth-sync/index.ts"
+  },
+  {
+    "slug": "fw-refresh-session",
+    "version": 35,
+    "updated_at": 1789920964441,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_b8732825-ec36-447f-b558-4039773bc8eb_35/source/supabase/functions/fw-refresh-session/index.ts"
+  },
+  {
+    "slug": "fw-change-password",
+    "version": 1,
+    "updated_at": 1789919064345,
+    "verify_jwt": false,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_fa44fd93-9d7e-4405-a497-62e3707317b1_1/source/supabase/functions/fw-change-password/index.ts"
+  }
+]
