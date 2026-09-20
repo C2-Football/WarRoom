@@ -76,7 +76,11 @@ export async function recoverCheckout(admin: any,stripe: any,userId: string,prod
           const existing=await listAll(args=>stripe.subscriptions.list(args),{customer:stored.customer,status:'all'});
           for(const subscription of existing) {
             if(terminalSubscription(subscription.status)) continue;
-            const product=normalizedProduct(subscription.metadata?.product_slug||'')||productFromPrices(subscription.items?.data||[],request);
+            let product=normalizedProduct(subscription.metadata?.product_slug||'');
+            if(!product) {
+              if(subscription.items?.has_more!==false) throw new CheckoutRecoveryError('Incomplete subscription item history needs support review before another payment can be started.');
+              product=productFromPrices(subscription.items?.data||[],request);
+            }
             if(product===productSlug) throw new CheckoutRecoveryError('A subscription for this product already exists. Use Manage billing to update it.',409,'subscription_exists');
           }
           session=await stripe.checkout.sessions.create({

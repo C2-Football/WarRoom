@@ -108,11 +108,15 @@ async function fresh(){
   const countBeforeRestart=sessions.size;await checkout();assert.equal(sessions.size,countBeforeRestart+1,'confirmed canceled subscription permits a fresh checkout');
   await fresh();subscriptions.set('existing',{id:'existing',status:'active',metadata:{product_slug:'dhq'}});
   await assert.rejects(checkout(),e=>e.status===409&&e.code==='subscription_exists');assert.equal(sessions.size,0);
-  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'price_monthly'}}]}});
+  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'price_monthly'}}],has_more:false}});
   await assert.rejects(checkout(),e=>e.status===409&&e.code==='subscription_exists');assert.equal(sessions.size,0,'legacy subscription price proves existing product even without metadata');
-  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'unknown_price'}}]}});
+  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'unknown_price'}}],has_more:false}});
   await assert.rejects(checkout(),/support review/);assert.equal(sessions.size,0,'unknown legacy subscription cannot be treated as no subscription');
-  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'price_other'}}]}});
+  subscriptions.set('existing',{id:'existing',status:'active',items:{data:[{price:{id:'price_other'}}],has_more:true}});
+  await assert.rejects(checkout(),/support review/);assert.equal(sessions.size,0,'an unseen subscription item may be this product: a partial other-product page cannot permit another charge');
+  delete subscriptions.get('existing').items.has_more;
+  await assert.rejects(checkout(),/support review/);assert.equal(sessions.size,0,'missing pagination evidence cannot establish complete subscription items');
+  subscriptions.get('existing').items.has_more=false;
   await checkout();assert.equal(sessions.size,1,'verified different existing product does not block this product');
   console.log('PASS plan switch expires old link first; completed or existing subscription cannot produce another charge; canceled subscription can restart');
 
