@@ -139,3 +139,7 @@ controlled-record investigation. Fresh auction/FAAB competing-bid UI and private
 bid-state checks, alternative roster/draft modes, and deployed invitation-fix smoke
 remain unverified by this batch. Existing native/archive distribution restrictions
 are unchanged. This is not a Vault launch-readiness declaration.
+
+## Current September20 follow-through
+
+The old controlled accounts remain deleted and are not reused. [Current fresh hosted evidence](vault-hosted-current-20260920.md) now verifies privacy, sealed FAAB/one-time settlement, API season completion and actual released phone reopen for both roles/sites using newly isolated accounts and room. The401 recovery fix is also released in944c2e9. This follow-through supersedes the availability blocker above but does not rewrite the datedSeptember18 full browser-season evidence or claim fresh auction/alternative-mode completion.

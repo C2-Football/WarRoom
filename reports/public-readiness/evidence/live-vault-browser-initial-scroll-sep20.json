@@ -1,0 +1,99 @@
+{
+  "startedAt": "2026-09-20T17:52:22.513Z",
+  "status": "failed",
+  "roomId": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+  "liveFrontend": true,
+  "liveSignin": true,
+  "roomMutationsAllowed": false,
+  "runs": [
+    {
+      "repo": "WarRoom",
+      "actor": "commissioner",
+      "checks": [
+        "Real password form signs in the exact controlled account",
+        "Own saved room opens the actual 14-week completed results with correct seat and role",
+        "Reload and reopen preserve final results and correct account on 390px without page overflow"
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        }
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "errors": [],
+      "visibleText": "⌂\nHome\n♙\nMy team\n▶\nGame day\n+\nPlayers\n•••\nMore\nreadiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de Vault\nHOME\nCOMPLETE\n●\nINVITE\n•••\nTHE VAULT · CHAMPIONSHIP NIGHT\nMINIMIZE CEREMONY\n✦ 🏆 ✦\n\nREADINESS-20260920-F868BDFF-2615-4CAD-AD86-78EC10ECF7DE VAULT\n\nReadiness Host B\n\nCROWNED VAULT CHAMPION\n\nReadiness Host B takes the title over Readiness Member, 26.4–13.8.\n\nTITLE RUN RECORD\n7–7\nRegular season + playoffs\nPOINTS SCORED\n279.9\nAcross all saved games\nRUNNER-UP\nReadiness Member\nChampionship finalist\nTITLE GAME LINEUP MVP\nPeyton Manning\n2000s · hidden year · 26.4 points\nThe road to the trophy\nCHAMPIONSHIP\nReadiness Member 13.8 — 26.4 Readiness Host B\nWeek 14\nRELIVE THE GAMES →\nTROPHY CASE\n🏆 PLAYOFF HUNT\nPostseason field\n\nReadiness Host B is your champion.\n\n#1\nReadiness Member\n7–6\n242.2 PF\n#2\nReadiness Host B\n6–7\n253.5 PF\nFull standings & team details\nLeague update\nWEEK 14 FINAL\nHIGH SCORE\n26.4 pts\nReadiness Host B\nTOP PERFORMER\nPeyton Manning\n2000s · hidden year · 26.4 pts · Readiness Host B\nCLOSEST GAME\n12.5-point margin\nReadiness Member vs. Readiness Host B\nFINAL\nReadiness Member\n13.8\nReadiness Host B\n26.4\nRecent league activity\nREPLAYS & BOX SCORES →\nALL ACTIVITY →\nRIVAL MAIL\n\nSend a good game, make a deal, or start a rivalry.\n\nOPEN CONVERSATIONS\nWEEK 14\nSeason complete\nMY PLAYERS\nREVEAL THE YEARS\n© 2026 C2Football. All rights reserved."
+    }
+  ],
+  "error": "false == true",
+  "completedAt": "2026-09-20T17:52:48.947Z"
+}

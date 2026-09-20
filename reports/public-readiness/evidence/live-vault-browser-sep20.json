@@ -1,0 +1,347 @@
+{
+  "startedAt": "2026-09-20T17:53:36.135Z",
+  "status": "passed",
+  "roomId": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+  "liveFrontend": true,
+  "liveSignin": true,
+  "roomMutationsAllowed": false,
+  "runs": [
+    {
+      "repo": "WarRoom",
+      "actor": "commissioner",
+      "checks": [
+        "Real password form signs in the exact controlled account",
+        "Own saved room opens the actual 14-week completed results with correct seat and role",
+        "Reload and reopen preserve final results and correct account on 390px without page overflow"
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        }
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    },
+    {
+      "repo": "WarRoom",
+      "actor": "member",
+      "checks": [
+        "Real password form signs in the exact controlled account",
+        "Own saved room opens the actual 14-week completed results with correct seat and role",
+        "Reload and reopen preserve final results and correct account on 390px without page overflow"
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        }
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    },
+    {
+      "repo": "WarRoom-sandbox",
+      "actor": "commissioner",
+      "checks": [
+        "Real password form signs in the exact controlled account",
+        "Own saved room opens the actual 14-week completed results with correct seat and role",
+        "Reload and reopen preserve final results and correct account on 390px without page overflow"
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "commissioner",
+          "seat": "t1",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        }
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    },
+    {
+      "repo": "WarRoom-sandbox",
+      "actor": "member",
+      "checks": [
+        "Real password form signs in the exact controlled account",
+        "Own saved room opens the actual 14-week completed results with correct seat and role",
+        "Reload and reopen preserve final results and correct account on 390px without page overflow"
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+          "version": 96,
+          "role": "member",
+          "seat": "t2",
+          "phase": "complete",
+          "weeks": 14,
+          "champion": "t1",
+          "resultsHash": "0da68507b77d3449810bbdaffc7635af234845b0698b2c0eb8cdfe57b7860d61"
+        }
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    }
+  ],
+  "completedAt": "2026-09-20T17:54:53.077Z"
+}

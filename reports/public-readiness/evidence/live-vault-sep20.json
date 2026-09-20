@@ -1,0 +1,125 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "startedAt": "2026-09-20T17:36:15.531Z",
+  "checks": [
+    {
+      "name": "Anonymous Vault access denied",
+      "at": "2026-09-20T17:36:16.380Z"
+    },
+    {
+      "name": "Both current controlled accounts isolated before room creation",
+      "at": "2026-09-20T17:36:19.160Z"
+    },
+    {
+      "name": "Created isolated two-account Vault",
+      "at": "2026-09-20T17:36:20.180Z"
+    },
+    {
+      "name": "Nonmember cannot read Vault",
+      "at": "2026-09-20T17:36:22.330Z"
+    },
+    {
+      "name": "Second controlled account joined Vault",
+      "at": "2026-09-20T17:36:23.400Z"
+    },
+    {
+      "name": "Member cannot see invitations or private authoritative fields",
+      "at": "2026-09-20T17:36:24.519Z"
+    },
+    {
+      "name": "Only commissioner starts draft",
+      "at": "2026-09-20T17:36:25.473Z"
+    },
+    {
+      "name": "Shared sealed draft completes with real historical cards",
+      "at": "2026-09-20T17:36:54.509Z"
+    },
+    {
+      "name": "Competing actions preserve one version winner",
+      "at": "2026-09-20T17:36:57.895Z"
+    },
+    {
+      "name": "Member cannot change another manager team",
+      "at": "2026-09-20T17:37:00.803Z"
+    },
+    {
+      "name": "Hosted sealed FAAB and one-time settlement verified",
+      "at": "2026-09-20T17:37:25.839Z"
+    },
+    {
+      "name": "Vault season completes with actual historical results and champion",
+      "weeks": 14,
+      "champion": "t1",
+      "at": "2026-09-20T17:43:40.527Z"
+    },
+    {
+      "name": "Second manager reconnects to the same saved final results",
+      "at": "2026-09-20T17:43:41.802Z"
+    }
+  ],
+  "requests": 305,
+  "responses": [
+    {
+      "op": "list",
+      "status": 401,
+      "message": "Sign in to play with friends."
+    },
+    {
+      "op": "load",
+      "status": 403,
+      "message": "You do not have a seat in this league."
+    },
+    {
+      "op": "action",
+      "type": "start",
+      "status": 400,
+      "message": "Only the commissioner can start the draft."
+    },
+    {
+      "op": "action",
+      "type": "team",
+      "status": 409,
+      "message": "No acknowledgement"
+    },
+    {
+      "op": "action",
+      "type": "team",
+      "status": 400,
+      "message": "You can only manage your own team."
+    },
+    {
+      "op": "action",
+      "type": "claim",
+      "status": 409,
+      "message": "No acknowledgement"
+    },
+    {
+      "op": "action",
+      "type": "cancel-claim",
+      "status": 400,
+      "message": "This claim belongs to another manager."
+    },
+    {
+      "op": "action",
+      "type": "cancel-claim",
+      "status": 400,
+      "message": "This claim belongs to another manager."
+    },
+    {
+      "op": "action",
+      "type": "process-claims",
+      "status": 400,
+      "message": "Only the commissioner can advance the league."
+    },
+    {
+      "op": "action",
+      "type": "process-claims",
+      "status": 409,
+      "message": "No acknowledgement"
+    }
+  ],
+  "roomId": "f4ce90ff-69af-47e7-9bd1-88df53e7ac14",
+  "evidenceLimit": "Hosted API with two controlled accounts; commissioner kickoff used force:true after lineup/finalization. No full browser season, ordinary non-forced kickoff, or independent DB connection contention claim.",
+  "status": "passed",
+  "completedAt": "2026-09-20T17:43:41.804Z"
+}

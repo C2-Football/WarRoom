@@ -1,0 +1,13 @@
+PASS Anonymous Vault access denied
+PASS Both current controlled accounts isolated before room creation
+PASS Created isolated two-account Vault
+PASS Nonmember cannot read Vault
+PASS Second controlled account joined Vault
+PASS Member cannot see invitations or private authoritative fields
+PASS Only commissioner starts draft
+PASS Shared sealed draft completes with real historical cards
+PASS Competing actions preserve one version winner
+PASS Member cannot change another manager team
+PASS Hosted sealed FAAB and one-time settlement verified
+PASS Vault season completes with actual historical results and champion
+PASS Second manager reconnects to the same saved final results

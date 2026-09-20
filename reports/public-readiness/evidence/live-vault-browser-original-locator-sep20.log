@@ -1,0 +1,5 @@
+failed locator.waitFor: Timeout 45000ms exceeded.
+Call log:
+[2m  - waiting for getByText('Season complete').first() to be visible[22m
+[2m    93 × locator resolved to hidden <p>Season complete — Readiness Host B crowned champi…</p>[22m
+
