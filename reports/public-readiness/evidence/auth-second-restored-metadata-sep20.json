@@ -1,0 +1,55 @@
+{
+  "checkedAt": "2026-09-20T19:02:41.210528+00:00",
+  "readOnly": true,
+  "metadataOnly": true,
+  "functions": [
+    {
+      "name": "fw-signup",
+      "version": 208,
+      "updated_at": 1789930775346,
+      "ezbr_sha256": "e637065bd670833ccc679f75a561f8a47eddcecdcc20831886e0a31ea9dee65d"
+    },
+    {
+      "name": "fw-signin",
+      "version": 207,
+      "updated_at": 1789930776279,
+      "ezbr_sha256": "f08f16ac36803e4f6fc1894a41f8dd507153537a71e8ec4c1ddf7becd786ce20"
+    },
+    {
+      "name": "fw-request-password-reset",
+      "version": 176,
+      "updated_at": 1789930782237,
+      "ezbr_sha256": "6a152a0bb737c582201aeac2533d083741c80e01ae7bfe851ae43d2d42022efb"
+    },
+    {
+      "name": "fw-confirm-password-reset",
+      "version": 176,
+      "updated_at": 1789930783319,
+      "ezbr_sha256": "cf24a609218b9df42740a79ddc62d0fbb063b866855bf300191afec71e6fb623"
+    },
+    {
+      "name": "fw-profile",
+      "version": 175,
+      "updated_at": 1789930778537,
+      "ezbr_sha256": "72a14d044c14926260faa59e07655480092b5ea638a83ffeb5148b8bbb284ba5"
+    },
+    {
+      "name": "fw-oauth-sync",
+      "version": 79,
+      "updated_at": 1789930780146,
+      "ezbr_sha256": "5b2239f3819b9d89baebc541f1da75f5d0b3b3a822893a310809be0a8f75727a"
+    },
+    {
+      "name": "fw-refresh-session",
+      "version": 38,
+      "updated_at": 1789930781092,
+      "ezbr_sha256": "bd35fff6c29ede1abc38334c261efb8d27182dda170716f8a11b2fef252c5df6"
+    },
+    {
+      "name": "fw-change-password",
+      "version": 1,
+      "updated_at": 1789919064345,
+      "ezbr_sha256": "6e9c6387e382ff635dfce3e9c96314716e01e967753ab875058812ce3d7c1fb4"
+    }
+  ]
+}

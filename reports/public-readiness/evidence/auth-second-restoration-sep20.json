@@ -1,0 +1,25 @@
+{
+  "sourceRevision": "8481ef5993aa664cd8d3c65e2b7ca746ff935735",
+  "reviewedAccountRevision": "0a704ac3010b14daf3c29a3c1e222ce57c7a1d2f",
+  "startedAt": "2026-09-20T18:59:34.441265+00:00",
+  "scope": [
+    "fw-signup",
+    "fw-signin",
+    "fw-profile",
+    "fw-oauth-sync",
+    "fw-refresh-session",
+    "fw-request-password-reset",
+    "fw-confirm-password-reset"
+  ],
+  "completed": [
+    "fw-signup",
+    "fw-signin",
+    "fw-profile",
+    "fw-oauth-sync",
+    "fw-refresh-session",
+    "fw-request-password-reset",
+    "fw-confirm-password-reset"
+  ],
+  "sourceVerifiedAfterDeployment": true,
+  "completedAt": "2026-09-20T18:59:43.478511+00:00"
+}

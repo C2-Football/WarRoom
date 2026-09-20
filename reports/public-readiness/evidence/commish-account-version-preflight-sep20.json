@@ -1,0 +1,56 @@
+{
+  "checkedAt": "2026-09-20T18:57:55.735747+00:00",
+  "metadataOnly": true,
+  "readOnly": true,
+  "status": "changed",
+  "checks": [
+    {
+      "name": "fw-signup",
+      "expected": 206,
+      "actual": 207,
+      "updatedAt": 1789930386859
+    },
+    {
+      "name": "fw-signin",
+      "expected": 205,
+      "actual": 206,
+      "updatedAt": 1789930385233
+    },
+    {
+      "name": "fw-request-password-reset",
+      "expected": 174,
+      "actual": 175,
+      "updatedAt": 1789930382801
+    },
+    {
+      "name": "fw-confirm-password-reset",
+      "expected": 174,
+      "actual": 175,
+      "updatedAt": 1789930371533
+    },
+    {
+      "name": "fw-profile",
+      "expected": 173,
+      "actual": 174,
+      "updatedAt": 1789930375320
+    },
+    {
+      "name": "fw-oauth-sync",
+      "expected": 77,
+      "actual": 78,
+      "updatedAt": 1789930373780
+    },
+    {
+      "name": "fw-refresh-session",
+      "expected": 36,
+      "actual": 37,
+      "updatedAt": 1789930379891
+    },
+    {
+      "name": "fw-change-password",
+      "expected": 1,
+      "actual": 1,
+      "updatedAt": 1789919064345
+    }
+  ]
+}

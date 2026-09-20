@@ -1,0 +1,129 @@
+{
+  "checkedAt": "2026-09-20T19:00:37.782581+00:00",
+  "readOnly": true,
+  "status": "passed",
+  "reviewedSource": "0a704ac3010b14daf3c29a3c1e222ce57c7a1d2f",
+  "functions": {
+    "fw-signup": [
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-signup/index.ts",
+        "sha256": "654f766e0f0f678542f4b9a0d096c09aeddfdcb8cb6cf2f08f0ba1ac92354a07",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-signin": [
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-signin/index.ts",
+        "sha256": "8814d2778fb2249f58e7717f5acf85db8641fa6c1a49a866eda4b8890b261f21",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-profile": [
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-profile/index.ts",
+        "sha256": "4829a022ad4315a3666dfe0c9520bc225c6db50ea8dc78394883c2fa412dcaf1",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-oauth-sync": [
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-oauth-sync/index.ts",
+        "sha256": "a2e2235685cadd69d719519b387f507e1257a2f9784eeceabb4c29c1a3cd8eec",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-refresh-session": [
+      {
+        "path": "supabase/functions/_shared/entitlements.ts",
+        "sha256": "5e6919d0eb73ba62a009749e90ec0a78ae0d0b18c2b6c197d923c365e1d1f7df",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-refresh-session/index.ts",
+        "sha256": "84d892431ef112cdbdb6695f3baca8452d280b50fd596d549fad3015dd3aaa4b",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-change-password": [
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-change-password/index.ts",
+        "sha256": "f8ddfdf77bf5066a05150ce287c101980370589d70f18f9cb6624b3535269988",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-request-password-reset": [
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-request-password-reset/index.ts",
+        "sha256": "1e1bfb33bbbac1ee2891d9f6b04c4f13e89953070e8e2e83dbba5206dc32d69d",
+        "matchesReviewed": true
+      }
+    ],
+    "fw-confirm-password-reset": [
+      {
+        "path": "supabase/functions/_shared/security.ts",
+        "sha256": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "matchesReviewed": true
+      },
+      {
+        "path": "supabase/functions/fw-confirm-password-reset/index.ts",
+        "sha256": "263260d8d46c3916de47a89c238a5b5e3d81eff3079b8d239b52bc3801294767",
+        "matchesReviewed": true
+      }
+    ]
+  }
+}
