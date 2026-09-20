@@ -113,7 +113,7 @@ test('signup and checkout normalize legacy product slug aliases before writes', 
     'function normalizeProductSlug',
     "'war-room': 'war_room'",
     'const productSlug = normalizeProductSlug(rawProductSlug);',
-    'product_slug: productSlug',
+    'recoverCheckout(admin, stripe, userId, productSlug',
   ], 'checkout product normalization');
   hasEvery(webhookSource, [
     'function normalizeProductSlug',

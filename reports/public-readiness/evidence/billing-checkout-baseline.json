@@ -1,0 +1,7 @@
+{
+  "revision": "71d8971",
+  "execution": "actual checkout handler with isolated provider/database dependencies",
+  "identicalPostStatuses": [200, 200],
+  "checkoutSessionsCreated": 2,
+  "externalRequests": 0
+}

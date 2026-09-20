@@ -1,13 +1,25 @@
 'use strict';
 const assert = require('node:assert/strict');
 const load = require('./helpers/security-ts-loader.cjs');
+const vm = require('node:vm');
+const checkoutHelper = load('supabase/functions/_shared/billing-checkout.ts').context;
+const CheckoutRecoveryError = vm.runInContext('CheckoutRecoveryError', checkoutHelper);
+let latestCheckout;
+const checkoutResult = args => (latestCheckout = { id: 'checkout', customer: args.customer, mode: 'subscription', metadata: args.metadata, status: 'open', url: 'https://checkout.stripe.com/c/pay/fixture' });
 const billing = load('supabase/functions/_shared/billing-events.ts').context;
 const uid = '11111111-1111-4111-8111-111111111111';
 const failure = { data: null, error: { message: 'isolated database outage', code: 'XX000' } };
 const audits = [];
 function database(respond) {
   const calls = [];
+  let checkoutAttempt;
   return { calls, async rpc(name, args) {
+    if (name === 'claim_billing_checkout') {
+      checkoutAttempt ||= { outcome: 'claimed', attempt_id: crypto.randomUUID(), lease_token: crypto.randomUUID(), request: args.p_request, created_at: new Date().toISOString() };
+      return { data: checkoutAttempt };
+    }
+    if (name === 'checkpoint_billing_checkout') return { data: { ...checkoutAttempt, outcome: 'saved', session_id: args.p_session_id } };
+    if (name === 'release_billing_checkout') return { data: null };
     if (name === 'billing_event_processing_enabled') return { data: true, error: null };
     if (name === 'claim_billing_event') return { data: { outcome: 'claimed', lease_token: '11111111-1111-4111-8111-111111111112' }, error: null };
     assert.equal(name, 'apply_billing_event');
@@ -31,6 +43,7 @@ function database(respond) {
 function handler(slug, globals = {}, values = {}) {
   let fn;
   load('supabase/functions/' + slug + '/index.ts', {
+    recoverCheckout: checkoutHelper.recoverCheckout, CheckoutRecoveryError,
     claimBillingEvent: billing.claimBillingEvent, applyBillingEvent: billing.applyBillingEvent,
     billingWriterResponse: billing.billingWriterResponse, billingProcessingEnabled: billing.billingProcessingEnabled,
     handleOptions: () => null, requireActiveAppSession: async () => ({ userId: uid, email: 'billing@example.invalid' }),
@@ -75,13 +88,20 @@ const subscription = { id: 'sub_fixture', status: 'trialing', metadata: { user_i
   const rc = handler('fw-revenuecat-webhook', { createClient: () => database(() => failure) });
   assert.equal((await rc(request({ event: { ...event, type: 'RENEWAL' } }, { Authorization: 'test-secret' }))).status, 500, 'outage is not an unknown account');
   assert.equal((await rc(request({ event: { ...event, type: 'RENEWAL' } }, { Authorization: 'wrong' }))).status, 401);
+  let transferReads=0;
+  const transferHandler=handler('fw-revenuecat-webhook',{createClient:()=>database(()=>{transferReads++;return failure;})});
+  const transfer={type:'TRANSFER',id:'transfer-fixture',transferred_from:[uid],transferred_to:['22222222-2222-4222-8222-222222222222']};
+  assert.equal((await transferHandler(request({event:transfer},{Authorization:'test-secret'}))).status,503,'unverified transfer must remain retryable instead of acknowledged as unknown subscriber');
+  assert.equal(transferReads,0,'transfer identity arrays cannot revoke or move all existing purchases');
+  assert.equal((await transferHandler(request({event:transfer},{Authorization:'wrong'}))).status,401);
   console.log('PASS actual RevenueCat lifecycle writes and account queries retry on failure, cancellation preserves access, invalid signature denied');
 
   for (const slug of ['fw-create-checkout', 'fw-billing-portal']) {
     let externalCalls = 0;
     class Stripe {
+      subscriptions = { list: async () => ({ data: [], has_more: false }) };
       customers = { create: async () => { externalCalls++; return { id: 'customer' }; } };
-      checkout = { sessions: { create: async () => { externalCalls++; return { id: 'checkout', url: 'https://example.invalid/checkout' }; } } };
+      checkout = { sessions: { retrieve: async () => latestCheckout, list: async () => ({ data: [], has_more: false }), create: async args => { externalCalls++; return checkoutResult(args); } } };
       billingPortal = { sessions: { create: async () => { externalCalls++; return { id: 'portal', url: 'https://example.invalid/portal' }; } } };
     }
     assert.equal((await handler(slug, { createClient: () => database(() => failure), Stripe })(request())).status, 503);
@@ -97,7 +117,8 @@ const subscription = { id: 'sub_fixture', status: 'trialing', metadata: { user_i
   }
   const fallbackCalls=[];
   class FallbackStripe {
-    checkout={sessions:{create:async args=>{fallbackCalls.push(args);return{id:'fixture',url:'https://example.invalid/checkout'};}}};
+    subscriptions = { list: async () => ({ data: [], has_more: false }) };
+    checkout={sessions:{retrieve:async()=>latestCheckout,list:async()=>({data:[],has_more:false}),create:async args=>{fallbackCalls.push(args);return checkoutResult(args);}}};
     billingPortal={sessions:{create:async args=>{fallbackCalls.push(args);return{id:'fixture',url:'https://example.invalid/portal'};}}};
   }
   const fallbackDB=()=>database(()=>({data:{stripe_customer_id:'customer'},error:null}));

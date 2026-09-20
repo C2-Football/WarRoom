@@ -24,6 +24,8 @@
  *   EXPIRATION                             → downgrade to free
  *   BILLING_ISSUE                          → mark past_due
  *   TEST                                   → 200 ok (dashboard test button)
+ *   TRANSFER                               → retry until current purchase
+ *                                            ownership can be reconciled
  *   Everything else                        → acknowledged, no-op
  *
  * Required secrets:
@@ -148,6 +150,19 @@ async function handleBillingRequest(req: Request): Promise<Response> {
     });
 
   if (type === 'TEST') return ack({ test: true });
+
+  // TRANSFER does not carry app_user_id or original_transaction_id. Treating
+  // it as an unknown subscriber acknowledged and permanently lost restores.
+  // Its from/to arrays also cannot prove which of several store purchases
+  // moved. Current provider ownership must be read before changing a source.
+  // Keep known access and the delivery retryable until that read integration
+  // is configured; never silently move all of an account's subscriptions.
+  if (type === 'TRANSFER') {
+    if (!event.id || !Array.isArray(event.transferred_from) || !Array.isArray(event.transferred_to)
+        || !event.transferred_from.length || !event.transferred_to.length) return new Response('Invalid transfer event', { status: 400 });
+    console.error('[rc-webhook] Transfer reconciliation pending: provider ownership access required', { eventId: String(event.id) });
+    return new Response('Transfer ownership verification is temporarily unavailable. Retry delivery.', { status: 503 });
+  }
 
   try {
     const userId = await resolveUserId(event);

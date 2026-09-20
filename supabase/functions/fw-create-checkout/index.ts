@@ -27,6 +27,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@14';
 import { billingWriterResponse, billingProcessingEnabled } from '../_shared/billing-events.ts';
+import { recoverCheckout, CheckoutRecoveryError } from '../_shared/billing-checkout.ts';
 import {
   auditEvent,
   checkRateLimit,
@@ -49,10 +50,6 @@ const PRICE_MAP: Record<string, string | undefined> = {
   dynast_hq: Deno.env.get('STRIPE_PRICE_DYNASTY_HQ'),
   bundle:    Deno.env.get('STRIPE_PRICE_FANTASY_WARS_PRO'),
 };
-
-// Match the App Store products' 7-day free trial so web and iOS subscribers
-// get the same deal.
-const DHQ_TRIAL_DAYS = 7;
 
 Deno.serve(async (req) => billingWriterResponse(await handleBillingRequest(req)));
 
@@ -83,7 +80,7 @@ async function handleBillingRequest(req: Request): Promise<Response> {
     const priceId = productSlug === 'dhq'
       ? PRICE_MAP[`dhq_${billingPeriod}`]
       : PRICE_MAP[productSlug];
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' as any });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' as any, timeout: 10000, maxNetworkRetries: 1 });
     const rateLimit = await checkRateLimit(admin, 'fw-create-checkout:user', userId, { limit: 10, windowSeconds: 3600, lockoutSeconds: 900 });
     const ipLimit = await checkRateLimit(admin, 'fw-create-checkout:ip', clientIp(req), { limit: 30, windowSeconds: 3600, lockoutSeconds: 900 });
     if (!rateLimit.allowed || !ipLimit.allowed) {
@@ -126,30 +123,17 @@ async function handleBillingRequest(req: Request): Promise<Response> {
     }
 
     // ── Create Checkout Session ───────────────────────────────
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode:     'subscription',
-      line_items: [{
-        price:    priceId,
-        quantity: 1,
-      }],
-      success_url: safeSuccessUrl,
-      cancel_url:  safeCancelUrl,
-      subscription_data: {
-        ...(productSlug === 'dhq' ? { trial_period_days: DHQ_TRIAL_DAYS } : {}),
-        metadata: {
-          user_id:      userId,
-          product_slug: productSlug,
-          billing_period: billingPeriod,
-        },
-      },
-      allow_promotion_codes: true,
+    const checkoutSession = await recoverCheckout(admin, stripe, userId, productSlug, {
+      customer: customerId, price: priceId, billing: billingPeriod,
+      success_url: safeSuccessUrl, cancel_url: safeCancelUrl,
+      price_products: Object.fromEntries(Object.entries(PRICE_MAP).filter(([, price]) => !!price).map(([slug, price]) => [price, slug.startsWith('dhq_') ? 'dhq' : slug])),
     });
 
     await auditEvent(admin, req, 'checkout_create', 'success', { userId, email: userEmail }, { productSlug, stripeSessionId: checkoutSession.id });
     return json(req, { checkoutUrl: checkoutSession.url });
 
   } catch (err) {
+    if (err instanceof CheckoutRecoveryError) return json(req, { error: err.message, code: err.code }, err.status);
     console.error('fw-create-checkout error:', err);
     return json(req, { error: 'Failed to create checkout session.' }, 500);
   }
