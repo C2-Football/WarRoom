@@ -65,8 +65,11 @@ export async function performAccountDeletion(options: {
         stripeIds.add(stripeId);
       }
       const active = ['active','trialing','past_due','unpaid','incomplete'].includes(record.status);
-      if (active && record.tier === 'pro' && (stripeId || record.store || record.sourceProvider)) paid = true;
-      if (active && record.store && record.store !== 'stripe' && record.sourceProvider !== 'stripe') managedStores.add(String(record.store));
+      const storeManaged = ['app_store','play_store'].includes(record.store);
+      if (active && (stripeId || (record.tier === 'pro' && storeManaged))) paid = true;
+      // Owner-granted promotional access has no external subscription to
+      // cancel; it must never be described as an Apple/Google charge.
+      if (active && storeManaged && record.sourceProvider !== 'stripe') managedStores.add(String(record.store));
     }
     const managedSubscriptions = [...managedStores].sort();
     if (!self && paid && !force) throw new AccountDeletionError('paying_customer', 409, {

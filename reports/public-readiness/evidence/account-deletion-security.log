@@ -12,22 +12,22 @@ War Room security contract tests
   password reset  .
 
 PASS 16 tests - 16 passed, 0 failed
-(node:42165) Warning: `--localstorage-file` was provided without a valid path
+(node:44358) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS gift authorization, administrator provisioning, self-change and conflicting writes
 PASS free-bundle signin claims stay free; old paid claims do not change free AI policy
 PASS authentication rate limiter denies requests when storage fails
 PASS Yahoo valid flow, browser binding, forged/expired/replayed state, concurrent callbacks and revoked sessions
-(node:42166) Warning: `--localstorage-file` was provided without a valid path
+(node:44359) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS durable proxy bridge shares the atomic counter across fresh instances and denies storage/malformed/config failures with retry and CORS headers
 PASS actual ESPN handlers retain cookie/data behavior and enforce one shared 60/minute IP budget before provider access
 PASS actual Yahoo owner limiter retains authenticated token ownership/data path; denial and revoked sessions cannot contact provider
 PASS actual MFL retains allowed shard reads, rejects malformed/foreign destinations and preserves hosted actionable404 guidance
-(node:42167) Warning: `--localstorage-file` was provided without a valid path
+(node:44360) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual legacy sign-in upgrades the verified hash once and preserves a concurrent newer password without minting a stale token
-(node:42169) Warning: `--localstorage-file` was provided without a valid path
+(node:44361) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS SQL administrator enforcement, existing-user provisioning and exactly one first-password assignment
 PASS actual SQL limit accounting, window reset, lockout and caller isolation (PGlite serializes queries)
@@ -35,37 +35,37 @@ PASS browser roles cannot forge RPC actors, alter rate limits or access OAuth st
 PASS real preview HTTP: public assets work; environment/Git/internal files, escaping symlinks, hostile Host and Origin are blocked
 PASS account isolation for Empire and all Commissioner private stores, sign-out, return/reload, legacy preservation, profile changes and write failure
 PASS real logout, OAuth failure recovery, volatile secrets, preserved saves, identity changes before storage event, mounted-view reset, same-account refresh and safe sign-in preparation
-(node:42174) Warning: `--localstorage-file` was provided without a valid path
+(node:44366) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual SQL migration/replay preserves accounts and links; PBKDF password, old-session revocation, one-time and sibling-link use, and account isolation
 PASS actual handlers submit competing token uses with one winner (PGlite serializes SQL; independent-connection contention still requires hosted proof)
 PASS token-consumption failure rolls back password/session mutation; RPC outages never report success; retry recovers
 PASS browser roles cannot call trusted reset mutation; malformed inputs and unsupported methods rejected; emailed-link redirect retained
 PASS actual request handler persists hashed tokens before delivery; storage/provider outages produce honest audit outcomes without account enumeration or live email
-(node:42175) Warning: `--localstorage-file` was provided without a valid path
+(node:44367) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual onboarding functions block cross-account lookup, delayed continuation, checkout redirect, profile reads/writes and cloud sync; same-account connection/completion works
 PASS reproduced revoked-token direct read/write with old SQL, then blocked account/private/ownership/raw-claim paths after additive replay-safe migration
 PASS current sessions keep own reads/writes, other accounts remain isolated, malformed/missing/overflowed version claims fail closed
 PASS legacy owner policy unchanged, no new OAuth access, service role retains server access
 PASS actual atomic password reset revokes direct SQL immediately; refreshed session recovers retained data and unrelated account stays active
-(node:42177) Warning: `--localstorage-file` was provided without a valid path
+(node:44369) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual display/provider hydration/connect/finalize callbacks cannot mutate another account; unchanged-account MFL flow persists normally
 PASS actual Empire delayed picks/DNA stop before state publication or the next account-sensitive request
-(node:42178) Warning: `--localstorage-file` was provided without a valid path
+(node:44370) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual endpoint/SQL changes only signed account, accepts signin PBKDF, invalidates old app sessions/reset links and preserves both accounts games; replay, input, method and rate guards
 PASS transaction rollback/retry, competing actual handlers with one winner, stale snapshots and service-only grants; PGlite serializes connections, separate hosted contention remains required
 PASS actual client correct endpoint/legacy reauthentication, explicit acknowledgment, wrong-password/network/timeout recovery, provider guidance and late account-switch isolation
 PASS actual Settings callback prevents duplicate submissions, retains entered fields after failure and permits retry
 PASS actual shared/proxy CORS preserve supported web/native origins plus configured origins without wildcard; reserved-address helper retained
-(node:42179) Warning: `--localstorage-file` was provided without a valid path
+(node:44371) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS actual reset request preserves env-first/Vault-fallback delivery, current sender/domain and configured URL override without real mail
 PASS actual identity helper preserves confirmed OAuth mapping while rejecting revoked/malformed app tokens, unverified email and invalid Auth
 PASS operational reconciliation retains atomic fail-closed authentication limits
-(node:42180) Warning: `--localstorage-file` was provided without a valid path
+(node:44372) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 fw-signup entitlements error: Error: Subscriptions query failed: unavailable (undefined)
     at resolveEntitlements (evalmachine.<anonymous>:27:11)
@@ -82,7 +82,7 @@ fw-profile error: Error: Subscriptions query failed: offline (undefined)
     at async signinAndProfile (/Users/jacobc/Projects/warroom-readiness-account-deletion/tests/hosted-auth-reconciliation.cjs:104:12)
     at async /Users/jacobc/Projects/warroom-readiness-account-deletion/tests/hosted-auth-reconciliation.cjs:108:169
 PASS actual password sign-in and profile agree on trial entitlement, and failed profile lookup never downgrades the account
-(node:42181) Warning: `--localstorage-file` was provided without a valid path
+(node:44375) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS stripeFailure
 PASS billingLookupFailure
@@ -94,6 +94,7 @@ PASS accountLookupFailure
 PASS targetRoleFailure
 PASS legacyStripePaidGuard
 PASS hiddenStripeAndStoreNotice
+PASS promotionalAccessIsNotStoreBilling
 PASS partialCancellationRetry
 PASS authFailureRetry
 PASS sessionChangeBeforeMutation

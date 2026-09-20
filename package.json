@@ -68,7 +68,8 @@
     "build:native": "node scripts/build-native.cjs",
     "test:native": "node --test tests/native-packaging.cjs",
     "capacitor:copy:before": "node scripts/cap-sync-guard.cjs",
-    "capacitor:sync:before": "node scripts/cap-sync-guard.cjs"
+    "capacitor:sync:before": "node scripts/cap-sync-guard.cjs",
+    "test:account-deletion": "node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-billing-integration.cjs"
   },
   "keywords": [
     "fantasy",

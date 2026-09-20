@@ -89,6 +89,7 @@ const tests = {
     const x=fixture('fw-delete-account',{subscriptions:[{tier:'pro',status:'active',store:'app_store'}],sources:[{provider:'stripe',source_id:'sub_hidden',state:{tier:'pro',status:'active',store:'stripe'}}]});
     const r=await x.call();assert.equal(r.status,200);assert.deepEqual(x.state.fetches.filter(r=>r.method==='DELETE').map(r=>r.url.split('/').at(-1)),['sub_hidden']);assert.deepEqual(JSON.parse(JSON.stringify(r.body.managedSubscriptions)),['app_store']);assert.doesNotMatch(JSON.stringify(r.body),/sub_hidden|fixture-distinct-auth-id|synthetic-fixture-key/);assert.equal(x.state.sequence.at(-1),'app');
   },
+  async promotionalAccessIsNotStoreBilling() {const x=fixture('admin-delete-user',{subscriptions:[{product_slug:'dhq_gift',tier:'pro',status:'active',store:'promotional'}]});const r=await x.call({email});assert.equal(r.status,200);assert.equal(x.state.fetches.length,0);assert.equal(r.body.managedSubscriptions.length,0);},
   async partialCancellationRetry() {
     const options={stripeFailureFor:'sub_second',sources:[{provider:'stripe',source_id:'sub_second',state:{tier:'pro',status:'active',store:'stripe'}}]};const x=fixture('fw-delete-account',options);
     let r=await x.call();assert.equal(r.status,503);assert(x.state.app);assert.equal(r.body.canceledStripeSubscriptions,1);assert.match(r.body.error,/may already have completed/);assert.equal(x.state.authDeletes.length,0);

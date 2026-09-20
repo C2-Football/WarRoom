@@ -1,0 +1,1 @@
+PASS actual frozen billing+deletion SQL: RC-selected aggregate retains hidden Stripe inventory, webhook change forces retry, exact final deletion removes linked sources/receipts, later billing cannot recreate account
