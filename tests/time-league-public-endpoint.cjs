@@ -239,6 +239,70 @@ async function loadTs(file) {
     userId = 'u1';
     const publicSeason = E.normalizePublicTimeLeague(success(await request({ op: 'load' })).row.state);
     assert(publicSeason && publicSeason.teams.every(team => team.roster.every(entry => Number.isInteger(entry.drawnSeason))));
+
+    // Both human managers submit sealed FAAB decisions against the actual
+    // handler, then reconnect through its public projection. The administrator
+    // storage fixture is private to this test and is never a client response.
+    const beforeBids = structuredClone(row);
+    row.state.settings.waiverMode = 'faab';
+    row.state.teams = row.state.teams.map(team => ({ ...team, faabRemaining: 100 }));
+    const bidTarget = E.freeAgents(row.state, cards).find(card => card.position === 'QB');
+    assert(bidTarget, 'There is a legal QB waiver fixture');
+    const drops = ['t1', 't2'].map(teamId => row.state.teams.find(team => team.teamId === teamId).roster.find(entry => entry.position === 'QB').entryId);
+    const bid = (teamId, amount, dropEntryId) => ({ type: 'claim', teamId, identity: bidTarget.identity, dropEntryId, bidAmount: amount });
+    const firstVersion = row.version;
+    userId = 'u1'; const firstBid = act(bid('t1', 17, drops[0]), { version: firstVersion });
+    userId = 'u2'; const secondBid = act(bid('t2', 29, drops[1]), { version: firstVersion });
+    const competingBids = await Promise.all([firstBid, secondBid]);
+    assert.equal(competingBids.filter(result => result.status === 200).length, 1, 'Concurrent same-version decisions have one winner');
+    assert.equal(competingBids.filter(result => result.status === 409).length, 1, 'The other manager receives an explicit conflict');
+    assert.equal(row.version, firstVersion + 1);
+    const rejectedIndex = competingBids.findIndex(result => result.status === 409);
+    userId = rejectedIndex ? 'u2' : 'u1';
+    const retryView = success(await request({ op: 'load' })).row;
+    assert.equal(retryView.state.pendingClaims.length, 0, 'The retrying manager cannot see the other manager’s saved bid');
+    success(await act(bid(rejectedIndex ? 't2' : 't1', rejectedIndex ? 29 : 17, drops[rejectedIndex]), { version: retryView.version }));
+    const savedBids = structuredClone(row);
+    assert.equal(row.state.pendingClaims.length, 2);
+    for (const [index, identity] of ['u1', 'u2'].entries()) {
+        userId = identity;
+        const ownTeam = index ? 't2' : 't1', otherTeam = index ? 't1' : 't2';
+        const ownBid = index ? 29 : 17;
+        const privateOther = row.state.pendingClaims.find(claim => claim.teamId === otherTeam);
+        const response = success(await request({ op: 'load' })).row;
+        assert.equal(response.state.pendingClaims.length, 1);
+        assert.equal(response.state.pendingClaims[0].teamId, ownTeam);
+        assert.equal(response.state.pendingClaims[0].bidAmount, ownBid);
+        assert(!JSON.stringify(response).includes(privateOther.claimId), 'Another manager’s private claim identifier is absent from the complete endpoint response');
+        assert(!JSON.stringify(response).includes('"bidAmount":' + (index ? 17 : 29)), 'Another manager’s bid value is absent from the complete endpoint response');
+        assert(response.state.activity.filter(event => event.kind === 'waiver' && event.week === row.current_week)
+            .every(event => event.message === 'A manager submitted a waiver claim.'), 'Activity cannot disclose a pending bid or target');
+        assert(response.state.teams.every(team => team.faabRemaining === 100), 'Reserved bids do not disclose their value by deducting public budgets');
+        assert(!Object.hasOwn(response.state, 'privateDraws') && !Object.hasOwn(response.state, 'seed'));
+        assert(!JSON.stringify(response).includes(secret));
+        assert.equal((await act({ type: 'cancel-claim', claimId: privateOther.claimId })).status, 400, 'Knowing a claim identifier cannot cancel another manager’s bid');
+        assert.equal((await act(bid(otherTeam, 1, drops[1 - index]))).status, 400, 'A supplied team ID cannot place another manager’s bid');
+    }
+    assert.deepEqual(row, savedBids, 'Rejected requests and reconnect reads preserve authoritative decisions');
+    userId = 'u2'; assert.equal((await act({ type: 'process-claims' })).status, 400, 'An ordinary member cannot settle commissioner-controlled waivers');
+    userId = 'u1'; success(await act({ type: 'process-claims' }));
+    assert.equal(row.state.pendingClaims.length, 0);
+    assert(row.state.teams[1].roster.some(entry => entry.identity === bidTarget.identity), 'The larger legal sealed bid wins after settlement');
+    assert.equal(row.state.teams[0].faabRemaining, 100);
+    assert.equal(row.state.teams[1].faabRemaining, 71, 'The winner is charged once');
+    const settledVersion = row.version;
+    assert.equal((await act({ type: 'process-claims' }, { version: savedBids.version })).status, 409, 'Replaying a settled request cannot charge a second time');
+    assert.equal(row.version, settledVersion);
+    for (const identity of ['u1', 'u2']) {
+        userId = identity;
+        const response = success(await request({ op: 'load' })).row;
+        assert.deepEqual(response.state.pendingClaims, []);
+        assert(response.state.waiverResults.some(result => result.identity === bidTarget.identity && result.winnerTeamId === 't2'));
+        assert(!JSON.stringify(response.state).includes('"bidAmount":17'), 'The losing private amount remains absent after settlement');
+    }
+    row = beforeBids; userId = 'u1';
+    console.log('PASS: actual endpoint two-manager sealed FAAB privacy, concurrent conflict/reload/retry, own-seat permissions, one-time settlement and reconnect');
+
     const target = E.freeAgents(row.state, cards).at(-1);
     const nowPrepared = await sealed.prepareSealedDraws(row.state, cards, secret);
     assert.deepEqual(Object.keys(nowPrepared.privateDraws), ['waiver']);

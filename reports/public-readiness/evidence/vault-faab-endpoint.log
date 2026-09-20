@@ -1,0 +1,4 @@
+(node:34697) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: actual endpoint two-manager sealed FAAB privacy, concurrent conflict/reload/retry, own-seat permissions, one-time settlement and reconnect
+PASS: sealed endpoint authentication, reveals, readiness, stale writes, independent IDs, HMAC drafts, current-week waivers, and postdraft custom scoring

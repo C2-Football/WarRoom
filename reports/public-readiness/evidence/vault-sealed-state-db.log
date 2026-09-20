@@ -1,0 +1,5 @@
+ok sealed state migration is repeatable and leaves existing game records intact
+ok anonymous, nonmember, other-seat member and commissioner cannot bypass the Edge projection through table, JSON, join or RPC reads
+ok RLS independently denies raw snapshots even if a future change accidentally grants table SELECT
+ok trusted server retains authoritative draws and still creates leagues, joins seats, readies, chats and accepts community invitations
+PASS: Vault sealed state database integration
