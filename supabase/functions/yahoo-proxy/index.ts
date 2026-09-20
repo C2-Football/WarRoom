@@ -24,6 +24,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireActiveAppSession, requireSleeperSession, sha256Hex, checkRateLimit } from "../_shared/security.ts";
 import { corsHeaders, isAllowedBrowserUrl } from "../_shared/cors.ts";
+import { checkRateLimit as checkProxyLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const YAHOO_BASE      = "https://fantasysports.yahooapis.com/fantasy/v2";
 const YAHOO_TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token";
@@ -280,6 +281,11 @@ serve(async (req: Request) => {
           { status: 401, headers: { ...responseHeaders, "Content-Type": "application/json" } }
         );
       }
+      // Retain the deployed cross-instance owner limit without discarding the
+      // current-session and browser-bound OAuth protections above.
+      const limit = await checkProxyLimit(`yahoo-proxy:${ownerKey}`, 120, 60);
+      const limited = rateLimitResponse(limit, responseHeaders);
+      if (limited) return limited;
       const { endpoint, session_id } = body;
       if (!endpoint || !session_id) {
         return new Response(

@@ -59,7 +59,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { url, method, cookie, form, login } = await req.json();
+    const { url, method, cookie, form, login } = (await req.json()) || {};
 
     if (!url || !isValidMflUrl(url)) {
       return new Response(
@@ -120,6 +120,8 @@ serve(async (req: Request) => {
       let msg = `MFL API error ${status}`;
       if (status === 401 || status === 403) {
         msg = "MFL authorization failed — your login may have expired. Reconnect and try again.";
+      } else if (status === 404) {
+        msg = "MFL league not found. Check your League ID and year.";
       } else if (status === 429) {
         msg = "MFL rate limit reached. Wait a moment and try again.";
       }

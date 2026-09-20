@@ -1,0 +1,50 @@
+{
+  "date": "2026-09-20",
+  "baseline": "4642e3e",
+  "currentNativeRevision": "aa13193",
+  "currentPublicRevision": "db1701f",
+  "hostedSnapshot": "/tmp/readiness-hosted-inventory-20260920",
+  "readOnlySourceComparison": true,
+  "files": [
+    {
+      "endpoint": "set-password",
+      "baseline4642e3e": "94adf9db2275d5a3c576223119389a0e1d210869441f2629adc4e5509117524a",
+      "candidate": "94adf9db2275d5a3c576223119389a0e1d210869441f2629adc4e5509117524a",
+      "hosted": "3bf86461ca6630c9ee4e382c72a93347140486b242a0062eff71b47eda947e59",
+      "currentNative": "3bf86461ca6630c9ee4e382c72a93347140486b242a0062eff71b47eda947e59",
+      "currentPublic": null
+    },
+    {
+      "endpoint": "get-session-token",
+      "baseline4642e3e": "673fb0583ce0bffef7a1916c17bf15573823833726b69e8f6fa0fb45a511a1ce",
+      "candidate": "d1e106aa5b0b134607b62fa3e8dd090259cd245b622a1fb451eb1001fa19b194",
+      "hosted": "673fb0583ce0bffef7a1916c17bf15573823833726b69e8f6fa0fb45a511a1ce",
+      "currentNative": "673fb0583ce0bffef7a1916c17bf15573823833726b69e8f6fa0fb45a511a1ce",
+      "currentPublic": null
+    },
+    {
+      "endpoint": "yahoo-proxy",
+      "baseline4642e3e": "7f7d9dca2a7514b7e9268c883a5007fc02d62dd5ec16e34ea7726405ebc541a7",
+      "candidate": "bfef754e75e60ef8325db825ad1fc98fa657611c71657f4d461a4b90c091be36",
+      "hosted": "38416a7b4351d6a606f15c1655615b657496879aad224fd2499b27fe461c6a0e",
+      "currentNative": null,
+      "currentPublic": null
+    },
+    {
+      "endpoint": "mfl-proxy",
+      "baseline4642e3e": "6264b57594c8411d19a82e29c0bc193094a20dbe217df4b45b2504715acfa97e",
+      "candidate": "038f660e86ebd7652af7337e064777135396901b535a02519062a7e843b5ca5d",
+      "hosted": "4e2b837011e43c11ebe4a80c4c141642107f97e65a1a7ba9fb1d28744db0fabb",
+      "currentNative": "4e2b837011e43c11ebe4a80c4c141642107f97e65a1a7ba9fb1d28744db0fabb",
+      "currentPublic": null
+    },
+    {
+      "endpoint": "espn-proxy",
+      "baseline4642e3e": "f715cd8d21b5f1134b55b421844427b1b04fae673710db7bb83fd9031cb776d7",
+      "candidate": "b2a0add7abdd859ea17141d3b05430b4c8af6ac2abc75ce135d39ce3f2c6a40d",
+      "hosted": "b2a0add7abdd859ea17141d3b05430b4c8af6ac2abc75ce135d39ce3f2c6a40d",
+      "currentNative": null,
+      "currentPublic": null
+    }
+  ]
+}

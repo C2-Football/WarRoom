@@ -9,29 +9,10 @@
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX = 60;
-const rateBuckets = new Map<string, { bucket: number; count: number }>();
-
-function clientIp(req: Request): string {
-  return req.headers.get("CF-Connecting-IP")
-    || req.headers.get("X-Forwarded-For")?.split(",")[0]?.trim()
-    || req.headers.get("X-Real-IP")
-    || "unknown";
-}
-
-function checkRateLimit(req: Request): boolean {
-  const id = clientIp(req);
-  const bucket = Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS);
-  const current = rateBuckets.get(id);
-  if (!current || current.bucket !== bucket) {
-    rateBuckets.set(id, { bucket, count: 1 });
-    return true;
-  }
-  current.count += 1;
-  return current.count <= RATE_LIMIT_MAX;
-}
 
 serve(async (req: Request) => {
   const responseHeaders = corsHeaders(req);
@@ -39,12 +20,9 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: responseHeaders });
   }
 
-  if (!checkRateLimit(req)) {
-    return new Response(
-      JSON.stringify({ error: "Proxy rate limit exceeded. Try again shortly." }),
-      { status: 429, headers: { ...responseHeaders, "Content-Type": "application/json", "Retry-After": "60" } }
-    );
-  }
+  const limit = await checkRateLimit(`espn-proxy:${clientIp(req)}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECONDS);
+  const limited = rateLimitResponse(limit, responseHeaders);
+  if (limited) return limited;
 
   try {
     const { url, espnS2, swid } = await req.json();

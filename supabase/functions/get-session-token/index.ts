@@ -103,10 +103,16 @@ Deno.serve(async (req) => {
             if (inputSha === userRow.password_hash) {
                 passwordMatch = true;
                 const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-                await admin
+                const { data: upgraded, error: upgradeError } = await admin
                     .from('users')
                     .update({ password_hash: newHash })
-                    .eq('sleeper_username', normalizedUsername);
+                    .eq('sleeper_username', normalizedUsername)
+                    .eq('password_hash', userRow.password_hash)
+                    .select('sleeper_username').maybeSingle();
+                if (upgradeError) throw upgradeError;
+                if (!upgraded) {
+                    return json(req, { error: 'Your account changed. Sign in again before continuing.' }, 401);
+                }
             }
         } else {
             passwordMatch = await bcrypt.compare(password, userRow.password_hash);
