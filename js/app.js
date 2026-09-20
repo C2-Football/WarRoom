@@ -124,6 +124,61 @@
         finally { clearTimeout(timer); }
     }
 
+    // Transfers prove ownership, not whether the draft has consumed the right.
+    // Keep progress separate so a failed refresh cannot fabricate unused picks.
+    async function fetchEmpireDraftInventory(league, options = {}) {
+        const id = String(league.id || league.league_id || '');
+        const season = String(league.season || '');
+        const contextKey = season + ':' + id;
+        const previous = options.previous?.contextKey === contextKey ? options.previous : null;
+        const unavailable = () => ({ contextKey, inventory: previous?.inventory, status: previous?.inventory ? 'stale' : 'unavailable', error: 'Could not verify draft progress. Retry pick sync.' });
+        const current = options.isCurrent || (() => true);
+        if (!id || !/^\d{4}$/.test(season) || league._espn || league._mfl || (league._source && league._source !== 'sleeper')) return unavailable();
+        async function read(path) {
+            if (!current()) throw Error('Account changed');
+            const controller = new window.AbortController();
+            const timer = setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+            try {
+                const response = await (options.fetcher || window.fetch.bind(window))('https://api.sleeper.app/v1/' + path, { signal: controller.signal });
+                if (!response.ok) throw Error('Draft unavailable');
+                const data = await response.json();
+                if (!current()) throw Error('Account changed');
+                return data;
+            } finally { clearTimeout(timer); }
+        }
+        try {
+            const drafts = await read('league/' + encodeURIComponent(id) + '/drafts');
+            if (!Array.isArray(drafts)) throw Error('Invalid drafts');
+            const candidates = drafts.filter(draft => String(draft?.season) === season && (!draft.league_id || String(draft.league_id) === id));
+            const draft = candidates.find(item => String(item.draft_id) === String(league.draft_id)) || (candidates.length === 1 ? candidates[0] : null);
+            if (!draft?.draft_id || !['pre_draft', 'drafting', 'complete'].includes(draft.status)) throw Error('Draft not identified');
+            const rounds = Number(draft.settings?.rounds);
+            if (!Number.isInteger(rounds) || rounds < 1 || rounds > 100) throw Error('Draft rounds unavailable');
+            if (draft.type === 'auction' && draft.status !== 'complete') throw Error('Auction allocations are not round-based pick rights');
+            const inventory = { draftId: String(draft.draft_id), season, phase: draft.status, rounds, consumed: [] };
+            if (draft.status === 'drafting') {
+                const rows = await read('draft/' + encodeURIComponent(draft.draft_id) + '/picks');
+                if (!Array.isArray(rows)) throw Error('Draft picks unavailable');
+                const slots = { ...(draft.slot_to_roster_id || {}) };
+                for (const [owner, slot] of Object.entries(draft.draft_order || {})) {
+                    const roster = (league.rosters || []).find(item => String(item.owner_id) === owner);
+                    if (slots[slot] == null && roster) slots[slot] = roster.roster_id;
+                }
+                const consumed = new Map();
+                for (const pick of rows) {
+                    const round = Number(pick?.round), slot = Number(pick?.draft_slot);
+                    const rosterId = slots[slot];
+                    if (!pick?.player_id || !Number.isInteger(round) || round < 1 || round > rounds || !Number.isInteger(slot) || slot < 1 || rosterId == null || !(league.rosters || []).some(roster => String(roster.roster_id) === String(rosterId))) throw Error('Draft pick source unavailable');
+                    const key = round + ':' + rosterId;
+                    if (consumed.has(key) && String(consumed.get(key).playerId) !== String(pick.player_id)) throw Error('Conflicting draft picks');
+                    consumed.set(key, { round, rosterId: String(rosterId), playerId: pick.player_id });
+                }
+                inventory.consumed = [...consumed.values()];
+            }
+            return { contextKey, inventory, status: 'ready', error: null };
+        } catch (_) { return unavailable(); }
+    }
+
     // A league list and its hydrated rosters are separate evidence. Publish
     // coverage alongside streamed usable leagues; missing data is never an empty roster.
     async function fetchSleeperPortfolio(options) {
@@ -1037,10 +1092,14 @@
                 if (!lid) return;
                 const snapshot = await fetchEmpireTradedPicks(l, { previous: empirePickSnapshotsRef.current.get(String(lid)) });
                 if (!accountSessionCurrent()) return;
-                empirePickSnapshotsRef.current.set(String(lid), snapshot);
+                const draftSnapshot = await fetchEmpireDraftInventory(l, { previous: empirePickSnapshotsRef.current.get(String(lid))?.draft, isCurrent: accountSessionCurrent });
+                if (!accountSessionCurrent()) return;
+                empirePickSnapshotsRef.current.set(String(lid), { ...snapshot, draft: draftSnapshot });
                 l.tradedPicks = snapshot.picks;
                 l._pickFeedState = snapshot.status;
                 l._pickFeedError = snapshot.error;
+                l._draftInventory = draftSnapshot.inventory;
+                l._draftInventoryState = draftSnapshot.status;
                 allTradedPicks.push(...(snapshot.picks || []));
             }));
             if (!accountSessionCurrent()) return;

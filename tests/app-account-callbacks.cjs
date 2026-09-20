@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const Babel=require('@babel/standalone');
 const source=fs.readFileSync('js/app.js','utf8');
-const wanted=new Set(['accountSessionCurrent','fetchEmpireTradedPicks','handleMFLConnect','handleESPNConnect','finalizeMFLConnect','populateEmpireWindowState','assessEmpirePortfolio']);
+const wanted=new Set(['accountSessionCurrent','fetchEmpireTradedPicks','fetchEmpireDraftInventory','handleMFLConnect','handleESPNConnect','finalizeMFLConnect','populateEmpireWindowState','assessEmpirePortfolio']);
 const nodes=[];
 const selected=Babel.transform(source,{presets:['react'],plugins:[()=>({visitor:{FunctionDeclaration(path){if(wanted.has(path.node.id.name))nodes.push(path.node);},Program:{exit(path){path.node.body=nodes;}}}})]}).code;
 const displayEffect=source.slice(source.indexOf('        // Cloud sync —'),source.indexOf('        const leagueMates ='));

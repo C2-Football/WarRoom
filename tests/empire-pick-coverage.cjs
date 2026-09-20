@@ -10,7 +10,7 @@ vm.runInContext(app.slice(app.indexOf('    async function fetchEmpireTradedPicks
 vm.runInContext(view.slice(view.indexOf('function tierColor('), view.indexOf('// Scenario math')), context);
 vm.runInContext(view.slice(view.indexOf('function buildCommandBridge('), view.indexOf("if (typeof window !== 'undefined')", view.indexOf('function buildCommandBridge('))), context);
 const load = context.fetchEmpireTradedPicks;
-const league = { id: 'L1', name: 'Alpha', season: '2026', settings: { type: 2, draft_rounds: 4 }, rosters: [{ roster_id: 1, owner_id: 'me', players: [] }, { roster_id: 2, owner_id: 'them', players: [] }] };
+const league = { id: 'L1', name: 'Alpha', season: '2026', _draftInventory: { season: '2026', phase: 'pre_draft', rounds: 4, consumed: [] }, _draftInventoryState: 'ready', settings: { type: 2, draft_rounds: 4 }, rosters: [{ roster_id: 1, owner_id: 'me', players: [] }, { roster_id: 2, owner_id: 'them', players: [] }] };
 const transfer = { season: '2026', round: 1, roster_id: 1, owner_id: 2 };
 const reply = body => async () => ({ ok: true, json: async () => body });
 const model = leagues => context.buildEmpirePortfolioModel({ allLeagues: leagues, sleeperUserId: 'me', playersData: {} });
@@ -97,6 +97,7 @@ test('a slow provider times out and non-Sleeper connections never query the wron
 
 test('actual Empire hydration retains snapshots when roster refresh creates new league objects', async () => {
     const hydration = vm.createContext({ window: { App: {}, S: {} }, sleeperUser: { user_id: 'me' }, empirePickSnapshotsRef: { current: new Map() }, setEmpireAssessReady() {},
+        fetchEmpireDraftInventory: async () => ({ inventory: league._draftInventory, status: 'ready' }),
         fetchEmpireTradedPicks: (input, options) => load(input, { ...options, fetcher: reply([transfer]) }) });
     vm.runInContext(app.slice(app.indexOf('    function accountSessionCurrent('), app.indexOf('    // Resume is account history')), hydration);
     vm.runInContext(app.slice(app.indexOf('        async function populateEmpireWindowState('), app.indexOf('        // Per-league health/tier assessment')), hydration);

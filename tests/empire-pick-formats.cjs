@@ -7,7 +7,7 @@ const Babel = require('@babel/standalone');
 const context = vm.createContext({ window: { App: {} }, console });
 vm.runInContext(fs.readFileSync('js/league-skin.js', 'utf8'), context);
 vm.runInContext(Babel.transform(fs.readFileSync('js/tabs/global-view.js', 'utf8'), { presets: ['react'] }).code, context);
-const fixture = (type, overrides = {}) => ({ id: 'L' + type, name: 'Fixture ' + type, season: '2026', status: 'pre_draft',
+const fixture = (type, overrides = {}) => ({ id: 'L' + type, name: 'Fixture ' + type, season: '2026', status: 'pre_draft', _draftInventory: { season: '2026', phase: 'pre_draft', rounds: 4, consumed: [] }, _draftInventoryState: 'ready',
     settings: { type, draft_rounds: 4 }, rosters: [{ roster_id: 1, owner_id: 'me', players: ['p'] }, { roster_id: 2, owner_id: 'other', players: [] }], tradedPicks: [], ...overrides });
 const model = leagues => context.buildEmpirePortfolioModel({ allLeagues: leagues, sleeperUserId: 'me', scores: { p: 1000 }, playersData: { p: { full_name: 'Fixture Player', position: 'WR' } } });
 const years = portfolio => Array.from(portfolio.pickCapital.byYear, year => year.year);
