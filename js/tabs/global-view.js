@@ -3892,7 +3892,7 @@ function buildCommandBridge(input) {
 
     const kpis = [
         { key: 'value', label: 'Empire Value', value: totals.valueBasis === 'mixed' ? 'By league' : totals.totalValue === null ? 'Unavailable' : fmtK(totals.totalValue === undefined ? totals.totalDHQ : totals.totalValue),
-          sub: (totals.valueBasis === 'mixed' ? 'Different value bases; open a league' : totals.valueBasis === 'seasonal' ? 'League-scored season value' : totals.valueBasis === 'unknown' ? 'Format or holdings unavailable' : 'Dynasty DHQ'),
+          sub: (totals.valueBasis === 'mixed' ? 'Different value bases; open a league' : totals.valueBasis === 'seasonal' ? 'League-scored season value' : totals.valueBasis === 'unknown' ? 'Format or holdings unavailable' : 'Dynasty DHQ') + (model.coverage?.complete === false ? ' · loaded leagues only' : ''),
           delta: (totals.valueBasis === undefined || totals.valueBasis === 'dynasty') && dhqDelta != null ? { dir: dir(dhqDelta), pct: dhqPct } : null },
         { key: 'record', label: 'Record', value: (rec.wins || 0) + '–' + (rec.losses || 0),
           sub: winPctStr + (games ? ' · ' + playoffSpots + ' in playoff spots' : '') + (choppedNote ? ' · ' + choppedNote : '') },

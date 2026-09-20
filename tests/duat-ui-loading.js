@@ -140,7 +140,7 @@ test('actual browser modules initialize the country campaign and presentation wi
 });
 
 function harness({ loaded = false, missingLoader = false } = {}) {
-    const states = [], refs = [], effectDependencies = [], injected = [], scrolls = [];
+    const states = [], refs = [], effectDependencies = [], injected = [], scrolls = [], routeCancellations = [];
     let stateCursor = 0, refCursor = 0, effectCursor = 0, queuedEffects = [], snapshot, reloads = 0, vaultMode = true;
     function Game() {}
     function ErrorBoundary() {}
@@ -165,6 +165,7 @@ function harness({ loaded = false, missingLoader = false } = {}) {
     const context = vm.createContext({
         window: browser, document, React, URL, URLSearchParams, ErrorBoundary,
         selectedLeague: null,
+        cancelLinkedLeagueRoute: clear => routeCancellations.push(clear),
         timeLeagueMode: true, timeLeagueModuleState: 'ready',
         setTimeout: () => 1, clearTimeout() {},
         setTimeLeagueMode: value => { vaultMode = value; context.timeLeagueMode = value; },
@@ -195,7 +196,7 @@ function harness({ loaded = false, missingLoader = false } = {}) {
         return tree;
     }
     return {
-        draw, browser, injected, Game, ErrorBoundary, scrolls,
+        draw, browser, injected, Game, ErrorBoundary, scrolls, routeCancellations,
         snapshot: () => snapshot, reloads: () => reloads, vaultMode: () => vaultMode,
         completeGroup() { browser.DuatGame = Game; injected.forEach(script => script.onload()); },
     };
@@ -328,6 +329,7 @@ test('successful group completion mounts the game and repeat entry does not load
     assert.equal(nodes(tree).filter(node => node.type === page.Game).length, 1);
     assert.equal(page.vaultMode(), false);
     page.snapshot().openDuat();
+    assert.equal(page.routeCancellations.at(-1), true, 'Opening Duat cancels a pending league deep link.');
     assert.equal(page.injected.length, scriptSources.length);
     assert.equal(page.reloads(), 0);
 });
