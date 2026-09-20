@@ -1,0 +1,5 @@
+# Independent legacy/proxy review — Sep20
+
+Root reviewed `abaa928` against the preserved native/hosted source and baseline security guards, then reran actual `legacy-password-upgrade`, `proxy-reconcile` and `security-audit-regression` handlers. All passed. The exact verified legacy hash is now compared before its asynchronous upgrade can persist or mint a token; a concurrent newer password survives. Provider limits share the existing atomic service-only database counter, deny storage failures, retain deployed owner/IP budgets, and preserve authenticated Yahoo token ownership/browser-bound state. MFL actionable404 and malformed-body behavior remain compatible. No material finding in the bounded delta; integrated as `bb45182`.
+
+This does not prove hosted provider credentials or OAuth end to end. Legacy seven-day tokens still have a separately tracked revocation limitation; the upgrade fix is not a claim of full app-session parity. No remote account or provider mutation was performed for this review.

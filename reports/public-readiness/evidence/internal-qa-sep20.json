@@ -1,0 +1,19 @@
+{
+  "runId": "readiness-20260920-f868bdff-2615-4cad-ad86-78ec10ecf7de",
+  "at": "2026-09-20T15:34:30.942Z",
+  "setup": "internal operator SQL; not public signup proof",
+  "accountIds": [
+    "c48b3225-82c3-4aa8-9979-d30b7f32118d",
+    "19faf319-8466-4aad-874e-8bb43e9a33e6"
+  ],
+  "before": {
+    "accounts": 0,
+    "duat_memberships": 0,
+    "gifts": 0,
+    "roles": 0,
+    "subscriptions": 0,
+    "vault_memberships": 0
+  },
+  "status": "prepared",
+  "realCustomerRecordsTouched": false
+}
