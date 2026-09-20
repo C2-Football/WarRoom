@@ -12,7 +12,9 @@ Review target: `c68e49d7f4dec88c4db7cd3c8a62cb70e522e481` in `warroom-readiness-
 
 **Impact:** a successful sign-in can immediately lose its account. Dependent state created during the interval may be deleted by cascading constraints or become inaccessible. This is a material account-integrity blocker, not merely a misleading error message.
 
-**Disposition:** root and the security owner accepted the finding and held signup/OAuth deployment. The owner is implementing atomic account-plus-subscription provisioning with a service-only database function and meaningful transaction/handler regressions. Correction and independent re-verification are pending; this report does not clear the auth batch.
+**Disposition:** corrected in `f8ac223ebf023ea47ceef61e042071f8ed13f55a`. Independently reviewed the service-only `create_app_account` transaction, empty search path, grants, validation and both handler adapters. Account, initial subscription and existing gift trigger effects now commit together. OAuth handles a competing unique-email winner by rereading that committed identity; signup returns 409 without replacing the winner. Neither handler deletes an exposed account. This material finding is resolved in the local candidate; migration and deployment verification remain separate.
+
+Independent reruns on the correction passed `tests/account-provisioning-atomic.cjs` (four actual SQL/handler groups), `tests/hosted-auth-reconciliation.cjs` (five groups), and `tests/security-contract.js` (16 checks). The database test includes migration replay, denied anon/authenticated access, service-only success, failed subscription rollback including a gift trigger, unrelated saves, held-first-operation failure with a successful second session/save, competing OAuth identity reuse, and signup-versus-OAuth conflict. PGlite serializes SQL; these fixtures do not claim independently connected live PostgreSQL contention proof. The before-harness is preserved as historical reproduction and must be run against the original target, since the correction replaces its external database interface with the atomic RPC.
 
 ## Checks that passed
 
