@@ -26,7 +26,7 @@
     "test:ai": "node tests/ai-routing.js && node tests/alex-format-context.cjs",
     "test:ai-scale": "node scripts/ai-scale-load-model.cjs",
     "test:billing": "node tests/billing-schema.js && node tests/billing-recovery.cjs && node tests/billing-events-db.cjs && node tests/billing-checkout-recovery.cjs",
-    "test:security": "node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/proxy-reconcile.cjs && node tests/legacy-password-upgrade.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs && node tests/account-storage.cjs && node tests/account-session.cjs && node tests/password-reset-atomic.cjs && node tests/onboarding-account-session.cjs && node tests/account-session-rls.cjs && node tests/app-account-callbacks.cjs && node tests/account-password.cjs && node tests/reset-operational-compat.cjs && node tests/hosted-auth-reconciliation.cjs && node tests/account-provisioning-atomic.cjs && node tests/hosted-operations-reconciliation.cjs && node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-checkouts.cjs",
+    "test:security": "node tests/security-contract.js && node tests/security-audit-regression.cjs && node tests/proxy-reconcile.cjs && node tests/legacy-password-upgrade.cjs && node tests/security-audit-db.cjs && node tests/security-preview-http.cjs && node tests/account-storage.cjs && node tests/account-session.cjs && node tests/password-reset-atomic.cjs && node tests/onboarding-account-session.cjs && node tests/account-session-rls.cjs && node tests/app-account-callbacks.cjs && node tests/account-password.cjs && node tests/reset-operational-compat.cjs && node tests/hosted-auth-reconciliation.cjs && node tests/account-provisioning-atomic.cjs && node tests/hosted-operations-reconciliation.cjs && node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-checkouts.cjs && npm run test:c2-release",
     "test:bug-capture": "node tests/bug-capture.js",
     "test:analytics": "node tests/analytics-report.js",
     "test:tutorial": "node tests/tutorial-contract.js",
@@ -69,7 +69,8 @@
     "test:native": "node --test tests/native-packaging.cjs",
     "capacitor:copy:before": "node scripts/cap-sync-guard.cjs",
     "capacitor:sync:before": "node scripts/cap-sync-guard.cjs",
-    "test:account-deletion": "node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-billing-integration.cjs && node tests/account-deletion-checkouts.cjs && node tests/account-deletion-checkouts-sql.cjs"
+    "test:account-deletion": "node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-billing-integration.cjs && node tests/account-deletion-checkouts.cjs && node tests/account-deletion-checkouts-sql.cjs",
+    "test:c2-release": "python3 tests/c2-edge-release.py && node tests/c2-edge-release-schema.cjs"
   },
   "keywords": [
     "fantasy",

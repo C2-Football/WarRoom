@@ -1,349 +1,127 @@
-name: Deploy Supabase Edge Functions
+name: Validate and release C2 game functions
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "supabase/functions/**"
-      - "supabase/migrations/**"
-      - "supabase/config.toml"
+      - "supabase/**"
       - "js/shared/time-league-*.js"
       - "js/shared/woeppel-cup.js"
-      - "js/shared/woeppel-cup.js"
       - "data/time-league/**"
-      - "scripts/build-time-league-server.cjs"
       - "js/duat/**"
       - "data/duat/**"
+      - "scripts/build-time-league-server.cjs"
       - "scripts/build-duat-server.cjs"
       - "scripts/build-duat-data.py"
+      - "scripts/c2-edge-release.py"
+      - "tests/c2-edge-release*"
       - "tests/duat-*"
-      - "supabase/config.toml"
+      - ".github/c2-releases/**"
       - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
+    inputs:
+      manifest:
+        description: "Committed reviewed .github/c2-releases/<name>.json"
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: supabase-production
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    # Edge functions live in the shared production Supabase project — only the
-    # canonical repo deploys them. The sandbox mirror (no deploy token) skips
-    # instead of failing on every push.
-    if: github.repository == 'C2-Football/WarRoom'
+  validate:
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v6.0.2
-
+        with:
+          fetch-depth: 0
       - name: Checkout canonical shared engine for security contracts
         uses: actions/checkout@v4
         with:
           repository: C2-Football/dhq-shared
           path: shared-src
           ref: 7bd35313fc78e25a2d1ac24035989673a93f28e6
-
-      - name: Verify Supabase deploy token
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-            echo "SUPABASE_ACCESS_TOKEN repo secret is required for Edge Function deployment." >&2
-            exit 1
-          fi
-
-      - uses: supabase/setup-cli@v2.0.0
-        with:
-          version: latest
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.20.2
           cache: npm
-
-      - name: Install test dependencies
-        run: npm ci
-
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.6
+      - run: npm ci
       - name: Sync pinned shared modules before security contracts
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
-
-      - name: Verify Cup, security and Vault contracts before backend deployment
+      - name: Verify Cup, security, billing and Vault contracts
         run: npm run test:cup && npm run test:security && npm run test:billing && npm run test:timeleague
-
-      - name: Verify Duat contracts before backend deployment
+      - name: Verify Duat contracts
         run: npm run test:duat
-
-      # The full Vault runtime requires local bundling above the API limit.
-      - name: Verify Docker for Vault local bundling
-        run: docker info > /dev/null
-
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
-
       - name: Build Duat server runtime
         run: node scripts/build-duat-server.cjs
-
-      - name: Type check Edge Functions
+      - name: Type check all retained Edge Function sources
         run: |
           for fn in supabase/functions/*/index.ts; do
-            deno check --node-modules-dir=auto "$fn"
+            deno check --node-modules-dir=none --no-lock "$fn"
           done
 
-      # Idempotent apply of allowlisted migrations through the Management API.
-      # Earlier migrations were applied by hand via the dashboard; entries
-      # listed here are executed (and recorded) automatically when missing.
-      # Only add migrations that are safe to re-run (if not exists / or
-      # replace), because the query endpoint does not guarantee atomicity
-      # across statements.
-      - name: Apply pending database migrations
+  release:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'C2-Football/WarRoom' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_MANIFEST: ${{ inputs.manifest }}
+      RELEASE_HEAD: ${{ github.sha }}
+      RELEASE_REPOSITORY: ${{ github.repository }}
+      RELEASE_REF: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.20.2
+          cache: npm
+      - run: npm ci
+      - name: Build the exact game runtime artifacts before scope verification
+        run: node scripts/build-time-league-server.cjs && node scripts/build-duat-server.cjs
+      - name: Validate committed candidate, dependency and artifact hashes
+        id: plan
+        run: python3 scripts/c2-edge-release.py plan --head "$RELEASE_HEAD" --event workflow_dispatch --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST"
+      - uses: supabase/setup-cli@v2.0.0
+        with:
+          version: 2.84.2
+      - name: Verify Docker for Vault local bundling
+        if: steps.plan.outputs.time_league == 'true'
+        run: docker info > /dev/null
+      # No migration application, arbitrary SQL, or non-game deployment is
+      # available here. Compatibility reads run immediately before each write;
+      # all scope/bytes/schema checks run again after every deployment.
+      - name: Deploy reviewed Cup
+        if: steps.plan.outputs.league_cup == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          python3 - <<'PYEOF'
-          import json, urllib.request, os, sys
-
-          token = os.environ.get('SUPABASE_ACCESS_TOKEN', '')
-          endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
-
-          pending = {
-              '20260920030000': 'supabase/migrations/20260920030000_atomic_account_provisioning.sql',
-              '20260920050000': 'supabase/migrations/20260920050000_billing_checkout_recovery.sql',
-              '20260710000000': 'supabase/migrations/20260710000000_dhq_pro_billing.sql',
-              '20260724000000': 'supabase/migrations/20260724000000_gift_grants.sql',
-              '20260920010000': 'supabase/migrations/20260920010000_billing_event_recovery.sql',
-              '20260920040000': 'supabase/migrations/20260920040000_account_deletion_recovery.sql',
-              '20260920060000': 'supabase/migrations/20260920060000_account_deletion_checkouts.sql',
-              '20260918030000': 'supabase/migrations/20260918030000_account_password_change.sql',
-              '20260918020000': 'supabase/migrations/20260918020000_account_session_rls.sql',
-              '20260918010000': 'supabase/migrations/20260918010000_atomic_password_reset.sql',
-              "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
-              '20260909000000': 'supabase/migrations/20260909000000_security_audit_fixes.sql',
-              '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
-              '20260907193000': 'supabase/migrations/20260907193000_time_league_multiplayer.sql',
-              '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
-              '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
-              '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
-              '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
-              '20260908050000': 'supabase/migrations/20260908050000_time_league_sealed_state.sql',
-              '20260908160000': 'supabase/migrations/20260908160000_duat_campaigns.sql',
-              '20260908180000': 'supabase/migrations/20260908180000_duat_draft_campaigns.sql',
-              '20260908210000': 'supabase/migrations/20260908210000_duat_campaign_settings.sql',
-              '20260908230000': 'supabase/migrations/20260908230000_duat_dynasties.sql',
-              '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
-              '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
-              '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
-              '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
-              '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
-              '20260809000000': 'supabase/migrations/20260809000000_player_value_snapshots.sql',
-          }
-
-          def run_query(query):
-              req = urllib.request.Request(
-                  endpoint,
-                  data=json.dumps({'query': query}).encode(),
-                  headers={
-                      'Authorization': f'Bearer {token}',
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json',
-                      'User-Agent': 'ReconAI-WarRoom-GitHub-Actions',
-                  },
-                  method='POST',
-              )
-              with urllib.request.urlopen(req) as r:
-                  body = r.read().decode()
-              return json.loads(body) if body else []
-
-          quoted = ', '.join(f"'{v}'" for v in pending)
-          try:
-              rows = run_query(
-                  f'select version from supabase_migrations.schema_migrations where version in ({quoted})'
-              )
-          except urllib.error.HTTPError as e:
-              print('Could not read schema_migrations:', e.code, e.read().decode()[:300], file=sys.stderr)
-              sys.exit(1)
-          recorded = {str(row.get('version')) for row in rows if isinstance(row, dict)}
-
-          for version in sorted(pending):
-              path = pending[version]
-              if version in recorded:
-                  print(f'{version} already applied, skipping')
-                  continue
-              if not os.path.exists(path):
-                  print('Migration file missing:', path, file=sys.stderr)
-                  sys.exit(1)
-              with open(path) as f:
-                  sql = f.read()
-              name = os.path.basename(path).replace('.sql', '')
-              print(f'Applying {version} ({path})...')
-              try:
-                  run_query(sql)
-                  run_query(
-                      "insert into supabase_migrations.schema_migrations (version, name) "
-                      f"values ('{version}', '{name}') on conflict (version) do nothing"
-                  )
-              except urllib.error.HTTPError as e:
-                  print(f'Failed applying {version}:', e.code, e.read().decode()[:500], file=sys.stderr)
-                  sys.exit(1)
-              print(f'{version} applied and recorded')
-          PYEOF
-
-      - name: Verify database migrations are recorded
+          python3 scripts/c2-edge-release.py verify --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function league-cup
+          supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+          python3 scripts/c2-edge-release.py verify-deployed --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function league-cup
+      - name: Deploy reviewed Vault
+        if: steps.plan.outputs.time_league == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          python3 - <<'PYEOF'
-          import json, urllib.request, os, sys
-          token = os.environ.get('SUPABASE_ACCESS_TOKEN', '')
-          expected = {
-              '20260920030000': 'supabase/migrations/20260920030000_atomic_account_provisioning.sql',
-              '20260920040000': 'supabase/migrations/20260920040000_account_deletion_recovery.sql',
-              '20260920010000': 'supabase/migrations/20260920010000_billing_event_recovery.sql',
-              '20260920050000': 'supabase/migrations/20260920050000_billing_checkout_recovery.sql',
-              '20260920060000': 'supabase/migrations/20260920060000_account_deletion_checkouts.sql',
-              '20260918030000': 'supabase/migrations/20260918030000_account_password_change.sql',
-              '20260918020000': 'supabase/migrations/20260918020000_account_session_rls.sql',
-              '20260918010000': 'supabase/migrations/20260918010000_atomic_password_reset.sql',
-              "20260916010000": "supabase/migrations/20260916010000_duat_hidden_years.sql",
-              '20260909000000': 'supabase/migrations/20260909000000_security_audit_fixes.sql',
-              '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
-              '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
-              '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
-              '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
-              '20260908050000': 'supabase/migrations/20260908050000_time_league_sealed_state.sql',
-              '20260908160000': 'supabase/migrations/20260908160000_duat_campaigns.sql',
-              '20260908180000': 'supabase/migrations/20260908180000_duat_draft_campaigns.sql',
-              '20260908210000': 'supabase/migrations/20260908210000_duat_campaign_settings.sql',
-              '20260908230000': 'supabase/migrations/20260908230000_duat_dynasties.sql',
-              '20260317000000': 'supabase/migrations/20260317000000_app_users_and_subscriptions.sql',
-              '20260503000000': 'supabase/migrations/20260503000000_ai_usage_controls.sql',
-              '20260503010000': 'supabase/migrations/20260503010000_tutorial_state.sql',
-              '20260503020000': 'supabase/migrations/20260503020000_ai_margin_rollups.sql',
-              '20260508000000': 'supabase/migrations/20260508000000_supabase_permission_hardening.sql',
-              '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
-              '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
-              '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
-              '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
-              '20260809000000': 'supabase/migrations/20260809000000_player_value_snapshots.sql',
-          }
-
-          for path in expected.values():
-              if not os.path.exists(path):
-                  print('Migration missing:', path, file=sys.stderr)
-                  sys.exit(1)
-
-          quoted_versions = ', '.join(f"'{version}'" for version in expected)
-          query = f'select version from supabase_migrations.schema_migrations where version in ({quoted_versions})'
-          req = urllib.request.Request(
-              'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query',
-              data=json.dumps({'query': query}).encode(),
-              headers={
-                  'Authorization': f'Bearer {token}',
-                  'Content-Type':  'application/json',
-                  'Accept': 'application/json',
-                  'User-Agent': 'ReconAI-WarRoom-GitHub-Actions',
-              },
-              method='POST',
-          )
-          try:
-              with urllib.request.urlopen(req) as r:
-                  body = r.read().decode()
-          except urllib.error.HTTPError as e:
-              body = e.read().decode()
-              print('Migration verification response:', e.code, body, file=sys.stderr)
-              sys.exit(1)
-
-          try:
-              payload = json.loads(body)
-          except json.JSONDecodeError:
-              print('Migration verification returned non-JSON:', body[:300], file=sys.stderr)
-              sys.exit(1)
-
-          found = {str(row.get('version')) for row in payload if isinstance(row, dict)}
-          missing = sorted(set(expected) - found)
-          if missing:
-              print('Migrations not recorded:', ', '.join(missing), file=sys.stderr)
-              sys.exit(1)
-
-          print('Recorded migrations:', ', '.join(sorted(found & set(expected))))
-          PYEOF
-
-      - name: Deploy get-session-token function
-        run: supabase functions deploy get-session-token --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy set-password function
-        run: supabase functions deploy set-password --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy ai-analyze function
-        run: supabase functions deploy ai-analyze --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy ai-feedback function
-        run: supabase functions deploy ai-feedback --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-signup function
-        run: supabase functions deploy fw-signup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-signin function
-        run: supabase functions deploy fw-signin --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-change-password function
-        run: supabase functions deploy fw-change-password --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-profile function
-        run: supabase functions deploy fw-profile --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy verified account deletion
+          python3 scripts/c2-edge-release.py verify --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function time-league
+          supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-docker --no-verify-jwt
+          python3 scripts/c2-edge-release.py verify-deployed --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function time-league
+      - name: Deploy reviewed Duat
+        if: steps.plan.outputs.duat == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase functions deploy fw-delete-account --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-          supabase functions deploy admin-delete-user --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-create-checkout function
-        run: supabase functions deploy fw-create-checkout --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-stripe-webhook function
-        run: supabase functions deploy fw-stripe-webhook --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-billing-portal function
-        run: supabase functions deploy fw-billing-portal --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-revenuecat-webhook function
-        run: supabase functions deploy fw-revenuecat-webhook --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-request-password-reset function
-        run: supabase functions deploy fw-request-password-reset --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy fw-confirm-password-reset function
-        run: supabase functions deploy fw-confirm-password-reset --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy admin-list-users function
-        run: supabase functions deploy admin-list-users --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy admin-analytics-report function
-        run: supabase functions deploy admin-analytics-report --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      # ── League-connect proxies ────────────────────────────────────────────
-      # These three relay ESPN / Yahoo / MFL calls that browsers cannot make
-      # cross-origin. Their source and deploy pipeline used to live ONLY in
-      # C2-Football/ReconAI, which was archived (read-only) on 2026-07-08 —
-      # so until this repatriation they could not be patched, redeployed, or
-      # rolled back at all. They are now War Room's to own.
-      - name: Deploy espn-proxy function
-        run: supabase functions deploy espn-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy mfl-proxy function
-        run: supabase functions deploy mfl-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy yahoo-proxy function
-        run: supabase functions deploy yahoo-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      # Cached ESPN scoreboard relay — the production half of nfl-context.js
-      # (Vegas / weather / future-week opponents for projections).
-      - name: Deploy nfl-scoreboard function
-        run: supabase functions deploy nfl-scoreboard --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy league-cup function
-        run: supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
-
-      - name: Deploy Vault multiplayer
-        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-docker --no-verify-jwt
-
-      - name: Deploy Duat multiplayer
-        run: supabase functions deploy duat --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+          python3 scripts/c2-edge-release.py verify --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function duat
+          supabase functions deploy duat --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+          python3 scripts/c2-edge-release.py verify-deployed --head "$RELEASE_HEAD" --repository "$RELEASE_REPOSITORY" --ref "$RELEASE_REF" --manifest "$RELEASE_MANIFEST" --function duat

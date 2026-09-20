@@ -1,22 +1,27 @@
-# Supabase Function Ownership
+# Supabase function ownership
 
-The production Supabase project is shared by Scout and War Room. War Room owns
-account, billing, admin, and server AI functions.
+All of these applications use production project `sxshiqyxhhifvtfqawbq`. A source
+copy in this checkout does not authorize this repository to deploy that endpoint.
 
-## Owned Here
+| Release owner | Scope |
+| --- | --- |
+| `C2-Football/WarRoom` | `league-cup`, `time-league` (Vault), `duat` |
+| `skjjcruz/github.com-skjjcruz-owner-dashboard-dev` | Account/authentication, billing, admin, server AI, scoreboard and native operations; use its reviewed owner release process. The newer `fw-change-password` belongs in this account lane. |
+| `skjjcruz/ReconAI-sandbox-dev` | `espn-proxy`, `mfl-proxy`, `yahoo-proxy` |
+| Existing separately managed releases | `report-bug`, `feature-requests`, and any unverified endpoint are excluded from C2 releases. Verify their owning release process before deployment. |
 
-- `ai-analyze` - official server AI routing, rate limits, telemetry, and model policy.
-- `get-session-token` - legacy Sleeper username JWT session issuer.
-- `set-password` - gifted-user password setup.
-- `fw-signup`, `fw-signin` - email auth.
-- `fw-create-checkout`, `fw-stripe-webhook` - Stripe subscription lifecycle.
-- `admin-list-users` - admin user/subscription listing.
+Current source/workflow evidence is pinned in
+[the backend release safety report](../../reports/public-readiness/c2-backend-release-safety-20260920.md).
+The actual ReconAI repository is active; an archived C2 mirror did not transfer
+ownership of the shared production provider endpoints.
 
-## Owned By ReconAI
+C2 pushes run validation only. Game releases use a reviewed, committed
+`.github/c2-releases/<name>.json` manifest and explicit workflow dispatch after
+all gates pass. The agent can prepare and dispatch an authorized release; no new
+owner confirmation is required by this mechanism. The planner has no broad
+fallback, migration-application command, billing cutover, or non-game scope.
 
-- `espn-proxy` - ESPN private league proxy.
-- `mfl-proxy` - MyFantasyLeague CORS/server relay.
-- `yahoo-proxy` - Yahoo OAuth callback, token storage, refresh, and API proxy.
-
-Deploy individual functions by name from the owning repo. Do not deploy a
-same-named function from the other repo.
+Retained account/provider/SQL source remains available for tests, reconciliation,
+and upstream patches. Apply shared schema changes through their separately
+reviewed migration/cutover process, then refresh the game's read-only compatibility
+evidence. Do not use a blanket `supabase functions deploy` from this checkout.
