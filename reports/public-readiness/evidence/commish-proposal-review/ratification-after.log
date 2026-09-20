@@ -1,0 +1,5 @@
+PASS same-ID content changes stop before further ledgers/status, exact-semantic retry is idempotent, and legacy partial markers cannot invent content proof
+PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments
+PASS same-ID content changes stop before further ledgers/status, exact-semantic retry is idempotent, and legacy partial markers cannot invent content proof
+PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments
+Observed same-ID proposal replacement: {"result":false,"currentRule":2,"status":"draft","ledgerRules":[1]}

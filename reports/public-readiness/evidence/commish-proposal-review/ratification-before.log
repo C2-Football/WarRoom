@@ -1,0 +1,29 @@
+PASS actual ratification commits each league once, retains partial failure truth, records roster/scoring intent, and retries later league/status writes without duplicate amendments
+Observed same-ID proposal replacement: {"result":true,"currentRule":2,"status":"ratified","ledgerRules":[1]}
+node:assert:149
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: A changed proposal must not be marked ratified using earlier ledger rules
+
+true !== false
+
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-readiness-commish-proposals-review/tests/commish-ratification-recovery.cjs:82:12)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-readiness-commish-proposals-review/reports/public-readiness/evidence/commish-proposal-review/ratification-observed-change.cjs:38:6)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v25.8.1
