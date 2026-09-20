@@ -1,0 +1,163 @@
+{
+  "startedAt": "2026-09-20T17:30:29.869Z",
+  "status": "passed",
+  "liveFrontend": true,
+  "liveSignin": true,
+  "isolatedOwnedRoom": true,
+  "roomMutationsAllowed": false,
+  "environments": [
+    {
+      "repo": "WarRoom",
+      "checks": [
+        "Actual deployed password form establishes the exact controlled account",
+        "Owned campaign appears in friends list and opens cycle2 Week1 from the real hosted save",
+        "Page reload and explicit reopen recover the same hosted campaign;390px has no page overflow"
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    },
+    {
+      "repo": "WarRoom-sandbox",
+      "checks": [
+        "Actual deployed password form establishes the exact controlled account",
+        "Owned campaign appears in friends list and opens cycle2 Week1 from the real hosted save",
+        "Page reload and explicit reopen recover the same hosted campaign;390px has no page overflow"
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        }
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        }
+      ],
+      "errors": [],
+      "status": "passed"
+    }
+  ],
+  "completedAt": "2026-09-20T17:31:25.013Z"
+}

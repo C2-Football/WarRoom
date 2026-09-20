@@ -1,0 +1,112 @@
+{
+  "checkedAt": "2026-09-20T17:29:28.565752+00:00",
+  "revision": "944c2e9d889a1103b48475ce46133bcd97282cc1",
+  "repositories": [
+    {
+      "repo": "C2-Football/WarRoom",
+      "main": "944c2e9d889a1103b48475ce46133bcd97282cc1",
+      "runs": [
+        {
+          "conclusion": "success",
+          "databaseId": 35525512138,
+          "name": "CI",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom/actions/runs/35525512138",
+          "jobs": [
+            {
+              "name": "lint",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 35525512110,
+          "name": "Deploy to GitHub Pages",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom/actions/runs/35525512110",
+          "jobs": [
+            {
+              "name": "deploy",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 35525512200,
+          "name": "Validate and release C2 game functions",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom/actions/runs/35525512200",
+          "jobs": [
+            {
+              "name": "validate",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "release",
+              "status": "completed",
+              "conclusion": "skipped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repo": "C2-Football/WarRoom-sandbox",
+      "main": "944c2e9d889a1103b48475ce46133bcd97282cc1",
+      "runs": [
+        {
+          "conclusion": "success",
+          "databaseId": 35525513589,
+          "name": "CI",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/35525513589",
+          "jobs": [
+            {
+              "name": "lint",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 35525513723,
+          "name": "Deploy to GitHub Pages",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/35525513723",
+          "jobs": [
+            {
+              "name": "deploy",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 35525513633,
+          "name": "Validate and release C2 game functions",
+          "status": "completed",
+          "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/35525513633",
+          "jobs": [
+            {
+              "name": "validate",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "release",
+              "status": "completed",
+              "conclusion": "skipped"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+POST-DEPLOY REAL SERVED FRONTEND / ISOLATED BACKEND FIXTURES vault-auth-browser-qa.cjs https://c2-football.github.io/WarRoom/
+Fixture server ready; launching Chrome
+Fixture authenticated room opened
+320px401 recovery is reachable and polling stopped
+PASS Vault401 browser recovery: saved room, stopped retries,320px hit target, explicit real form flow, fresh-credential reopen; isolated fixtures only

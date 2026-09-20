@@ -1,0 +1,186 @@
+{
+  "startedAt": "2026-09-20T17:27:23.069Z",
+  "status": "failed",
+  "liveFrontend": true,
+  "liveSignin": true,
+  "isolatedOwnedRoom": true,
+  "roomMutationsAllowed": false,
+  "environments": [
+    {
+      "repo": "WarRoom",
+      "checks": [
+        "Actual deployed password form establishes the exact controlled account"
+      ],
+      "blockedWrites": [
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://o4511323490222080.ingest.us.sentry.io/api/4511323529674752/envelope/"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/gm_strategy"
+        },
+        {
+          "method": "POST",
+          "path": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        }
+      ],
+      "loads": [
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "id": "83614489-2b98-422e-b028-47287873c13e",
+          "revision": 113,
+          "phase": "season",
+          "cycle": 2,
+          "week": 1
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "error": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.duat-season-home') to be visible\u001b[22m\n",
+  "completedAt": "2026-09-20T17:28:38.988Z"
+}
