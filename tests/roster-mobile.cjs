@@ -101,3 +101,24 @@ const summary = text(find(tree, n => n.props.className === 'wr-roster-mobile-sum
 assert(!summary.includes('record') && !summary.includes('open') && !summary.includes('full'), 'Unknown record and capacity stay unknown');
 width = 1024; render(); assert.equal(tree.props.className, undefined); assert(!find(tree, n => n.props.className === 'wr-roster-mobile-players')); assert(text(tree).includes('Roster Board'), 'Desktop retains the full roster board');
 console.log('PASS mobile roster: capacity, roster scopes, skin restrictions, search, existing details/actions, view controls, unknown facts, and desktop path');
+// Redraft points must never inherit the value rating's units, order, or fallback.
+width = 390; slots = [];
+props.leagueSkin = {type:'redraft',features:{showWeeklyVerdict:true,showTaxi:true},vocabulary:{valueLabel:'Season value',valueShortLabel:'Season value'}};
+props.myRoster = myRoster;
+props.currentLeague.roster_positions = ['WR','RB','BN'];
+props.rosterFilter = 'All'; props.rosterSort = {key:'dhq',dir:1}; props.visibleCols = ['dhq'];
+root.App.PlayerValue = {getRosPoints: pid => ({starter:180,bench:240,ir:0})[pid] ?? null};
+render();
+click('View & sort ⌄');
+find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.onChange({target:{value:'none'}}); render();
+click('Apply');
+assert.deepEqual(rowPids(),['bench','starter','ir','taxi'],'ROS pts sorts by displayed points, not the underlying value rating');
+assert(text(tree).includes('ROS pts'),'mobile points label identifies its unit');
+const taxiRow = find(tree,n=>n.props['data-wr-roster-pid']==='taxi');
+assert(!text(taxiRow).includes('2,000'),'missing points cannot fall back to a rating');
+width=1024; render();
+const pointCells=all(tree,n=>n.props.title==='Projected fantasy points over the remaining season. Not a 0–10,000 value rating.');
+assert.equal(pointCells.length,4);
+assert.deepEqual(pointCells.map(text),['240','180','0','—']);
+assert(pointCells.every(n=>!n.props.style.background),'point cells do not use rating tier colors');
+console.log('PASS redraft ROS point labels, point sorting, neutral colors, zero, and missing evidence');

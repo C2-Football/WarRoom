@@ -62,6 +62,11 @@ function MyTeamTab({
   const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
   const valueLabel = skinVocabulary.valueLabel || 'DHQ Dynasty Value';
   const valueShortLabel = skinVocabulary.valueShortLabel || 'Value';
+  const showRosterRosPoints = resolvedLeagueSkin?.type === 'redraft';
+  const rosterRosPoints = pid => {
+    const points = window.App?.PlayerValue?.getRosPoints?.(pid);
+    return Number.isFinite(points) ? points : null;
+  };
 
   // Scout-free vs Pro. Free keeps every raw column + sort/filter/tags/IR/taxi;
   // the verdict layer (Move column, DROP? chips, row tints, Action lens,
@@ -259,7 +264,13 @@ function MyTeamTab({
         const gd = (getRowGroupRank(a) - getRowGroupRank(b)) || String(getRowGroupKey(a)).localeCompare(String(getRowGroupKey(b)));
         if (gd !== 0) return gd;
       }
-      if (key === 'dhq') return (b.dhq - a.dhq) * dir;
+      if (key === 'dhq') {
+        if (!showRosterRosPoints) return (b.dhq - a.dhq) * dir;
+        const av = rosterRosPoints(a.pid), bv = rosterRosPoints(b.pid);
+        if (av == null) return bv == null ? 0 : 1;
+        if (bv == null) return -1;
+        return (bv - av) * dir;
+      }
       if (key === 'age') return ((a.age||99) - (b.age||99)) * dir;
       if (key === 'ppg') {
         // Honor the rolling PPG window so sort order matches what's displayed.
@@ -353,7 +364,7 @@ function MyTeamTab({
   const ROSTER_COLUMNS = {
     pos:        { label: 'Position', shortLabel: 'Pos', width: '38px', group: 'core' },
     age:        { label: 'Age', shortLabel: 'Age', width: '38px', group: 'dynasty' },
-    dhq:        { label: valueLabel, shortLabel: valueShortLabel, width: '60px', group: 'dynasty' },
+    dhq:        { label: showRosterRosPoints ? 'Projected rest-of-season fantasy points' : valueLabel, shortLabel: showRosterRosPoints ? 'ROS pts' : valueShortLabel, width: showRosterRosPoints ? '76px' : '96px', group: showRosterRosPoints ? 'stats' : 'dynasty' },
     ppg:        { label: 'Points Per Game', shortLabel: 'PPG', width: '48px', group: 'stats' },
     proj:       { label: isPro && wkVerdict ? 'This Week — projected pts + start/sit (league-scored)' : 'This Week — projected pts (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
     hi:         { label: 'Season High — most fantasy pts in a week', shortLabel: 'Hi', width: '40px', group: 'stats' },
@@ -1182,13 +1193,11 @@ function MyTeamTab({
       case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 550, color: 'var(--silver)' }}>{window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos)}</span></div>;
       case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age, r.pos)}}><span style={{ color: ageCol(r.age, r.pos), fontWeight: 550 }}>{r.age||'\u2014'}</span></div>;
       case 'dhq': {
-        // Redraft \u2192 show projected rest-of-season POINTS (tier-colored by the
-        // scaled value r.dhq). Dynasty/keeper \u2192 the scaled value as before.
-        const rosPts = (resolvedLeagueSkin?.type === 'redraft' && window.App?.PlayerValue?.getRosPoints) ? window.App.PlayerValue.getRosPoints(r.pid) : null;
-        const showRos = rosPts != null;
-        const disp = showRos ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '\u2014') : (r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014');
-        const title = showRos ? ('\u2248 ' + Math.round(rosPts) + ' projected pts rest-of-season') : '';
-        return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}} title={title}><span style={{ color: dhqCol(r.dhq, r.pid, r.pos), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{disp}</span></div>;
+        if (showRosterRosPoints) {
+          const points = rosterRosPoints(r.pid);
+          return <div key={colKey} style={base} title="Projected fantasy points over the remaining season. Not a 0–10,000 value rating."><span style={{ color: 'var(--white)', fontWeight: 600 }}>{points == null ? '—' : Math.round(points).toLocaleString()}</span></div>;
+        }
+        return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}} title={valueLabel + ' · value rating, not fantasy points'}><span style={{ color: dhqCol(r.dhq, r.pid, r.pos), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{r.dhq == null ? '—' : r.dhq.toLocaleString()}</span></div>;
       }
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
@@ -1532,10 +1541,8 @@ function MyTeamTab({
     const short = ROSTER_COLUMNS[colKey]?.shortLabel || colKey;
     switch (colKey) {
       case 'dhq': {
-        // Same redraft ROS-points swap as renderCell's dhq cell.
-        const rosPts = (resolvedLeagueSkin?.type === 'redraft' && window.App?.PlayerValue?.getRosPoints) ? window.App.PlayerValue.getRosPoints(r.pid) : null;
-        const disp = rosPts != null ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '—') : (r.dhq > 0 ? r.dhq.toLocaleString() : '—');
-        return { label: short, value: disp, strong: true };
+        const points = showRosterRosPoints ? rosterRosPoints(r.pid) : r.dhq;
+        return { label: short, value: points == null ? '—' : Math.round(points).toLocaleString(), strong: true };
       }
       case 'proj': {
         const p = projFor(r.pid);

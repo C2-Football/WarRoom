@@ -1,0 +1,50 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('js/components/player-card.js','utf8');
+const component = source.slice(source.indexOf('    // Weekly observations'),source.indexOf('    // ── Main component'));
+const h = (type,props,...children) => ({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)});
+const nodes = n => n && typeof n==='object' ? [n,...(n.children||[]).flatMap(nodes)] : [];
+const text = n => n==null ? '' : typeof n==='object' ? (n.children||[]).map(text).join(' ') : String(n);
+let states=[],deps=[],cursor=0,pending=[],requests=[];
+const React={createElement:h,Fragment:'fragment',useState(init){const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],v=>states[i]=typeof v==='function'?v(states[i]):v];},useMemo:fn=>fn(),useEffect(fn,keys){const i=cursor++;if(!deps[i]||keys.some((v,j)=>v!==deps[i][j])){deps[i]=keys;pending.push(fn);}}};
+const ctx=vm.createContext({React,useState:React.useState,useEffect:React.useEffect,btnStyle:()=>({}),window:{S:{nflState:{season:2026,week:3}},App:{}}});
+vm.runInContext(fs.readFileSync('js/shared/league-stats.js','utf8'),ctx);
+const engine=ctx.window.App.LeagueStats;
+engine.loadGameLog=async opts=>{requests.push(opts);return [{week:1,raw:{rec:2,rec_yd:30},error:null},{week:2,raw:{rec:0,rec_yd:0},error:null},{week:3,raw:null,error:'failed'}];};
+engine.load=async()=>({statsByPid:{p:{rec:2,rec_yd:30,gp:2}}});
+ctx.window.App.PlayerValue={computePrices:()=>({values:{p:4200},points:{p:180}})};
+ctx.window.App.WeeklyProj={currentWeek:()=>3,projectPlayer:()=>({available:true,points:{median:12.5}})};
+ctx.window.App.LeagueSkin={build:()=>({type:'redraft'})};
+vm.runInContext(component,ctx);
+const props={pid:'p',player:{position:'WR',years_exp:3},league:{league_id:'l',season:2026,name:'Example league'},scoring:{rec:1,rec_yd:.1},playersData:{p:{position:'WR'}},dhq:8000};
+async function render(name){cursor=0;let out=ctx[name](props);for(const effect of pending.splice(0))effect();await Promise.resolve();await Promise.resolve();cursor=0;return ctx[name](props);}
+(async()=>{
+let out=await render('PlayerSeasonStats');
+assert.equal(requests[0].weeks.length,3);
+const rows=nodes(out).filter(n=>n.type==='tr');
+assert.equal(rows.length,4);
+assert.match(text(rows[1]),/W1 5\.0/);
+assert.match(text(rows[2]),/W2 0\.0/);
+assert.match(text(rows[3]),/Could not load/);
+assert(!nodes(out).some(n=>n.type==='dl'),'Season leads with weekly rows, not total tiles');
+nodes(out).find(n=>n.type==='select').props.onChange({target:{value:'2025'}});
+out=await render('PlayerSeasonStats');assert.equal(requests.at(-1).weeks.length,18);assert.equal(requests.at(-1).season,'2025');
+const seasonOut=out;
+states=[];deps=[];pending=[];
+out=await render('PlayerFantasySummary');
+for(const label of ['Season value','ROS pts','Avg PPG','Week 3 proj'])assert(text(out).includes(label));
+for(const value of ['4,200','180.0','2.5','12.5'])assert(text(out).includes(value));
+assert(!text(out).includes('DHQ dynasty'));
+ctx.window.App.LeagueSkin.build=()=>({type:'dynasty'});out=await render('PlayerFantasySummary');assert(text(out).includes('8,000'));
+ctx.window.App.PlayerValue.computePrices=()=>null;ctx.window.App.WeeklyProj.projectPlayer=()=>({available:false});
+out=await render('PlayerFantasySummary');assert(!text(out).includes('180.0'));assert(!text(out).includes('12.5'));
+if(process.env.CARD_PREVIEW){
+ const escape=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
+ const html=n=>typeof n!=='object'?escape(n):n.type==='fragment'?n.children.map(html).join(''):'<'+n.type+Object.entries(n.props).filter(([k])=>!k.startsWith('on')&&!['key','style'].includes(k)).map(([k,v])=>' '+k+'="'+escape(v)+'"').join('')+(n.props.style?' style="'+Object.entries(n.props.style).map(([k,v])=>k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())+':'+(typeof v==='number'&&v!==0&&!['fontWeight','flex','zIndex'].includes(k)?v+'px':v)).join(';')+'"':'')+'>'+n.children.map(html).join('')+'</'+n.type+'>';
+ ctx.window.App.PlayerValue.computePrices=()=>({values:{p:4200},points:{p:180}});ctx.window.App.WeeklyProj.projectPlayer=()=>({available:true,points:{median:12.5}});
+ fs.mkdirSync('output/playwright',{recursive:true});fs.writeFileSync('output/playwright/player-fantasy.html','<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;background:#15171b;color:#eee;font-family:Arial;--silver:#aaa;--text-primary:#eee;--ov-3:#202026}button,select{padding:10px;color:#eee;background:#222;border:1px solid #555}h1{font-size:22px;padding:0 20px}</style><h1>Example player · sample data</h1>'+html(await render('PlayerFantasySummary'))+html(seasonOut));
+}
+console.log('PASS player card weekly rows, selected-year requests, zero/missing scoring, four visible metrics, dynasty value, and unavailable projections');
+})().catch(e=>{console.error(e);process.exitCode=1;});

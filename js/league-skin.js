@@ -378,7 +378,7 @@
             : keeper
                 ? 'Keeper-Adjusted Value'
                 : (type === 'redraft' || chopped)
-                    ? 'Rest-of-Season Value'
+                    ? 'Season value'
                     : seasonal
                         ? 'Format Value'
                         : 'Player Value';
@@ -387,7 +387,7 @@
             teamLabel: seasonal ? 'Team' : 'Roster',
             assetLabel: type === 'dynasty' ? 'Asset' : 'Player',
             valueLabel,
-            valueShortLabel: type === 'dynasty' ? 'DHQ' : (type === 'redraft' || chopped) ? 'ROS' : 'Value',
+            valueShortLabel: type === 'dynasty' ? 'DHQ' : (type === 'redraft' || chopped) ? 'Season value' : 'Value',
             pickLabel: seasonal ? 'Draft Pick' : 'Future Pick',
             // No trading in chopped — the "market" is the waiver pool the
             // chopped rosters are dumped into.

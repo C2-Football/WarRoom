@@ -122,60 +122,99 @@
         return out;
     }
 
-    // Season data stays scoped to the requested year, never the legacy stats cache.
+    // Weekly observations stay scoped to the selected player and season.
     function PlayerSeasonStats({ pid, player, league, scoring }) {
         const engine = window.App?.LeagueStats;
         const latest = Number(window.S?.nflState?.season) || new Date().getFullYear();
         const initial = Number(league?.season) || latest;
         const [season, setSeason] = useState(String(initial));
-        const [perGame, setPerGame] = useState(false);
         const [revision, setRevision] = useState(0);
         const [load, setLoad] = useState({ key: '', status: 'loading' });
         const requestKey = pid + '|' + season;
         useEffect(() => {
-            if (!engine) return;
+            if (!engine?.loadGameLog) return;
             let alive = true;
             setLoad({ key: requestKey, status: 'loading' });
-            engine.load({ season, force: revision > 0 }).then(data => {
-                if (alive) setLoad({ key: requestKey, status: 'ready', raw: data.statsByPid[pid] });
-            }).catch(() => {
-                if (alive) setLoad({ key: requestKey, status: 'error' });
-            });
+            const lastWeek = Number(season) < latest ? 18 : Number(season) > latest ? 0 : Math.min(18, Math.max(0, Number(window.S?.nflState?.week) || 0));
+            engine.loadGameLog({ pid, season, weeks: Array.from({ length: lastWeek }, (_, i) => i + 1), force: revision > 0 }).then(rows => {
+                if (alive) setLoad({ key: requestKey, status: 'ready', rows });
+            }).catch(() => { if (alive) setLoad({ key: requestKey, status: 'error' }); });
             return () => { alive = false; };
-        }, [engine, requestKey, revision]);
+        }, [engine, requestKey, revision, latest]);
         const h = React.createElement;
         const years = Array.from({ length: Math.max(1, Math.min(30, Number(player.years_exp) + 1 || 1)) }, (_, i) => latest - i);
         if (!years.includes(initial)) years.push(initial);
         years.sort((a, b) => b - a);
         const controls = h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' } },
             h('label', null, 'Season ', h('select', { 'aria-label': 'Player stats season', value: season, onChange: e => setSeason(e.target.value), style: { ...btnStyle(), background: 'var(--surf-solid, #15171b)' } }, years.map(year => h('option', { key: year, value: year }, year)))),
-            h('button', { style: btnStyle(), 'aria-pressed': perGame, onClick: () => setPerGame(v => !v) }, perGame ? 'Per game' : 'Totals'),
-            h('button', { style: btnStyle(), onClick: () => setRevision(v => v + 1) }, 'Refresh')
-        );
+            h('button', { style: btnStyle(), onClick: () => setRevision(v => v + 1) }, 'Refresh'));
         let content;
-        if (!engine) content = h('p', null, 'Season stats are unavailable. Reload the app to try again.');
-        else if (load.key !== requestKey || load.status === 'loading') content = h('p', { role: 'status' }, 'Loading season stats…');
-        else if (load.status === 'error') content = h('p', { role: 'alert' }, 'Season stats could not load. Select Refresh to retry.');
-        else if (!load.raw || !Object.values(load.raw).some(v => typeof v === 'number' && Number.isFinite(v))) content = h('p', null, 'No stats reported for this player in the ' + season + ' regular season.');
+        if (!engine?.loadGameLog) content = h('p', null, 'Weekly stats are unavailable. Reload the app to try again.');
+        else if (load.key !== requestKey || load.status === 'loading') content = h('p', { role: 'status' }, 'Loading weekly stats…');
+        else if (load.status === 'error') content = h('p', { role: 'alert' }, 'Weekly stats could not load. Select Refresh to retry.');
+        else if (!load.rows.length) content = h('p', null, 'No regular-season weeks available yet.');
         else {
-            const row = engine.buildRows({ statsByPid: { [pid]: load.raw }, playersData: { [pid]: player }, league: { scoring_settings: scoring } })[0];
-            const metrics = engine.metrics({ [pid]: load.raw });
-            const position = engine.normalizePosition(player.position);
-            const groups = position === 'QB' ? ['passing', 'rushing'] : ['RB', 'WR', 'TE'].includes(position) ? ['rushing', 'receiving'] : position === 'K' ? ['kicking'] : ['DL', 'LB', 'DB', 'DEF'].includes(position) ? ['defense'] : ['general'];
-            const keys = new Set(['fantasyPoints', 'gp', ...groups.flatMap(group => engine.PRESETS[group] || [])]);
-            const tiles = list => h('dl', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', margin: '12px 0' } }, list.map(metric => h('div', { key: metric.key, style: { padding: '10px', background: 'var(--ov-3, rgba(255,255,255,.04))', borderRadius: 'var(--card-radius-sm, 8px)' } },
-                h('dt', { style: { color: 'var(--silver)', fontSize: '.8rem' } }, metric.label),
-                h('dd', { style: { margin: '4px 0 0', color: 'var(--text-primary)', fontWeight: 700 } }, engine.format(engine.value(row, metric, { perGame }), metric, { perGame }))
-            )));
-            content = h(React.Fragment, null,
-                tiles(metrics.filter(metric => keys.has(metric.key))),
-                h('details', null, h('summary', { style: { cursor: 'pointer', padding: '12px 0' } }, 'All reported stats'), tiles(metrics.filter(metric => metric.source === 'provider' && engine.value(row, metric) !== null && !keys.has(metric.key))))
-            );
+            const pos = engine.normalizePosition(player.position);
+            const keys = pos === 'QB' ? ['pass_yd','pass_td','pass_int','rush_yd','rush_td'] : pos === 'RB' ? ['rush_att','rush_yd','rush_td','rec_tgt','rec','rec_yd','rec_td'] : ['WR','TE'].includes(pos) ? ['rec_tgt','rec','rec_yd','rec_td','rush_att','rush_yd','rush_td'] : pos === 'K' ? ['fgm','fga','xpm'] : ['idp_tkl','idp_tkl_solo','idp_sack','idp_int','pts_allow'];
+            const labels = {pass_yd:'Pass yd',pass_td:'Pass TD',pass_int:'INT',rush_att:'Carries',rush_yd:'Rush yd',rush_td:'Rush TD',rec_tgt:'Targets',rec:'Rec',rec_yd:'Rec yd',rec_td:'Rec TD',fgm:'FG',fga:'FG att',xpm:'XP',idp_tkl:'Tackles',idp_tkl_solo:'Solo',idp_sack:'Sacks',idp_int:'INT',pts_allow:'Pts allowed'};
+            const cell = { padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', borderBottom: '1px solid var(--ov-4, #333)', fontSize: '14px' };
+            content = h('div', { style: { overflowX: 'auto' }, tabIndex: 0, role: 'region', 'aria-label': 'Weekly fantasy scoring table' },
+                h('table', { style: { width: '100%', borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' } },
+                    h('caption', { style: { textAlign: 'left', padding: '8px 0', fontSize: '14px' } }, 'One row per week · swipe for more stats'),
+                    h('thead', null, h('tr', null, ['Week','Fantasy pts',...keys.map(k => labels[k]),'Status'].map(label => h('th', { key: label, scope: 'col', style: cell }, label)))),
+                    h('tbody', null, load.rows.map(game => {
+                        const raw = game.raw;
+                        const points = raw ? engine.score(raw, scoring, pos) : null;
+                        return h('tr', { key: game.week },
+                            h('th', { scope: 'row', style: {...cell, position: 'sticky', left: 0, background: 'var(--surf-solid, #15171b)'} }, 'W' + game.week),
+                            h('td', { style: {...cell, color: 'var(--text-primary)', fontWeight: 700} }, Number.isFinite(points) ? points.toFixed(1) : '—'),
+                            ...keys.map(k => h('td', { key:k, style:cell }, Number.isFinite(raw?.[k]) ? raw[k] : '—')),
+                            h('td', { style:cell }, game.error ? 'Could not load · refresh' : raw ? 'Reported' : 'No stats reported'));
+                    }))));
         }
         return h('section', { 'aria-label': 'Season stats', style: { padding: '14px 20px', color: 'var(--silver)' } }, controls,
-            h('p', { style: { fontSize: '.8rem' } }, season + ' regular season · ' + (perGame ? 'Per game' : 'Totals') + ' · ' + (league.name || 'League scoring')),
-            content, h('p', { style: { fontSize: '.75rem', color: 'var(--text-muted)' } }, 'A dash means unavailable. Fantasy points use league scoring. Per-game totals require reported games played.')
-        );
+            h('p', { style: { fontSize: '14px' } }, season + ' regular season · ' + (league.name || 'League scoring')),
+            content, h('p', { style: { fontSize: '14px' } }, 'Fantasy points use your league scoring. A dash means unavailable; an empty week is not automatically a bye.'));
+    }
+
+    function PlayerFantasySummary({ pid, player, league, scoring, playersData, dhq }) {
+        const h = React.createElement;
+        const [data, setData] = useState(null);
+        const season = String(league.season || window.S?.nflState?.season || new Date().getFullYear());
+        const key = pid + '|' + season + '|' + String(league.league_id || league.id || '');
+        useEffect(() => {
+            let alive = true;
+            setData(null);
+            window.App?.LeagueStats?.load({ season }).then(result => { if (alive) setData({key, stats:result.statsByPid}); }).catch(() => {});
+            return () => { alive = false; };
+        }, [key]);
+        const stats = data?.key === key ? data.stats : null;
+        const engine = window.App?.LeagueStats;
+        const row = stats?.[pid] && engine?.buildRows({statsByPid:{[pid]:stats[pid]},playersData:{[pid]:player},league:{scoring_settings:scoring}})[0];
+        const ppg = row?.gp > 0 && Number.isFinite(row.fantasyPoints) ? row.fantasyPoints / row.gp : null;
+        const current = season === String(window.S?.nflState?.season || new Date().getFullYear());
+        const week = window.App?.WeeklyProj?.currentWeek?.();
+        const board = React.useMemo(() => {
+            if (!stats || !current) return null;
+            try {
+                const cached = window.App?.PlayerValue?.rosState?.();
+                if (cached && String(cached.leagueId) === String(league.league_id || league.id) && Number(cached.week) === Number(week)) return cached;
+                return window.App?.PlayerValue?.computePrices?.({league,leagueId:league.league_id || league.id,scoring,playersData,statsData:stats,priorData:window.S?.priorData,week}); } catch (_) { return null; }
+        }, [stats, current, league, scoring, playersData, week]);
+        let projection = null;
+        try { if (stats && current) { const forecast = window.App?.WeeklyProj?.projectPlayer?.(pid,{playersData,statsData:stats,priorData:window.S?.priorData,scoring,week}); if (forecast?.available) projection = forecast.points?.median; } } catch (_) { /* Missing forecasts stay unknown. */ }
+        const fmt = (n, digits = 1) => Number.isFinite(n) ? n.toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}) : '—';
+        const cells = [
+            {label:'Season value',value:fmt(board?.values?.[pid],0),help:'0–10,000 value rating; not fantasy points'},
+            {label:'ROS pts',value:fmt(board?.points?.[pid]),help:'Projected fantasy points remaining this season'},
+            {label:'Avg PPG',value:fmt(ppg),help:season + ' actual fantasy points per game'},
+            {label:week ? 'Week ' + week + ' proj' : 'Week proj',value:fmt(projection),help:'Projected fantasy points this week'}
+        ];
+        const type = window.App?.LeagueSkin?.build?.({league})?.type;
+        return h('section', {'aria-label':'Fantasy decision stats',style:{padding:'14px 20px'}},
+            type === 'dynasty' ? h('p',null,'DHQ dynasty value: ',fmt(dhq,0)) : null,
+            h('dl',{style:{display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:'10px',margin:0}},cells.map(cell=>h('div',{key:cell.label,title:cell.help,style:{padding:'12px',background:'var(--ov-3, #202026)',borderRadius:'var(--card-radius-sm, 8px)'}},h('dt',{style:{fontSize:'14px',color:'var(--silver)'}},cell.label),h('dd',{style:{margin:'5px 0 0',fontSize:'21px',fontWeight:700,color:'var(--text-primary)'}},cell.value)))),
+            h('p',{style:{fontSize:'14px',color:'var(--silver)'}},'Avg PPG: ' + season + ' actuals · ROS pts: remaining-season projection. Season value is a rating, not points.'));
     }
 
     // ── Main component ────────────────────────────────────────────
@@ -571,33 +610,8 @@
         // ── Overview section ──────────────────────────────────────
         function OverviewTab() {
             const compressed = compressHistory(historyRows || []);
-            // Action verdict cell is Pro; free gets the raw 4-stat row (clean absence).
-            const statCells = [
-                { v: dhq > 0 ? dhq.toLocaleString() : '—', l: 'DHQ', c: dhqCol },
-                { v: ppg || '—', l: 'PPG (curr)', c: ppg >= 10 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d0d0d0, #d0d0d0)' },
-                { v: peakYrs > 0 ? peakYrs + 'yr' : valueYrs + 'yr', l: peakYrs > 0 ? 'Peak Left' : 'Value Left', c: peakCol },
-                { v: tier.label, l: 'Tier', c: tier.color },
-            ];
-            if (isPro) statCells.push({ v: rec, l: 'Action', c: recCol });
             return React.createElement(React.Fragment, null,
-                // Stats. Phone (D4 polish): the 4 (free) / 5 (Pro, +Action)
-                // tiles ride the shared .wr-kpi-strip snap band (~2.3 tiles
-                // visible at 390px — P4, index.html ≤767 block) per the
-                // approved scr-player-card phone pane. Desktop keeps the
-                // equal-width grid untouched.
-                isPhone
-                    ? React.createElement('div', { className: 'wr-kpi-strip', style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                        statCells.map((s, i) => React.createElement('div', { key: i, style: { background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' } },
-                            React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' } }, s.l),
-                            React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c, marginTop: '2px' } }, s.v)
-                        ))
-                    )
-                    : React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(' + statCells.length + ', 1fr)', gap: '8px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                        statCells.map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
-                            React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c } }, s.v),
-                            React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
-                        ))
-                    ),
+                React.createElement(PlayerFantasySummary, { pid, player: p, league: currentLeague, scoring: sc, playersData, dhq }),
                 dhqContext && React.createElement('div', {
                     style: {
                         margin: '12px 20px 0',

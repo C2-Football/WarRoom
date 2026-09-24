@@ -842,6 +842,7 @@
         }, [acquisitionLeagueId]);
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
+        const weeklyWaivers = ['redraft', 'chopped'].includes(resolvedLeagueSkin?.type);
         const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
         // Scout-free vs Pro (gate map row 7): recommendation surfaces (Action
         // HQ, priority adds, FAAB bids, fit/window reads, UDFA craze) are Pro;
@@ -1091,7 +1092,7 @@
             if (!isPro || skinFeatures.showStreaming === false) return [];
             const read=buildFaRosterRead(myRoster,currentLeague,playersData,pid=>waiverValue(pid,currentLeague,resolvedLeagueSkin),waiverRosterOptions({currentLeague,playersData,statsData,prevStatsData}));
             return availablePlayers.filter(x=>waiverRoleRead(x.p,currentLeague,resolvedLeagueSkin).eligible).map(fa=>({fa,fit:read.fit(fa.pos,fa.dhq,fa)}))
-                .filter(x=>x.fit.weeklyGain>0).map(({fa,fit})=>({pos:fa.pos,fa,worstName:'best available lineup',worstProj:read.beforeWeekly.total,delta:fit.weeklyGain,dropPid:fit.dropPid}))
+                .filter(x=>x.fit.weeklyGain>0).map(({fa,fit})=>({pos:fa.pos,fa,worstName:'best available lineup',worstProj:read.beforeWeekly.total,delta:fit.weeklyGain,dropPid:fit.dropPid,dropName:fit.dropName}))
                 .sort((a,b)=>b.delta-a.delta);
         },[isPro,skinFeatures.showStreaming,availablePlayers,myRoster,playersData,statsData,prevStatsData,currentLeague,resolvedLeagueSkin,timeRecomputeTs,marketDataVersion]);
         const streamPosSet = new Set(streaming.map(o => o.pos));
@@ -1557,6 +1558,28 @@
             </section>;
         }
 
+        function renderWeeklyStreams() {
+            if (!weeklyWaivers || skinFeatures.showStreaming === false) return null;
+            if (!isPro) {
+                const GatedRow = window.WrGatedMoreRow;
+                return GatedRow ? <GatedRow title="This week’s streaming plays" sub="Compare available players with your best lineup. Streaming recommendations are Pro." feature="faab_intelligence" /> : null;
+            }
+            const choices = streaming.filter(o => Number.isFinite(o.fa.proj));
+            const row = o => <button type="button" className="fa-weekly-stream" key={o.fa.pid}
+                onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: o.fa.pid, dropPid: o.dropPid, position: o.pos, leagueId: acquisitionLeagueId, source: 'weekly-streams', reason: '+' + o.delta.toFixed(1) + ' projected lineup points this week' }) : openFaPlayer(o.fa.pid)}>
+                <span className="fa-weekly-stream-player"><strong>{playerName(o.fa.p, o.fa.pid)}</strong><span>{o.pos} · {o.fa.p.team}</span><span>{o.dropName ? 'Suggested drop: ' + o.dropName : 'Use an open roster spot'}</span></span>
+                <span className="fa-weekly-stream-stats"><span><strong>{o.fa.proj.toFixed(1)}</strong>Proj</span><span><strong>+{o.delta.toFixed(1)}</strong>Lineup gain</span></span>
+                <span className="fa-weekly-stream-action">Plan claim →</span>
+            </button>;
+            return <section className="fa-weekly-streams" aria-label="This week’s streaming plays">
+                <h2>This week’s streaming plays</h2>
+                <p>Week {marketWeek} · Available upgrades to your best projected lineup.</p>
+                {choices.length ? <>{choices.slice(0, 3).map(row)}{choices.length > 3 && <details><summary>See {choices.length - 3} more streaming options</summary>{choices.slice(3).map(row)}</details>}<p>Each option is a separate move. Review roster locks and confirm the claim on your league platform.</p></>
+                    : <p>{!marketIsCurrent || !availablePlayers.some(p => Number.isFinite(p.proj)) ? 'Weekly projections are unavailable. Browse available players below.' : 'No confirmed streaming upgrades with the available projections. Missing forecasts can limit comparisons.'}</p>}
+                <button type="button" className="fa-mobile-more" onClick={() => { setFaSection('market'); setFaSort({ key: 'proj', dir: -1 }); }}>Browse all available players</button>
+            </section>;
+        }
+
         function renderRosterSyncBlocker() {
             const isPreDraft = !!rosterState.isPreDraftRosterEmpty;
             return (
@@ -2013,7 +2036,7 @@
                 title: 'Open player card',
             })) : [];
             const _faGroups = [];
-            if (_faStreamRows.length) _faGroups.push({ label: 'Streaming', sub: 'beats your weakest starter', rows: _faStreamRows });
+            if (_faStreamRows.length) _faGroups.push({ label: 'Streaming', sub: 'improves your best projected lineup', rows: _faStreamRows });
             _faGroups.push({ label: 'Market', sub: _faPhoneMkt.length + ' of ' + sortedPlayers.length + ' matching players', rows: _faMktRowNodes });
             if (_faDropRows.length) _faGroups.push({ label: 'Drop alerts', sub: 'fresh drops worth a claim', rows: _faDropRows });
 
@@ -2024,6 +2047,7 @@
                             {renderAcquisitionPlan()}
                             <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
                             {renderCrazePanel()}
+                            {faSection === 'overview' && renderWeeklyStreams()}
                             {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{hasFAAB && <div className="fa-market-phone-budget">FAAB remaining <strong>${remaining.toLocaleString()}</strong><span> / ${budget.toLocaleString()}</span></div>}{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}{faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}</>}
                         </div>
                     </div>
@@ -2065,6 +2089,7 @@
                 {renderAcquisitionPlan()}
                 {renderCrazePanel()}
                 <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
+                {faSection === 'overview' && renderWeeklyStreams()}
                 {faSection === 'overview' && (isPro ? renderActionHQ(viewMode === 'command') : renderActionHqTeaser())}
 
                 <section className="fa-market-shell" hidden={faSection !== 'market'}>

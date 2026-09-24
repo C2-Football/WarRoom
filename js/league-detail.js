@@ -269,7 +269,8 @@
     }
     function PhoneDockInner({ activeTab, navItems, onSelectTab, workspaceOptions }) {
         const [moreOpen, setMoreOpen] = useState(false);
-        const primaryWorkspaces = ['home', 'team', 'league'];
+        const weeklyWaivers = ['redraft', 'chopped'].includes(workspaceOptions?.leagueType);
+        const primaryWorkspaces = weeklyWaivers ? ['home', 'team', 'market', 'league'] : ['home', 'team', 'league'];
         const chips = navItems.filter(item => item.tab && primaryWorkspaces.includes(item.workspace));
         const moreItems = navItems.filter(item => item.tab && !primaryWorkspaces.includes(item.workspace));
         const moreActive = !chips.some(item => navItemIsActive(item, activeTab));
@@ -280,7 +281,7 @@
 
         return <React.Fragment>
             <nav className="wr-phone-dock" aria-label="Primary">
-                <div className="wr-dock-strip">
+                <div className="wr-dock-strip" style={{ gridTemplateColumns: `repeat(${chips.length + 1}, minmax(0, 1fr))` }}>
                     {chips.map(item => {
                         const isActive = navItemIsActive(item, activeTab);
                         return <button key={item.tab} type="button"
@@ -290,7 +291,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
                             </svg>
-                            <span>{item.label}</span>
+                            <span>{weeklyWaivers && item.workspace === 'market' ? 'Waivers' : item.label}</span>
                         </button>;
                     })}
                     <button type="button" className={'wr-dock-chip' + (moreActive ? ' is-active' : '')}
@@ -664,8 +665,10 @@
             const valueTerm = skinValueShort === 'DHQ' ? 'DHQ Value' : skinValueLabel;
             const rankTerm = skinShowsDynastyValue ? 'Dynasty Rank' : 'Asset Rank';
             const windowTerm = skinShowsAgeCurve ? 'Compete Window' : 'Season Window';
+            const rosPointsHelp = { term: 'ROS pts', def: 'Projected fantasy points over the rest of the season, using your league scoring. For example, 15 points per game for 12 remaining games is about 180 ROS pts. This is not a 0–10,000 rating or a health score. Compare weekly projections and lineup gain for streaming decisions.' };
             const quickItems = [
-                { term: valueTerm, def: skinShowsDynastyValue ? 'Dynasty value score (0-10,000). Production + age + situation + market.' : 'Format-adjusted value score (0-10,000). Production, role, scarcity, and market context.' },
+                ...(!skinShowsDynastyValue ? [rosPointsHelp] : []),
+                { term: valueTerm, def: skinShowsDynastyValue ? 'Dynasty value score (0-10,000). Production + age + situation + market.' : 'Value rating (0–10,000), not projected fantasy points. Accounts for production, role, scarcity, and market context. Separate from ROS pts and Health Score.' },
                 { term: 'Health Score', def: 'Team grade (0-100). 90+ Elite, 80+ Contender, 70+ Crossroads.' },
                 { term: 'Elite Player', def: '7000+ ' + skinValueShort + ' or top 5 at their position across all league rosters.' },
                 { term: windowTerm, def: skinShowsAgeCurve ? 'Years until your weakest position group ages out.' : 'Current-season readiness for this league format.' },
@@ -682,8 +685,9 @@
                     { term: 'Research', def: 'Explore sortable player Stats, players and picks, comparisons, and custom reports. Stats includes weekly views, ownership filters, and CSV export.' },
                     { term: 'Player Notebook', def: 'Personal notes and watch status follow a player across your leagues. League notes keep a separate private plan. Notes are saved for your account in this browser; draft board order stays with the draft.' },
                 ]},
-                { cat: 'What DHQ Measures', items: [
-                    { term: valueTerm, def: skinShowsDynastyValue ? 'A 0-10,000 dynasty value score. It blends production, projected role, age curve, positional scarcity, roster situation, market consensus, and format context. It is updated when you refresh league data.' : 'A 0-10,000 format-adjusted value score. It blends production, projected role, positional scarcity, roster situation, market consensus, and this league format. It is updated when you refresh league data.' },
+                { cat: skinShowsDynastyValue ? 'What DHQ Measures' : 'Points and value ratings', items: [
+                    ...(!skinShowsDynastyValue ? [rosPointsHelp] : []),
+                    { term: valueTerm, def: skinShowsDynastyValue ? 'A 0-10,000 dynasty value score. It blends production, projected role, age curve, positional scarcity, roster situation, market consensus, and format context. It is updated when you refresh league data.' : 'A 0–10,000 value rating for this season. It accounts for production, role, positional scarcity, and market context. It is not projected fantasy points or a health score. Use ROS pts for expected remaining-season scoring; use weekly projection and lineup gain for streaming decisions.' },
                     { term: 'Production Layer', def: 'Recent fantasy scoring, usage, playing time, and efficiency establish the floor. Current-season roles matter more in redraft, while multi-year stability carries more weight in dynasty.' },
                     { term: 'Context Layer', def: 'Team, depth chart, scoring settings, lineup slots, and replacement level adjust the raw player value. A scarce starter can gain value even if his box-score profile is similar to a deeper position.' },
                     { term: 'Market Layer', def: 'Market consensus, rank movement, roster ownership, and trade behavior help keep the number from becoming only a projection model. DHQ is meant to reflect what a player is worth in the room.' },

@@ -30,3 +30,18 @@
     .fa-market-head { flex-direction: row; align-items: center; }
     .fa-market-head .fa-market-search { flex-basis: 100%; max-width: none; order: 2; }
 }
+
+/* Weekly waiver decisions stay readable before the deeper market tools. */
+.fa-weekly-streams { padding: 16px; border: 1px solid var(--acc-line2); border-radius: var(--card-radius, 10px); background: var(--panel, #15151b); }
+.fa-weekly-streams h2 { margin: 0; font-size: 20px; color: var(--white); }
+.fa-weekly-streams p { margin: 8px 0 12px; font-size: 14px; line-height: 1.5; color: var(--silver); }
+.fa-weekly-stream { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: 100%; padding: 14px 0; border: 0; border-top: 1px solid var(--ov-5); background: transparent; color: var(--white); text-align: left; cursor: pointer; font: inherit; }
+.fa-weekly-stream-player { flex: 1 1 140px; min-width: 0; }
+.fa-weekly-stream-player strong { display: block; font-size: 16px; overflow-wrap: anywhere; }
+.fa-weekly-stream-player > span { display: block; font-size: 14px; line-height: 1.5; color: var(--silver); }
+.fa-weekly-stream-stats { display: flex; gap: 14px; font-size: 14px; text-align: right; }
+.fa-weekly-stream-stats strong { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.fa-weekly-stream-action { flex-basis: 100%; font-size: 14px; color: var(--gold); }
+.fa-weekly-streams summary { padding: 14px 0; min-height: 44px; font-size: 16px; cursor: pointer; }
+
+.fa-weekly-streams > .fa-mobile-more { width: 100%; min-height: 44px; padding: 10px; background: transparent; border: 1px solid var(--acc-line2); border-radius: var(--card-radius-sm, 8px); color: var(--gold); font: inherit; font-size: 16px; cursor: pointer; }
