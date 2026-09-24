@@ -9,7 +9,6 @@
         return matches.length === 1 ? matches[0] : null;
     }
     const citation = source => source.workbook ? `${source.workbook} · ${source.sheet}!${source.range}` : source.label;
-    const sourceText = fact => fact.sources.map(citation).join('; ');
     function enrich(edition, { league, board = null, end = 0, nameFor = rid => `Team ${rid}` }) {
         const book = select(league);
         if (!book) return edition;
@@ -55,11 +54,12 @@
             if (!a || !b || a === b) return [];
             return finals.filter(f => f.owners.length === 2 && f.owners.includes(a) && f.owners.includes(b));
         };
-        const context = facts => facts.map(f => `${f.season} final: ${f.winner} defeated ${f.loser}${f.scores ? ` ${score(f.scores[0])}–${score(f.scores[1])}` : ''}. Source: ${sourceText(f)}.`).join(' ') + ' Championship meetings are separate from the regular-season series.';
+        const context = facts => facts.map(f => `${f.winner} beat ${f.loser}${f.scores ? `, ${score(f.scores[0])}–${score(f.scores[1])},` : ''} in the ${f.season} final.`).join('\n\n');
+        const titleScope = { label: 'About this history', text: 'These championship results are separate from the regular-season series. Names and scores reflect the season in which each final was played.' };
         const decorate = item => {
             if (item.kind !== 'recap' && !item.preview) return item;
             const facts = rematchFacts(item.rosterIds || []);
-            return !facts.length ? item : { ...item, related: [...(item.related || []), { label: 'Championship history', text: context(facts) }], sources: [...(item.sources || []), ...facts.flatMap(f => f.sources)] };
+            return !facts.length ? item : { ...item, related: [...(item.related || []), { label: 'Championship history', text: context(facts) }, titleScope], sources: [...(item.sources || []), ...facts.flatMap(f => f.sources)] };
         };
         const previews = edition.previews.map(decorate);
         const groups = new Map();
@@ -71,7 +71,9 @@
             // A title rematch is meaningful even before regular-season history
             // has loaded; it never increments the existing rivalry win count.
             previews.push({ id: `title-rematch:${league.league_id}:${board.week}:${ids.join(':')}`, kind: 'story', category: 'Rivalry watch', label: 'CHAMPIONSHIP REMATCH',
-                text: `${nameFor(ids[0])} and ${nameFor(ids[1])}: a matchup with title history`, body: context(facts),
+                text: `${nameFor(ids[0])} vs. ${nameFor(ids[1])}: a title-game rematch`,
+                body: `${context(facts.slice(0, 1))} The matchup returns in Week ${Number(board.week)}.`,
+                related: [...(facts.length > 1 ? [{ label: 'Earlier title meetings', text: context(facts.slice(1)) }] : []), titleScope],
                 season: str(year), week: Number(board.week), rosterIds: ids, preview: true, weight: 79, sources: facts.flatMap(f => f.sources) });
         });
         const records = eligible.filter(f => f.type === 'award' && ['WEEKLY HIGH SCORE', 'SEASON POINTS LEADER'].includes(f.award));

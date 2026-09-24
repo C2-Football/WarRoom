@@ -24,9 +24,13 @@ const other = make({ ...one, league_id: 'unrelated', name: 'CTB The One - Year 1
 assert(!other.chronicle, 'name spoof does not select an archive');
 const board = { week: 1, rows: [{ roster_id: 1, points: 0, matchup_id: 1 }, { roster_id: 2, points: 0, matchup_id: 1 }] };
 const matchup = make(one, { board });
-assert(matchup.previews.some(s => /title history/.test(s.text) && /2023 final/.test(s.body) && /2024 final/.test(s.body)));
+const rematch = matchup.previews.find(s => s.id.startsWith('title-rematch:'));
+assert(rematch && /2024 final/.test(rematch.body));
+assert(rematch.related.some(r => /2023 final/.test(r.text)), 'earlier finals remain available as context');
+assert(!/Source:|winners_bracket|separate from/.test(rematch.body), 'provenance stays out of the story prose');
+assert(rematch.sources.length && rematch.related.some(r => /separate from the regular-season/.test(r.text)), 'sources and scope remain attached');
 const replacement = make({ ...one, rosters: [{ roster_id: 1, owner_id: 'replacement' }, one.rosters[1]] }, { board });
-assert(!replacement.previews.some(s => /title history/.test(s.text)), 'slot replacement never inherits titles');
+assert(!replacement.previews.some(s => s.id.startsWith('title-rematch:')), 'slot replacement never inherits titles');
 const played = make(one, { end: 1, weeks: [{ week: 1, rows: [{ roster_id: 1, points: 100, matchup_id: 1 }, { roster_id: 2, points: 90, matchup_id: 1 }] }] });
 assert(played.stories.find(s => s.kind === 'recap').related.some(r => r.label === 'Championship history'));
 assert.equal(played.high, 100);

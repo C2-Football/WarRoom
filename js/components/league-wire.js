@@ -158,22 +158,34 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
 
     // ── Live NFL scoreboard (phase-aware) ──
     const [nflScores, setNflScores] = React.useState([]);
+    const [nflDesk, setNflDesk] = React.useState({ phase: null, current: { status: 'loading', games: [] }, previous: { status: 'loading', games: [] } });
     React.useEffect(() => {
         if (isPhone && !expanded) return undefined;
         const NC = window.App?.NflContext;
-        if (!NC?.loadScores) return undefined;
-        let alive = true, id = null, warmup = null, tries = 0;
+        if (!NC?.loadScoreboard) return undefined;
+        let alive = true, id = null, warmup = null, tries = 0, busy = false;
         const tick = async () => {
-            try {
-                const ph = NC.currentPhase ? NC.currentPhase() : { week: window.App?.WeeklyProj?.currentWeek?.() || 1, seasontype: 2 };
-                const games = await NC.loadScores(ph.week, ph.season || window.S?.nflState?.season, ph.seasontype);
-                if (alive) setNflScores((games || []).map(g => ({ ...g, isPre: !!ph.isPre, phaseWeek: ph.week })));
-            } catch (e) { /* skip this cycle */ }
+            if (busy) return;
+            busy = true;
+            const ph = NC.currentPhase();
+            const previous = NC.previousPhase(ph);
+            const key = `${ph.season}|${ph.seasontype}|${ph.week}`;
+            setNflDesk(old => old.key === key ? old : { key, phase: ph, previousPhase: previous, current: { status: 'loading', games: [] }, previous: { status: 'loading', games: [] } });
+            const results = await Promise.allSettled([
+                NC.loadScoreboard(ph.week, ph.season, ph.seasontype),
+                expanded && previous ? NC.loadScoreboard(previous.week, previous.season, previous.seasontype) : Promise.resolve([]),
+            ]);
+            if (alive) {
+                const [current, prior] = results;
+                if (current.status === 'fulfilled') setNflScores(current.value.map(g => ({ ...g, isPre: !!ph.isPre, phaseWeek: ph.week })));
+                else setNflScores([]);
+                setNflDesk(old => ({ key, phase: ph, previousPhase: previous,
+                    current: current.status === 'fulfilled' ? { status: 'ready', games: current.value } : { status: 'error', games: old.key === key ? old.current.games : [] },
+                    previous: !expanded ? { status: 'loading', games: [] } : prior.status === 'fulfilled' ? { status: 'ready', games: prior.value } : { status: 'error', games: old.key === key ? old.previous.games : [] },
+                }));
+            }
+            busy = false;
         };
-        // S.nflState lands with the league bootstrap, which can be AFTER this
-        // mounts. Ticking early makes currentPhase() fall back to regular
-        // season — the whole of August would show week-1 kickoff times and not
-        // self-correct for a full minute.
         const start = () => {
             if (!window.S?.nflState && ++tries < 15) { warmup = setTimeout(start, 1000); return; }
             tick();
@@ -329,7 +341,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             const pre = g.isPre ? 'PRE ' : '';
             if (g.state === 'in') {
                 out.push({ kind: 'nfllive', label: pre + (g.shortDetail || 'LIVE'), text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
-            } else if (g.state === 'post') {
+            } else if (g.completed) {
                 out.push({ kind: 'nfl', label: pre + 'FINAL', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
             } else {
                 out.push({ kind: 'nfl', label: g.isPre ? 'PRE WK' + (g.phaseWeek || '') : 'NFL', text: g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled') });
@@ -489,7 +501,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             {hero && !pid && it.metric && <figcaption><strong>{it.metric}</strong><span>{it.metricLabel}</span></figcaption>}
         </figure>;
     };
-    const storyContext = it => <>{it.body && <p>{it.body}</p>}{it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong><p>{r.text}</p></div>)}</details>}{it.sources?.length > 0 && <details className="wr-journal-context"><summary>Sources & historical scope</summary><p>Historical facts retain their original season. Playoff and award history does not add to regular-season records.</p><ul>{it.sources.map((s, i) => <li key={i}>{s.workbook ? `${s.workbook} · ${s.sheet}!${s.range}` : <a href={s.url} target="_blank" rel="noreferrer">{s.label}</a>}</li>)}</ul></details>}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</>;
+    const storyContext = it => <>{it.body && <div className="wr-journal-body">{it.body.split(/\n\n+/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}{it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong>{r.text.split(/\n\n+/).map((paragraph, n) => <p key={n}>{paragraph}</p>)}</div>)}</details>}{it.sources?.length > 0 && <details className="wr-journal-context"><summary>Sources & historical scope</summary><p>Historical facts retain their original season. Playoff and award history does not add to regular-season records.</p><ul>{it.sources.map((s, i) => <li key={i}>{s.workbook ? `${s.workbook} · ${s.sheet}!${s.range}` : <a href={s.url} target="_blank" rel="noreferrer">{s.label}</a>}</li>)}</ul></details>}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</>;
     const storyCard = (it, hero = false) => <article id={articleId(it)} tabIndex={-1} key={it.id || it.label + it.text} className={'wr-journal-story' + (hero ? ' is-lead' : '')}>
         {storyVisual(it, hero)}
         <div className="wr-journal-story-copy"><div className="wr-journal-kicker"><span>{it.label}</span></div>
@@ -527,7 +539,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         {expanded && <dialog ref={dialogRef} id="wr-wire-panel" className="wr-journal" aria-labelledby="wr-journal-title" onCancel={close} onClose={close}>
             <div className="wr-journal-bar"><h2 id="wr-journal-title">The Wire<span>.</span></h2><span>{editionLeague.name || 'Your league'} <span className="wr-journal-dot">•</span> {editionLeague.season}</span><span className="wr-journal-bar-actions">{onOpenAllWire && <button type="button" onClick={() => { close(); onOpenAllWire(); }}>All my leagues</button>}<button type="button" onClick={close} aria-label="Close The Wire">Close ×</button></span></div>
             <nav className="wr-journal-nav" aria-label="Wire sections">{topics.map(([value, label]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => { setTopic(value); setIndex(0); }}>{label}</button>)}</nav>
-            {scorePairs.length > 0 && <section className="wr-journal-scorestrip" aria-label={'League scoreboard · Week ' + scoreWeek}>
+            {topic !== 'nfl' && scorePairs.length > 0 && <section className="wr-journal-scorestrip" aria-label={'League scoreboard · Week ' + scoreWeek}>
                 <div className="wr-journal-scorestrip-label"><strong>WEEK {scoreWeek}</strong><span>{scoresFinal ? 'Results' : 'Scoreboard'}</span></div>
                 <div className="wr-journal-scores" tabIndex={0} aria-label="Scroll league matchups">{scorePairs.map((pair, i) => {
                     const hasPoints = pair.some(r => Number(window.App.LeagueLiveScores.rosterPoints(r)) !== 0 && window.App.LeagueLiveScores.rosterPoints(r) != null);
@@ -535,7 +547,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                 })}</div>
             </section>}
             <div className="wr-journal-paper">
-                <header className="wr-journal-masthead"><div><span>{historicalEdition ? 'FROM THE ARCHIVE' : 'YOUR LEAGUE, COVERED'}</span><h3>{topics.find(([value]) => value === topic)?.[1] === 'Front page' ? 'League news' : topics.find(([value]) => value === topic)?.[1]}</h3></div><p>{editionLeague.season} <span> / </span> {editionWeek === 'all' ? 'Season in review' : selectedWeek >= editionStart ? 'Week ' + selectedWeek + ' edition' : 'Opening week'}</p></header>
+                {topic !== 'nfl' && <><header className="wr-journal-masthead"><div><span>{historicalEdition ? 'FROM THE ARCHIVE' : 'YOUR LEAGUE, COVERED'}</span><h3>{topics.find(([value]) => value === topic)?.[1] === 'Front page' ? 'League news' : topics.find(([value]) => value === topic)?.[1]}</h3></div><p>{editionLeague.season} <span> / </span> {editionWeek === 'all' ? 'Season in review' : selectedWeek >= editionStart ? 'Week ' + selectedWeek + ' edition' : 'Opening week'}</p></header>
                 <details className="wr-journal-tools"><summary>Editions & teams <span className={teamFilter !== 'all' ? 'is-active' : ''}>{teamFilter !== 'all' ? editionName(teamFilter) : 'Browse another season, week, or team'}</span></summary>
                 <div className="wr-journal-filters">
                     <label>Season<select aria-label="Story season" value={readingSeason} onChange={e => changeSeason(e.target.value)}><option value="current">{season} · Current league</option>{pastSeasons.map(s => <option key={s.league.league_id} value={s.league.season}>{s.league.season}</option>)}</select></label>
@@ -547,7 +559,8 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                 {!window.App.LeagueLiveScores.supported(currentLeague) ? <p className="wr-journal-notice">Season stories are available for connected Sleeper leagues.</p> : !historicalEdition && archive.key === historyKey && archive.status === 'error' ? <p className="wr-journal-notice" role="status">Completed scores could not load. Refresh the edition to retry.</p> : !historicalEdition && !archiveReady ? <p className="wr-journal-notice" role="status">The newsroom is gathering completed scores…</p> : null}
                 {past.key === pastKey && past.status === 'loading' && <p className="wr-journal-notice" role="status">Opening the history books… {pastSeasons.length} earlier season{pastSeasons.length === 1 ? '' : 's'} loaded. You can read the latest edition now.</p>}
                 {past.key === pastKey && past.status === 'partial' && <p className="wr-journal-notice" role="status">{past.reason} <button type="button" onClick={() => setArchiveRevision(n => n + 1)}>Retry history</button></p>}
-                <div className="wr-journal-layout"><main className={'wr-journal-main' + (cards.length ? '' : ' is-single')}>
+                </>}
+                {topic === 'nfl' ? <WrNflDesk desk={nflDesk} leaders={nflLeaders} /> : <div className="wr-journal-layout"><main className={'wr-journal-main' + (cards.length ? '' : ' is-single')}>
                     {lead ? storyCard(lead, true) : <article className="wr-journal-empty"><span>THE NEXT CHAPTER</span><h3>{edition.stories.length || teamFilter !== 'all' ? 'A quiet edition here.' : 'The first chapter is still being written.'}</h3><p>{edition.stories.length || teamFilter !== 'all' ? 'Try another section, team, or week to follow a different story.' : 'The schedule is set. Rivalries are waiting. Recaps arrive after the first completed regular-season week.'}</p></article>}
                     {cards.length > 0 && <div className="wr-journal-grid">{cards.map(it => storyCard(it))}</div>}
                     {allEditorial.length > editorial.length && <div className="wr-journal-more"><span>{allEditorial.length - editorial.length} more headlines in this edition</span><button type="button" onClick={() => setTopic('stories')}>Read all stories →</button><button type="button" onClick={() => setTopic('recaps')}>Every game recap →</button></div>}
@@ -565,11 +578,60 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                     {edition.chronicle?.records.length > 0 && <details className="wr-journal-rail-section" open={topic === 'records'}><summary>Historical scoring honors <span>Original-era points</span></summary>{edition.chronicle.records.filter(f => teamFilter === 'all' || f.owners.includes(editionLeague.rosters?.find(r => sameId(r.roster_id, teamFilter))?.owner_id)).slice().sort((a, b) => b.season - a.season).map(f => <article className="wr-journal-rival" key={f.id}><strong>{f.season} · {f.award.toLowerCase()}</strong><p>{f.holder} · {f.stat}</p>{f.reconciliation === 'award-snapshot-differs' && <p>Checked Sleeper score: {Number(f.observed.value).toFixed(2)} · {f.observed.holder}{f.observed.week ? ` · Week ${f.observed.week}` : ` · through Week ${f.observed.throughWeek}`}</p>}<small>{f.sources[0].sheet}!{f.sources[0].range}</small></article>)}<p className="wr-journal-footnote">Documented awards, not scoring-normalized records. These do not trigger record-breaking claims.</p></details>}
                     {edition.rivals.length > 0 && <details className="wr-journal-rail-section" open={topic === 'rivalries'}><summary>Rivalry watch <span>This week</span></summary>{edition.rivals.filter(r => teamFilter === 'all' || r.rosterIds.some(rid => sameId(rid, teamFilter))).map(r => <article className="wr-journal-rival" key={r.rosterIds.join(':')}><strong>{r.a} <span>vs.</span> {r.b}</strong><div>{r.winsA}<span>–</span>{r.winsB}{r.ties > 0 && <small> · {r.ties} tied</small>}</div><p>{r.meetings} recorded regular-season meeting{r.meetings === 1 ? '' : 's'}</p></article>)}</details>}
                     {edition.table.length > 0 && <details className="wr-journal-rail-section" open={topic === 'league'}><summary>The chase <span>THROUGH WK {edition.completedThrough}</span></summary><ol className="wr-journal-table">{edition.table.map(t => <li key={t.rid}><span>{t.rank}</span><strong>{editionName(t.rid)}</strong><span>{t.wins}–{t.losses}{t.ties ? '–' + t.ties : ''}</span></li>)}</ol><p className="wr-journal-footnote">Completed results, including median games where enabled. Ordered by wins, half-credit for ties, then points for. Official division seeds and tiebreaks may differ.</p></details>}
-                </aside></div>
-                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} These calculated totals exclude pre-Sleeper seasons and playoffs. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Completed older seasons are saved on this device. Refresh edition updates current-season results. <button type="button" onClick={() => { recheckArchiveRef.current = true; setArchiveRevision(n => n + 1); }}>Recheck older seasons</button> to fetch historical corrections.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
+                </aside></div>}
+                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} These calculated totals exclude pre-Sleeper seasons and playoffs. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Completed older seasons are saved on this device. Refresh edition updates current-season results. <button type="button" onClick={() => { recheckArchiveRef.current = true; setArchiveRevision(n => n + 1); }}>Recheck older seasons</button> to fetch historical corrections.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores come from ESPN and may be delayed; this view checks every minute. League scores refresh every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
             </div>
         </dialog>}
     </section>;
 }
 
 window.WrLeagueWire = WrLeagueWire;
+
+function WrNflDesk({ desk, leaders = [] }) {
+    const phaseLabel = phase => phase ? `${phase.season || ''} · ${phase.seasontype === 1 ? 'Preseason' : phase.seasontype === 3 ? 'Postseason' : 'Week'} ${phase.week}` : 'Current NFL week';
+    const kickoffText = game => {
+        if (/POSTPONED|CANCEL|SUSPEND|DELAY/i.test(game.statusName || '')) return game.shortDetail || 'Schedule update';
+        const date = new Date(game.kickoff);
+        return game.kickoff && Number.isFinite(date.getTime()) ? date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : game.shortDetail || 'Kickoff to be announced';
+    };
+    const gameCard = game => {
+        const scored = game.completed || game.state === 'in';
+        const validFinal = game.completed && game.homeScore != null && game.awayScore != null;
+        const tied = validFinal && game.homeScore === game.awayScore;
+        const winner = game.homeScore > game.awayScore ? game.homeName || game.home : game.awayName || game.away;
+        const loser = game.homeScore > game.awayScore ? game.awayName || game.away : game.homeName || game.home;
+        const periods = [...new Set([...(game.homePeriods || []), ...(game.awayPeriods || [])].map(p => p.period))].sort((a, b) => a - b);
+        const teams = [{ name: game.awayName || game.away, abbr: game.away, score: game.awayScore, periods: game.awayPeriods || [] }, { name: game.homeName || game.home, abbr: game.home, score: game.homeScore, periods: game.homePeriods || [] }];
+        return <article className={'wr-nfl-game' + (game.state === 'in' ? ' is-live' : '')} key={game.id || game.away + game.home}>
+            <div className="wr-nfl-status">{game.completed ? game.shortDetail || 'Final' : game.state === 'in' ? game.shortDetail || 'Live' : kickoffText(game)}</div>
+            <h4 className="wr-nfl-game-title">{game.awayName || game.away} at {game.homeName || game.home}</h4>
+            <div className="wr-nfl-teams">{teams.map(team => <div key={team.abbr} className={validFinal && !tied && team.name === winner ? 'is-winner' : ''}><span>{team.name}</span><strong>{scored ? team.score ?? '—' : '—'}</strong></div>)}</div>
+            {validFinal && <p className="wr-nfl-recap">{tied ? `All square at ${game.homeScore} apiece.` : `${winner} ${Math.abs(game.homeScore - game.awayScore) <= 3 ? 'edge' : 'beat'} ${loser}, ${Math.max(game.homeScore, game.awayScore)}–${Math.min(game.homeScore, game.awayScore)}${/OT/i.test(game.shortDetail || '') ? ' in overtime' : ''}.`}</p>}
+            {!scored && game.broadcasts?.length > 0 && <p className="wr-nfl-broadcast">{game.broadcasts.join(' · ')}</p>}
+            {scored && <details className="wr-nfl-box"><summary aria-label={`Box score: ${game.away} at ${game.home}`}>Box score <span aria-hidden="true">↗</span></summary>
+                {periods.length > 0 ? <div className="wr-nfl-table-scroll" role="region" aria-label={`${game.away} at ${game.home} scoring by quarter`} tabIndex={0}><table><caption>Scoring by quarter</caption><thead><tr><th scope="col">Team</th>{periods.map(period => <th scope="col" key={period}>{period <= 4 ? period : period === 5 ? 'OT' : `${period - 4}OT`}</th>)}<th scope="col">Total</th></tr></thead><tbody>{teams.map(team => <tr key={team.abbr}><th scope="row">{team.abbr}</th>{periods.map(period => <td key={period}>{team.periods.find(p => p.period === period)?.value ?? '—'}</td>)}<td><strong>{team.score ?? '—'}</strong></td></tr>)}</tbody></table></div> : <p>Quarter-by-quarter scoring isn’t available yet.</p>}
+                {game.leaders?.length > 0 && <><h5>Game leaders</h5><ul className="wr-nfl-leaders">{game.leaders.map((leader, i) => <li key={i}><span>{leader.category}</span><strong>{leader.name}{leader.team ? ` · ${leader.team}` : ''}</strong><small>{leader.stats}</small></li>)}</ul></>}
+                {game.boxScoreUrl && <a href={game.boxScoreUrl} target="_blank" rel="noreferrer">Full player stats on ESPN ↗</a>}
+            </details>}
+        </article>;
+    };
+    const weekSection = (title, phase, data, previous = false) => <section className={'wr-nfl-week ' + (previous ? 'wr-nfl-previous' : 'wr-nfl-current')} aria-label={title} tabIndex={-1}>
+        <header><h3>{title}</h3><span>{phaseLabel(phase)}</span></header>
+        {data.status === 'loading' && <p role="status">Loading NFL games…</p>}
+        {data.status === 'error' && <p className="wr-nfl-notice" role="status">{data.games.length ? 'Showing the last available scores. The latest update couldn’t load.' : 'These NFL games couldn’t load.'} We’ll try again shortly.</p>}
+        {data.status === 'ready' && !data.games.length && <p>{previous && !phase ? 'No earlier games in this phase yet. Results will appear after the opening week.' : 'No games are listed for this week.'}</p>}
+        {data.games.length > 0 && <div className="wr-nfl-games">{data.games.slice().sort((a, b) => (Date.parse(a.kickoff) || 0) - (Date.parse(b.kickoff) || 0)).map(gameCard)}</div>}
+    </section>;
+    const jumpToWeek = (event, selector) => {
+        const section = event.currentTarget.closest('.wr-nfl-desk')?.querySelector(selector);
+        section?.focus({ preventScroll: true });
+        section?.scrollIntoView({ block: 'start' });
+    };
+    return <div className="wr-nfl-desk"><header className="wr-nfl-heading"><span>AROUND THE NFL</span><h3>The week in football</h3><p>This week’s matchups and last week’s results, all in one place.</p></header>
+        <nav className="wr-nfl-jump" aria-label="NFL weeks"><button type="button" onClick={event => jumpToWeek(event, '.wr-nfl-current')}>This week</button><button type="button" onClick={event => jumpToWeek(event, '.wr-nfl-previous')}>Last week’s results ↓</button></nav>
+        {weekSection('This week', desk.phase, desk.current)}
+        {weekSection('Last week’s results', desk.previousPhase, desk.previous, true)}
+        {leaders.length > 0 && <section className="wr-nfl-week"><header><h3>Player spotlight</h3></header><ul className="wr-nfl-leaders">{leaders.map((leader, i) => <li key={i}><span>{leader.label}</span><strong>{leader.text}</strong></li>)}</ul></section>}
+        <p className="wr-nfl-credit">Scores and game leaders: ESPN. Kickoff times are shown in your local time zone. Scores may be delayed.</p>
+    </div>;
+}

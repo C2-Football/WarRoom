@@ -155,15 +155,15 @@
             const before = new Map(previousTable.map(t => [id(t.rid), t]));
             const sorted = rows.slice().sort((a, b) => points(b) - points(a)), best = points(sorted[0]);
             const top = sorted.filter(r => points(r) === best), winners = top.map(r => nameFor(r.roster_id)).join(' & ');
-            if (high !== null && best >= high) add('record', 'Record book', `${winners} ${best > high ? 'rewrite' : 'match'} the season scoring mark`, `${fmt(best)} points ${best > high ? 'surpasses' : 'ties'} the previous high of ${fmt(high)}.`, top.map(r => r.roster_id), { weight: 85, metric: fmt(best), metricLabel: 'fantasy points' });
-            if (priorSeasons.length > 0 && archiveHigh !== null && best > archiveHigh) add('record', 'History made', `${winners} raise the bar across the archive`, `${fmt(best)} points clears the previous archived high of ${fmt(archiveHigh)}. ${archiveComplete && !rulesChanged ? 'Every linked season has been checked.' : 'Compared with loaded seasons using the same scoring and starting positions.'}`, top.map(r => r.roster_id), { weight: 100, metric: fmt(best), metricLabel: 'new archive high' });
+            if (high !== null && best >= high) add('record', 'Record book', `${best > high ? 'A new season scoring high' : 'Season scoring high matched'}: ${winners}`, `A ${fmt(best)}-point week ${best > high ? 'beats' : 'matches'} the previous season high of ${fmt(high)}.`, top.map(r => r.roster_id), { weight: 85, metric: fmt(best), metricLabel: 'fantasy points' });
+            if (priorSeasons.length > 0 && archiveHigh !== null && best > archiveHigh) add('record', 'History made', `An archive scoring high for ${winners}`, `A ${fmt(best)}-point week beats the previous archived high of ${fmt(archiveHigh)}. ${archiveComplete && !rulesChanged ? 'Every linked season has been checked.' : 'Compared with loaded seasons using the same scoring and starting positions.'}`, top.map(r => r.roster_id), { weight: 100, metric: fmt(best), metricLabel: 'new archive high' });
             if (high === null || best >= high) {
                 if (high === null || best > high) records.length = 0;
                 top.forEach(r => records.push({ week, rosterId: r.roster_id, points: best })); high = best;
             }
             rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season, week, name: nameFor(r.roster_id), points: points(r) }, historicalHigh); });
             rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season, week, name: nameFor(r.roster_id), points: points(r) }, archiveHigh); });
-            add('story', 'Scoring crown', choose([`${winners} set the pace`, `${winners} take the weekly scoring crown`, `The week belongs to ${winners}`], week, top[0].roster_id), `${fmt(best)} points led the ${rows.length}-team field${top.length > 1 ? ' in a shared first place' : ''}. ${top.length === 1 && sorted[1] ? `${fmt(best - points(sorted[1]))} points clear of the next-best score.` : ''}`, top.map(r => r.roster_id), { weight: 45, metric: fmt(best), metricLabel: 'weekly high' });
+            add('story', 'Scoring crown', choose([`Top of the scoring pile: ${winners}`, `The weekly scoring crown goes to ${winners}`, `The week belongs to ${winners}`], week, top[0].roster_id), `${top.length > 1 ? 'A share of the weekly crown' : 'The highest score of the week'}: ${fmt(best)} points in a ${rows.length}-team field.${top.length === 1 && sorted[1] ? ` That’s ${fmt(best - points(sorted[1]))} more than the next-best total.` : ''}`, top.map(r => r.roster_id), { weight: 45, metric: fmt(best), metricLabel: 'weekly high' });
             rows.forEach(r => {
                 const rid = id(r.roster_id), old = scoreTotals.get(rid) || 0, total = round(old + points(r));
                 scoreTotals.set(rid, total); stats.get(rid).pf = total;
@@ -187,7 +187,7 @@
                 const verb = gap <= 3 ? choose(['survive a thriller against', 'escape by a whisker against', 'edge past'], week, a.roster_id) : gap >= 40 ? choose(['leave no doubt against', 'run away from', 'roll past'], week, a.roster_id) : choose(['get past', 'take care of business against', 'outlast'], week, a.roster_id);
                 const title = gap === 0 ? `${nameFor(a.roster_id)} and ${nameFor(b.roster_id)} finish level` : `${nameFor(a.roster_id)} ${verb} ${nameFor(b.roster_id)}`;
                 const recap = add('recap', revenge ? 'Revenge game' : gap > 0 && gap <= 3 ? 'Down to the wire' : 'Game recap', title,
-                    `${fmt(points(a))}–${fmt(points(b))}. ${gap === 0 ? 'A tie in the scored matchup.' : `The winning margin: ${fmt(gap)} points.`}${star && gap > 0 ? ` ${playerName(star.pid)} led the winning starters with ${fmt(star.value)}.` : ''}`,
+                    `${gap === 0 ? `Nothing between them: ${fmt(points(a))} points apiece.` : `${nameFor(a.roster_id)} beat ${nameFor(b.roster_id)}, ${fmt(points(a))}–${fmt(points(b))}, ${gap <= 3 ? 'with just' : 'finishing'} ${fmt(gap)} points ${gap <= 3 ? 'to spare' : 'clear'}.`}${star && gap > 0 ? ` ${playerName(star.pid)} led the way with ${fmt(star.value)} points from the starting lineup.` : ''}`,
                     [a.roster_id, b.roster_id], { featuredPid: gap > 0 ? star?.pid : null, weight: revenge ? 83 : gap > 0 && gap <= 3 ? 78 : 35, matchup: [{ name: nameFor(a.roster_id), score: points(a), rid: a.roster_id }, { name: nameFor(b.roster_id), score: points(b), rid: b.roster_id }], related: [] });
                 recaps.push({ recap, a, b, gap });
                 if (last) recap.related.push({ label: 'Last meeting', text: `${last.season} · Week ${last.week}: ${nameFor(a.roster_id)} ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} ${nameFor(b.roster_id)}.` });
@@ -227,7 +227,7 @@
             });
             if (week > start && latestTable.length > 1 && latestTable[0].rank !== latestTable[1].rank && before.get(id(latestTable[0].rid))?.rank > 1) {
                 const leader = latestTable[0];
-                add('story', 'Power shift', `${nameFor(leader.rid)} take over the top of the table`, `${recordText(leader)} with ${fmt(leader.pf)} points for. They move from No. ${before.get(id(leader.rid)).rank} to No. 1 in the completed-results table; official seeding rules may differ.`, [leader.rid], { weight: 82 });
+                add('story', 'Power shift', `A new No. 1: ${nameFor(leader.rid)}`, `A ${recordText(leader)} record and ${fmt(leader.pf)} points through Week ${week} put ${nameFor(leader.rid)} on top of The Wire’s standings, up from No. ${before.get(id(leader.rid)).rank} last week.`, [leader.rid], { weight: 82, related: [{ label: 'How we rank teams', text: `The Wire ranks completed results by record, then points scored${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}. Your league’s official seeds may differ because of division or tiebreak rules.` }] });
             }
             const biggest = margins.slice().sort((a, b) => b.gap - a.gap)[0];
             if (biggest && biggest.gap > 0) {
