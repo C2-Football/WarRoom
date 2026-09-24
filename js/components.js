@@ -321,7 +321,7 @@
         if (html && !isRookie) {
             sections.push(React.createElement('div', { key: 'nfl' },
                 React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
-                React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: 'var(--text-body, 1rem)' } })
+                React.createElement('div', { className: 'wr-career-stats', role: 'region', tabIndex: 0, 'aria-label': 'Career stats; scroll horizontally for more columns', dangerouslySetInnerHTML: { __html: html }, style: { fontSize: 'var(--text-body, 1rem)' } })
             ));
         } else if (loading && !isRookie) {
             sections.push(React.createElement('div', { key: 'loading', style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.5 } }, 'Loading stats...'));

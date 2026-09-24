@@ -269,11 +269,27 @@
     }
     function PhoneDockInner({ activeTab, navItems, onSelectTab, workspaceOptions }) {
         const [moreOpen, setMoreOpen] = useState(false);
-        const weeklyWaivers = ['redraft', 'chopped'].includes(workspaceOptions?.leagueType);
-        const primaryWorkspaces = weeklyWaivers ? ['home', 'team', 'market', 'league'] : ['home', 'team', 'league'];
-        const chips = navItems.filter(item => item.tab && primaryWorkspaces.includes(item.workspace));
-        const moreItems = navItems.filter(item => item.tab && !primaryWorkspaces.includes(item.workspace));
-        const moreActive = !chips.some(item => navItemIsActive(item, activeTab));
+        const W = window.WR.LeagueWorkspaces;
+        const preferenceKey = 'wr-phone-dock-v1:' + (workspaceOptions?.accountId || 'local') + ':' + (workspaceOptions?.leagueType || 'unknown');
+        const readSaved = () => { try { return JSON.parse(localStorage.getItem(preferenceKey)); } catch (_) { return null; } };
+        const [savedDock, setSavedDock] = useState(() => ({key:preferenceKey,tabs:readSaved()}));
+        const [editingDock, setEditingDock] = useState(false);
+        const [saveError, setSaveError] = useState(false);
+        const selected = W.dockSelection(savedDock.key === preferenceKey ? savedDock.tabs : readSaved(), workspaceOptions);
+        const choices = W.dockChoices(workspaceOptions);
+        const chips = selected.map(tab => choices.find(item => item.tab === tab)).filter(Boolean);
+        const moreItems = navItems.filter(item => item.tab);
+        const moreActive = !chips.some(item => item.tab === activeTab);
+        const saveDock = tabs => {
+            setSavedDock({key:preferenceKey,tabs});
+            try { localStorage.setItem(preferenceKey,JSON.stringify(tabs)); setSaveError(false); } catch (_) { setSaveError(true); }
+        };
+        const toggleDock = tab => saveDock(selected.includes(tab) ? selected.filter(t => t !== tab) : selected.length < 4 ? [...selected,tab] : selected);
+        const moveDock = (tab, direction) => {
+            const next = [...selected], index = next.indexOf(tab), target = index + direction;
+            if (target < 0 || target >= next.length) return;
+            [next[index],next[target]] = [next[target],next[index]]; saveDock(next);
+        };
         const selectTab = tab => { setMoreOpen(false); onSelectTab(tab); };
 
         useEffect(() => { setMoreOpen(false); }, [activeTab]);
@@ -283,7 +299,7 @@
             <nav className="wr-phone-dock" aria-label="Primary">
                 <div className="wr-dock-strip" style={{ gridTemplateColumns: `repeat(${chips.length + 1}, minmax(0, 1fr))` }}>
                     {chips.map(item => {
-                        const isActive = navItemIsActive(item, activeTab);
+                        const isActive = item.tab === activeTab;
                         return <button key={item.tab} type="button"
                             className={'wr-dock-chip' + (isActive ? ' is-active' : '')}
                             aria-current={isActive ? 'page' : undefined}
@@ -291,7 +307,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
                             </svg>
-                            <span>{weeklyWaivers && item.workspace === 'market' ? 'Waivers' : item.label}</span>
+                            <span>{item.tab === 'myteam' ? 'My Team' : item.tab === 'central' ? 'League' : item.label}</span>
                         </button>;
                     })}
                     <button type="button" className={'wr-dock-chip' + (moreActive ? ' is-active' : '')}
@@ -304,6 +320,17 @@
             </nav>
             {moreOpen && <window.WR.Sheet open={true} title="More league views" onClose={() => setMoreOpen(false)}>
                 <div id="wr-phone-more-menu" className="wr-phone-more-menu">
+                    <button type="button" onClick={() => setEditingDock(v => !v)} aria-expanded={editingDock}>Customize bottom menu</button>
+                    {editingDock && <section aria-label="Customize bottom menu">
+                        <p>Choose up to four. More stays available. Saved on this device for this account and league format.</p>
+                        <p>{selected.length} of 4 selected</p>
+                        {selected.map((tab,index) => <div key={tab} className="wr-dock-order"><span>{choices.find(c=>c.tab===tab)?.label}</span><button type="button" disabled={index===0} aria-label={'Move ' + tab + ' left'} onClick={()=>moveDock(tab,-1)}>←</button><button type="button" disabled={index===selected.length-1} aria-label={'Move ' + tab + ' right'} onClick={()=>moveDock(tab,1)}>→</button></div>)}
+                        {choices.map(item => <label key={item.tab} className="wr-dock-choice"><input type="checkbox" checked={selected.includes(item.tab)} disabled={!selected.includes(item.tab) && selected.length>=4} onChange={()=>toggleDock(item.tab)} />{item.label}</label>)}
+                        <button type="button" onClick={()=>saveDock(W.dockDefaults(workspaceOptions))}>Reset to defaults</button>
+                        {saveError && <p role="status">Changes apply for this visit. Device storage is unavailable.</p>}
+                        <button type="button" onClick={()=>setEditingDock(false)}>Done</button>
+                    </section>}
+
                     {moreItems.map(item => {
                         const views = window.WR.LeagueWorkspaces.views(item.workspace, workspaceOptions);
                         return <section key={item.workspace}>
@@ -1120,6 +1147,7 @@
             showTrades: leagueSkin?.features?.showTrades,
             showGmOffice: leagueSkin?.type !== 'chopped',
             leagueType: leagueSkin?.type,
+            accountId: sleeperUserId,
             legacyAnalyticsView: analyticsTab,
         };
         const workspaceRoute = window.WR.LeagueWorkspaces.resolve(activeTab, workspaceOptions);

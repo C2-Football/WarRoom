@@ -53,3 +53,9 @@
     :root { --wr-tab-bar-h: 56px; }
     .wr-phone-dock .wr-dock-chip { padding-block: 4px; gap: 3px; }
 }
+
+.wr-dock-choice { display:flex; align-items:center; gap:12px; min-height:48px; font-size:16px; }
+.wr-dock-choice input { width:20px; height:20px; }
+.wr-dock-order { display:flex; align-items:center; gap:8px; }
+.wr-dock-order > span { flex:1; }
+.wr-phone-more-menu .wr-dock-order button { width:44px; min-height:44px; justify-content:center; }

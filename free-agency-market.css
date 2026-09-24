@@ -45,3 +45,7 @@
 .fa-weekly-streams summary { padding: 14px 0; min-height: 44px; font-size: 16px; cursor: pointer; }
 
 .fa-weekly-streams > .fa-mobile-more { width: 100%; min-height: 44px; padding: 10px; background: transparent; border: 1px solid var(--acc-line2); border-radius: var(--card-radius-sm, 8px); color: var(--gold); font: inherit; font-size: 16px; cursor: pointer; }
+
+.fa-weekly-streams select { display:block; width:100%; min-height:44px; margin:8px 0; padding:8px; color:var(--white); background:var(--panel, #15151b); border:1px solid var(--acc-line2); border-radius:var(--card-radius-sm, 8px); font:inherit; font-size:16px; }
+.fa-weekly-streams > label { display:block; margin-top:12px; font-size:14px; }
+.fa-weekly-stream-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); flex-basis:100%; text-align:left; }

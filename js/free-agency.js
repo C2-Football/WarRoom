@@ -131,7 +131,9 @@
                 : !dynasty && p.position === 'QB' && Number(p.depth_chart_order) > 1 ? 'Backup QB' : null;
             let projection = null;
             try { projection = finite(options.project?.(String(pid))); } catch (_) { /* unknown projection */ }
-            return { pid: String(pid), pos: norm(pos || p.position || ''), name: p.full_name || p.last_name || String(pid), dhq: finite(value), projection, available: !unavailable, unavailable, injury: injury || null, depth: p.depth_chart_order ?? null, bye: bye ?? null };
+            let rosPoints = null;
+            try { rosPoints = finite(options.rosProject?.(String(pid))); } catch (_) { /* unknown ROS */ }
+            return { rosPoints, pid: String(pid), pos: norm(pos || p.position || ''), name: p.full_name || p.last_name || String(pid), dhq: finite(value), projection, available: !unavailable, unavailable, injury: injury || null, depth: p.depth_chart_order ?? null, bye: bye ?? null };
         }
         const owned = [...new Set((roster?.players || []).map(String))].map(pid => entry(pid, null, valueOf(pid)));
         const active = owned.filter(p => !reserve.has(p.pid));
@@ -158,6 +160,7 @@
         const coverage = lineup(usable, 'coverage').count;
         const beforeWeekly = lineup(usable, 'projection');
         const beforeSeason = lineup(active, 'dhq');
+        const beforeRos = lineup(active, 'rosPoints');
         beforeWeekly.complete = usable.every(p=>p.projection!=null);
         beforeSeason.complete = active.every(p=>p.dhq!=null);
         const rows = [...new Set(slots.flatMap(eligible))].map(pos => {
@@ -170,7 +173,7 @@
             const add = entry(candidate.pid || '__candidate', pos, value);
             if (!candidate.pid) return { ...base, short: 'Unknown', label: 'Select a player to compare a legal add/drop' };
             if (owned.some(p => p.pid === add.pid)) return { ...base, label: 'Already on your roster' };
-            if (!add.available) return { ...base, label: add.unavailable + ': no immediate lineup help' };
+            if (!add.available && options.horizon !== 'season') return { ...base, label: add.unavailable + ': no immediate lineup help' };
             if (active.length > capacity) return { ...base, label: 'Resolve the existing roster overage before planning an add' };
             const drops = active.length < capacity ? [null] : active.filter(p => !protectedIds.has(p.pid)
                 && root._playerTags?.[p.pid] !== 'untouchable' && !p.injury
@@ -183,12 +186,20 @@
                 const completeSeason = active.every(p => p.dhq != null) && add.dhq != null;
                 const weeklyGain = completeWeekly ? +(lineup(playable,'projection').total - beforeWeekly.total).toFixed(2) : null;
                 const seasonGain = completeSeason ? Math.round(lineup(after,'dhq').total - beforeSeason.total) : null;
+                const rosGain = active.every(p=>p.rosPoints != null) && add.rosPoints != null ? +(lineup(after,'rosPoints').total - beforeRos.total).toFixed(1) : null;
+                if (options.horizon === 'week' && !(weeklyGain > 0)) continue;
+                if (options.horizon === 'season' && !(rosGain > 0)) continue;
+                if (options.horizon === 'both' && !(weeklyGain != null && rosGain != null && weeklyGain >= 0 && rosGain >= 0 && (weeklyGain > 0 || rosGain > 0))) continue;
                 const benchGain = dynasty && completeSeason ? Math.round(after.reduce((n,p)=>n+p.dhq,0)-active.reduce((n,p)=>n+p.dhq,0)) : null;
-                if (!(weeklyGain > 0) && !(seasonGain > 0) && !(benchGain > 0)) continue;
+                if (!(weeklyGain > 0) && !(seasonGain > 0) && !(benchGain > 0) && !(options.horizon && rosGain > 0)) continue;
                 // Do not fix one slot by opening another, or sell a higher-valued
                 // seasonal asset for a one-week bump without explicit owner choice.
                 if (lineup(playable,'coverage').count < coverage) continue;
-                const next = { weeklyGain, seasonGain, benchGain, dropPid: drop?.pid || null, dropName: drop?.name || null, candidateProjection: add.projection, dropProjection: drop?.projection ?? null, dropValue: drop?.dhq ?? null, requiresLockCheck: true };
+                const next = { rosGain, candidateRosPoints: add.rosPoints, weeklyGain, seasonGain, benchGain, dropPid: drop?.pid || null, dropName: drop?.name || null, candidateProjection: add.projection, dropProjection: drop?.projection ?? null, dropValue: drop?.dhq ?? null, requiresLockCheck: true };
+                if (options.horizon === 'season') {
+                    if (!best || next.rosGain > best.rosGain || next.rosGain === best.rosGain && (next.weeklyGain ?? -Infinity) > (best.weeklyGain ?? -Infinity)) best = next;
+                    continue;
+                }
                 if (!best || (next.weeklyGain ?? 0) > (best.weeklyGain ?? 0) || (next.weeklyGain ?? 0) === (best.weeklyGain ?? 0) && ((next.seasonGain ?? 0) > (best.seasonGain ?? 0) || (next.seasonGain ?? 0) === (best.seasonGain ?? 0) && (next.dropValue ?? 0) < (best.dropValue ?? 0))) best = next;
             }
             if (!best) return { ...base, label: drops.length ? base.label : 'No safe drop identified; review roster space or protected players' };
@@ -826,6 +837,7 @@
     function FreeAgencyTab({ playersData, statsData, prevStatsData, statsSeason, priorStatsSeason, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo, initialView = 'overview' }) {
         const [faSection, setFaSection] = React.useState(initialView === 'targets' ? 'targets' : 'overview');
         const acquisitionLeagueId = String(currentLeague?.league_id || currentLeague?.id || '');
+        const [streamHorizon, setStreamHorizon] = useState('week');
         const [acquisitionContext, setAcquisitionContext] = useState(null);
         const [notebookRevision, setNotebookRevision] = useState(0);
         useEffect(() => {
@@ -1086,15 +1098,20 @@
                 .slice(0, 300);
         }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet, marketIsCurrent, marketWeek, marketDataVersion]);
 
-        // Streaming opportunities: the best available FA per position that
-        // out-projects the user's WEAKEST current starter at that position this week.
-        const streaming = useMemo(() => {
+        // Compare the same legal add/drop across both scoring horizons.
+        const streamCandidates = useMemo(() => {
             if (!isPro || skinFeatures.showStreaming === false) return [];
-            const read=buildFaRosterRead(myRoster,currentLeague,playersData,pid=>waiverValue(pid,currentLeague,resolvedLeagueSkin),waiverRosterOptions({currentLeague,playersData,statsData,prevStatsData}));
+            const state = window.App?.PlayerValue?.rosState?.();
+            const validRos = state && String(state.leagueId) === acquisitionLeagueId && Number(state.week) === Number(marketWeek) && marketIsCurrent;
+            const options = { ...waiverRosterOptions({currentLeague,playersData,statsData,prevStatsData}), horizon: streamHorizon,
+                rosProject: pid => validRos ? state.points?.[pid] ?? null : null };
+            const read=buildFaRosterRead(myRoster,currentLeague,playersData,pid=>waiverValue(pid,currentLeague,resolvedLeagueSkin),options);
             return availablePlayers.filter(x=>waiverRoleRead(x.p,currentLeague,resolvedLeagueSkin).eligible).map(fa=>({fa,fit:read.fit(fa.pos,fa.dhq,fa)}))
-                .filter(x=>x.fit.weeklyGain>0).map(({fa,fit})=>({pos:fa.pos,fa,worstName:'best available lineup',worstProj:read.beforeWeekly.total,delta:fit.weeklyGain,dropPid:fit.dropPid,dropName:fit.dropName}))
-                .sort((a,b)=>b.delta-a.delta);
-        },[isPro,skinFeatures.showStreaming,availablePlayers,myRoster,playersData,statsData,prevStatsData,currentLeague,resolvedLeagueSkin,timeRecomputeTs,marketDataVersion]);
+                .filter(({fit}) => streamHorizon === 'season' ? fit.rosGain > 0 : streamHorizon === 'both' ? fit.weeklyGain != null && fit.rosGain != null && fit.weeklyGain >= 0 && fit.rosGain >= 0 && (fit.weeklyGain > 0 || fit.rosGain > 0) : fit.weeklyGain > 0)
+                .map(({fa,fit})=>({pos:fa.pos,fa,worstName:'best available lineup',worstProj:read.beforeWeekly.total,delta:fit.weeklyGain,rosGain:fit.rosGain,rosPoints:fit.candidateRosPoints,dropPid:fit.dropPid,dropName:fit.dropName}))
+                .sort((a,b)=>streamHorizon === 'season' ? b.rosGain-a.rosGain : (b.delta ?? -Infinity)-(a.delta ?? -Infinity));
+        },[isPro,skinFeatures.showStreaming,availablePlayers,myRoster,playersData,statsData,prevStatsData,currentLeague,resolvedLeagueSkin,timeRecomputeTs,marketDataVersion,streamHorizon,acquisitionLeagueId,marketWeek,marketIsCurrent]);
+        const streaming = streamCandidates.filter(o => o.delta > 0 && Number.isFinite(o.fa.proj));
         const streamPosSet = new Set(streaming.map(o => o.pos));
 
         // GM-Office FA filters scope the recommendation surfaces (priority adds +
@@ -1564,18 +1581,21 @@
                 const GatedRow = window.WrGatedMoreRow;
                 return GatedRow ? <GatedRow title="This week’s streaming plays" sub="Compare available players with your best lineup. Streaming recommendations are Pro." feature="faab_intelligence" /> : null;
             }
-            const choices = streaming.filter(o => Number.isFinite(o.fa.proj));
+            const choices = streamCandidates;
+            const signed = n => Number.isFinite(n) ? (n > 0 ? '+' : '') + n.toFixed(1) : '—';
+            const points = n => Number.isFinite(n) ? n.toFixed(1) : '—';
             const row = o => <button type="button" className="fa-weekly-stream" key={o.fa.pid}
-                onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: o.fa.pid, dropPid: o.dropPid, position: o.pos, leagueId: acquisitionLeagueId, source: 'weekly-streams', reason: '+' + o.delta.toFixed(1) + ' projected lineup points this week' }) : openFaPlayer(o.fa.pid)}>
+                onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: o.fa.pid, dropPid: o.dropPid, position: o.pos, leagueId: acquisitionLeagueId, source: 'weekly-streams', reason: signed(o.delta) + ' lineup pts this week; ' + signed(o.rosGain) + ' projected ROS lineup pts' }) : openFaPlayer(o.fa.pid)}>
                 <span className="fa-weekly-stream-player"><strong>{playerName(o.fa.p, o.fa.pid)}</strong><span>{o.pos} · {o.fa.p.team}</span><span>{o.dropName ? 'Suggested drop: ' + o.dropName : 'Use an open roster spot'}</span></span>
-                <span className="fa-weekly-stream-stats"><span><strong>{o.fa.proj.toFixed(1)}</strong>Proj</span><span><strong>+{o.delta.toFixed(1)}</strong>Lineup gain</span></span>
+                <span className="fa-weekly-stream-stats"><span><strong>{points(o.fa.proj)}</strong>Week proj</span><span><strong>{points(o.rosPoints)}</strong>ROS pts</span><span><strong style={{color:o.delta < 0 ? 'var(--bad, #ef7777)' : undefined}}>{signed(o.delta)}</strong>Week lineup gain</span><span><strong style={{color:o.rosGain < 0 ? 'var(--bad, #ef7777)' : undefined}}>{signed(o.rosGain)}</strong>ROS lineup gain</span></span>
                 <span className="fa-weekly-stream-action">Plan claim →</span>
             </button>;
             return <section className="fa-weekly-streams" aria-label="This week’s streaming plays">
-                <h2>This week’s streaming plays</h2>
+                <h2>Streaming &amp; season upgrades</h2>
+                <label>Improve my lineup for <select aria-label="Streaming improvement priority" value={streamHorizon} onChange={e=>setStreamHorizon(e.target.value)}><option value="week">This week</option><option value="season">Rest of season</option><option value="both">Both</option></select></label>
                 <p>Week {marketWeek} · Available upgrades to your best projected lineup.</p>
-                {choices.length ? <>{choices.slice(0, 3).map(row)}{choices.length > 3 && <details><summary>See {choices.length - 3} more streaming options</summary>{choices.slice(3).map(row)}</details>}<p>Each option is a separate move. Review roster locks and confirm the claim on your league platform.</p></>
-                    : <p>{!marketIsCurrent || !availablePlayers.some(p => Number.isFinite(p.proj)) ? 'Weekly projections are unavailable. Browse available players below.' : 'No confirmed streaming upgrades with the available projections. Missing forecasts can limit comparisons.'}</p>}
+                {choices.length ? <>{choices.slice(0, 3).map(row)}{choices.length > 3 && <details><summary>See {choices.length - 3} more streaming options</summary>{choices.slice(3).map(row)}</details>}<details><summary>How gains are calculated</summary><p>Gains compare your best projected lineup before and after this add/drop. ROS is a fixed-roster estimate, not a week-by-week schedule simulation. Each option is a separate move; confirm locks on your league platform.</p></details></>
+                    : <p>{!marketIsCurrent || !availablePlayers.some(p => Number.isFinite(p.proj)) ? 'Weekly projections are unavailable. Browse available players below.' : 'No confirmed upgrades for this priority with the available projections. Missing forecasts can limit comparisons.'}</p>}
                 <button type="button" className="fa-mobile-more" onClick={() => { setFaSection('market'); setFaSort({ key: 'proj', dir: -1 }); }}>Browse all available players</button>
             </section>;
         }

@@ -81,7 +81,17 @@
             item && Object.keys(item).every(key => fields.includes(key)) && fields.every(key => item[key] === legacy[i][key]));
         return untouched ? defaults.map(item => ({ ...item })) : widgets;
     }
-    const api = { resolve, views, navigation, workspace, analysisRoutes, upgradeStarter };
+    function dockChoices(options) {
+        return routes.filter(r => !r.legacy && allowed(r, options)).map(r => ({ ...r, iconKey: workspaces.find(w => w.id === r.workspace)?.iconKey || 'home' }));
+    }
+    function dockDefaults(options) {
+        return ['redraft', 'chopped'].includes(options?.leagueType) ? ['dashboard','myteam','fa','central'] : ['dashboard','myteam','central'];
+    }
+    function dockSelection(saved, options) {
+        const valid = new Set(dockChoices(options).map(r => r.tab));
+        return [...new Set(Array.isArray(saved) ? saved : dockDefaults(options))].filter(tab => valid.has(tab)).slice(0, 4);
+    }
+    const api = { dockChoices, dockDefaults, dockSelection, resolve, views, navigation, workspace, analysisRoutes, upgradeStarter };
     root.WR = root.WR || {};
     root.WR.LeagueWorkspaces = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

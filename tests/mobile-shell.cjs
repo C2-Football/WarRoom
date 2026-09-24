@@ -10,9 +10,10 @@ const compiled = babel.transform(source, { presets: ['react'] }).code;
 function fixture({ open = false, phone = true, keyboard = false, activeTab = 'myteam', options = {} } = {}) {
     const updates = [], selections = [];
     const h = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) });
+    let hook = 0;
     const context = {
         console,
-        useState: () => [open, value => updates.push(value)],
+        useState: initial => [hook++ === 0 ? open : typeof initial === 'function' ? initial() : initial, value => updates.push(value)],
         useRef: () => ({ current: null }),
         useEffect: () => {},
         React: { createElement: h, Fragment: 'fragment' },

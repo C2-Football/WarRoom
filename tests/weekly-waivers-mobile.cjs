@@ -9,27 +9,28 @@ const text = n => n == null ? '' : typeof n === 'object' ? (n.children || []).ma
 const source = fs.readFileSync('js/free-agency.js', 'utf8');
 const panel = source.slice(source.indexOf('        function renderWeeklyStreams()'), source.indexOf('        function renderRosterSyncBlocker()'));
 let claim, section, sort;
-const ctx = vm.createContext({ React: { createElement: h, Fragment: 'fragment' }, weeklyWaivers: true, skinFeatures: {}, isPro: true, marketWeek: 3, marketIsCurrent: true, availablePlayers: [{proj: 15}], acquisitionLeagueId: 'league-123', playerName: p => p.full_name, openFaPlayer: () => {}, setFaSection: s => section = s, setFaSort: s => sort = s, window: { WR: { openAcquisition: c => claim = c }, WrGatedMoreRow: p => h('aside', {}, p.title, p.sub) }, streaming: [{ fa: {pid: 'add', proj: 15, p: {full_name: 'Available Player', team: 'BUF'}}, pos: 'QB', delta: 3, dropPid: 'drop', dropName: 'Bench Player' }] });
+const ctx = vm.createContext({ React: { createElement: h, Fragment: 'fragment' }, weeklyWaivers: true, skinFeatures: {}, isPro: true, marketWeek: 3, marketIsCurrent: true, availablePlayers: [{proj: 15}], acquisitionLeagueId: 'league-123', playerName: p => p.full_name, openFaPlayer: () => {}, setFaSection: s => section = s, setFaSort: s => sort = s, window: { WR: { openAcquisition: c => claim = c }, WrGatedMoreRow: p => h('aside', {}, p.title, p.sub) }, streamHorizon:'week', setStreamHorizon:()=>{}, streamCandidates: [{ fa: {pid: 'add', proj: 15, p: {full_name: 'Available Player', team: 'BUF'}}, pos: 'QB', delta: 3, dropPid: 'drop', dropName: 'Bench Player' }] });
 vm.runInContext(babel.transform(panel, {presets:['react']}).code, ctx);
 let out = ctx.renderWeeklyStreams();
-assert.match(text(out), /Available Player.*Suggested drop: Bench Player.*15.0.*Proj.*\+\s*3.0.*Lineup gain/);
+assert.match(text(out), /Available Player.*Suggested drop: Bench Player.*15.0.*Week proj.*\+\s*3.0.*Week lineup gain/);
 nodes(out).find(n => n.props.className === 'fa-weekly-stream').props.onClick();
 assert.equal(claim.pid, 'add'); assert.equal(claim.dropPid, 'drop'); assert.equal(claim.leagueId, 'league-123');
 nodes(out).find(n => n.props.className === 'fa-mobile-more').props.onClick();
 assert.equal(section, 'market'); assert.equal(sort.key, 'proj');
-ctx.streaming = []; ctx.availablePlayers = [];
+ctx.streamCandidates = []; ctx.availablePlayers = [];
 assert.match(text(ctx.renderWeeklyStreams()), /projections are unavailable/);
 ctx.availablePlayers = [{proj:15}];
-assert.match(text(ctx.renderWeeklyStreams()), /No confirmed streaming upgrades/);
+assert.match(text(ctx.renderWeeklyStreams()), /No confirmed upgrades/);
 ctx.isPro = false;
 assert.match(text(ctx.renderWeeklyStreams()), /recommendations are Pro/);
 ctx.weeklyWaivers = false; assert.equal(ctx.renderWeeklyStreams(), null);
 ctx.weeklyWaivers = true; ctx.skinFeatures = {showStreaming:false}; assert.equal(ctx.renderWeeklyStreams(), null);
 const leagueSource = fs.readFileSync('js/league-detail.js', 'utf8');
 const dock = leagueSource.slice(leagueSource.indexOf('    function PhoneDockInner('), leagueSource.indexOf('    // League Detail Component'));
-const navItems = require('../js/shared/league-workspaces.js').navigation();
+ctx.window.WR.LeagueWorkspaces = require('../js/shared/league-workspaces.js');
+const navItems = ctx.window.WR.LeagueWorkspaces.navigation();
 let selected;
-Object.assign(ctx, {useState: init => [init, () => {}], useEffect: () => {}, NAV_ICON_PATHS: {home: []}, navItemIsActive: (item, tab) => item.tab === tab});
+Object.assign(ctx, {useState: init => [typeof init === 'function' ? init() : init, () => {}], useEffect: () => {}, NAV_ICON_PATHS: {home: []}, navItemIsActive: (item, tab) => item.tab === tab});
 vm.runInContext(babel.transform(dock, {presets:['react']}).code, ctx);
 for (const leagueType of ['redraft', 'chopped']) {
  out = ctx.PhoneDockInner({activeTab:'fa', navItems, onSelectTab:t=>selected=t, workspaceOptions:{leagueType}});
@@ -42,7 +43,7 @@ assert.deepEqual(nodes(out).filter(n=>n.type==='button').map(text),['Home','My T
 console.log('PASS weekly waiver navigation, stream claims, projection sorting, unavailable data, and format/access boundaries');
 if (process.env.WAIVER_PREVIEW) {
     ctx.isPro = true; ctx.skinFeatures = {};
-    ctx.streaming = [{ fa: {pid: 'preview', proj: 16.8, p: {full_name: 'Example Streaming Player', team: 'BUF'}}, pos: 'QB', delta: 3.2, dropPid: 'bench', dropName: 'Example Bench Player' }];
+    ctx.streamCandidates = [{ fa: {pid: 'preview', proj: 16.8, p: {full_name: 'Example Streaming Player', team: 'BUF'}}, pos: 'QB', delta: 3.2, rosPoints: 160.5, rosGain: -12.4, dropPid: 'bench', dropName: 'Example Bench Player' }];
     const esc = value => String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
     function html(n) {
         if (typeof n !== 'object') return esc(n);

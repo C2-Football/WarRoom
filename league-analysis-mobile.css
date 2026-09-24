@@ -196,3 +196,20 @@
     .la-position-ranking>span:last-child { font-size:16px !important; }
     .la-position-ranking>div,.la-position-ranking>span:nth-child(3):not(:last-child) { display:none; }
 }
+
+/* Standings read as one list, with aligned fantasy totals. */
+@media (max-width:767px) {
+  .la-standings { border:1px solid var(--ov-4, rgba(255,255,255,.08)); border-radius:var(--card-radius, 10px); overflow:hidden; }
+  .la-standings-columns, .la-standings .la-report-row > summary { display:grid; grid-template-columns:22px minmax(0,1fr) 62px 72px; align-items:center; column-gap:8px; padding:12px 8px; }
+  .la-standings-columns { color:var(--silver); font-size:14px; min-height:44px; }
+  .la-standings-columns > :nth-child(n+3) { text-align:right; }
+  .la-standings .la-report-row { margin:0; padding:0; border:0; border-bottom:1px solid var(--ov-4, rgba(255,255,255,.08)); border-radius:0; background:transparent; }
+  .la-standings .la-report-row:last-child { border-bottom:0; }
+  .la-standings .la-report-row > summary { min-height:60px; list-style:none; }
+  .la-standings .la-report-row strong { font-weight:500; font-size:16px; overflow-wrap:break-word; }
+  .la-standings .la-standing-record, .la-standings .la-standing-points { text-align:right; white-space:nowrap; font-size:14px; font-variant-numeric:tabular-nums; }
+  .la-standings .la-standing-rank { font-size:14px; color:var(--silver); }
+  .la-central .la-standings .la-own { border-left:0; background:var(--acc-fill1, rgba(212,175,55,.06)); }
+  .la-standings .la-own .la-standing-team strong { color:var(--gold); }
+  .la-standings .la-fields { padding:0 12px 8px; }
+}
