@@ -162,7 +162,7 @@ test('skin: showTrades also respects a league that simply disabled trading', () 
 });
 test('skin: chopped vocabulary speaks survival, not trading', () => {
   const v = Skin.build({ league: CHOP_LEAGUE, rosters: ROSTERS }).vocabulary;
-  assert.strictEqual(v.valueShortLabel, 'ROS');
+  assert.strictEqual(v.valueShortLabel, 'Season value');
   assert.strictEqual(v.marketLabel, 'Waiver Pool');
   assert.strictEqual(v.strategyLabel, 'Survival Plan');
   assert.ok(/chopped/i.test(v.rosterEmptyLabel), 'empty roster reads as chopped, not "not drafted"');
