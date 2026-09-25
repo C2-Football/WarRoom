@@ -1,0 +1,535 @@
+{
+  "target": "https://c2-football.github.io/WarRoom-sandbox/index.html",
+  "source": "Actual UI with historical-engine fixtures; isolated from hosted backend; mutation requests blocked",
+  "passed": true,
+  "evidence": [
+    {
+      "width": 320,
+      "height": 740,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "actionHeight": 44,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "label": "live",
+      "base": "https://c2-football.github.io/WarRoom/",
+      "kind": "Unmodified public entry without dev flag or authentication fixtures",
+      "checks": [
+        "Hub arrival",
+        "served logo loaded",
+        "Duat entry and creation action",
+        "390px no overflow",
+        "zero uncaught exceptions"
+      ],
+      "blocked": [
+        "POST /api/4511323529674752/envelope/",
+        "POST /functions/v1/mfl-proxy",
+        "POST /functions/v1/mfl-proxy",
+        "POST /api/4511323529674752/envelope/",
+        "POST /api/4511323529674752/envelope/"
+      ]
+    },
+    {
+      "label": "live",
+      "base": "https://c2-football.github.io/WarRoom/",
+      "kind": "Actual served app with synthetic provider fixtures and disposable storage; dev query; no hosted authentication proof",
+      "checks": [
+        "Empire current title",
+        "six metrics retained",
+        "Assets/Overview",
+        "Hub return",
+        "320/390/844/1440 no overflow",
+        "zero uncaught exceptions"
+      ],
+      "blocked": [
+        "POST /api/4511323529674752/envelope/",
+        "POST /functions/v1/mfl-proxy",
+        "POST /functions/v1/mfl-proxy",
+        "POST /api/4511323529674752/envelope/",
+        "POST /api/4511323529674752/envelope/",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events"
+      ]
+    },
+    {
+      "label": "sandbox",
+      "base": "https://c2-football.github.io/WarRoom-sandbox/",
+      "kind": "Unmodified public entry without dev flag or authentication fixtures",
+      "checks": [
+        "Hub arrival",
+        "served logo loaded",
+        "Duat entry and creation action",
+        "390px no overflow",
+        "zero uncaught exceptions"
+      ],
+      "blocked": [
+        "POST /api/4511323529674752/envelope/",
+        "POST /functions/v1/mfl-proxy",
+        "POST /functions/v1/mfl-proxy",
+        "POST /api/4511323529674752/envelope/",
+        "POST /api/4511323529674752/envelope/"
+      ]
+    },
+    {
+      "label": "sandbox",
+      "base": "https://c2-football.github.io/WarRoom-sandbox/",
+      "kind": "Actual served app with synthetic provider fixtures and disposable storage; dev query; no hosted authentication proof",
+      "checks": [
+        "Empire current title",
+        "six metrics retained",
+        "Assets/Overview",
+        "Hub return",
+        "320/390/844/1440 no overflow",
+        "zero uncaught exceptions"
+      ],
+      "blocked": [
+        "POST /api/4511323529674752/envelope/",
+        "POST /functions/v1/mfl-proxy",
+        "POST /functions/v1/mfl-proxy",
+        "POST /api/4511323529674752/envelope/",
+        "POST /api/4511323529674752/envelope/",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events",
+        "POST /rest/v1/analytics_events"
+      ]
+    }
+  ]
+}

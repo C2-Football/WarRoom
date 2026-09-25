@@ -1,0 +1,165 @@
+{
+  "conclusion": "success",
+  "headSha": "46c65405542d35233bfb44596e8a80eca7394a33",
+  "jobs": [
+    {
+      "completedAt": "2026-09-25T16:52:20Z",
+      "conclusion": "success",
+      "databaseId": 108163993122,
+      "name": "validate",
+      "startedAt": "2026-09-25T16:47:52Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-25T16:47:54Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-25T16:47:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:47:57Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v6.0.2",
+          "number": 2,
+          "startedAt": "2026-09-25T16:47:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:47:58Z",
+          "conclusion": "success",
+          "name": "Checkout canonical shared engine for security contracts",
+          "number": 3,
+          "startedAt": "2026-09-25T16:47:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:48:03Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 4,
+          "startedAt": "2026-09-25T16:47:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:48:05Z",
+          "conclusion": "success",
+          "name": "Run denoland/setup-deno@v2",
+          "number": 5,
+          "startedAt": "2026-09-25T16:48:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:48:07Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 6,
+          "startedAt": "2026-09-25T16:48:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:48:08Z",
+          "conclusion": "success",
+          "name": "Sync pinned shared modules before security contracts",
+          "number": 7,
+          "startedAt": "2026-09-25T16:48:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:50:15Z",
+          "conclusion": "success",
+          "name": "Verify Cup, security, billing and Vault contracts",
+          "number": 8,
+          "startedAt": "2026-09-25T16:48:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:51:35Z",
+          "conclusion": "success",
+          "name": "Verify Duat contracts",
+          "number": 9,
+          "startedAt": "2026-09-25T16:50:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:51:40Z",
+          "conclusion": "success",
+          "name": "Build Vault server runtime",
+          "number": 10,
+          "startedAt": "2026-09-25T16:51:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:51:42Z",
+          "conclusion": "success",
+          "name": "Build Duat server runtime",
+          "number": 11,
+          "startedAt": "2026-09-25T16:51:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:17Z",
+          "conclusion": "success",
+          "name": "Type check all retained Edge Function sources",
+          "number": 12,
+          "startedAt": "2026-09-25T16:51:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:17Z",
+          "conclusion": "success",
+          "name": "Post Run denoland/setup-deno@v2",
+          "number": 21,
+          "startedAt": "2026-09-25T16:52:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:17Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 22,
+          "startedAt": "2026-09-25T16:52:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:18Z",
+          "conclusion": "success",
+          "name": "Post Checkout canonical shared engine for security contracts",
+          "number": 23,
+          "startedAt": "2026-09-25T16:52:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:18Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v6.0.2",
+          "number": 24,
+          "startedAt": "2026-09-25T16:52:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-25T16:52:18Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 25,
+          "startedAt": "2026-09-25T16:52:18Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031516/job/108163993122"
+    },
+    {
+      "completedAt": "2026-09-25T16:52:20Z",
+      "conclusion": "skipped",
+      "databaseId": 108165595914,
+      "name": "release",
+      "startedAt": "2026-09-25T16:52:21Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031516/job/108165595914"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031516"
+}

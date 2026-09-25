@@ -1,0 +1,26 @@
+[
+  {
+    "conclusion": "success",
+    "databaseId": 36163031514,
+    "headSha": "46c65405542d35233bfb44596e8a80eca7394a33",
+    "status": "completed",
+    "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031514",
+    "workflowName": "CI"
+  },
+  {
+    "conclusion": "success",
+    "databaseId": 36163031688,
+    "headSha": "46c65405542d35233bfb44596e8a80eca7394a33",
+    "status": "completed",
+    "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031688",
+    "workflowName": "Deploy to GitHub Pages"
+  },
+  {
+    "conclusion": "success",
+    "databaseId": 36163031516,
+    "headSha": "46c65405542d35233bfb44596e8a80eca7394a33",
+    "status": "completed",
+    "url": "https://github.com/C2-Football/WarRoom/actions/runs/36163031516",
+    "workflowName": "Validate and release C2 game functions"
+  }
+]

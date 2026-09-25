@@ -1,0 +1,1129 @@
+{
+  "revision": "46c65405542d35233bfb44596e8a80eca7394a33",
+  "checkedAtUtc": "2026-09-25T17:00:54.917927+00:00",
+  "passed": true,
+  "environmentJourneys": 2,
+  "layoutChecks": 8,
+  "uncaughtPageErrors": 0,
+  "results": [
+    {
+      "base": "https://c2-football.github.io/WarRoom/",
+      "blocked": [
+        {
+          "method": "GET",
+          "url": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.fantasycalc.com/values/current"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "url": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.fantasycalc.com/values/current"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        }
+      ],
+      "pageErrors": [],
+      "assets": [
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-roster.js?v=efbb3138e2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet.js?v=21d9c76a1a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet-sources.js?v=f5bf34b074",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet-artwork.js?v=acffe67ab0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-rules.js?v=146ee62bf7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-draft-room.js?v=ae212677a6",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-era-rules.js?v=86d146321a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-types.js?v=f086210ada",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-storage.js?v=68de5c7d69",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-season.js?v=6878c13380",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-player-cards.js?v=fc784b9322",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-gamecast.js?v=dbfbfb1b46",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-engine.js?v=44421009f2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-hidden-years.js?v=d4a70851be",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-strategy.js?v=40515fecc3",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-player-stats.js?v=d0f5c249f0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-rivals.js?v=00a278f63b",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-career.js?v=b3f4f5ab20",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-career-store.js?v=dc62cd09a9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-ai.js?v=6bda1a0005",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-actions.js?v=92cd3ee06c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-draft-clock.js?v=86ba552f60",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-ui.js?v=c7a1a87ebd",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-achievements.js?v=f3263da37d",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-public-state.js?v=804763fd48",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-remote-client.js?v=44b5c3c9ac",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-profile.js?v=04e0bc390c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-community-panel.js?v=b7884cfc50",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-rivals-panel.js?v=c69d8838ec",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-helmet.js?v=0889b502f9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-standings-panel.js?v=bdff5d53d1",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-panel.js?v=9078468494",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-week-gates.js?v=94ea1ad697",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-setup-panel.js?v=6321fb70b4",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/tabs/time-league.js?v=ecf140e841",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-profile-panel.js?v=fe7fe83f08",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-activity-panel.js?v=f3ca9a8915",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-career-panel.js?v=22595d1616",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-ceremony.js?v=817a878a32",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-career-view.js?v=ad47dbd02c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-controls.js?v=684e5b6718",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-gamecast-panel.js?v=c9105ddc6a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-home-panel.js?v=3386a5dc05",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-stats-panel.js?v=07f2fb9b30",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-team-panel.js?v=d618dbc2af",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-roster.js?v=92f81af6e7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/regular-season-era-factors.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/legacy-player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/regular-season-game-logs.csv",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-roster.js?v=efbb3138e2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet.js?v=21d9c76a1a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet-sources.js?v=f5bf34b074",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-helmet-artwork.js?v=acffe67ab0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-rules.js?v=146ee62bf7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-draft-room.js?v=ae212677a6",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-era-rules.js?v=86d146321a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-types.js?v=f086210ada",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-storage.js?v=68de5c7d69",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-season.js?v=6878c13380",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-player-cards.js?v=fc784b9322",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-gamecast.js?v=dbfbfb1b46",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-engine.js?v=44421009f2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-hidden-years.js?v=d4a70851be",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-strategy.js?v=40515fecc3",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-player-stats.js?v=d0f5c249f0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-rivals.js?v=00a278f63b",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-career.js?v=b3f4f5ab20",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-career-store.js?v=dc62cd09a9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-ai.js?v=6bda1a0005",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-actions.js?v=92cd3ee06c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-draft-clock.js?v=86ba552f60",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-ui.js?v=c7a1a87ebd",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-achievements.js?v=f3263da37d",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-public-state.js?v=804763fd48",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-remote-client.js?v=44b5c3c9ac",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/shared/time-league-profile.js?v=04e0bc390c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-helmet.js?v=0889b502f9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-career-view.js?v=ad47dbd02c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-team-panel.js?v=d618dbc2af",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-ceremony.js?v=817a878a32",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-stats-panel.js?v=07f2fb9b30",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-community-panel.js?v=b7884cfc50",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/tabs/time-league.js?v=ecf140e841",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-career-panel.js?v=22595d1616",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-setup-panel.js?v=6321fb70b4",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-controls.js?v=684e5b6718",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-home-panel.js?v=3386a5dc05",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-rivals-panel.js?v=c69d8838ec",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-standings-panel.js?v=bdff5d53d1",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-week-gates.js?v=94ea1ad697",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-roster.js?v=92f81af6e7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-draft-panel.js?v=9078468494",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-activity-panel.js?v=f3ca9a8915",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-gamecast-panel.js?v=c9105ddc6a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/js/components/time-league-profile-panel.js?v=fe7fe83f08",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/legacy-player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/regular-season-era-factors.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom/data/time-league/regular-season-game-logs.csv",
+          "status": 200
+        }
+      ],
+      "layouts": [
+        {
+          "screen": "setup",
+          "width": 320,
+          "buttonHeight": 50,
+          "documentWidth": 320,
+          "viewportWidth": 320
+        },
+        {
+          "screen": "setup",
+          "width": 390,
+          "buttonHeight": 50,
+          "documentWidth": 390,
+          "viewportWidth": 390
+        },
+        {
+          "screen": "draft",
+          "width": 320,
+          "buttonHeight": 51.6953125,
+          "documentWidth": 320,
+          "viewportWidth": 320,
+          "pickButtonHeight": 44
+        },
+        {
+          "screen": "draft",
+          "width": 390,
+          "buttonHeight": 51.6953125,
+          "documentWidth": 390,
+          "viewportWidth": 390,
+          "pickButtonHeight": 44
+        }
+      ],
+      "draftedPlayer": "Patrick Mahomes",
+      "saveKeys": [
+        "wr-time-league-v1:tl-yfr0w95n1m"
+      ],
+      "reloadPreserved": {
+        "player": "Patrick Mahomes",
+        "humanPicks": 1,
+        "sameLocalLeague": true
+      },
+      "hubReturn": true,
+      "devMode": false,
+      "injectedFixtures": false,
+      "passed": true,
+      "environment": "live",
+      "release": {
+        "url": "https://c2-football.github.io/WarRoom/release.json?verify=1790355654628125000",
+        "revision": "46c65405542d35233bfb44596e8a80eca7394a33",
+        "builtAt": "2026-09-25T16:51:19.466Z",
+        "environment": "C2-Football/WarRoom"
+      },
+      "browserQuery": "?release-smoke=46c6540",
+      "fixtureNotes": "No injected account, league, archive or campaign data. Fresh isolated browser profile. Anonymous built-in Commander; game save created through the public UI.",
+      "networkBoundary": "All non-GET/HEAD/OPTIONS requests blocked. All non-allowlisted GETs blocked; allowlist only Pages and existing dependency/font CDNs. No hosted backend mutation allowed.",
+      "screenshots": [
+        {
+          "file": "polish-hosted-vault-20260925/live-reloaded-draft-320.png",
+          "bytes": 68049,
+          "sha256": "2a007cdc6022403663c14576a9c25cdbd54f89ca9a1b0c657329131a0568ad77"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/live-reloaded-draft-390.png",
+          "bytes": 71558,
+          "sha256": "661785d786caec7bbcee63aa7d8ec732b9bea429ed79f6a760c542db18b7a39c"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/live-setup-320.png",
+          "bytes": 49463,
+          "sha256": "35ee716e888598d309d68dbfb21d76605e6090beef9712d60c6e0057a39aaae9"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/live-setup-390.png",
+          "bytes": 51301,
+          "sha256": "8e46fa67bb418e7ecb2cd9ff89911343a1d022346844b65070962809d91e6b9b"
+        }
+      ]
+    },
+    {
+      "base": "https://c2-football.github.io/WarRoom-sandbox/",
+      "blocked": [
+        {
+          "method": "GET",
+          "url": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.fantasycalc.com/values/current"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "url": "https://browser.sentry-cdn.com/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.fantasycalc.com/values/current"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "url": "https://sxshiqyxhhifvtfqawbq.supabase.co/rest/v1/analytics_events"
+        }
+      ],
+      "pageErrors": [],
+      "assets": [
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-roster.js?v=efbb3138e2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet.js?v=21d9c76a1a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet-sources.js?v=f5bf34b074",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet-artwork.js?v=acffe67ab0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-rules.js?v=146ee62bf7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-draft-room.js?v=ae212677a6",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-era-rules.js?v=86d146321a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-types.js?v=f086210ada",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-storage.js?v=68de5c7d69",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-season.js?v=6878c13380",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-player-cards.js?v=fc784b9322",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-gamecast.js?v=dbfbfb1b46",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-engine.js?v=44421009f2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-hidden-years.js?v=d4a70851be",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-strategy.js?v=40515fecc3",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-player-stats.js?v=d0f5c249f0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-rivals.js?v=00a278f63b",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-career.js?v=b3f4f5ab20",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-career-store.js?v=dc62cd09a9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-ai.js?v=6bda1a0005",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-actions.js?v=92cd3ee06c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-draft-clock.js?v=86ba552f60",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-ui.js?v=c7a1a87ebd",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-achievements.js?v=f3263da37d",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-public-state.js?v=804763fd48",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-remote-client.js?v=44b5c3c9ac",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-profile.js?v=04e0bc390c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-activity-panel.js?v=f3ca9a8915",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-rivals-panel.js?v=c69d8838ec",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-panel.js?v=9078468494",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-community-panel.js?v=b7884cfc50",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-stats-panel.js?v=07f2fb9b30",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-team-panel.js?v=d618dbc2af",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-standings-panel.js?v=bdff5d53d1",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-week-gates.js?v=94ea1ad697",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-gamecast-panel.js?v=c9105ddc6a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-home-panel.js?v=3386a5dc05",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-career-view.js?v=ad47dbd02c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-setup-panel.js?v=6321fb70b4",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-controls.js?v=684e5b6718",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-roster.js?v=92f81af6e7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-profile-panel.js?v=fe7fe83f08",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/tabs/time-league.js?v=ecf140e841",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-ceremony.js?v=817a878a32",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-helmet.js?v=0889b502f9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-career-panel.js?v=22595d1616",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/regular-season-era-factors.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/legacy-player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/regular-season-game-logs.csv",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-roster.js?v=efbb3138e2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet.js?v=21d9c76a1a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet-sources.js?v=f5bf34b074",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-helmet-artwork.js?v=acffe67ab0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-rules.js?v=146ee62bf7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-draft-room.js?v=ae212677a6",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-era-rules.js?v=86d146321a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-types.js?v=f086210ada",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-storage.js?v=68de5c7d69",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-season.js?v=6878c13380",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-player-cards.js?v=fc784b9322",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-gamecast.js?v=dbfbfb1b46",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-engine.js?v=44421009f2",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-hidden-years.js?v=d4a70851be",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-strategy.js?v=40515fecc3",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-player-stats.js?v=d0f5c249f0",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-rivals.js?v=00a278f63b",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-career.js?v=b3f4f5ab20",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-career-store.js?v=dc62cd09a9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-ai.js?v=6bda1a0005",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-actions.js?v=92cd3ee06c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-draft-clock.js?v=86ba552f60",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-ui.js?v=c7a1a87ebd",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-achievements.js?v=f3263da37d",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-public-state.js?v=804763fd48",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-remote-client.js?v=44b5c3c9ac",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/shared/time-league-profile.js?v=04e0bc390c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-helmet.js?v=0889b502f9",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-roster.js?v=92f81af6e7",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-week-gates.js?v=94ea1ad697",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-standings-panel.js?v=bdff5d53d1",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-community-panel.js?v=b7884cfc50",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-stats-panel.js?v=07f2fb9b30",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-profile-panel.js?v=fe7fe83f08",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-rivals-panel.js?v=c69d8838ec",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-activity-panel.js?v=f3ca9a8915",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-setup-panel.js?v=6321fb70b4",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-career-panel.js?v=22595d1616",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-career-view.js?v=ad47dbd02c",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-gamecast-panel.js?v=c9105ddc6a",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-home-panel.js?v=3386a5dc05",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-panel.js?v=9078468494",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-draft-controls.js?v=684e5b6718",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-ceremony.js?v=817a878a32",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/components/time-league-team-panel.js?v=d618dbc2af",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/js/tabs/time-league.js?v=ecf140e841",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/regular-season-era-factors.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/regular-season-game-logs.csv",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/legacy-player-cards.json",
+          "status": 200
+        },
+        {
+          "url": "https://c2-football.github.io/WarRoom-sandbox/data/time-league/player-cards.json",
+          "status": 200
+        }
+      ],
+      "layouts": [
+        {
+          "screen": "setup",
+          "width": 320,
+          "buttonHeight": 50,
+          "documentWidth": 320,
+          "viewportWidth": 320
+        },
+        {
+          "screen": "setup",
+          "width": 390,
+          "buttonHeight": 50,
+          "documentWidth": 390,
+          "viewportWidth": 390
+        },
+        {
+          "screen": "draft",
+          "width": 320,
+          "buttonHeight": 51.6953125,
+          "pickButtonHeight": 44,
+          "documentWidth": 320,
+          "viewportWidth": 320
+        },
+        {
+          "screen": "draft",
+          "width": 390,
+          "buttonHeight": 51.6953125,
+          "pickButtonHeight": 44,
+          "documentWidth": 390,
+          "viewportWidth": 390
+        }
+      ],
+      "draftedPlayer": "Christian McCaffrey",
+      "saveKeys": [
+        "wr-time-league-v1:tl-a7q32dab6f"
+      ],
+      "reloadPreserved": {
+        "player": "Christian McCaffrey",
+        "humanPicks": 1,
+        "sameLocalLeague": true
+      },
+      "hubReturn": true,
+      "devMode": false,
+      "injectedFixtures": false,
+      "passed": true,
+      "environment": "sandbox",
+      "release": {
+        "url": "https://c2-football.github.io/WarRoom-sandbox/release.json?verify=1790355654781143000",
+        "revision": "46c65405542d35233bfb44596e8a80eca7394a33",
+        "builtAt": "2026-09-25T16:51:27.754Z",
+        "environment": "C2-Football/WarRoom-sandbox"
+      },
+      "browserQuery": "?release-smoke=46c6540",
+      "fixtureNotes": "No injected account, league, archive or campaign data. Fresh isolated browser profile. Anonymous built-in Commander; game save created through the public UI.",
+      "networkBoundary": "All non-GET/HEAD/OPTIONS requests blocked. All non-allowlisted GETs blocked; allowlist only Pages and existing dependency/font CDNs. No hosted backend mutation allowed.",
+      "screenshots": [
+        {
+          "file": "polish-hosted-vault-20260925/sandbox-reloaded-draft-320.png",
+          "bytes": 69156,
+          "sha256": "0b55be60c61eb3333cfb074959a3f31a1a756e39aed6d51eb1c7676f15a34d8d"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/sandbox-reloaded-draft-390.png",
+          "bytes": 72276,
+          "sha256": "680852aafdeefe8e573af4810a41184b21a95d572cd445e6f7e45f74ac79f709"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/sandbox-setup-320.png",
+          "bytes": 49543,
+          "sha256": "8e5eae044e81092e80177bebd6997ab8d0c2d4aecc7ba44c60184cc7d9edb1f2"
+        },
+        {
+          "file": "polish-hosted-vault-20260925/sandbox-setup-390.png",
+          "bytes": 51240,
+          "sha256": "4f0cde71844f887f20698274e407eb276e8bbfc21b127b86b443f713e5b65e32"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Responsive desktop-browser emulation of phone viewports; no physical-device or native-install claim.",
+    "Local solo-save persistence only; no authenticated account, cross-device sync or hosted multiplayer verification.",
+    "Bounded postrelease smoke, not another full season completion."
+  ],
+  "observations": [
+    "An initial live roster-presence assertion matched duplicate visible/roster copies of the same player; selecting the first exact match resolved the harness ambiguity while retaining the separate 1/12 roster assertion.",
+    "Console included expected denied network/analytics messages, an existing CSP frame-ancestors-in-meta warning, and existing scouting/SQL diagnostics; zero uncaught page errors."
+  ]
+}

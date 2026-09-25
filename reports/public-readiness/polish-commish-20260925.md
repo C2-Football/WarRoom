@@ -62,3 +62,12 @@ Standalone configuration for either journey:
 Fixture and request isolation remain active for explicit hosted URLs. Commissioner uses the existing shared external-mutation guard. Duat now rejects every non-GET/HEAD request before its same-origin asset allowance, so selecting a hosted target cannot allow a mutation through that allowance. Fixture browser checks remain distinct from real hosted authentication or multiplayer evidence.
 
 Final integration check: the preview-only compiler completed successfully, without syncing shared files. The durable Commissioner journey passed all four viewport cases against `http://127.0.0.1:3025/dist-preview/`, including actual keyboard review, menu focus recovery, correct task league context, Rules/Bylaws navigation and Hub return. [Compiled run](polish-commish-compiled-browser-20260925.log), [target and guard evidence](polish-commish-compiled-browser-evidence-20260925.json), [build](polish-new-browser-build.log).
+
+## Hosted verification — release `46c65405542d35233bfb44596e8a80eca7394a33`
+
+Both hosted `release.json` files independently report the expected revision. The unchanged durable Commissioner journey passed all four viewport cases (320×700, 390×844, 844×390, 1440×1000) against both explicit hosted entry URLs, with external mutation blocking enabled before navigation. Priority filters, keyboard task review, correct league context, mobile menu Escape/focus recovery, Rules/Bylaws navigation, Hub return and overflow/error checks all passed. Inspected the hosted live 390px and 1440px captures; layout, hierarchy and factual diagnosis match the reviewed design.
+
+- Live: [release metadata](polish-hosted-commish-live-release.json), [run log](polish-hosted-commish-live.log), [browser results](polish-hosted-commish-live-browser-results.json).
+- Sandbox: [release metadata](polish-hosted-commish-sandbox-release.json), [run log](polish-hosted-commish-sandbox.log), [browser results](polish-hosted-commish-sandbox-browser-results.json).
+
+Separate captures are preserved in `output/playwright/commish-polish/hosted-live/` and `hosted-sandbox/`. Both journeys explicitly use development entry parameters and synthetic provider/session data; the preview ribbon in the captures is expected. This proves interaction with the deployed frontend assets, not real hosted authentication, commissioner authorization or writes to a league provider. Root owns the independent served-asset hashes and remaining product deployment evidence.
