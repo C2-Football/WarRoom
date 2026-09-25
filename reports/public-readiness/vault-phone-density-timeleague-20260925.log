@@ -1,0 +1,310 @@
+
+> fantasy-war-room@1.0.0 test:timeleague
+> node scripts/build-time-league-helmet-sources.cjs --check && node tests/time-league-helmet-artwork.js && node tests/time-league-roster.js && node tests/time-league-helmet.js && node tests/time-league-era-rules.js && node tests/time-league-season.js && node tests/time-league-engine.js && node tests/time-league-ai.js && node tests/time-league-strategy.js && node tests/time-league-hidden-years.js && node tests/time-league-hidden-years-ui.js && node tests/time-league-gamecast.js && node tests/time-league-achievements.js && node tests/time-league-multiplayer.js && node tests/time-league-outlook.js && node tests/time-league-player-stats.js && node tests/time-league-player-signals.js && node tests/time-league-draft-experience.js && node tests/time-league-draft-formats.js && node tests/time-league-draft-clock.js && node tests/time-league-draft-integration.js && node tests/time-league-draft-controls.js && node tests/time-league-roster-home.js && node tests/time-league-roster-moves.js && node tests/time-league-owner-workspaces.js && node tests/time-league-integration-render.js && node tests/time-league-live-matchup.js && node tests/time-league-invites.js && node tests/time-league-rivals.js && node tests/time-league-rival-conversations.js && node tests/time-league-rivals-panel.js && node tests/time-league-messages-server.cjs && node tests/time-league-ceremony.js && node tests/time-league-career.js && node tests/time-league-career-store.js && node tests/time-league-career-view.js && node tests/time-league-profile.js && node tests/time-league-profile-panel.js && node tests/time-league-community.cjs && node tests/time-league-community-panel.js && node tests/time-league-identity-integration.js && node tests/time-league-setup-beta.js && node tests/time-league-recovery.js && node tests/time-league-storage.js && node tests/time-league-remote-recovery.js && node tests/time-league-auth-recovery.js && node tests/time-league-beta-lifecycle.js && node tests/time-league-beta-entry.cjs && node tests/time-league-public-draft.js && node tests/time-league-public-endpoint.cjs && node tests/time-league-sealed-state-db.cjs && node tests/time-league-draft-order-integration.js && node tests/time-league-draft-roster.js && node tests/time-league-game-deck.js && node tests/time-league-archive-parser.js && node tests/time-league-regular-season-data.cjs && node tests/time-league-beta-lifecycle.js --full-season && node tests/time-league-beta-lifecycle.js --hidden-years && node scripts/build-time-league-server.cjs && node tests/time-league-server-game-pools.cjs
+
+Complete helmet source files and generated bundle match their recorded originals.
+  ok  cyberscooty: original is the full, byte-identical source
+  ok  cyberscooty: team colors preserve every element, path and source attribute
+  ok  simanek: original is the full, byte-identical source
+  ok  simanek: team colors preserve every element, path and source attribute
+  ok  side-view shell, stripe and all native cage sections take the selected paint
+  ok  three-quarter shading, stripe and cage all preserve the original depth
+  ok  untrusted values never become a source path, markup or CSS declaration
+  ok  unknown modes preserve the original artwork
+  ok  many saved paint combinations stay within the 128-entry cache limit
+
+9 helmet artwork tests passed.
+  ok  createSeededRandom is deterministic for the same seed
+  ok  createSeededRandom diverges for different seeds
+  ok  createSeededRandom values stay in [0, 1)
+  ok  normalizeRosterSlots keeps recognized slots and drops unknown ones
+  ok  normalizeRosterSlots accepts array-of-slot-names input
+  ok  expandRosterSlots excludes reserve slots by default
+  ok  expandRosterSlots includes reserve slots when asked
+  ok  normalizePlayerPosition maps historical/alias labels to canonical positions
+  ok  normalizePlayerPosition returns null for unrecognized input
+  ok  ROSTER_SLOT_IDS and SLOT_ELIGIBILITY stay in sync
+
+PASS: 10 tests
+  ok  default helmets are deterministic and fully dressed
+  ok  legacy four-field helmets migrate without losing their chosen colors
+  ok  legacy stripe-off setting becomes the no-stripe style
+  ok  presetHelmet returns independent complete preset specs
+  ok  monogramFor uses both ends of a team name
+  ok  club marks and custom initials survive a saved-spec round trip
+  ok  editing a complete legacy helmet preserves its chosen identity
+  ok  modern gear, full-shell paint and custom colors survive a saved-spec round trip
+  ok  legacy designs acquire no surprise paint or visor and invalid custom values are discarded
+  ok  whole artwork selections and original color mode survive a saved-spec round trip
+  ok  legacy specs select complete artwork and untrusted asset paths are rejected
+  ok  icons render complete source images and never draw separate shells, masks or logos
+  ok  picker uses original asset thumbnails and only exposes supported color controls
+
+PASS: 13 tests
+  ok  canonicalPlayerIdentity strips suffixes/punctuation and lowercases
+  ok  canonicalPlayerIdentity differs by position
+  ok  snake draft order reverses on even rounds
+  ok  findOpenRosterSlot respects QB cap
+  ok  findOpenRosterSlot finds an eligible slot
+  ok  toggleDraftQueue adds then removes
+  ok  decadeOf buckets seasons correctly, null before the merger
+  ok  defaultEraDraftRules is any-era with no decades
+  ok  any-era rules allow every season
+  ok  selected-decades restricts to the chosen decades
+  ok  kicker/DEF/IDP availability starts at 2000s even if selected-decades picks earlier
+  ok  openDraftEra rolls position-roulette once and freezes it
+  ok  openDraftEra is deterministic for the same seed
+  ok  eraEligibleCard survives when at least one season is draftable
+
+PASS: 14 tests
+  ok  isStarterSlot excludes bench/IR/taxi
+  ok  scoreStatLine prices core offensive stats correctly
+  ok  scoreStatLine adds extended (K/DEF/IDP) surface on top of core
+  ok  gameLogKey round-trips through buildGameLogIndex
+  ok  parseGameLogCsv parses nflverse-style headers and sums split rows
+  ok  parseGameLogCsv skips rows missing required columns/values
+  ok  buildRoundRobinSchedule gives every team one game per week (even team count)
+  ok  buildRoundRobinSchedule byes exactly one team with an odd count
+  ok  eraFactorFor defaults to 1 when no factors supplied
+
+PASS: 9 tests
+  ok  twelve-team leagues fill every AI identity and repair legacy placeholders without changing custom owners
+  ok  createTimeLeague produces a deterministic draft order and empty rosters
+  ok  createTimeLeague is deterministic for the same seed
+  ok  applyDraftPick assigns a roster slot and advances the draft seat
+  ok  full draft completes and reveals seasons
+  ok  QB cap is enforced during the draft
+  ok  setEntrySlot swaps two entries when the target slot is full
+  ok  lineupProblems reports empty required slots
+  ok  finalizeCurrentWeek scores starters and advances the week
+  ok  season completes and crowns a champion after the last week
+  ok  computeStandings ranks by wins then points-for
+  ok  freeAgents excludes rostered players
+  ok  submitWaiverClaim then processWaivers lands the claim and clears the queue
+  ok  waivers replace a compatible starter with a full bench or no bench
+  ok  waiver preview matches the awarded edition and remaining league-scored games
+  ok  optional playoffs seed correctly, survive reload, and crown only the final winner
+  ok  completed standings-only season can explicitly reopen for playoffs once
+  ok  playoff reopening stops at the archive boundary without rewriting old season results
+  ok  custom roster and scoring survive storage and price full stat lines
+  ok  FAAB: highest bid wins a contested free agent and pays its own bid
+  ok  FAAB: submitWaiverClaim rejects a bid over the team's remaining budget
+  ok  FAAB: ties break by worst-record priority, same as priority mode
+  ok  proposeTrade then respondToTrade(accept) swaps entries between rosters
+  ok  respondToTrade(reject) leaves rosters untouched
+  ok  normalizeTimeLeague round-trips a valid state exactly
+  ok  profile team colors and backdrop survive creation and save reload
+  ok  legacy and invalid team cosmetics fall back without losing the league
+  ok  eight-team playoffs use weeks twelve through fourteen and re-seed each round
+  ok  drag target selects the exact reciprocal swap and rejects foreign targets
+  ok  normalizeTimeLeague rejects malformed/foreign payloads
+
+PASS: 30 tests
+  ok  AI_PERSONAS shares twelve distinct profiles with the engine
+  ok  entryValueFromCard prefers the drawn season over peak when available
+  ok  aiDraftChoice is deterministic for the same league seed
+  ok  aiDraftChoice only returns cards with an open legal roster slot
+  ok  risk profiles select distinct visible decade distributions without using out-of-era peaks
+  ok  all twelve managers make legal deterministic draft choices, claims and trade decisions
+  ok  aiPrepareWeek fills every AI team’s empty starter slots from the bench
+  ok  AI replaces no-game starters without inspecting future stats or changing human choices
+  ok  aiSubmitWaiverClaims never proposes a QB when the team is already at cap
+  ok  aiSubmitWaiverClaims bids within budget and is deterministic under FAAB
+  ok  FAAB bids scale up with AI difficulty for the same persona
+  ok  trade acceptance gets pickier as AI difficulty rises
+  ok  aiGenerateTrades is deterministic for the same seed and week
+  ok  AI offers reach human managers and remain pending until their response
+  ok  aiRespondToTrades resolves every pending offer addressed to an AI team
+  ok  a resumed six-team 72-pick season receives a fair useful offer without restarting or changing its roster
+  ok  pending, deferred and rejected recommendations never spam the same week or repeat the same package
+  ok  online existing saves refresh only at a planning gate for a real human manager
+  ok  AI suggestions ignore sealed editions, public snapshots and every private future-game field
+  ok  legacy editions use their own archive and cap-bound quarterbacks never receive illegal recommendations
+  ok  a tempting quarterback-for-depth recommendation is rejected when the recipient is already at its QB cap
+  ok  one AI cannot promise away a required position across separate human offers
+      12-team trade search: 20.9ms
+  ok  twelve-team candidate search stays bounded and reserves pending human deals from rival trades
+
+PASS: 23 tests
+PASS: distinct manager motives, factual memories, playoff pressure, budget adaptation, personality consistency, playback gates and information-limited hidden-year decisions.
+PASS: fixed hidden years, honest candidate evidence, averages, no-repeat games, online leakage boundaries, per-seat final recap and legacy compatibility.
+PASS: hidden-year roster, candidate explorer, completed log, substitution, waivers, trade comparison, stats and explicit finale reveal.
+(node:26289) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  buildGamecast events sum back to the entry total, exact to the cent
+  ok  buildGamecast is deterministic for the same seed
+  ok  buildGamecast skips missing and empty lines, but preserves zero-net production
+  ok  four extra points land as one kick in each quarter after the quarterback production
+  ok  custom scoring, bonuses and era factors land on accumulated stats and preserve exact cents
+  ok  field goal bands and totals describe the same kicks without doubling commentary
+  ok  a single receiving touchdown keeps its reception and yards together
+  ok  quarter boundaries support pause-and-step without skipping or fabricating overtime
+  ok  simulated early exits reveal during playback and conserve the complete historical stat line
+  ok  a missing draw gets an explicit neutral availability notice, never a historical injury claim
+  ok  buildGamecast prices special-teams-only lines (K/DEF/IDP) from the extra bag
+  ok  weekHeadlines names the top scoring team and caps at 5 lines
+  ok  buildPlayerCardIndex keeps valid entries and skips malformed ones
+  ok  buildPlayerCardIndex tolerates a non-object payload
+
+PASS: 14 tests
+  ok  catalog covers all four tiers with unique ids
+  ok  a fresh, undrafted league earns nothing
+  ok  champion badge earns only for the crowned team after the season completes
+  ok  dealmaker progresses toward its target as trades are accepted
+  ok  tierLabel and tierColor cover every tier used by the catalog
+
+PASS: 5 tests
+ok friend cannot draft the host seat
+ok host cannot simulate a human seat
+ok friend cannot advance AI or game weeks
+ok queue and team identity are limited to owned seat
+ok draft waiver probes cannot disclose hidden era eligibility
+ok friend can rename their team
+ok friend can save a new club mark and initials without changing another team
+ok draft across two humans and AI completes without stealing a turn
+ok both managers can set their own lineups
+ok trade recipient alone can accept
+ok AI trade responses wait for final decisions
+ok cannot cancel another manager claim
+ok majority and timer gates authorize advances without granting commissioner powers
+ok commissioner controls settings and reopening while invalid lineups cannot finalize
+ok shared game weeks settle through a champion with real historical logs
+PASS: 15 multiplayer tests
+PASS: outlook availability, pace, boundaries, and future-score isolation
+PASS: fixed star tiers, missing weeks, spent ceiling, and cumulative stat bonuses
+PASS: YTD/week scoring, saved points, bench/acquisition continuity, missing data, spoiler gates, free-agent editions, filters and stats UI.
+PASS: phone details retain all columns, signed/zero/missing points, and every paginated result.
+PASS: comparable player averages, zero and missing data, custom and legacy scoring, playback gates, and public current-game ratings.
+Vault draft experience: sealed reveals, mobile scouting, recap grids, filters, unified clock header and accurate snake/linear/auction turn countdowns passed
+ok new leagues default to snake, sixty seconds, and an unstarted clock
+ok snake reverses even rounds while linear preserves seat order
+ok new missing era rules choose sealed Position Roulette without log spoilers
+ok legacy saves load with no timer and retain any-era fallback
+ok clock starts only on explicit start, and pause preserves remaining time
+ok timer and AI pace update while unsupported settings are rejected
+ok an expired pick uses the first legal queue entry and advances once
+ok forged premature timeout and post-deadline pick cannot bypass the clock
+ok regular AI automation works from a member but only after the configured pace
+ok auction nominations follow seats, bids may come from other teams
+ok auction budgets reserve a dollar for every remaining roster slot
+ok auction award occurs at deadline, charges winner, and preserves save data
+ok ordinary draft picks cannot bypass auction bids
+ok auction AI competes deterministically, respects pace and cannot spend hidden money
+ok auction timeout nominates a queued legal player for an absent human
+ok auction cannot bid on an expired lot or force an early timed award
+ok full auction fills every roster, skips full nominators, and ends exactly once
+ok untimed auctions wait for deliberate close and do not outrun competing AI
+Passed 18 draft format and clock tests.
+PASS: draft driver honors reveal, human deadline, AI pace, pause/reload, auction competition, completion, no-op caching and authoritative public auction availability.
+PASS: draft UI bridges reveal readiness, saved clock, expired clicks, timeout, hotseat picks, recap and league isolation.
+ok random default and manual order preserve manager ownership across renames, removal and additions
+ok Roulette remains the first/default mode and all draft settings reach solo and online creation
+ok compact clock hides settings, switches solo pace, and preserves the current deadline
+ok clock controls respect role and reveal readiness while pause/resume remain available
+ok room order preview, manual save, random shuffle, member read-only view and start lock
+ok display ticker derives absolute deadline, catches up after delays and cleans up
+ok local hotseat selector switches human bidders while online stays locked to the claimed seat
+ok untimed close valuation is memoized between state changes and AI delay boundaries
+ok auction UI enforces nomination fit, minimum/max bids, pauses and online seat ownership
+PASS: Vault setup and draft control rendering
+PASS: native weekly results and links, left-only Home helmet, and twelve-team phone standings with details
+PASS: unified Home, halfway Playoff Hunt, star rendering, exact drop swap, and game-day roster lock
+PASS: own-roster focus, named atomic full-bench swaps, all eligible open-slot choices, mobile sheet, stars, sealed archive, locks, hotseat/online seat ownership, filtered free agents and failed-save recovery
+PASS: own-roster isolation, eligible waiver navigation, focused chat, durable replies, idempotent retry and human sender boundaries.
+PASS: root draft/home renders, weekly gate role/mode controls, postgame autoplay and replay deduplication
+PASS: phone matchup leads; optional analysis retains score provenance and forecast disclaimer
+(node:26319) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: live starter scoring, no final leaks, negative/missing games, saved replay lineups, tab continuity, routed gates, invalid/save failure recovery and multiplayer permissions.
+(node:26321) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: visible multiplayer invites, seat-specific share/copy, sandbox/public/native links, cancellation and clipboard fallback, joined/locked seat guards and commissioner access.
+Rival mail: event grounding, recipients, personas, persistence and spoiler gates passed.
+Championship messages close the season for all twelve personas.
+Trade delay history and actual response chronology survive advancing weeks.
+All twelve personalities have unique, complete event voices and rotating replies in every tone.
+Rival conversations: authored history, persona replies, retries, explicit tone, boundaries, decay and actual AI trade/FAAB effects passed.
+Expanded chat: six nonrepeating replies per tone, contextual variety, private-thread independence, refreshable suggestions and honest relationship endpoints passed.
+Rival chat UI: mobile thread navigation, custom/quick replies, drafts, retries, send lock, escaping and seat/league isolation passed.
+(node:26325) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ok messages use verified ownership, server time and private RPCs, with AI-only reactions
+ok forged speakers, unjoined recipients and cross-thread replies are rejected; idempotent retries reach the RPC
+PASS: private Vault messaging endpoint boundaries
+PASS ceremony: saved results, title MVP, record, old league fallback, no mutation
+Career: identity, solo/friends splits, playoffs, points, trophies, drafts, archive roundtrip, dedup, byes and ties passed.
+Career store: account separation, signed-out guard, archive persistence, refresh and reopened playoffs passed.
+Career view: first-render account isolation, logout isolation, exact-seat guard and archive/remote dedup passed.
+Vault profile: validated identity, guest privacy, explicit publishing, account isolation, race protection, save failures and reusable defaults passed.
+Vault profile editor: guest privacy, load gating, helmet/backdrop controls, explicit Save and first-render account isolation passed.
+ok profile validation strips spoofed ownership and scores, bounds inputs, and projects public fields
+ok profile saves and invitation RPCs always use verified session ownership
+ok invitation inbox excludes ownership IDs and marks occupied seats unavailable
+ok directory uses opt-in server view with bounded pages and verified results only
+PASS: Vault community request and response boundaries
+(node:26332) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+Vault community UI: bounded search, view mapping, own-profile exclusion, controlled seat invites, stale-seat actions and account isolation passed.
+PASS: saved team identity defaults solo and friends creation, survives normalization, protects edits from late cloud loads and restores explicitly
+ok rapid taps create one room; returned and thrown failures preserve settings and allow retry
+ok local creation errors also recover
+ok the collapsed personality guide exposes the full catalog with one profile at a time
+PASS: Vault beta setup interaction and error recovery
+PASS: offline startup, retry/reconnection, successful cache reuse, failed creation, quota rollback, pending-save isolation, retry/discard, preserved draft time, actionable recovery dock and safe back navigation.
+PASS: 88 durable actions, legacy Week 9 quota recovery, exact 14-week scores/editions/history, Unicode, atomic failure, corruption guard, and unrelated-data preservation. Week 9 raw 485603; complete season raw 806292 vs compact 61473 characters (8%).
+PASS: authenticated remote reads/writes, account-change isolation, stale-version conflicts, saved-write recovery, nonoverlapping polls, reconnect and unsubscribe cleanup.
+PASS: source-real Vault401 UI preserves saved room, disables shared actions, offers reachable explicit sign-in and resumes an authenticated snapshot.
+PASS: Legacy calendar — 92 saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.
+PASS: scoped Vault email signup/signin and invite return, unchanged global login, OAuth-only guard, private-safe feedback, replay stats/mail continuity, 14-week playoff limit and labeled mobile navigation.
+(node:26378) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ok shipped browser asset order: current reports survive reconnect while future plans stay sealed
+ok snake: public transport, server reveals, scout, reconnect, queue, clock and completed recap
+ok linear: public transport, server reveals, scout, reconnect, queue, clock and completed recap
+ok auction: public transport, server reveals, scout, reconnect, queue, clock and completed recap
+PASS: public draft browser snapshots preserve playability without private seeds or drawn editions
+(node:26380) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: actual endpoint two-manager sealed FAAB privacy, concurrent conflict/reload/retry, own-seat permissions, one-time settlement and reconnect
+PASS: sealed endpoint authentication, reveals, readiness, stale writes, independent IDs, HMAC drafts, current-week waivers, and postdraft custom scoring
+ok sealed state migration is repeatable and leaves existing game records intact
+ok anonymous, nonmember, other-seat member and commissioner cannot bypass the Edge projection through table, JSON, join or RPC reads
+ok RLS independently denies raw snapshots even if a future change accidentally grants table SELECT
+ok trusted server retains authoritative draws and still creates leagues, joins seats, readies, chats and accepts community invitations
+PASS: Vault sealed state database integration
+ok a human drafting third can watch the AI open, pick the snake turn, and finish the room
+ok manual linear drafts repeat the chosen order while existing saves retain their original order
+ok random order puts the creator in different slots and survives repeated loads
+ok draft order changes require the commissioner and lock when the clock starts
+ok changing draft pace before start leaves order editable and never starts its deadline
+ok random draft order does not shift the independent position roulette assignment
+ok auction nomination rotation follows the order, independent of the winning team
+ok sealed server snapshots disclose only the saved order, retaining it after reconnect
+ok shared and fallback recap grids use the selected columns and highlight the actual owner
+PASS: 9 draft order integration scenarios
+ok empty draft shows configured slots and zero position counts without inventing a player
+ok position totals include flex and bench players while slot rows retain their assigned positions
+ok incoming draft picks update the visible totals and latest names in the existing panel
+ok supplied online owner is respected and a missing owner never falls back to the host
+ok canonical solo and sealed online reconnect show the same roster without hidden seasons or scoring
+ok custom leagues show only configured starter and bench slots including repeated superflex and defense
+ok scouting sends the selected drafted identity without leaking or changing its edition
+ok mobile keeps totals visible with details collapsed while desktop can open the full roster
+PASS: 8 draft roster visibility scenarios
+  ok new leagues use a private full REG deck; normalized legacy saves keep original source week mapping
+  ok all seventeen appearances, including NFL week18, are eligible without repetition in fourteen Vault weeks
+  ok reconnect, trade, and reacquisition preserve an edition deck independent of owner and entry id
+  ok short archives receive neutral shuffled records, with no forced empty tail or invented injury
+  ok only the current availability and stars are visible; later dates have no point or availability signal
+  ok scoring, bench production, YTD, and current hints resolve the same mapped game and survive saved reload
+  ok public reports preserve bench and pre-acquisition YTD but never transmit the private plan
+  ok postgame public free-agent YTD uses only completed source references and waits for archive loading
+  ok waiver projections show full edition totals and a calendar estimate, not future absences
+  ok archive parser retains trustworthy metadata and does not silently truncate beyond250k rows
+10 game-deck scenarios passed.
+PASS: streaming CSV quotes, multiline cells, duplicate scoring, source metadata and explicit row bound
+Full REG archive passed: 3586 players, 22906 seasons, 272461 unique scoring lines; legacy hashes unchanged.
+PASS: Full-season shuffled draw — 92 saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.
+PASS: Fixed hidden years with saved candidate pools — 92 saved/reloaded actions across a 12-team, 156-pick real-data Roulette league, K/DEF/FLEX/Superflex, waivers/trades, four gates, exact quarter scores and a four-team championship.
+Vault server runtime built with legacy weeks and full regular-season pools by player edition.
+PASS: full-game Edge pools match browser scoring/decks, include late source games, and preserve legacy week/card loading.

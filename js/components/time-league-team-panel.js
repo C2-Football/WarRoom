@@ -48,11 +48,14 @@
             outlook = '★'.repeat(read.currentStars) + '☆'.repeat(5 - read.currentStars);
             outlookTitle = `${read.currentStars} of 5 stars this week. Stars rank this game within the player’s historical season; they are not a probability.`;
         } else if (read.currentAvailable === true) { outlook = 'Game available'; outlookTitle = 'A recorded game is available this week; its rating is unavailable.'; }
-        return h('span', { className: `tl-player-signals ${className}`.trim() },
+        return h('span', { className: `tl-player-signals ${className}`.trim(), 'data-signal-kind': estimated ? 'estimate' : 'observed' },
             h('span', { className: 'tl-player-average', title: averageTitle },
-                h('small', null, estimated ? 'Archive est. / game' : 'Avg pts / game'), h('strong', { className: 'tabular' }, average), h('small', { className: 'tl-player-signal-context' }, averageLabel)),
-            h('span', { className: `tl-player-outlook${read.currentAvailable === false ? ' no-game' : ''}`, title: outlookTitle },
-                h('small', null, outlookLabel), h('strong', { className: 'tl-week-stars', 'aria-label': outlookTitle }, outlook),
+                h('small', { className: 'tl-signal-label-full' }, estimated ? 'Archive est. / game' : 'Avg pts / game'),
+                h('strong', { className: 'tabular' }, average),
+                h('small', { className: 'tl-signal-label-compact' }, estimated ? 'Est. PPG' : 'PPG'),
+                h('small', { className: `tl-player-signal-context${estimated ? ' is-estimate-context' : ''}` }, averageLabel)),
+            h('span', { className: `tl-player-outlook${read.currentAvailable === false ? ' no-game' : ''}${read.status === 'hidden-year' ? ' is-hidden-year' : ''}`, title: outlookTitle },
+                h('small', { className: 'tl-outlook-label' }, outlookLabel), h('strong', { className: 'tl-week-stars', 'aria-label': outlookTitle }, outlook),
                 read.currentStars != null && read.currentAvailable === true && h('small', { className: 'tl-player-signal-context' }, 'Available')));
     }
 
@@ -201,9 +204,10 @@
                 h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
                 h('button', { type:'button', className: 'tl-lineup-player tl-roster-player-link', onClick:()=>setSelectedId(entry.entryId), 'aria-label':`Explore ${entry.name}'s history`, 'aria-pressed':selectedId===entry.entryId },
                     h('span', { className: 'name' }, entry.name),
-                    h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
+                    h('span', { className: `tl-pos-badge tl-pos-${entry.position}${slotLabel === entry.position ? ' is-slot-position' : ''}`, style: { marginLeft: 6 } }, entry.position),
                     league.seasonsRevealed
-                        ? h('span', { className: 'meta' }, `${concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : entry.drawnSeason} · ${weeksRemaining} Vault weeks left`)
+                        ? h('span', { className: 'meta' }, concealed ? window.App.TimeLeagueHiddenYears?.label(league, entry, cards) || 'Hidden year' : entry.drawnSeason,
+                            h('span', { className: 'tl-roster-weeks-left' }, ` · ${weeksRemaining} Vault weeks left`))
                         : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
                 h('span', { className: 'tl-lineup-pts tabular', title: seasonRecord?.sourceWeekKind ? 'Recorded NFL regular-season total, using reference scoring; separate from your Vault season' : 'Weeks 1–14 archive total, using reference scoring', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),

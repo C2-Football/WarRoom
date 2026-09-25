@@ -283,3 +283,93 @@
   .tl-root.tl-play .tl-league-bar { background:#111a14f5; }
   .tl-root.tl-play .tl-header.tl-lobby-header { background:#111a14f5; }
 }
+
+/* Phone lineups compare players in rows; shared context belongs above the list. */
+.tl-root .tl-signal-label-compact,
+.tl-root .tl-live-edition-compact,
+.tl-root .tl-live-phone-context { display:none; }
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row {
+    grid-template-columns:24px minmax(0,1fr) 54px!important;
+    gap:4px 6px; padding:8px;
+  }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row > .tl-roster-move { width:54px; }
+  .tl-root.tl-play .tl-roster-player-link { padding:0; }
+  .tl-root.tl-play .tl-roster-player-link .name { line-height:1.3; }
+  .tl-root.tl-play .tl-roster-player-link .meta {
+    margin-top:2px; font-size:13px!important; line-height:1.3!important;
+    white-space:normal; overflow:visible; text-overflow:clip;
+  }
+  .tl-root.tl-play .tl-roster-player-link :is(.is-slot-position,.tl-roster-weeks-left) { display:none; }
+  .tl-root.tl-play .tl-roster-signals {
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 12px;
+    max-width:none; padding:0; margin:0;
+  }
+  .tl-root.tl-play .tl-roster-signals > span {
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:0 4px;
+  }
+  .tl-root.tl-play .tl-roster-signals small {
+    margin:0; font-size:13px!important; line-height:1.4!important;
+  }
+  .tl-root.tl-play .tl-roster-signals strong { margin:0; font-size:16px; line-height:1.4; }
+  .tl-root.tl-play .tl-roster-signals .tl-signal-label-compact { display:inline; }
+  .tl-root.tl-play .tl-roster-signals :is(.tl-signal-label-full,.is-estimate-context),
+  .tl-root.tl-play .tl-roster-signals .is-hidden-year > .tl-outlook-label { display:none; }
+  .tl-root.tl-play .tl-roster-signals .tl-player-signal-context::before { content:'· '; }
+  .tl-root.tl-play .tl-roster-signals .tl-week-stars { font-size:13px; line-height:1.4; letter-spacing:0; }
+
+  .tl-root.tl-play .tl-live-lineups { background:#152019; border-color:#4b5b41; }
+  .tl-root.tl-play .tl-live-lineups-title { padding:10px 10px 4px; }
+  .tl-root.tl-play .tl-live-phone-context {
+    display:block; margin:0; padding:0 10px 10px; color:#afc0ac;
+    font-size:13px!important; line-height:1.4!important;
+  }
+  .tl-root.tl-play .tl-live-phone-context:empty { display:none; }
+  .tl-root.tl-play .tl-live-lineups-head { padding:8px 10px; background:#29392a; }
+  .tl-root.tl-play .tl-live-lineup-row { grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr); }
+  .tl-root.tl-play .tl-live-lineup-slot {
+    grid-column:2; grid-row:1; padding:4px 1px; background:#101a1366;
+    font-size:13px; line-height:1.3; letter-spacing:0;
+  }
+  .tl-root.tl-play .tl-live-player,
+  .tl-root.tl-play .tl-live-player.is-right {
+    display:grid; grid-template-columns:auto minmax(0,1fr);
+    grid-template-rows:auto auto; align-content:center; align-items:baseline;
+    gap:4px 6px; padding:10px 8px; border:0;
+  }
+  .tl-root.tl-play .tl-live-player-name { display:contents; }
+  .tl-root.tl-play .tl-live-player-name > strong { grid-column:1/-1; grid-row:1; font-size:16px; line-height:1.3; }
+  .tl-root.tl-play .tl-live-player-name > .tl-live-player-edition {
+    grid-column:2; grid-row:2; margin:0; min-width:0; justify-self:end;
+    font-size:13px!important; line-height:1.3!important; color:#afc0ac;
+  }
+  .tl-root.tl-play .tl-live-player-points { grid-column:1; grid-row:2; font-size:18px; line-height:1.2; }
+  .tl-root.tl-play .tl-live-player.is-right { grid-template-columns:minmax(0,1fr) auto; }
+  .tl-root.tl-play .tl-live-player.is-right .tl-live-player-points { grid-column:2; grid-row:2; }
+  .tl-root.tl-play .tl-live-player.is-right .tl-live-player-edition { grid-column:1; grid-row:2; justify-self:start; }
+  .tl-root.tl-play .tl-live-player-name > .tl-live-availability,
+  .tl-root.tl-play .tl-live-player-stats { grid-column:1/-1; margin:0; font-size:13px!important; line-height:1.35!important; }
+  .tl-root.tl-play .tl-live-edition-full,
+  .tl-root.tl-play .tl-live-player-stats.is-pregame { display:none; }
+  .tl-root.tl-play .tl-live-edition-compact { display:inline; }
+  .tl-root.tl-play .tl-week-action-menu { background:#17261a; }
+}
+/* Short landscape keeps both navigation and the current week action in reach. */
+@media(min-width:520px) and (max-width:767px) and (max-height:500px) {
+  .tl-root.tl-play { --tl-mobile-nav-space:calc(53px + env(safe-area-inset-bottom,0px)); }
+  .tl-root.tl-play .tl-mobile-nav { padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)); }
+  .tl-root.tl-play .tl-mobile-nav > button { min-height:44px; flex-direction:row; gap:6px; }
+  .tl-root.tl-play .tl-mobile-nav span { font-size:18px; }
+  .tl-root.tl-play .tl-week-action-row { padding:6px 12px; }
+  .tl-root.tl-play .tl-week-action-inner { grid-template-columns:minmax(0,1fr) auto auto; gap:8px; }
+  .tl-root.tl-play .tl-week-action-status { grid-column:1; display:grid; gap:2px; }
+  .tl-root.tl-play .tl-week-action-status small { font-size:13px!important; }
+  .tl-root.tl-play .tl-week-action-status > span { margin:0; }
+  .tl-root.tl-play .tl-week-action-buttons,
+  .tl-root.tl-play .tl-week-action-inner:not(:has(.tl-week-action-more)) .tl-week-action-buttons { grid-column:2; }
+  .tl-root.tl-play .tl-week-action-more { grid-column:3; }
+  .tl-root.tl-play .tl-week-action-menu {
+    position:absolute; right:0; bottom:calc(100% + 12px); box-sizing:border-box;
+    max-height:calc(100dvh - var(--tl-mobile-nav-space) - 150px - var(--tl-mobile-top-inset));
+  }
+}

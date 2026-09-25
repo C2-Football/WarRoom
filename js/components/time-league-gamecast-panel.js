@@ -51,16 +51,21 @@
             const count = Math.max(rosterSlots[slot] || 0, ...entries.map(list => list.length));
             return Array.from({ length: count }, (_, index) => ({ slot, index, entries: entries.map(list => list[index]) }));
         });
+        const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const player = (entry, side) => h('div', { className: `tl-live-player is-${side}${entry?.scoring ? ' is-scoring' : ''}`, 'data-entry-id': entry?.entryId },
             h('div', { className: 'tl-live-player-name' },
                 h('strong', null, entry?.name || 'Empty slot'),
-                entry && h('small', null, `${league.settings.hiddenYears && !league.yearsRevealed ? window.App.TimeLeagueHiddenYears.label(league, entry) : entry.drawnSeason} · ${entry.position}`),
+                entry && h('small', { className: 'tl-live-player-edition' },
+                    h('span', { className: 'tl-live-edition-full' }, `${concealed ? window.App.TimeLeagueHiddenYears.label(league, entry) : entry.drawnSeason} · ${entry.position}`),
+                    h('span', { className: 'tl-live-edition-compact' }, concealed ? window.App.TimeLeagueHiddenYears.decadeFor(league, entry) || 'Hidden' : entry.drawnSeason,
+                        entry.slot !== entry.position ? ` · ${entry.position}` : '')),
                 entry?.availabilityUpdate && h('small', { className: 'tl-live-availability', role: 'status' },
                     entry.availabilityUpdate.status === 'out' ? 'OUT · VAULT SIMULATION' : 'NO RECORDED APPEARANCE')),
             h('strong', { className: 'tl-live-player-points tabular' }, entry ? entry.points.toFixed(2) : '—'),
-            entry && h('span', { className: 'tl-live-player-stats' }, Gamecast.describeStats(entry.stats || {}, 2) || (final ? entry.stats ? 'No scoring stats' : 'No game recorded' : weekData ? 'No scoring yet' : 'Awaiting kickoff')));
+            entry && h('span', { className: `tl-live-player-stats${!weekData && !final ? ' is-pregame' : ''}` }, Gamecast.describeStats(entry.stats || {}, 2) || (final ? entry.stats ? 'No scoring stats' : 'No game recorded' : weekData ? 'No scoring yet' : 'Awaiting kickoff')));
         return h('section', { className: 'tl-live-lineups', 'aria-label': 'Head-to-head starting lineups' },
             h('div', { className: 'tl-live-lineups-title' }, h('h3', null, 'Lineup matchup'), h('small', null, final ? 'FINAL POINTS' : weekData ? 'LIVE POINTS' : 'STARTERS')),
+            h('p', { className: 'tl-live-phone-context' }, [!weekData && !final ? 'Awaiting kickoff' : null, concealed ? 'Years hidden' : null].filter(Boolean).join(' · ')),
             h('div', { className: 'tl-live-lineups-head' }, h('strong', null, sides[0].team?.name || ids[0]), h('span', null, 'VS'), h('strong', null, sides[1].team?.name || ids[1])),
             rows.map(item => h('div', { key: `${item.slot}:${item.index}`, className: 'tl-live-lineup-row' },
                 player(item.entries[0], 'left'),

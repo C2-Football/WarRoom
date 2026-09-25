@@ -1,0 +1,26 @@
+[
+  {
+    "width": 320,
+    "height": 740,
+    "rosterRowHeight": 163.671875,
+    "matchupRowHeight": 178.671875
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "rosterRowHeight": 163.671875,
+    "matchupRowHeight": 158.375
+  },
+  {
+    "width": 667,
+    "height": 375,
+    "rosterRowHeight": 163.671875,
+    "matchupRowHeight": 158.375
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "rosterRowHeight": 146.90625,
+    "matchupRowHeight": 87.78125
+  }
+]
