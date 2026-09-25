@@ -1,0 +1,54 @@
+{
+  "base": "http://127.0.0.1:3026/?duat=1",
+  "evidence": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "passed": true,
+      "checks": [
+        "classic names/reference labels",
+        "no mystery research controls",
+        "engine estimates and actual Week7 scores match",
+        "Space toggles native checkbox",
+        "illegal lineup blocks confirmation",
+        "no overflow",
+        "Army has disabled selectors and enabled Edit army"
+      ],
+      "errors": [],
+      "blocked": [
+        "GET https://api.fantasycalc.com/values/current",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "GET https://api.fantasycalc.com/values/current",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "POST http://127.0.0.1:3026/api/mfl-proxy"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "passed": true,
+      "checks": [
+        "classic names/reference labels",
+        "no mystery research controls",
+        "engine estimates and actual Week7 scores match",
+        "Space toggles native checkbox",
+        "illegal lineup blocks confirmation",
+        "no overflow"
+      ],
+      "errors": [],
+      "blocked": [
+        "GET https://api.fantasycalc.com/values/current",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "GET https://api.fantasycalc.com/values/current",
+        "POST http://127.0.0.1:3026/api/mfl-proxy",
+        "POST http://127.0.0.1:3026/api/mfl-proxy"
+      ]
+    }
+  ]
+}

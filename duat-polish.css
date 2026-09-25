@@ -158,3 +158,78 @@
   .duat-game .duat-weekly-next > .duat-weekly-feedback { max-height:64px; }
   .duat-game .duat-player { scroll-margin-top:76px; scroll-margin-bottom:180px; }
 }
+
+/* A lineup is a compact football list: selection, identity, then aligned points. */
+.duat-game .duat-lineup-context { margin-bottom:8px; }
+.duat-game .duat-lineup-context > p { margin:0; font-size:13px; line-height:1.5; color:var(--duat-muted); }
+.duat-game .duat-lineup-context .duat-lineup-positions { margin:0; }
+.duat-game .duat-lineup-context .duat-lineup-positions > summary { font-size:13px; color:var(--duat-gold); }
+.duat-game .duat-lineup-list { display:block; }
+.duat-game .duat-lineup-entry {
+  display:grid; grid-template-columns:44px minmax(0,1fr) 68px; align-items:center;
+  gap:0 12px; padding:10px 0; border-bottom:1px solid #36515288;
+}
+.duat-game .duat-weekly-lineup .duat-lineup-toggle {
+  position:relative; display:block; grid-column:1; grid-row:1; width:44px; height:44px;
+  padding:0; margin:0; border:0; border-radius:9px; background:transparent;
+}
+.duat-game .duat-lineup-toggle input[type=checkbox] {
+  position:absolute; inset:0; width:44px!important; height:44px!important;
+  min-height:44px; padding:0; margin:0; opacity:0; cursor:pointer; z-index:1;
+}
+.duat-game .duat-lineup-position {
+  --position-color:#d6c69e; position:relative; display:flex; align-items:center; justify-content:center;
+  width:44px; height:44px; box-sizing:border-box; border:1px solid var(--position-color);
+  border-radius:9px; color:var(--position-color); background:#0d1e20;
+  font:700 14px/1 var(--font-body,sans-serif); letter-spacing:0;
+}
+.duat-game .duat-lineup-position.is-qb { --position-color:#ec9eb8; }
+.duat-game .duat-lineup-position.is-rb { --position-color:#8bdcc0; }
+.duat-game .duat-lineup-position.is-wr { --position-color:#86cfee; }
+.duat-game .duat-lineup-position.is-te { --position-color:#ecc785; }
+.duat-game .duat-lineup-toggle input:checked + .duat-lineup-position { background:var(--position-color); color:#102124; }
+.duat-game .duat-lineup-selected-mark {
+  position:absolute; top:-5px; right:-5px; display:none; align-items:center; justify-content:center;
+  width:16px; height:16px; border-radius:50%; border:2px solid var(--duat-bg);
+  background:var(--position-color); color:#102124; font:800 11px/1 sans-serif;
+}
+.duat-game .duat-lineup-toggle input:checked + .duat-lineup-position .duat-lineup-selected-mark { display:flex; }
+.duat-game .duat-lineup-toggle input:focus-visible + .duat-lineup-position { outline:2px solid #f3ecda; outline-offset:4px; }
+.duat-game .duat-lineup-toggle input:disabled { cursor:default; }
+.duat-game .duat-lineup-toggle input:disabled + .duat-lineup-position { opacity:.65; }
+.duat-game .duat-lineup-research-toggle {
+  display:grid; grid-template-columns:minmax(0,1fr) 10px; align-items:center; gap:4px;
+  grid-column:2; grid-row:1; min-height:44px; width:100%; padding:0;
+  border:0; border-radius:4px; background:transparent; color:var(--duat-text);
+  text-align:left; cursor:pointer; font:inherit; letter-spacing:0;
+}
+.duat-game .duat-lineup-research-toggle:hover { background:#e4c27c08; }
+.duat-game .duat-lineup-research-toggle:focus-visible { outline:2px solid var(--duat-gold); outline-offset:4px; }
+.duat-game .duat-lineup-name { grid-column:2; grid-row:1; }
+.duat-game .duat-lineup-entry .duat-player-name { display:grid; gap:4px; min-width:0; }
+.duat-game .duat-lineup-entry .duat-player-name strong { font-size:17px; line-height:1.25; color:var(--duat-text); overflow-wrap:anywhere; }
+.duat-game .duat-lineup-entry .duat-player-name small { font-size:13px!important; line-height:1.35!important; color:var(--duat-muted); margin:0; }
+.duat-game .duat-lineup-research-chevron { color:var(--duat-gold); font-size:20px; line-height:1; }
+.duat-game .duat-lineup-stats { grid-column:3; grid-row:1; display:grid; gap:4px; text-align:right; font-variant-numeric:tabular-nums; }
+.duat-game .duat-lineup-stats .duat-player-points { min-width:0; margin:0; }
+.duat-game .duat-lineup-estimate { display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+.duat-game .duat-lineup-stats strong { font-size:18px; line-height:1.2; color:var(--duat-text); }
+.duat-game .duat-lineup-stats small { font-size:13px!important; line-height:1.25!important; color:var(--duat-muted); }
+.duat-game .duat-lineup-last { display:flex; gap:6px; align-items:baseline; justify-content:flex-end; }
+.duat-game .duat-lineup-last strong { font-size:14px; color:var(--duat-muted); }
+.duat-game .duat-lineup-research-panel {
+  grid-column:1/-1; margin-top:12px; padding:16px; min-width:0;
+  border:1px solid var(--duat-line); border-radius:10px; background:#102123;
+}
+.duat-game .duat-lineup-research-panel > p:first-child { margin-top:0; }
+.duat-game .duat-lineup-research-panel select { display:block; width:100%; margin:8px 0 12px; }
+.duat-game .duat-lineup-research-panel .duat-table-wrap { max-width:100%; overflow:auto; }
+@media(max-width:767px) {
+  .duat-game .is-lineup .duat-weekly-content { padding-inline:0; }
+  .duat-game .duat-lineup-entry { gap:0 10px; padding:8px 0; grid-template-columns:44px minmax(0,1fr) 58px; }
+  .duat-game .duat-lineup-entry .duat-player-name strong { font-size:16px; }
+  .duat-game .duat-lineup-context > p,
+  .duat-game .duat-lineup-context .duat-lineup-positions > summary { font-size:13px!important; line-height:1.4; }
+  .duat-game .duat-lineup-research-panel { padding:12px; }
+  .duat-game .duat-lineup-research-panel :is(td,th,dt,dd) { font-size:14px; }
+}

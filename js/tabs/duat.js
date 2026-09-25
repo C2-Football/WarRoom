@@ -185,8 +185,8 @@
         let primary,secondary,flowNote='';
         if(flow?.stage==='alliance')primary={label:'Meet my ally · prepare Week 1',onClick:()=>moveFlow({type:'alliance-seen'})};
         if(flow?.stage==='lineup'){
-            primary={label:dirty?'Save and confirm lineup':'Confirm starting lineup',disabled:!legal||ready&&dirty,onClick:confirmLineup};
-            flowNote=!legal?'Fill every required starting slot with a different player.':dirty?'Your changes will be saved before you continue.':'Confirm this lineup for Week '+campaign.week+'.';
+            primary={label:`${dirty?'Save and confirm':'Confirm'} Week ${campaign.week} lineup`,disabled:!legal||ready&&dirty,onClick:confirmLineup};
+            flowNote=!legal?'Fill every required starting slot with a different player.':dirty?'Your changes will be saved before you continue.':'';
             if(ready)secondary={label:'Unready to edit lineup',onClick:editLineup};
         }
         if(flow?.stage==='favors'){

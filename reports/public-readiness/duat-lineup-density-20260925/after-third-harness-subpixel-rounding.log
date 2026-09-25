@@ -1,0 +1,4 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+PASS 390x844: row heights 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6; overflow=false; completed checks=17
+AssertionError [ERR_ASSERTION]: Collapsed rows must be compact enough to compare the roster.
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-lineup-density-browser.cjs:96:5

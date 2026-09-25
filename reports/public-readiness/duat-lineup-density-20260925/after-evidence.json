@@ -1,0 +1,698 @@
+{
+  "target": "http://127.0.0.1:3026/?duat=1",
+  "mode": "after",
+  "passed": true,
+  "testedSources": {
+    "duat-polish.css": "70431a74522c52e7b61e655b15b264b2bd5469a7df9c86a662612dc60dbc1de3",
+    "js/components/duat-weekly-flow.js": "d5d3217c4ff1af79285e60409813c90b10b9f3204ec2c9ed2769ed2e94e83b02",
+    "js/components/duat-mystery.js": "3dd07690ba7078cf91af3709d1c251ea04a7fed3726d2173ef383f3233038a08",
+    "js/tabs/duat.js": "7aa7e76a08d76ee7fc4b7cda65b6e49d6bf09c1af943a320010d893c9eb520a8"
+  },
+  "fixture": "Real archive Hidden Years engine campaign legally advanced through Week 7",
+  "evidence": [
+    {
+      "width": 390,
+      "height": 844,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 76.640625,
+          "text": "RB\n✓\nLaDainian Tomlinson\n2000s · 1 possible season\n›\n22.9\nEst. PPG\n32.6\nW7"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 76.640625,
+          "text": "RB\n✓\nChris Johnson\n2000s · 1 possible season\n›\n14.9\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 76.640625,
+          "text": "QB\n✓\nAndrew Luck\n2010s · 1 possible season\n›\n21.4\nEst. PPG\n22.7\nW7"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 76.640625,
+          "text": "QB\nPeyton Manning\n2000s · 1 possible season\n›\n15.8\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 76.640625,
+          "text": "WR\n✓\nJa'Marr Chase\n2020s · 1 possible season\n›\n16.4\nEst. PPG\n29.0\nW7"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 76.640625,
+          "text": "WR\n✓\nTyreek Hill\n2020s · 1 possible season\n›\n14.1\nEst. PPG\n14.5\nW7"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 76.640625,
+          "text": "RB\nClinton Portis\n2000s · 1 possible season\n›\n13.1\nEst. PPG\n29.8\nW7"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 76.640625,
+          "text": "RB\nCurtis Martin\n2000s · 1 possible season\n›\n17.5\nEst. PPG\n8.0\nW7"
+        }
+      ],
+      "rosterHeight": 613.125,
+      "overflow": false,
+      "metricColumns": [
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        },
+        {
+          "estimate": 370,
+          "last": 370
+        }
+      ],
+      "safeArea": {
+        "actionBottom": 747,
+        "dockTop": 747,
+        "buttonHeight": 50,
+        "viewportHeight": 844,
+        "dockBottom": 844
+      },
+      "checks": [
+        "compact rows and readable long names",
+        "single aligned estimate/actual columns",
+        "real Week 7 values including zero",
+        "hidden selected year stays sealed",
+        "accessible candidate clue and disclosure target",
+        "all eight selection controls operate normally",
+        "keyboard selection",
+        "independent keyboard research",
+        "research shows only completed campaign weeks",
+        "simulated safe-area and short-landscape control access",
+        "changed legal lineup saved",
+        "confirmation survives reload",
+        "next Week 8 action is reachable",
+        "read-only Army keeps research and prevents lineup edits",
+        "research Escape restores focus",
+        "pregame archive estimate stays explicit",
+        "missing prior-week score is omitted",
+        "pregame hidden-year research has no observed result"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 740,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 96.09375,
+          "text": "RB\n✓\nLaDainian Tomlinson\n2000s · 1 possible season\n›\n22.9\nEst. PPG\n32.6\nW7"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 76.640625,
+          "text": "RB\n✓\nChris Johnson\n2000s · 1 possible season\n›\n14.9\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 76.640625,
+          "text": "QB\n✓\nAndrew Luck\n2010s · 1 possible season\n›\n21.4\nEst. PPG\n22.7\nW7"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 76.640625,
+          "text": "QB\nPeyton Manning\n2000s · 1 possible season\n›\n15.8\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 76.640625,
+          "text": "WR\n✓\nJa'Marr Chase\n2020s · 1 possible season\n›\n16.4\nEst. PPG\n29.0\nW7"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 76.640625,
+          "text": "WR\n✓\nTyreek Hill\n2020s · 1 possible season\n›\n14.1\nEst. PPG\n14.5\nW7"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 76.640625,
+          "text": "RB\nClinton Portis\n2000s · 1 possible season\n›\n13.1\nEst. PPG\n29.8\nW7"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 76.640625,
+          "text": "RB\nCurtis Martin\n2000s · 1 possible season\n›\n17.5\nEst. PPG\n8.0\nW7"
+        }
+      ],
+      "rosterHeight": 632.578125,
+      "overflow": false,
+      "metricColumns": [
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        },
+        {
+          "estimate": 304,
+          "last": 304
+        }
+      ],
+      "safeArea": {
+        "actionBottom": 643,
+        "dockTop": 643,
+        "buttonHeight": 50,
+        "viewportHeight": 740,
+        "dockBottom": 740
+      },
+      "checks": [
+        "compact rows and readable long names",
+        "single aligned estimate/actual columns",
+        "real Week 7 values including zero",
+        "hidden selected year stays sealed",
+        "accessible candidate clue and disclosure target",
+        "all eight selection controls operate normally",
+        "keyboard selection",
+        "independent keyboard research",
+        "research shows only completed campaign weeks",
+        "simulated safe-area and short-landscape control access",
+        "changed legal lineup saved",
+        "confirmation survives reload",
+        "next Week 8 action is reachable",
+        "read-only Army keeps research and prevents lineup edits",
+        "research Escape restores focus"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 76.640625,
+          "text": "RB\n✓\nLaDainian Tomlinson\n2000s · 1 possible season\n›\n22.9\nEst. PPG\n32.6\nW7"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 76.640625,
+          "text": "RB\n✓\nChris Johnson\n2000s · 1 possible season\n›\n14.9\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 76.640625,
+          "text": "QB\n✓\nAndrew Luck\n2010s · 1 possible season\n›\n21.4\nEst. PPG\n22.7\nW7"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 76.640625,
+          "text": "QB\nPeyton Manning\n2000s · 1 possible season\n›\n15.8\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 76.640625,
+          "text": "WR\n✓\nJa'Marr Chase\n2020s · 1 possible season\n›\n16.4\nEst. PPG\n29.0\nW7"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 76.640625,
+          "text": "WR\n✓\nTyreek Hill\n2020s · 1 possible season\n›\n14.1\nEst. PPG\n14.5\nW7"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 76.640625,
+          "text": "RB\nClinton Portis\n2000s · 1 possible season\n›\n13.1\nEst. PPG\n29.8\nW7"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 76.640625,
+          "text": "RB\nCurtis Martin\n2000s · 1 possible season\n›\n17.5\nEst. PPG\n8.0\nW7"
+        }
+      ],
+      "rosterHeight": 613.125,
+      "overflow": false,
+      "metricColumns": [
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        },
+        {
+          "estimate": 647,
+          "last": 647
+        }
+      ],
+      "safeArea": {
+        "actionBottom": 299,
+        "dockTop": 299,
+        "buttonHeight": 50,
+        "viewportHeight": 375,
+        "dockBottom": 375
+      },
+      "checks": [
+        "compact rows and readable long names",
+        "single aligned estimate/actual columns",
+        "real Week 7 values including zero",
+        "hidden selected year stays sealed",
+        "accessible candidate clue and disclosure target",
+        "all eight selection controls operate normally",
+        "keyboard selection",
+        "independent keyboard research",
+        "research shows only completed campaign weeks",
+        "simulated safe-area and short-landscape control access",
+        "changed legal lineup saved",
+        "confirmation survives reload",
+        "next Week 8 action is reachable",
+        "read-only Army keeps research and prevents lineup edits",
+        "research Escape restores focus"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 80.640625,
+          "text": "RB\n✓\nLaDainian Tomlinson\n2000s · 1 possible season\n›\n22.9\nEst. PPG\n32.6\nW7"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 80.640625,
+          "text": "RB\n✓\nChris Johnson\n2000s · 1 possible season\n›\n14.9\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 80.640625,
+          "text": "QB\n✓\nAndrew Luck\n2010s · 1 possible season\n›\n21.4\nEst. PPG\n22.7\nW7"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 80.640625,
+          "text": "QB\nPeyton Manning\n2000s · 1 possible season\n›\n15.8\nEst. PPG\n0.0\nW7"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 80.640625,
+          "text": "WR\n✓\nJa'Marr Chase\n2020s · 1 possible season\n›\n16.4\nEst. PPG\n29.0\nW7"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 80.640625,
+          "text": "WR\n✓\nTyreek Hill\n2020s · 1 possible season\n›\n14.1\nEst. PPG\n14.5\nW7"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 80.640625,
+          "text": "RB\nClinton Portis\n2000s · 1 possible season\n›\n13.1\nEst. PPG\n29.8\nW7"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 80.640625,
+          "text": "RB\nCurtis Martin\n2000s · 1 possible season\n›\n17.5\nEst. PPG\n8.0\nW7"
+        }
+      ],
+      "rosterHeight": 645.125,
+      "overflow": false,
+      "metricColumns": [
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        },
+        {
+          "estimate": 1375,
+          "last": 1375
+        }
+      ],
+      "checks": [
+        "compact rows and readable long names",
+        "single aligned estimate/actual columns",
+        "real Week 7 values including zero",
+        "hidden selected year stays sealed",
+        "accessible candidate clue and disclosure target",
+        "all eight selection controls operate normally",
+        "keyboard selection",
+        "independent keyboard research",
+        "research shows only completed campaign weeks",
+        "changed legal lineup saved",
+        "confirmation survives reload",
+        "next Week 8 action is reachable"
+      ],
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        }
+      ]
+    }
+  ]
+}

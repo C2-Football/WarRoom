@@ -1,0 +1,6 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+locator.isDisabled: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: 'Confirm starting lineup', exact: true })[22m
+
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-lineup-density-browser.cjs:131:32

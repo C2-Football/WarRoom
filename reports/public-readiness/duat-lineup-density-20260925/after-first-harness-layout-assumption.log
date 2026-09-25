@@ -1,0 +1,3 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+AssertionError [ERR_ASSERTION]: The two metrics align within one row.
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-lineup-density-browser.cjs:118:6

@@ -6,15 +6,16 @@
     function StatLine({stats}){
         return h('dl',{className:'duat-mystery-stats'},Object.entries(stats||{}).map(([key,value])=>h('div',{key},h('dt',null,labels[key]||key),h('dd',null,value))));
     }
-    function Explorer({campaign,player,data,throughWeek=0,factionId}){
+    function Explorer({campaign,player,data,throughWeek=0,factionId,compact=false}){
         const [open,setOpen]=React.useState(false),[year,setYear]=React.useState(player.candidateYears?.[0]);
         const mystery=App.DuatMystery;if(!mystery?.enabled(campaign)||!mystery.isCard(player))return null;
         const info=open||throughWeek>0?mystery.inspect(campaign,player,data,{throughWeek,factionId}):null;
         const remaining=info?.archiveReady?info.remaining.length:player.candidateYears.length;
         const selected=info?.candidates.find(row=>row.year===Number(year))||info?.candidates[0];
-        return h('details',{className:'duat-mystery-explorer',onToggle:event=>setOpen(event.currentTarget.open)},
-            h('summary',null,`Explore ${player.decade}s · ${remaining} possible ${remaining===1?'season':'seasons'}`),
-            open&&h('div',null,h('p',{className:'duat-muted'},'One of these seasons was fixed when this card joined an army. The ruler’s origin year does not choose the player’s scoring year.'),
+        const clue=`${player.decade}s · ${remaining} possible ${remaining===1?'season':'seasons'}`;
+        const panelId=`duat-lineup-research-${factionId}-${player.id}`;
+        const content=open&&h('div',compact?{id:panelId,className:'duat-lineup-research-panel',role:'region','aria-label':`${player.name} historical research`,onKeyDown:event=>{if(event.key==='Escape'){event.stopPropagation();setOpen(false);root.document?.getElementById(panelId+'-toggle')?.focus();}}}:null,
+                h('p',{className:'duat-muted'},'One of these seasons was fixed when this card joined an army. The ruler’s origin year does not choose the player’s scoring year.'),
                 info.revealedSeason&&h('p',{className:'duat-notice'},h('strong',null,`Final reveal: ${info.revealedSeason}`)),
                 h('h4',null,'What your campaign has revealed'),
                 !info.observed.length?h('p',null,'No completed games have been revealed. Every listed season remains possible.'):
@@ -24,7 +25,14 @@
                 h('p',{className:'duat-muted'},'These are all eligible archive seasons. Matching evidence is a possibility, not a probability; exact matches can identify a year.'),
                 h('label',null,'Season to inspect',h('select',{value:selected?.year||'',onChange:event=>setYear(Number(event.target.value)),'aria-label':`Inspect ${player.name} candidate season`},info.candidates.map(row=>h('option',{key:row.year,value:row.year},`${row.year}${row.compatible===false?' · ruled out by revealed games':''}`)))),
                 selected&&h(React.Fragment,null,h('p',null,selected.compatible===false?`Differs in campaign ${selected.contradictions.length===1?'week':'weeks'} ${selected.contradictions.join(', ')}.`:info.observed.length?'Matches the revealed campaign box scores.':'No campaign evidence yet.'),
-                    info.archiveReady?h('div',{className:'duat-table-wrap',tabIndex:0,'aria-label':`${selected.year} archive game log`},h('table',null,h('caption',null,`${player.name} · ${selected.year} · Weeks 1–17`),h('thead',null,h('tr',null,h('th',null,'Week'),h('th',null,'Points'),h('th',null,'Box score'))),h('tbody',null,selected.games.map(game=>h('tr',{key:game.week},h('th',{scope:'row'},game.week),h('td',null,game.points.toFixed(2)),h('td',null,game.hasRecordedGame?h('details',null,h('summary',null,'View stats'),h(StatLine,{stats:game.stats})):'No recorded game')))))):h('p',{role:'status'},'The candidate archive is loading.'))));
+                    info.archiveReady?h('div',{className:'duat-table-wrap',tabIndex:0,'aria-label':`${selected.year} archive game log`},h('table',null,h('caption',null,`${player.name} · ${selected.year} · Weeks 1–17`),h('thead',null,h('tr',null,h('th',null,'Week'),h('th',null,'Points'),h('th',null,'Box score'))),h('tbody',null,selected.games.map(game=>h('tr',{key:game.week},h('th',{scope:'row'},game.week),h('td',null,game.points.toFixed(2)),h('td',null,game.hasRecordedGame?h('details',null,h('summary',null,'View stats'),h(StatLine,{stats:game.stats})):'No recorded game')))))):h('p',{role:'status'},'The candidate archive is loading.')));
+        if(compact)return h(React.Fragment,null,
+            h('button',{type:'button',id:panelId+'-toggle',className:'duat-lineup-research-toggle','aria-expanded':open,'aria-controls':panelId,'aria-label':`Explore ${player.name}'s possible seasons`,'aria-describedby':panelId+'-clue',onClick:()=>setOpen(!open),onKeyDown:event=>{if(event.key==='Escape'&&open){event.stopPropagation();setOpen(false);}}},
+                h('span',{className:'duat-player-name'},h('strong',null,player.name),h('small',{id:panelId+'-clue'},clue)),
+                h('span',{className:'duat-lineup-research-chevron','aria-hidden':true},open?'⌄':'›')),
+            content||h('div',{id:panelId,hidden:true}));
+        return h('details',{className:'duat-mystery-explorer',onToggle:event=>setOpen(event.currentTarget.open)},
+            h('summary',null,`Explore ${clue}`),content);
     }
     function Recap({campaign,factionId,data,throughWeek=0,onAction,busy}){
         if(!App.DuatMystery?.enabled(campaign)||campaign.phase!=='complete'||!Number.isInteger(throughWeek)||throughWeek<17)return null;

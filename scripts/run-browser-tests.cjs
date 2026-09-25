@@ -10,7 +10,7 @@ const suites = [
   'browser-readonly.cjs',
   'browser-qa.js', 'launch-browser-qa.js', 'live-click-paths.js',
   'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs', 'vault-auth-browser-qa.cjs', 'account-password-browser-qa.cjs', 'empire-seasonal-browser-qa.cjs', 'empire-draft-inventory-browser-qa.cjs', 'league-linked-season-browser-qa.cjs', 'commish-proposal-browser.cjs',
-  'commish-polish-browser.cjs', 'duat-polish-browser.cjs', 'vault-phone-density-browser.cjs',
+  'commish-polish-browser.cjs', 'duat-polish-browser.cjs', 'vault-phone-density-browser.cjs', 'duat-lineup-density-browser.cjs',
 ];
 async function main() {
   let server;
@@ -39,6 +39,8 @@ async function main() {
     delete gateEnv.READINESS_PREVIEW_URL;
     delete gateEnv.COMMISH_POLISH_URL;
     delete gateEnv.DUAT_POLISH_URL;
+    delete gateEnv.DUAT_LINEUP_URL;
+    delete gateEnv.DUAT_LINEUP_PHASE;
     delete gateEnv.VAULT_DENSITY_URL;
     delete gateEnv.VAULT_DENSITY_PHASE;
     delete gateEnv.VAULT_DENSITY_WIDTHS;

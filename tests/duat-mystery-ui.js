@@ -24,11 +24,30 @@ test('final reveal control appears only after Week17 recap and preserves every p
 test('public box scores strip source dates, numeric years and raw game identifiers',()=>{
  assert.deepEqual(Mystery.numericStats({...stats,season:2010,week:1,sourceGameId:2010090100,date:'2010-09-01',opponent:'NE'}),Mystery.numericStats(stats));
 });
+test('compact lineup research keeps the player identity, candidate count and viewed-game boundary without changing selection',()=>{
+ const h=harness(),props={campaign,player,data,factionId:'egypt',throughWeek:0,compact:true};
+ let tree=h.render('Explorer',props),button=nodes(tree).find(n=>n.type==='button');
+ assert.match(text(tree),/Archive Quarterback.*2010s · 2 possible seasons/);
+ assert.equal(button.props['aria-expanded'],false);
+ assert(nodes(tree).some(n=>n.props.id===button.props['aria-describedby']&&text(n).includes('2010s · 2 possible seasons')),'Screen readers retain decade and remaining candidate count');
+ assert(nodes(tree).some(n=>n.props.id===button.props['aria-controls']&&n.props.hidden));
+ assert(!nodes(tree).some(n=>n.type==='input'),'Research has no lineup selection control');
+ assert(!text(tree).includes('250'),'Unopened research cannot disclose a simulated result');
+ button.props.onClick();tree=h.render('Explorer',props);
+ assert.equal(nodes(tree).find(n=>n.type==='button').props['aria-expanded'],true);
+ assert.match(text(tree),/No completed games have been revealed/);
+ const panel=nodes(tree).find(n=>n.props.role==='region');assert(panel);
+ panel.props.onKeyDown({key:'Escape',stopPropagation(){}});tree=h.render('Explorer',props);
+ assert.equal(nodes(tree).find(n=>n.type==='button').props['aria-expanded'],false);
+ assert(!nodes(tree).some(n=>n.type==='select'));
+});
 test('the real lineup panel renders player-decade identity and preserves the viewed-game explorer boundary',()=>{
  const App={DuatMystery:Mystery,DuatMysteryUI:{Explorer(){}},DuatCampaign:{activeArmy:faction=>faction.armies[0],settingsOf:()=>({roster:'test'}),ROSTERS:{test:{slots:['QB']}},legalLineup:()=>true,estimatePlayer:()=>({points:18,label:'2010s archive average'})}},React={Fragment:'fragment',createElement:(type,props,...children)=>({type,props:props||{},children})};
  const source=require('@babel/standalone').transform(fs.readFileSync('js/components/duat-weekly-flow.js','utf8'),{presets:['react']}).code;
  vm.runInNewContext(source,{window:{App},React});
  const view={...campaign,phase:'season',factions:[{id:'egypt',armies:[{players:[player]}]}]},tree=App.DuatWeeklyUI.Preparation({campaign:view,factionId:'egypt',lineup:[player.id],data,throughWeek:0,onChange(){}});
- assert.match(text(tree),/2010s · year hidden · 2010s archive average/);assert(!text(tree).includes('Historical player'));
- const explorer=nodes(tree).find(node=>node.type===App.DuatMysteryUI.Explorer);assert(explorer);assert.equal(explorer.props.player.id,player.id);assert.equal(explorer.props.throughWeek,0,'A prepared lineup cannot reveal simulated-but-unwatched games');
+ const checkbox=nodes(tree).find(node=>node.type==='input');assert.equal(checkbox.props['aria-label'],'Archive Quarterback, QB, starting lineup');assert.equal(checkbox.props.checked,true);
+ assert.match(text(tree),/Est\. PPG/);assert(nodes(tree).some(node=>node.props.title==='2010s archive average. Estimated points per game, not a weekly projection.'));
+ assert(!text(tree).includes('Historical player'));
+ const explorer=nodes(tree).find(node=>node.type===App.DuatMysteryUI.Explorer);assert(explorer);assert.equal(explorer.props.player.id,player.id);assert.equal(explorer.props.compact,true);assert.equal(explorer.props.throughWeek,0,'A prepared lineup cannot reveal simulated-but-unwatched games');
 });

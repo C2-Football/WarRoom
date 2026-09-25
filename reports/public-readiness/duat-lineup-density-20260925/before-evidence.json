@@ -1,0 +1,331 @@
+{
+  "target": "http://127.0.0.1:3026/?duat=1",
+  "mode": "before",
+  "fixture": "Real archive Hidden Years engine campaign legally advanced through Week 7",
+  "evidence": [
+    {
+      "width": 320,
+      "height": 740,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 247.78125,
+          "text": "RB\nLaDainian Tomlinson\n2000s · year hidden · Through Week 7\n22.9\nEst. PPG\n32.6\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 225.390625,
+          "text": "RB\nChris Johnson\n2000s · year hidden · Through Week 7\n14.9\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 225.390625,
+          "text": "QB\nAndrew Luck\n2010s · year hidden · Through Week 7\n21.4\nEst. PPG\n22.7\nW7\nExplore 2010s · 1 possible season"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 247.78125,
+          "text": "QB\nPeyton Manning\n2000s · year hidden · Through Week 7\n15.8\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 225.390625,
+          "text": "WR\nJa'Marr Chase\n2020s · year hidden · Through Week 7\n16.4\nEst. PPG\n29.0\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 225.390625,
+          "text": "WR\nTyreek Hill\n2020s · year hidden · Through Week 7\n14.1\nEst. PPG\n14.5\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 225.390625,
+          "text": "RB\nClinton Portis\n2000s · year hidden · Through Week 7\n13.1\nEst. PPG\n29.8\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 225.390625,
+          "text": "RB\nCurtis Martin\n2000s · year hidden · Through Week 7\n17.5\nEst. PPG\n8.0\nW7\nExplore 2000s · 1 possible season"
+        }
+      ],
+      "rosterHeight": 1847.90625,
+      "overflow": false,
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 186.390625,
+          "text": "RB\nLaDainian Tomlinson\n2000s · year hidden · Through Week 7\n22.9\nEst. PPG\n32.6\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 186.390625,
+          "text": "RB\nChris Johnson\n2000s · year hidden · Through Week 7\n14.9\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 186.390625,
+          "text": "QB\nAndrew Luck\n2010s · year hidden · Through Week 7\n21.4\nEst. PPG\n22.7\nW7\nExplore 2010s · 1 possible season"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 186.390625,
+          "text": "QB\nPeyton Manning\n2000s · year hidden · Through Week 7\n15.8\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 186.390625,
+          "text": "WR\nJa'Marr Chase\n2020s · year hidden · Through Week 7\n16.4\nEst. PPG\n29.0\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 186.390625,
+          "text": "WR\nTyreek Hill\n2020s · year hidden · Through Week 7\n14.1\nEst. PPG\n14.5\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 186.390625,
+          "text": "RB\nClinton Portis\n2000s · year hidden · Through Week 7\n13.1\nEst. PPG\n29.8\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 186.390625,
+          "text": "RB\nCurtis Martin\n2000s · year hidden · Through Week 7\n17.5\nEst. PPG\n8.0\nW7\nExplore 2000s · 1 possible season"
+        }
+      ],
+      "rosterHeight": 1491.125,
+      "overflow": false,
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        }
+      ]
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 165.390625,
+          "text": "RB\nLaDainian Tomlinson\n2000s · year hidden · Through Week 7\n22.9\nEst. PPG\n32.6\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 165.390625,
+          "text": "RB\nChris Johnson\n2000s · year hidden · Through Week 7\n14.9\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 165.390625,
+          "text": "QB\nAndrew Luck\n2010s · year hidden · Through Week 7\n21.4\nEst. PPG\n22.7\nW7\nExplore 2010s · 1 possible season"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 165.390625,
+          "text": "QB\nPeyton Manning\n2000s · year hidden · Through Week 7\n15.8\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 165.390625,
+          "text": "WR\nJa'Marr Chase\n2020s · year hidden · Through Week 7\n16.4\nEst. PPG\n29.0\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 165.390625,
+          "text": "WR\nTyreek Hill\n2020s · year hidden · Through Week 7\n14.1\nEst. PPG\n14.5\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 165.390625,
+          "text": "RB\nClinton Portis\n2000s · year hidden · Through Week 7\n13.1\nEst. PPG\n29.8\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 165.390625,
+          "text": "RB\nCurtis Martin\n2000s · year hidden · Through Week 7\n17.5\nEst. PPG\n8.0\nW7\nExplore 2000s · 1 possible season"
+        }
+      ],
+      "rosterHeight": 1323.125,
+      "overflow": false,
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "rows": [
+        {
+          "name": "LaDainian Tomlinson",
+          "height": 133.640625,
+          "text": "RB\nLaDainian Tomlinson\n2000s · year hidden · Through Week 7\n22.9\nEst. PPG\n32.6\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Chris Johnson",
+          "height": 133.640625,
+          "text": "RB\nChris Johnson\n2000s · year hidden · Through Week 7\n14.9\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Andrew Luck",
+          "height": 133.640625,
+          "text": "QB\nAndrew Luck\n2010s · year hidden · Through Week 7\n21.4\nEst. PPG\n22.7\nW7\nExplore 2010s · 1 possible season"
+        },
+        {
+          "name": "Peyton Manning",
+          "height": 133.640625,
+          "text": "QB\nPeyton Manning\n2000s · year hidden · Through Week 7\n15.8\nEst. PPG\n0.0\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Ja'Marr Chase",
+          "height": 133.640625,
+          "text": "WR\nJa'Marr Chase\n2020s · year hidden · Through Week 7\n16.4\nEst. PPG\n29.0\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Tyreek Hill",
+          "height": 133.640625,
+          "text": "WR\nTyreek Hill\n2020s · year hidden · Through Week 7\n14.1\nEst. PPG\n14.5\nW7\nExplore 2020s · 1 possible season"
+        },
+        {
+          "name": "Clinton Portis",
+          "height": 133.640625,
+          "text": "RB\nClinton Portis\n2000s · year hidden · Through Week 7\n13.1\nEst. PPG\n29.8\nW7\nExplore 2000s · 1 possible season"
+        },
+        {
+          "name": "Curtis Martin",
+          "height": 133.640625,
+          "text": "RB\nCurtis Martin\n2000s · year hidden · Through Week 7\n17.5\nEst. PPG\n8.0\nW7\nExplore 2000s · 1 possible season"
+        }
+      ],
+      "rosterHeight": 1069.125,
+      "overflow": false,
+      "pageErrors": [],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/mfl-proxy"
+        }
+      ]
+    }
+  ]
+}
