@@ -1,0 +1,67 @@
+{
+  "verifiedAt": "2026-09-25T19:33:07.012409+00:00",
+  "expectedRevision": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+  "runs": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:15Z",
+      "databaseId": 36179870313,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom/actions/runs/36179870313",
+      "workflowName": "CI",
+      "repository": "C2-Football/WarRoom"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:15Z",
+      "databaseId": 36179870457,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom/actions/runs/36179870457",
+      "workflowName": "Validate and release C2 game functions",
+      "repository": "C2-Football/WarRoom"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:15Z",
+      "databaseId": 36179870328,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom/actions/runs/36179870328",
+      "workflowName": "Deploy to GitHub Pages",
+      "repository": "C2-Football/WarRoom"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:16Z",
+      "databaseId": 36179872907,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/36179872907",
+      "workflowName": "CI",
+      "repository": "C2-Football/WarRoom-sandbox"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:16Z",
+      "databaseId": 36179872690,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/36179872690",
+      "workflowName": "Deploy to GitHub Pages",
+      "repository": "C2-Football/WarRoom-sandbox"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-09-25T19:28:16Z",
+      "databaseId": 36179872715,
+      "headSha": "34a6b4c2b239e7d35425746ec797220ce79261ab",
+      "status": "completed",
+      "url": "https://github.com/C2-Football/WarRoom-sandbox/actions/runs/36179872715",
+      "workflowName": "Validate and release C2 game functions",
+      "repository": "C2-Football/WarRoom-sandbox"
+    }
+  ],
+  "passed": true
+}

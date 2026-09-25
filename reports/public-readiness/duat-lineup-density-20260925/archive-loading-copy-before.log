@@ -1,0 +1,55 @@
+(node:31892) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ archive explorer compares only viewed game logs and discloses actual matching seasons without probabilities (8.547ms)
+✖ standard research waits for the archive before claiming a season matches (0.78925ms)
+✖ compact research waits for the archive before claiming a season matches (0.408792ms)
+✔ final reveal control appears only after Week17 recap and preserves every played card in the reveal (0.491875ms)
+✔ public box scores strip source dates, numeric years and raw game identifiers (0.630125ms)
+✔ compact lineup research keeps the player identity, candidate count and viewed-game boundary without changing selection (0.549209ms)
+✔ the real lineup panel renders player-decade identity and preserves the viewed-game explorer boundary (97.904792ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 302.465291
+
+✖ failing tests:
+
+test at tests/duat-mystery-ui.js:18:35
+✖ standard research waits for the archive before claiming a season matches (0.78925ms)
+  AssertionError [ERR_ASSERTION]: No comparison result is claimed without archive data
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/tests/duat-mystery-ui.js:27:9)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Explore 2010s · 2 possible seasons One of these seasons was fixed when this card joined an army. The ruler’s origin year does not choose the player’s scoring year.  What your campaign has revealed Load the archive to compare the revealed box scores. Week 1 · 18.00 base points  After offerings: 36.00 points. The year comparison uses the original box score. Candidate-season archive These are all eligible archive seasons. Matching evidence is a possibility, not a probability; exact matches can identify a year. Season to inspect 2010 2011 Matches the revealed campaign box scores. The candidate archive is loading.',
+    expected: /Matches the revealed campaign box scores|Differs in campaign/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/duat-mystery-ui.js:18:35
+✖ compact research waits for the archive before claiming a season matches (0.408792ms)
+  AssertionError [ERR_ASSERTION]: No comparison result is claimed without archive data
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/tests/duat-mystery-ui.js:27:9)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Archive Quarterback 2010s · 2 possible seasons ⌄ One of these seasons was fixed when this card joined an army. The ruler’s origin year does not choose the player’s scoring year.  What your campaign has revealed Load the archive to compare the revealed box scores. Week 1 · 18.00 base points  After offerings: 36.00 points. The year comparison uses the original box score. Candidate-season archive These are all eligible archive seasons. Matching evidence is a possibility, not a probability; exact matches can identify a year. Season to inspect 2010 2011 Matches the revealed campaign box scores. The candidate archive is loading.',
+    expected: /Matches the revealed campaign box scores|Differs in campaign/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

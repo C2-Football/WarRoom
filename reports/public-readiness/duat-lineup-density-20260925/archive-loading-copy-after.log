@@ -1,0 +1,17 @@
+(node:31915) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ archive explorer compares only viewed game logs and discloses actual matching seasons without probabilities (8.065292ms)
+✔ standard research waits for the archive before claiming a season matches (0.728959ms)
+✔ compact research waits for the archive before claiming a season matches (0.647292ms)
+✔ final reveal control appears only after Week17 recap and preserves every played card in the reveal (0.487875ms)
+✔ public box scores strip source dates, numeric years and raw game identifiers (0.62375ms)
+✔ compact lineup research keeps the player identity, candidate count and viewed-game boundary without changing selection (0.495334ms)
+✔ the real lineup panel renders player-decade identity and preserves the viewed-game explorer boundary (95.108583ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 298.045042

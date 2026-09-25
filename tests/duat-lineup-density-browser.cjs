@@ -94,13 +94,33 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
    await page.locator(width < 768 ? '.duat-phone-primary' : '.duat-home-resume .primary').click();
    await page.getByRole('heading', { name: 'Set your starting lineup', exact: true }).waitFor();
    const roster = page.locator('.duat-weekly-lineup .duat-roster');
+   let archiveLoading;
+   if (!baseline) {
+    const firstRow = roster.locator('.duat-player-entry').first(), research = firstRow.locator('.duat-lineup-research-toggle');
+    const beforeSelection = await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked));
+    const initialClue = await firstRow.locator('.duat-player-name small').innerText();
+    await research.click();
+    const panel = firstRow.locator('.duat-lineup-research-panel'), initialText = await panel.innerText();
+    const explicitLoadingObserved = /archive is loading|Load the archive/.test(initialText);
+    if (explicitLoadingObserved) assert.doesNotMatch(initialText, /Matches the revealed campaign box scores|Differs in campaign/, 'Archive loading cannot claim a candidate match or contradiction before comparison is available.');
+    // Saved progress is readable before the asynchronous archive arrives.
+    // Wait for independently observable archive availability, never the
+    // candidate-count value that the assertions below are meant to verify.
+    await panel.locator('.duat-table-wrap table').waitFor({ state: 'visible', timeout: 60000 });
+    const archiveRows = await panel.locator('.duat-table-wrap tbody tr').count();
+    assert.equal(archiveRows, 17, 'The candidate archive has its actual seventeen-week game log.');
+    archiveLoading = { initialClue, explicitLoadingObserved, loadingVerdictChecked: explicitLoadingObserved, archiveRows, settledClue: await firstRow.locator('.duat-player-name small').innerText() };
+    await research.click();
+    assert.equal(await research.getAttribute('aria-expanded'), 'false');
+    assert.deepEqual(await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked)), beforeSelection, 'Reading archive readiness does not change the lineup.');
+   }
    await roster.scrollIntoViewIfNeeded();
    const metrics = await roster.evaluate(node => ({ rows: [...node.querySelectorAll('.duat-player-entry')].map(row => ({ name: row.querySelector('.duat-player-name strong')?.textContent, height: row.getBoundingClientRect().height, text: row.innerText })), rosterHeight: node.getBoundingClientRect().height, overflow: document.documentElement.scrollWidth > innerWidth + 1 }));
    assert.equal(metrics.rows.length, players.length);
    await page.screenshot({ path: path.join(output, `${mode}-lineup-${width}.png`) });
    await roster.screenshot({ path: path.join(output, `${mode}-roster-${width}.png`) });
    fs.writeFileSync(path.join(output, `${mode}-measurements-${width}.json`), JSON.stringify({ width, height, ...metrics }, null, 2));
-   const checks = [];
+   const checks = baseline ? [] : ['real archive table loaded before exact candidate-clue verification'];
    if (!baseline) {
     const rows = roster.locator('.duat-player-entry');
     assert(!metrics.overflow, 'Roster must not create horizontal page overflow.');
@@ -200,6 +220,7 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
     await page.getByRole('button', { name: 'The Veiled Nile Egypt', exact: false }).click({ timeout: 60000 });
     await page.locator(width < 768 ? '.duat-phone-primary' : '.duat-home-resume .primary').click();
     await page.getByRole('heading', { name: 'Ready for kickoff', exact: true }).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Start Week 8 games' && !button.disabled), null, { timeout: 60000 });
     assert(await page.getByRole('button', { name: 'Start Week 8 games', exact: true }).isEnabled());
     assert.deepEqual([...(await page.evaluate(id => App.DuatStorage.read(id).factions.find(row => row.id === 'egypt').lineup, campaign.id))].sort(), [...replacement.lineup].sort());
     checks.push('changed legal lineup saved', 'confirmation survives reload', 'next Week 8 action is reachable');
@@ -239,7 +260,7 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
      checks.push('pregame archive estimate stays explicit', 'missing prior-week score is omitted', 'pregame hidden-year research has no observed result');
     }
    }
-   evidence.push({ width, height, ...metrics, checks, pageErrors, blocked });
+   evidence.push({ width, height, ...metrics, archiveLoading, checks, pageErrors, blocked });
    console.log(`${baseline ? 'BEFORE' : 'PASS'} ${width}x${height}: row heights ${metrics.rows.map(row => row.height.toFixed(1)).join(', ')}; overflow=${metrics.overflow}; completed checks=${checks.length}`);
    assert.deepEqual(pageErrors, []);
    await context.close();

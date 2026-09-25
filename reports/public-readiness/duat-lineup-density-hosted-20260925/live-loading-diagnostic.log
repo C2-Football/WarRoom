@@ -1,0 +1,85 @@
+{
+  "initial": {
+    "clue": "2000s · 8 possible seasons",
+    "runtime": [
+      {
+        "time": 1790364918842,
+        "size": 0,
+        "throughWeek": 7,
+        "remaining": 8,
+        "archiveReady": false
+      }
+    ]
+  },
+  "loadingMessage": true,
+  "settled": {
+    "clue": "2000s · 1 possible season",
+    "runtime": [
+      {
+        "time": 1790364919224,
+        "size": 127055,
+        "throughWeek": 7,
+        "remaining": 1,
+        "archiveReady": true
+      }
+    ]
+  },
+  "requests": [
+    {
+      "type": "response",
+      "time": "2026-09-25T19:35:14.503Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/manifest.json",
+      "status": 200
+    },
+    {
+      "type": "response",
+      "time": "2026-09-25T19:35:14.504Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/player-cards.json",
+      "status": 200
+    },
+    {
+      "type": "finished",
+      "time": "2026-09-25T19:35:14.504Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/manifest.json"
+    },
+    {
+      "type": "finished",
+      "time": "2026-09-25T19:35:14.527Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/player-cards.json"
+    },
+    {
+      "type": "response",
+      "time": "2026-09-25T19:35:18.835Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/manifest.json",
+      "status": 200
+    },
+    {
+      "type": "finished",
+      "time": "2026-09-25T19:35:18.865Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/manifest.json"
+    },
+    {
+      "type": "response",
+      "time": "2026-09-25T19:35:18.866Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/player-cards.json",
+      "status": 200
+    },
+    {
+      "type": "response",
+      "time": "2026-09-25T19:35:18.876Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/nflverse-game-logs.csv",
+      "status": 200
+    },
+    {
+      "type": "finished",
+      "time": "2026-09-25T19:35:18.888Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/player-cards.json"
+    },
+    {
+      "type": "finished",
+      "time": "2026-09-25T19:35:18.992Z",
+      "url": "https://c2-football.github.io/WarRoom/data/duat/nflverse-game-logs.csv"
+    }
+  ],
+  "errors": []
+}

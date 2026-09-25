@@ -2,7 +2,7 @@
 
 Real archive Hidden Years campaign, Week 8 after seven legally scored weeks. Every score and estimate comes from the existing engine. Raw campaign/seed/assignment fixtures remain in ignored local output and are not archived here.
 
-Both final source and compiled production-preview matrices passed all four viewports, exit 0. Full methodology, assertion scope, and limits: [QA report](../duat-lineup-density-browser-20260925.md).
+The initial layout source and final compiled production-preview matrices passed all four viewports, exit 0. `after-*` retains the original `34a6b4c` layout evidence; `compiled-*` contains the final frozen loading-copy follow-up and its exact production hashes. Full methodology, assertion scope, and limits: [QA report](../duat-lineup-density-browser-20260925.md).
 
 | View | Before | Final compiled candidate |
 | --- | --- | --- |

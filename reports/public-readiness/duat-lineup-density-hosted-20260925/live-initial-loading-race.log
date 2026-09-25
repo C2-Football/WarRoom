@@ -1,0 +1,9 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+AssertionError [ERR_ASSERTION]: Research exposes the visible decade/candidate clue to assistive technology.
++ actual - expected
+
++ '2000s · 8 possible seasons'
+- '2000s · 1 possible season'
+           ^
+
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-lineup-density-browser.cjs:125:13

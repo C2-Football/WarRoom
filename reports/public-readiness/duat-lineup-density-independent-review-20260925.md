@@ -4,7 +4,7 @@ Scope: the compact lineup change on `codex/duat-lineup-density-20260925`, based 
 
 ## Assessment
 
-No unresolved material source finding. The row redesign keeps the existing game, selection rules, estimate calculation, actual results and research content. The final frozen-source four-viewport browser matrix passed with explicit accessible-clue assertions and terminal exit code 0. Its recorded production SHA-256 hashes match the currently reviewed files. The reviewed source, raw preview and compiled release candidate are clear of material findings. This review does not claim deployment or whole-suite launch readiness.
+No unresolved material source finding. The row redesign keeps the existing game, selection rules, estimate calculation, actual results and research content. The final frozen-source four-viewport browser matrix passed with explicit accessible-clue assertions and terminal exit code 0. Its recorded production SHA-256 hashes matched the reviewed lineup files at that checkpoint. The subsequently reproduced archive-loading copy issue and focused correction are recorded below. Final full-Duat and compiled-candidate checks now pass with that correction; hosted release verification remains with root. This review does not claim deployment or whole-suite launch readiness.
 
 ## Findings resolved during review
 
@@ -38,3 +38,31 @@ Rows now measure about 76.6px on phones (96.1px for the longest name at 320px) a
 The [compiled browser log](duat-lineup-density-20260925/compiled-browser.log) and [compiled evidence](duat-lineup-density-20260925/compiled-evidence.json) also pass all four viewports with terminal exit 0 at `http://127.0.0.1:3026/dist-preview/?duat=1`. Independently checked that all recorded production hashes still match current source, all four viewports retain the accessible-clue checks, and no page errors occurred. Raw and compiled proof are archived separately in the [evidence gallery](duat-lineup-density-20260925/README.md).
 
 **Final independent assessment:** no unresolved material finding remains in this bounded lineup redesign; local release-candidate review is clear. Production deployment verification remains the root release owner's responsibility. Native/physical-device, hosted-authentication and multiplayer proof remain outside this local evidence.
+
+
+## Archive-loading follow-up
+
+A hosted fixture reached the saved Week 8 lineup before the historical archive loaded. The temporarily larger candidate count is intentional and existed before this redesign: unavailable comparison data leaves all eligible years possible until the archive can rule them out. The browser gate must wait for actual archive-ready UI before asserting the filtered count, while retaining the strict final count and accessible-clue checks.
+
+Independent reproduction also exposed a minor pre-existing copy defect in the expanded Explorer: its selected-year paragraph said “Matches the revealed campaign box scores” when compatibility was still unknown. The adjacent archive-loading status was already correct.
+
+The bounded fix adds `info.archiveReady` to the selected-year comparison paragraph. It renders neither a match nor a contradiction claim until comparison data exists. The existing archive-loading message, candidate list and already-viewed box scores remain available; no new copy, data change, game-rule change or private-state exposure was introduced. This applies to both the compact lineup view and the original details-based Explorer.
+
+Regression evidence:
+
+- [Before correction](duat-lineup-density-20260925/archive-loading-copy-before.log): both new standard/compact tests fail specifically because the premature match claim is present; the existing five tests pass.
+- [After correction](duat-lineup-density-20260925/archive-loading-copy-after.log): 7 passed, 0 failed/skipped. Both modes retain observed Week 1 and both candidates while loading, show no comparison claim or table, then display a real match and 17-week table when the archive arrives. Selecting the nonmatching loaded season also reports its actual contradiction.
+- Focused ESLint, JavaScript syntax and `git diff --check` pass.
+
+Only `js/components/duat-mystery.js` and `tests/duat-mystery-ui.js` were edited for this follow-up. No commit was made by this reviewer. Root owns hosted verification and release of the correction. Earlier raw-preview/classic evidence remains explicitly scoped to the original lineup candidate; the final compiled evidence below includes the correction.
+
+
+### Final follow-up candidate recheck
+
+- Independently inspected [full Duat results](duat-lineup-density-tests-20260925.log): **395 passed, 0 failed, 0 skipped**.
+- Independently inspected the archived [final compiled matrix](duat-lineup-density-20260925/compiled-evidence.json) and [terminal run log](duat-lineup-density-20260925/compiled-browser.log): **four viewports passed**, with 19/16/16/13 completed checks at 390/320/667/1440 and no page exceptions or overflow. QA recorded terminal exit 0.
+- All four recorded production SHA-256 hashes match current source. The corrected `js/components/duat-mystery.js` hash is `1790ab321ee468d3970d3765a7daa1ab5233f085e6a87aad91a1586efd496d89`.
+- The harness now opens research and waits for a real 17-row archive table before checking the exact filtered clue. The readiness condition is independent of the expected candidate count, and opening/closing research must preserve the lineup. Final count, privacy, persistence and accessibility assertions remain strict.
+- All four local compiled cases had already loaded their archive when the panel opened. The evidence correctly records `explicitLoadingObserved: false` and `loadingVerdictChecked: false`; this matrix is not claimed to have exercised the transient loading branch. That branch is covered by the two reproduced-and-passing focused regression cases above.
+
+**Follow-up candidate assessment:** no unresolved material finding remains in the bounded correction or its integration evidence. The final local candidate is clear for the established release process. Final revision/workflow/served-asset and hosted-journey verification remain root responsibilities; full-suite/native/multiplayer readiness is not inferred.

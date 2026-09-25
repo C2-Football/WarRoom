@@ -5,7 +5,7 @@
   "testedSources": {
     "duat-polish.css": "70431a74522c52e7b61e655b15b264b2bd5469a7df9c86a662612dc60dbc1de3",
     "js/components/duat-weekly-flow.js": "d5d3217c4ff1af79285e60409813c90b10b9f3204ec2c9ed2769ed2e94e83b02",
-    "js/components/duat-mystery.js": "3dd07690ba7078cf91af3709d1c251ea04a7fed3726d2173ef383f3233038a08",
+    "js/components/duat-mystery.js": "1790ab321ee468d3970d3765a7daa1ab5233f085e6a87aad91a1586efd496d89",
     "js/tabs/duat.js": "7aa7e76a08d76ee7fc4b7cda65b6e49d6bf09c1af943a320010d893c9eb520a8"
   },
   "fixture": "Real archive Hidden Years engine campaign legally advanced through Week 7",
@@ -98,7 +98,15 @@
         "viewportHeight": 844,
         "dockBottom": 844
       },
+      "archiveLoading": {
+        "initialClue": "2000s · 1 possible season",
+        "explicitLoadingObserved": false,
+        "loadingVerdictChecked": false,
+        "archiveRows": 17,
+        "settledClue": "2000s · 1 possible season"
+      },
       "checks": [
+        "real archive table loaded before exact candidate-clue verification",
         "compact rows and readable long names",
         "single aligned estimate/actual columns",
         "real Week 7 values including zero",
@@ -151,6 +159,11 @@
           "path": "/api/mfl-proxy"
         },
         {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
           "method": "GET",
           "host": "api.fantasycalc.com",
           "path": "/values/current"
@@ -164,6 +177,11 @@
           "method": "POST",
           "host": "127.0.0.1",
           "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
         },
         {
           "method": "POST",
@@ -310,7 +328,15 @@
         "viewportHeight": 740,
         "dockBottom": 740
       },
+      "archiveLoading": {
+        "initialClue": "2000s · 1 possible season",
+        "explicitLoadingObserved": false,
+        "loadingVerdictChecked": false,
+        "archiveRows": 17,
+        "settledClue": "2000s · 1 possible season"
+      },
       "checks": [
+        "real archive table loaded before exact candidate-clue verification",
         "compact rows and readable long names",
         "single aligned estimate/actual columns",
         "real Week 7 values including zero",
@@ -360,6 +386,11 @@
           "path": "/api/mfl-proxy"
         },
         {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
           "method": "GET",
           "host": "api.fantasycalc.com",
           "path": "/values/current"
@@ -373,6 +404,11 @@
           "method": "POST",
           "host": "127.0.0.1",
           "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
         },
         {
           "method": "POST",
@@ -474,7 +510,15 @@
         "viewportHeight": 375,
         "dockBottom": 375
       },
+      "archiveLoading": {
+        "initialClue": "2000s · 1 possible season",
+        "explicitLoadingObserved": false,
+        "loadingVerdictChecked": false,
+        "archiveRows": 17,
+        "settledClue": "2000s · 1 possible season"
+      },
       "checks": [
+        "real archive table loaded before exact candidate-clue verification",
         "compact rows and readable long names",
         "single aligned estimate/actual columns",
         "real Week 7 values including zero",
@@ -524,6 +568,11 @@
           "path": "/api/mfl-proxy"
         },
         {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
           "method": "GET",
           "host": "api.fantasycalc.com",
           "path": "/values/current"
@@ -537,6 +586,11 @@
           "method": "POST",
           "host": "127.0.0.1",
           "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
         },
         {
           "method": "POST",
@@ -631,7 +685,15 @@
           "last": 1375
         }
       ],
+      "archiveLoading": {
+        "initialClue": "2000s · 1 possible season",
+        "explicitLoadingObserved": false,
+        "loadingVerdictChecked": false,
+        "archiveRows": 17,
+        "settledClue": "2000s · 1 possible season"
+      },
       "checks": [
+        "real archive table loaded before exact candidate-clue verification",
         "compact rows and readable long names",
         "single aligned estimate/actual columns",
         "real Week 7 values including zero",
@@ -678,6 +740,11 @@
           "path": "/api/mfl-proxy"
         },
         {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
           "method": "GET",
           "host": "api.fantasycalc.com",
           "path": "/values/current"
@@ -691,6 +758,11 @@
           "method": "POST",
           "host": "127.0.0.1",
           "path": "/api/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
         }
       ]
     }

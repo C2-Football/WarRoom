@@ -15,6 +15,29 @@ test('archive explorer compares only viewed game logs and discloses actual match
  tree.props.onToggle({currentTarget:{open:true}});tree=h.render('Explorer',props);assert.match(text(tree),/No completed games have been revealed/);assert.equal(nodes(tree).filter(n=>n.type==='option').length,2);assert.equal(nodes(tree).filter(n=>n.type==='tr').length,18);assert(!text(tree).includes('ruled out'));
  tree=h.render('Explorer',{...props,throughWeek:1});assert.match(text(tree),/1 of 2 seasons still match/);assert.match(text(tree),/2011 · ruled out/);assert.match(text(tree),/After offerings: 36.00 points/);assert(!text(tree).includes('%'));
 });
+for(const compact of [false,true])test(`${compact?'compact':'standard'} research waits for the archive before claiming a season matches`,()=>{
+ const h=harness(),props={campaign,player,data:null,factionId:'egypt',throughWeek:1,compact};
+ let tree=h.render('Explorer',props);
+ if(compact)nodes(tree).find(n=>n.type==='button').props.onClick();
+ else tree.props.onToggle({currentTarget:{open:true}});
+ tree=h.render('Explorer',props);
+ assert.match(text(tree),/Week 1 · 18\.00 base points/,'Already viewed results remain available while the archive loads');
+ assert.equal(nodes(tree).filter(n=>n.type==='option').length,2,'Eligible seasons remain available');
+ assert.match(text(tree),/The candidate archive is loading/);
+ assert.doesNotMatch(text(tree),/Matches the revealed campaign box scores|Differs in campaign/,'No comparison result is claimed without archive data');
+ assert.equal(nodes(tree).filter(n=>n.type==='table').length,0);
+ tree=h.render('Explorer',{...props,data});
+ assert.match(text(tree),/Matches the revealed campaign box scores/);
+ assert.match(text(tree),/1 of 2 seasons still match/);
+ assert.match(text(tree),/Week 1 · 18\.00 base points/);
+ assert.equal(nodes(tree).filter(n=>n.type==='option').length,2);
+ assert.equal(nodes(tree).filter(n=>n.type==='table').length,1);
+ assert.equal(nodes(tree).filter(n=>n.type==='tr').length,18);
+ assert.doesNotMatch(text(tree),/The candidate archive is loading/);
+ nodes(tree).find(n=>n.type==='select').props.onChange({target:{value:'2011'}});
+ tree=h.render('Explorer',{...props,data});
+ assert.match(text(tree),/Differs in campaign week 1/,'A loaded nonmatching season reports its actual contradiction');
+});
 test('final reveal control appears only after Week17 recap and preserves every played card in the reveal',()=>{
  const h=harness(),actions=[],props={campaign,factionId:'egypt',data,throughWeek:16,onAction:a=>actions.push(a)};assert.equal(h.render('Recap',props),null);assert.equal(h.render('Recap',{...props,throughWeek:undefined}),null,'An omitted playback horizon must stay sealed');
  let tree=h.render('Recap',{...props,throughWeek:17});const button=nodes(tree).find(n=>n.type==='button');assert(button);button.props.onClick();assert.equal(actions[0].type,'reveal-years');assert(!text(tree).includes('Final reveal: 2010'));
