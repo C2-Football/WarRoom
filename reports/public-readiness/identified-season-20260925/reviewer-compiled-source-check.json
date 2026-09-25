@@ -1,0 +1,47 @@
+[
+  {
+    "file": "js/components/duat-mystery.js",
+    "compiledSourceMatches": true,
+    "sha256": "cd58b297f310aa7ad1fe69576b70b9ea6eedb087c38a787fc0f2bd608fd147d0"
+  },
+  {
+    "file": "js/components/duat-presentation.js",
+    "compiledSourceMatches": true,
+    "sha256": "dac1bf36d1baa249af646a7ae6895121aef31df1b47dea5568477a622bbe6243"
+  },
+  {
+    "file": "js/components/time-league-team-panel.js",
+    "compiledSourceMatches": true,
+    "sha256": "80d074c17a4e575d83ba5b3b5c5878b461258e73610583788d5bb8e5a89a8b26"
+  },
+  {
+    "file": "js/components/time-league-stats-panel.js",
+    "compiledSourceMatches": true,
+    "sha256": "be1caad815a51357dac4822909ef6c9f7440fb335bb959f52618aca0d5dbce34"
+  },
+  {
+    "file": "js/components/time-league-draft-panel.js",
+    "compiledSourceMatches": true,
+    "sha256": "2bddc294e121c6d8805b836dc20e29c4c41725baa894695f3e65c959b8d72001"
+  },
+  {
+    "file": "js/components/time-league-gamecast-panel.js",
+    "compiledSourceMatches": true,
+    "sha256": "eeddb76f55ae6dc305490f0c432e20f8a1e03a71ec9f342ce6bee02e981d44bb"
+  },
+  {
+    "file": "js/components/time-league-home-panel.js",
+    "compiledSourceMatches": true,
+    "sha256": "ed47893861c89ab149b6078358756ec1695a8631172a8f0654681d0a07b4289c"
+  },
+  {
+    "file": "js/components/time-league-ceremony.js",
+    "compiledSourceMatches": true,
+    "sha256": "7014223da993ceff07f09c494cf21ae99506c0d96d8f17e9d182d2b82e6fba00"
+  },
+  {
+    "file": "js/tabs/time-league.js",
+    "compiledSourceMatches": true,
+    "sha256": "71aae489b47e7afb41ac7b0d2c3b22ed85e029d6156ad641810113bf77f16900"
+  }
+]

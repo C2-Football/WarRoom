@@ -1,0 +1,9 @@
+
+> fantasy-war-room@1.0.0 test:design-tokens
+> node tests/design-tokens-contract.js
+
+
+War Room design-token contract tests
+....
+
+PASS 4 tests - 4 passed, 0 failed

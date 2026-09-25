@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { chromium } = require('@playwright/test');
+const { chromium, expect } = require('@playwright/test');
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'output/playwright/vault-phone-density');
 fs.mkdirSync(output, { recursive: true });
@@ -40,6 +40,30 @@ const estimatedRead = App.TimeLeagueHiddenYears.read(state, estimated, data.card
 assert.equal(observedRead.games, 1); assert.equal(App.TimeLeaguePlayerStats.signals(state, estimated, data.logIndex, data.eraFactors).games, 0);
 assert(Number.isFinite(estimatedRead.estimatedAverage));
 const median = nums => [...nums].sort((a,b)=>a-b)[Math.floor(nums.length/2)];
+function publicYear(league, player, throughWeek) {
+ const read=App.TimeLeagueHiddenYears.read(league,player,data.cards,data.logIndex,throughWeek,data.eraFactors);
+ return league.seasonsRevealed&&!league.yearsRevealed&&read.candidateYears.length===1&&Number.isInteger(read.candidateYears[0])?read.candidateYears[0]:null;
+}
+async function checkPublicYear(locator, league, player, throughWeek, stage) {
+ // The oracle is the public candidate set, never the private assigned year.
+ const year=publicYear(league,player,throughWeek);
+ if(year!=null)await expect.poll(()=>locator.innerText(),{message:`${stage}: ${player.name}'s sole public candidate is visibly named`,timeout:30000}).toContain(String(year));
+ const text=await locator.innerText(),shown=[...new Set(text.match(/\b(?:19|20)\d{2}\b/g)||[])];
+ assert.deepEqual(shown,year==null?[]:[String(year)],`${stage}: ${player.name} exposes exactly its public inference`);
+ return {entryId:player.entryId,name:player.name,throughWeek,year};
+}
+async function checkLineupYears(lineups, league, throughWeek, stage) {
+ const checked=[];
+ for(const row of await lineups.locator('.tl-live-player[data-entry-id]').all()) {
+  const entryId=await row.getAttribute('data-entry-id');
+  const player=league.teams.flatMap(team=>team.roster).find(entry=>entry.entryId===entryId)
+   ||league.finalizedWeeks.flatMap(week=>week.results.flatMap(result=>result.starters)).find(entry=>entry.entryId===entryId);
+  assert(player,`${stage}: displayed player ${entryId} has a public edition`);
+  checked.push(await checkPublicYear(row.locator('.tl-live-player-edition'),league,player,throughWeek,stage));
+ }
+ assert(checked.length>0,`${stage}: player labels were checked`);
+ return checked;
+}
 async function size(locator) { return locator.evaluate(node => { const r=node.getBoundingClientRect(); const style=getComputedStyle(node); return {x:r.x,y:r.y,width:r.width,height:r.height,fontSize:parseFloat(style.fontSize)}; }); }
 async function hit(locator, label) {
  // Center content controls in the viewport; nearest scrolling does not account
@@ -109,7 +133,13 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   assert.match(await estimatedRow.locator('.tl-player-average').getAttribute('title'),/Archive estimate.*no completed Vault games/);
   assert.match(await observedRow.locator('.tl-player-average').innerText(),/PPG|Avg pts/);
   assert.match(await estimatedRow.locator('.tl-player-average').innerText(),/est\.|estimate/i);
-  assert(!/\b(?:19|20)\d{2}\b/.test(await rows.evaluateAll(nodes=>nodes.map(node=>node.textContent).join(' '))),'Roster hides exact years');
+  const yearChecks={roster:[]};
+  for(const player of team.roster) {
+   const row=rows.filter({has:page.getByRole('button',{name:`Explore ${player.name}'s history`,exact:true})});
+   yearChecks.roster.push(await checkPublicYear(row.locator('.tl-roster-player-link .meta'),original,player,1,'Roster'));
+   await checkPublicYear(row.locator('.tl-player-outlook'),original,player,1,'Roster signal');
+  }
+  assert(yearChecks.roster.some(item=>item.year!=null)&&yearChecks.roster.some(item=>item.year==null),'The real roster exercises identified and ambiguous players');
   const rosterHeights=await rows.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
   const nameSize=await size(observedRow.locator('.name'));
   if(width<768) {
@@ -122,8 +152,8 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   await rows.first().scrollIntoViewIfNeeded();
   const rosterLayout=await layout(page);
   await page.screenshot({path:`${output}/${phase}-roster-${width}.png`});
-  // A named player opens real completed history; candidate years are research,
-  // never an assertion that the hidden edition has been revealed.
+  // Public inference can identify an edition before the official final reveal.
+  // The historical dossier must still explain the completed games behind it.
   await observedRow.getByRole('button',{name:`Explore ${observed.name}'s history`,exact:true}).click();
   const dossier=page.getByRole('complementary',{name:'Historical player dossier'}); await dossier.waitFor();
   assert.match(await dossier.innerText(),/Completed game log/);
@@ -134,7 +164,13 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   await estimatedRow.getByRole('button',{name:`Move ${estimated.name}`,exact:true}).click();
   const sheet=page.getByRole('dialog',{name:`Move ${estimated.name}`,exact:true});await sheet.waitFor();
   assert.match(await sheet.locator('.tl-roster-current-player .tl-player-average').getAttribute('title'),/Archive estimate/);
-  assert(!/\b(?:19|20)\d{2}\b/.test(await sheet.textContent()),'Move sheet keeps exact years hidden');
+  yearChecks.move=[await checkPublicYear(sheet.locator('.tl-roster-current-player .tl-player-outlook'),original,estimated,1,'Move current player')];
+  for(const candidateRow of await sheet.locator('.tl-roster-candidate').all()) {
+   const name=await candidateRow.locator('.tl-roster-candidate-player strong').innerText(),player=team.roster.find(entry=>entry.name===name);
+   assert(player,`Move candidate ${name} belongs to the public roster`);
+   yearChecks.move.push(await checkPublicYear(candidateRow.locator('.tl-roster-candidate-player small').first(),original,player,1,'Move candidate'));
+   await checkPublicYear(candidateRow.locator('.tl-player-outlook'),original,player,1,'Move candidate signal');
+  }
   await hit(sheet.getByRole('button',{name:'Close lineup choices',exact:true}),'Close Move');
   await page.screenshot({path:`${output}/${phase}-move-${width}.png`});
   await page.keyboard.press('Escape'); await sheet.waitFor({state:'hidden'});
@@ -151,7 +187,7 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   await nav.getByRole('button',{name:/^Game.?day$/i}).click();
   const lineups=page.locator('.tl-live-lineups');await lineups.scrollIntoViewIfNeeded();
   const zeroes=await lineups.locator('.tl-live-player-points').allInnerTexts();assert(zeroes.length>0&&zeroes.every(t=>t==='0.00'),'Pregame reveals no saved or future scores');
-  assert(!/\b(?:19|20)\d{2}\b/.test(await lineups.textContent()),'Game day keeps exact years hidden');
+  yearChecks.pregame=await checkLineupYears(lineups,afterSwap,1,'Pregame');
   const matchupHeights=await lineups.locator('.tl-live-lineup-row').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
   await matchupTextFits(lineups,width,'Pregame');
   const gamedayLayout=await layout(page);await page.screenshot({path:`${output}/${phase}-gameday-${width}.png`});
@@ -189,7 +225,8 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   const shown=await lineups.locator('.tl-live-player[data-entry-id]').evaluateAll(nodes=>nodes.map(node=>({entryId:node.dataset.entryId,points:node.querySelector('.tl-live-player-points').textContent})));
   for(const item of shown)assert.equal(item.points,((cents.get(item.entryId)||0)/100).toFixed(2),'Playback renders landed moments only');
   assert(shown.some(item=>Number(item.points)!==week.results.flatMap(r=>r.starters).find(e=>e.entryId===item.entryId).points),'Quarter1 is not the final score');
-  assert(!/\b(?:19|20)\d{2}\b/.test(await lineups.textContent()),'Playback still conceals hidden years');
+  yearChecks.quarter1=await checkLineupYears(lineups,played,1,'Quarter1');
+  assert.deepEqual(yearChecks.quarter1,yearChecks.pregame,'Precomputed Week2 results do not change public year labels before the final whistle');
   await matchupTextFits(lineups,width,'Quarter1');
   await lineups.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/${phase}-playback-${width}.png`});
   // Checking these normal clicks catches fixed overlays intercepting controls,
@@ -201,9 +238,11 @@ async function save(page) { return page.evaluate(id => App.TimeLeagueStorage.dec
   await matchupTextFits(lineups,width,'Final');
   const finalShown=await lineups.locator('.tl-live-player[data-entry-id]').evaluateAll(nodes=>nodes.map(node=>({entryId:node.dataset.entryId,points:node.querySelector('.tl-live-player-points').textContent})));
   for(const item of finalShown)assert.equal(item.points,week.results.flatMap(r=>r.starters).find(e=>e.entryId===item.entryId).points.toFixed(2),'Final lineup agrees with the saved historical score');
+  yearChecks.final=await checkLineupYears(lineups,played,2,'Final');
+  assert(yearChecks.final.some(item=>item.year!=null&&yearChecks.pregame.find(before=>before.entryId===item.entryId)?.year===null),'The real fixture identifies an additional player only after the final whistle');
   await lineups.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/${phase}-final-${width}.png`});
   assert.deepEqual(errors,[]);
-  evidence.push({width,height,rosterMedian:median(rosterHeights),rosterFirst:rosterHeights[0],rosterHeights,matchupMedian:median(matchupHeights),matchupFirst:matchupHeights[0],matchupHeights,nameFontSize:nameSize.fontSize,rosterLayout,gamedayLayout,checks:['Observed PPG versus archive estimate','Hidden-year boundaries','History and completed game log','Move dialog close and Escape','Week options open and close','Atomic legal swap','Reload persistence','Pregame zeroes','Quarter1 matches landed historical events','Final equals saved results','Points and metadata never overlap','44px controls and unblocked clicks','No horizontal overflow',...(width===667?['Emulated24px safe-area menu reachability']:[])],blocked,errors});
+  evidence.push({width,height,rosterMedian:median(rosterHeights),rosterFirst:rosterHeights[0],rosterHeights,matchupMedian:median(matchupHeights),matchupFirst:matchupHeights[0],matchupHeights,nameFontSize:nameSize.fontSize,rosterLayout,gamedayLayout,yearChecks,checks:['Observed PPG versus archive estimate','Singleton public year named for each player; ambiguous years hidden','Public year inference capped before final whistle','History and completed game log','Move dialog close and Escape','Week options open and close','Atomic legal swap','Reload persistence','Pregame zeroes','Quarter1 matches landed historical events','Final equals saved results','Points and metadata never overlap','44px controls and unblocked clicks','No horizontal overflow',...(width===667?['Emulated24px safe-area menu reachability']:[])],blocked,errors});
   writeEvidence(false);
   console.log(`PASS ${width}x${height}: roster ${median(rosterHeights).toFixed(1)}px, matchup ${median(matchupHeights).toFixed(1)}px; history, swap/reload, pregame and exact Q1 playback`);
   await context.close();currentPage=null;

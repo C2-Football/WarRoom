@@ -1,0 +1,10 @@
+AssertionError [ERR_ASSERTION]: Roster signal: LaDainian Tomlinson exposes exactly its public inference
++ actual - expected
+
++ []
+- [
+-   '2007'
+- ]
+
+    at checkPublicYear (/Users/jacobc/Projects/warroom-polish-20260925/tests/vault-phone-density-browser.cjs:52:9)
+    at async /Users/jacobc/Projects/warroom-polish-20260925/tests/vault-phone-density-browser.cjs:140:4

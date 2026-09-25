@@ -23,7 +23,7 @@ league = { ...league, phase: 'season', currentWeek: 2, weekStage: 'claims', seas
 const walk = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.children)];
 const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node) ? node.map(text).join(' ') : text(node.children);
 const classes = (tree, cls) => walk(tree).filter(node => node.props.className?.split(' ').includes(cls));
-const render = section => { cursor = 0; return WrTimeLeagueTeamPanel({ league, cards, logIndex: logs, section, activeTeamId: 't1', onUpdate: async () => true }); };
+const render = (section, overrides = {}) => { cursor = 0; return WrTimeLeagueTeamPanel({ league, cards, logIndex: logs, section, activeTeamId: 't1', onUpdate: async () => true, ...overrides }); };
 let tree = render('roster');
 const rows = classes(tree, 'tl-lineup-row');
 assert(rows.every(row => !text(row).includes('1993')), 'The true year does not appear in local roster rows');
@@ -45,25 +45,105 @@ assert(text(tree).includes('1990s · hidden year')); assert(!text(tree).includes
 assert(text(tree).includes('Archive est. / game') && text(tree).includes('Across possible years'), 'Unplayed waiver players show an explicitly labeled comparable PPG estimate inline');
 walk(tree).find(node => node.props['aria-label'] === 'Claim Free Quarterback').props.onClick(); tree = render('waivers');
 assert(classes(tree, 'tl-hidden-year-research').length, 'The waiver decision includes the candidate-year explorer');
-assert(text(tree).includes('one hidden year'));
+assert(text(tree).includes('one year from the displayed decade') && text(tree).includes('If only one year remains, it is identified.'));
 state = []; tree = render('trades');
 assert(text(tree).includes('EST. PTS / GAME')); assert(!text(tree).includes('1993 season'));
 state = []; cursor = 0; tree = WrTimeLeagueStatsPanel({ league, cards, logIndex: logs });
 assert(text(tree).includes('1990s · hidden year')); assert(!text(tree).includes('1993'));
 assert(!text(tree).includes('Recorded season · reference scoring'), 'The stats page does not substitute the true season total for observed points');
 state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, onUpdate() {} });
-assert(text(tree).includes('Draft complete · years hidden'));
+assert(text(tree).includes('Draft complete · hidden-year mode'));
 assert(!text(tree).includes('1993') && !text(tree).includes('Your grade'), 'The draft recap cannot grade or reveal actual editions');
 // The draft's help copy must agree with the configured reveal rule.
 for (const hiddenYears of [true, false]) {
     state = []; cursor = 0;
     const draft = { ...league, phase: 'draft', seasonsRevealed: false, settings: { ...league.settings, hiddenYears } };
     tree = WrTimeLeagueDraftPanel({ league: draft, cards, onUpdate() {} });
-    assert(text(tree).includes(hiddenYears ? 'It stays hidden until your final season recap.' : 'revealed after the draft.'), 'Draft research explains the actual year-reveal rule');
-    assert(!text(tree).includes(hiddenYears ? 'revealed after the draft.' : 'It stays hidden until your final season recap.'), 'No conflicting reveal promise is shown');
+    assert(text(tree).includes(hiddenYears ? 'one remaining candidate identifies the year' : 'revealed after the draft.'), 'Draft research explains the actual year-reveal rule');
+    assert(!text(tree).includes(hiddenYears ? 'revealed after the draft.' : 'one remaining candidate identifies the year'), 'No conflicting reveal promise is shown');
 }
 state = []; cursor = 0; tree = WrTimeLeagueGamecastPanel({ league, cards, logIndex: logs, onUpdate() {} });
 assert(text(tree).includes('1990s · hidden year') && !text(tree).includes('1993'), 'Pregame lineups preserve hidden years');
+// A single candidate is an identification, never a read of the private edition.
+// Deliberately make the public evidence identify 1992 while drawnSeason is 1993.
+const distinctRows = entries.flatMap(entry => [1992, 1993, 1994].flatMap(season => [1, 2].map(week => ({
+    identity: entry.identity, name: entry.name, position: entry.position, season, week,
+    stats: { ...S.emptyStatLine(), passYd: week * (season === 1992 ? 100 : 300), passTd: week },
+}))));
+const distinctLogs = S.buildGameLogIndex(distinctRows);
+const infer = (overrides = {}) => WrTimeLeagueIdentifiedYear(overrides.league || league, overrides.entry || entries[0], overrides.cards === undefined ? cards : overrides.cards,
+    overrides.logIndex === undefined ? distinctLogs : overrides.logIndex, undefined, overrides.throughWeek);
+assert.equal(infer(), 1992, 'One public matching year is identified even if a private field disagrees');
+assert.equal(infer({ throughWeek: 0 }), null, 'No later game evidence enters the preseason viewer');
+assert.equal(infer({ league: { ...league, currentWeek: 1 } }), null, 'Future saved weeks cannot identify a year before they are completed');
+assert.equal(infer({ logIndex: logs }), null, 'Several matching years remain ambiguous');
+assert.equal(infer({ logIndex: null }), null, 'Unloaded game logs cannot eliminate candidates');
+assert.equal(infer({ cards: new Map() }), null, 'An unloaded candidate archive cannot invent a year');
+assert.equal(infer({ logIndex: S.buildGameLogIndex(distinctRows.filter(row => row.season === 1992)) }), null, 'A partial archive cannot eliminate missing seasons');
+assert.equal(infer({ league: { ...league, seasonsRevealed: false } }), null, 'The existing sealed-draft boundary is retained');
+assert.equal(infer({ league: { ...league, settings: { ...league.settings, hiddenYears: false } } }), null, 'Classic seasons do not use hidden-year inference');
+assert.equal(infer({ league: { ...league, yearsRevealed: true } }), null, 'The final acknowledged reveal retains its existing authoritative label');
+const privateEntry = { ...entries[0] }, privateLeague = { ...league };
+Object.defineProperty(privateEntry, 'drawnSeason', { get() { throw new Error('Private edition was read'); } });
+for (const field of ['seed', 'hiddenYearAssignments', 'gameAssignments']) Object.defineProperty(privateLeague, field, { get() { throw new Error('Private assignment was read'); } });
+assert.equal(infer({ league: privateLeague, entry: privateEntry }), 1992, 'Inference never reads seed, selected season, or future assignments');
+state = []; tree = render('roster', { logIndex: distinctLogs });
+assert(classes(tree, 'tl-lineup-row').every(row => text(row).includes('1992 · identified') && text(row).includes('1992 identified')));
+assert(!text(classes(tree, 'tl-lineup-row')).includes('1993'), 'The private edition is still absent from identified roster rows');
+assert(!text(tree).includes('1 possible year'), 'The last candidate is named rather than left as a count');
+assert(classes(tree, 'tl-week-stars').every(node => node.props['aria-label'].includes('1992') && node.props['aria-label'].includes('Future games')), 'Accessible identification names the year without authorizing future clues');
+assert(!text(tree).includes('★'), 'Identification does not unlock a future-game star rating');
+walk(tree).find(node => node.props['aria-label'] === "Explore Steve Young's history").props.onClick(); tree = render('roster', { logIndex: distinctLogs });
+assert(text(classes(tree, 'tl-roster-dossier')).includes('1992 · Year identified'));
+assert(!text(classes(tree, 'tl-hidden-year-research')).includes('not your confirmed year'), 'Research no longer contradicts an identified year');
+walk(tree).find(node => node.props['aria-label'] === 'Move Steve Young').props.onClick(); tree = render('roster', { logIndex: distinctLogs });
+assert(text(classes(tree, 'tl-roster-move-sheet')).includes('1992 · identified'), 'Replacement comparisons retain the identified year');
+state = []; tree = render('trades', { logIndex: distinctLogs });
+assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993 season'), 'Trade comparisons use only the public identification');
+state = []; cursor = 0; tree = WrTimeLeagueStatsPanel({ league, cards, logIndex: distinctLogs });
+assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993'), 'Player stats retain the identified year without private edition totals');
+state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, logIndex: distinctLogs, throughWeek: 1, onUpdate() {} });
+assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993'), 'Draft recap labels use the same visible evidence');
+state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, logIndex: distinctLogs, throughWeek: 0, onUpdate() {} });
+assert(!text(tree).includes('1992 · identified'), 'Draft recap respects the playback cap');
+
+// The initially advertised public pool can itself contain only one year, even
+// without complete game logs. It does not need fake ambiguity until a game plays.
+const initialSingle = { ...league, currentWeek: 1, finalizedWeeks: [], hiddenYearCandidates: { p1: [1994], p4: [1994] } };
+assert.equal(infer({ league: initialSingle, logIndex: null }), 1994);
+assert.equal(infer({ league: initialSingle, cards: new Map(), logIndex: null }), 1994, 'An explicit original public singleton remains known while archive records load');
+state = []; tree = render('waivers', { league: initialSingle, logIndex: null });
+assert(text(classes(tree, 'tl-waiver-edition')).includes('1994 · identified'));
+assert(text(tree).includes('1994 archive'), 'Single-season estimates are labeled as that archive, not across possible years');
+walk(tree).find(node => node.props['aria-label'] === 'Claim Free Quarterback').props.onClick(); tree = render('waivers', { league: initialSingle, logIndex: null });
+assert(text(classes(tree, 'tl-hidden-year-research')).includes('1994 · Year identified'));
+assert(text(tree).includes('Complete game records are not available'), 'Identification does not hide missing scoring/archive evidence');
+assert(text(classes(tree, 'tl-waiver-drop-option')).includes('1994 · identified'), 'Drop comparisons agree with the public candidate pool');
+
+// Complete loaded evidence can reject even the original single candidate.
+const inconsistent = { ...league, hiddenYearCandidates: { p1: [1994] } };
+assert.equal(infer({ league: inconsistent }), null, 'Zero loaded matches never fall back to the initial singleton');
+state = []; tree = render('roster', { league: inconsistent, logIndex: distinctLogs });
+assert(!text(classes(tree, 'tl-lineup-row')[0]).includes('identified'));
+walk(tree).find(node => node.props['aria-label'] === "Explore Steve Young's history").props.onClick(); tree = render('roster', { league: inconsistent, logIndex: distinctLogs });
+assert(text(classes(tree, 'tl-hidden-year-research')).includes('No candidate in the loaded archive matches'), 'Zero-match recovery remains explicit');
+for (const overrides of [{ logIndex: null }, { cards: new Map() }]) {
+    state = []; tree = render('roster', overrides);
+    assert(!text(classes(tree, 'tl-lineup-row')).includes('identified'), 'Loading ambiguity is never presented as identification');
+}
+
+// Public observer snapshots and replay viewers get only their completed games.
+const publicLeague = JSON.parse(JSON.stringify(league));
+publicLeague.publicSnapshotVersion = 1; delete publicLeague.seed;
+for (const team of publicLeague.teams) for (const entry of team.roster) delete entry.drawnSeason;
+for (const week of publicLeague.finalizedWeeks) for (const entry of week.playerProduction) delete entry.drawnSeason;
+assert.equal(infer({ league: publicLeague, entry: publicLeague.teams[0].roster[0], throughWeek: 1 }), 1992);
+assert.equal(infer({ league: publicLeague, entry: publicLeague.teams[1].roster[0], throughWeek: 0 }), null, 'Another seat cannot use evidence beyond the viewer cap');
+for (const throughWeek of [0, 1]) {
+    state = []; tree = render('roster', { league: publicLeague, logIndex: distinctLogs, throughWeek });
+    assert.equal(text(classes(tree, 'tl-lineup-row')).includes('1992 · identified'), throughWeek === 1, 'The same observer snapshot respects both historical and current views');
+}
+
 const shownWeek = { week: 13, results: league.teams.map(team => ({ teamId: team.teamId, total: team.teamId === 't1' ? 24 : 8, starters: team.roster.map(entry => ({ ...entry, points: 8, stats: { passYd: 100, passTd: 1 } })) })),
     matchups: [{ home: 't1', away: 't2', homePoints: 24, awayPoints: 8, winner: 't1' }], headlines: [] };
 const finale = { ...league, phase: 'complete', currentWeek: 14, championTeamId: 't1', finalizedWeeks: [shownWeek] };

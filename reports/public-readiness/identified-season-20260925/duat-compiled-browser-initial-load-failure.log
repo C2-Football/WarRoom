@@ -1,0 +1,3 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+page.waitForFunction: Timeout 60000ms exceeded.
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-lineup-density-browser.cjs:92:15

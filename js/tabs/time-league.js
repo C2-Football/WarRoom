@@ -1658,15 +1658,15 @@
                 activeTab === 'home' && watching && !playback.replay ? h('section', { className: 'tl-card' },
                     h('h2', null, `Week ${playback.week} is still in progress`), h('p', null, 'Your week recap opens after the final whistle.'),
                     h('button', { className: 'tl-btn primary', onClick: () => navigateTab('gameday') }, 'Watch game'))
-                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
+                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam, cards, logIndex, eraFactors, throughWeek: mailThroughWeek }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
-                    key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
+                    key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
                     draftControls: league.phase === 'draft' && DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
                     auctionControls: league.phase === 'draft' && league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft }),
                 }) : loadingNotice) : null,
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, throughWeek: mailThroughWeek, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 })) : null,
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')

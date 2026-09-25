@@ -40,7 +40,7 @@
             h('span', { className: 'tl-home-action-go', 'aria-hidden': true }, '↗'));
     }
 
-    function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId }) {
+    function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId, cards, logIndex, eraFactors, throughWeek }) {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((team) => team.teamId === teamId);
@@ -122,7 +122,7 @@
         }
 
         return h('div', { className: 'tl-home' },
-            league.phase === 'complete' && window.WrTimeLeagueCeremony && h(window.WrTimeLeagueCeremony, { key: league.leagueId || league.id || league.name, league, onNavigate }),
+            league.phase === 'complete' && window.WrTimeLeagueCeremony && h(window.WrTimeLeagueCeremony, { key: league.leagueId || league.id || league.name, league, onNavigate, cards, logIndex, eraFactors, throughWeek }),
             (league.phase !== 'complete' || !window.WrTimeLeagueCeremony) && h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
                 h('div', { className: 'tl-home-hero-copy' },
                     h('span', { className: 'tl-eyebrow' }, heroStatus),
@@ -171,7 +171,7 @@
                         h('span', { className: 'tl-pill info' }, lastFinalized ? `Week ${lastFinalized.week} final` : 'Season opener')),
                     weeklyLeaders && h('div', { className: 'tl-update-highlights' },
                         weeklyLeaders.topTeam && h('div', null, h('small', null, 'High score'), h('strong', null, `${weeklyLeaders.topTeam.total.toFixed(1)} pts`), h('span', null, teamName(weeklyLeaders.topTeam.teamId))),
-                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? window.App.TimeLeagueHiddenYears.label(league, weeklyLeaders.topPlayer) : weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
+                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? (window.WrTimeLeagueYearLabel?.(league, weeklyLeaders.topPlayer, cards, logIndex, eraFactors, throughWeek) || window.App.TimeLeagueHiddenYears.label(league, weeklyLeaders.topPlayer)) : weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
                         weeklyLeaders.closest && h('div', null, h('small', null, 'Closest game'), h('strong', null, weeklyLeaders.closest.homePoints === weeklyLeaders.closest.awayPoints ? 'Tie game' : `${Math.abs(weeklyLeaders.closest.homePoints-weeklyLeaders.closest.awayPoints).toFixed(1)}-point margin`), h('span', null, `${teamName(weeklyLeaders.closest.home)} vs. ${teamName(weeklyLeaders.closest.away)}`))),
                     lastFinalized ? h('div', { className: 'tl-update-results', 'aria-label': `Week ${lastFinalized.week} results` },
                         lastFinalized.matchups.map(match => h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' },

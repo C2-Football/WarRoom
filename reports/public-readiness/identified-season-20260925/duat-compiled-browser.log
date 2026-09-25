@@ -1,0 +1,5 @@
+Fixture: valid Hidden Years campaign, Week 8, 7 completed weeks, 8 real archive players.
+PASS 390x844: row heights 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6; overflow=false; completed checks=19
+PASS 320x740: row heights 96.1, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6; overflow=false; completed checks=16
+PASS 667x375: row heights 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6, 76.6; overflow=false; completed checks=16
+PASS 1440x1000: row heights 80.6, 80.6, 80.6, 80.6, 80.6, 80.6, 80.6, 80.6; overflow=false; completed checks=13

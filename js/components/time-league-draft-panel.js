@@ -122,7 +122,7 @@
             }));
     }
 
-    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, auctionControls, onDraftAction, onRevealEra }) {
+    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, auctionControls, onDraftAction, onRevealEra, logIndex, eraFactors, throughWeek }) {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const archiveCards = cards;
         cards = Engine.cardsFor(league, cards);
@@ -543,7 +543,7 @@
                                 (selectedCard.bio.draftTeam || selectedCard.bio.draftYear) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'NFL draft'), h('strong', null, [selectedCard.bio.draftYear, selectedCard.bio.draftTeam].filter(Boolean).join(' · '))),
                                 selectedCard.bio.birthDate && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Born'), h('strong', null, selectedCard.bio.birthDate)))
                                 : h('p', { className: 'tl-empty' }, 'Biography is not available for this player yet.'),
-                            h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : league.settings.hiddenYears ? 'One fixed year is drawn from these seasons. It stays hidden until your final season recap.' : 'One of these seasons is drawn for your player and revealed after the draft.'),
+                            h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : league.settings.hiddenYears ? 'One fixed year is drawn from these seasons. During the season, one remaining candidate identifies the year; the final recap reveals unresolved years.' : 'One of these seasons is drawn for your player and revealed after the draft.'),
                             scoutSeasons.length > 0 && h('p', { className: 'tl-era-years' }, `Available years: ${availableYears(scoutSeasons)}`),
                             scoutSeasons.length > 0 && h('p', { className: 'tl-hint' }, mixedSeasonScout ? 'NFL regular-season records where available. Rows marked Legacy W1–14 retain this saved league’s original archive.' : fullSeasonScout ? `NFL regular-season records · reference scoring · The Vault plays ${Engine.seasonEndWeek(league)} weeks` : 'Archive totals · Weeks 1–14 · reference scoring'),
                             (fullSeasonScout || mixedSeasonScout) && h('p', { className: 'tl-hint' }, 'Recorded GP counts games in the archive, not verified official appearances. Missing stats do not establish an injury or bye.'),
@@ -698,12 +698,12 @@
         if (league.seasonsRevealed && concealed) {
             return h('div', { className: 'tl-draft-recap' },
                 h('section', { className: 'tl-card tl-recap-summary', 'aria-label': 'Draft summary' },
-                    h('div', { className: 'tl-recap-heading' }, h('strong', null, 'Draft complete · years hidden'), h('small', null, `${league.draftPicks.length} picks · ${league.teams.length} teams`)),
-                    h('p', { className: 'tl-hint' }, 'Every player has one fixed year in the advertised decade. Explore their possible seasons from My team; completed games add clues. The final recap reveals the years.')),
+                    h('div', { className: 'tl-recap-heading' }, h('strong', null, 'Draft complete · hidden-year mode'), h('small', null, `${league.draftPicks.length} picks · ${league.teams.length} teams`)),
+                    h('p', { className: 'tl-hint' }, 'Every player has one fixed year in the advertised decade. Explore possible seasons from My team; completed games add clues. One remaining candidate identifies the year. The final recap reveals unresolved years.')),
                 draftLog,
                 h('div', { className: 'tl-draft-grade-grid' }, league.teams.map(team => h('details', { key: team.teamId, className: 'tl-card tl-draft-grade' },
-                    h('summary', { className: 'tl-draft-class-summary' }, h('strong', null, team.name), h('small', null, `${team.roster.length} players · hidden years`)),
-                    h('div', { className: 'tl-draft-class-body' }, team.roster.map(entry => h('p', { key: entry.entryId }, h('strong', null, entry.name), ` · ${entry.position} · ${window.App.TimeLeagueHiddenYears.label(league, entry, cards)}`)))))));
+                    h('summary', { className: 'tl-draft-class-summary' }, h('strong', null, team.name), h('small', null, `${team.roster.length} players · hidden-year mode`)),
+                    h('div', { className: 'tl-draft-class-body' }, team.roster.map(entry => h('p', { key: entry.entryId }, h('strong', null, entry.name), ` · ${entry.position} · ${window.WrTimeLeagueYearLabel?.(league, entry, cards, logIndex, eraFactors, throughWeek) ?? window.App.TimeLeagueHiddenYears.label(league, entry, cards)}`)))))));
         }
 
         if (league.seasonsRevealed && reveal) {

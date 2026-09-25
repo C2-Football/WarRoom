@@ -21,7 +21,7 @@
         const points = weeks.reduce((sum, week) => sum + (week.results.find(result => result.teamId === champion.teamId)?.total || 0), 0);
         return { champion, runner, path, final, mvp, record, points };
     }
-    function WrTimeLeagueCeremony({ league, onNavigate }) {
+    function WrTimeLeagueCeremony({ league, onNavigate, cards, logIndex, eraFactors, throughWeek }) {
         const [dismissed, setDismissed] = React.useState(false);
         const story = championshipStory(league);
         if (!story) return null;
@@ -41,7 +41,7 @@
                     h('div', null, h('small', null, 'TITLE RUN RECORD'), h('strong', null, `${record.wins}–${record.losses}${record.ties ? '–' + record.ties : ''}`), h('span', null, 'Regular season + playoffs')),
                     h('div', null, h('small', null, 'POINTS SCORED'), h('strong', null, points.toFixed(1)), h('span', null, 'Across all saved games')),
                     runner && h('div', null, h('small', null, 'RUNNER-UP'), h('strong', null, runner.name), h('span', null, 'Championship finalist')),
-                    mvp && h('div', null, h('small', null, 'TITLE GAME LINEUP MVP'), h('strong', null, mvp.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? window.App.TimeLeagueHiddenYears.label(league, mvp) : mvp.drawnSeason} · ${mvp.points.toFixed(1)} points`))),
+                    mvp && h('div', null, h('small', null, 'TITLE GAME LINEUP MVP'), h('strong', null, mvp.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? (window.WrTimeLeagueYearLabel?.(league, mvp, cards, logIndex, eraFactors, throughWeek) || window.App.TimeLeagueHiddenYears.label(league, mvp)) : mvp.drawnSeason} · ${mvp.points.toFixed(1)} points`))),
                 path.length > 0 && h('div', { className: 'tl-ceremony-path' }, h('h3', null, 'The road to the trophy'), path.map((match, index) => h('div', { key: match.week },
                     h('small', null, index === path.length - 1 ? 'CHAMPIONSHIP' : `PLAYOFF ROUND ${index + 1}`), h('strong', null, `${name(match.home)} ${match.homePoints.toFixed(1)} — ${match.awayPoints.toFixed(1)} ${name(match.away)}`), h('span', null, `Week ${match.week}`)))),
                 onNavigate && h('div', { className: 'tl-ceremony-actions' }, h('button', { type: 'button', className: 'tl-btn primary', onClick: () => onNavigate('gameday') }, 'RELIVE THE GAMES →'), h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('achievements') }, 'TROPHY CASE'))));

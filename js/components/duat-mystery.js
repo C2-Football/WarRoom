@@ -7,16 +7,19 @@
         return h('dl',{className:'duat-mystery-stats'},Object.entries(stats||{}).map(([key,value])=>h('div',{key},h('dt',null,labels[key]||key),h('dd',null,value))));
     }
     function Explorer({campaign,player,data,throughWeek=0,factionId,compact=false}){
-        const [open,setOpen]=React.useState(false),[year,setYear]=React.useState(player.candidateYears?.[0]);
+        const [open,setOpen]=React.useState(false),[year,setYear]=React.useState(null);
         const mystery=App.DuatMystery;if(!mystery?.enabled(campaign)||!mystery.isCard(player))return null;
-        const info=open||throughWeek>0?mystery.inspect(campaign,player,data,{throughWeek,factionId}):null;
-        const remaining=info?.archiveReady?info.remaining.length:player.candidateYears.length;
-        const selected=info?.candidates.find(row=>row.year===Number(year))||info?.candidates[0];
-        const clue=`${player.decade}s · ${remaining} possible ${remaining===1?'season':'seasons'}`;
+        const viewedThroughWeek=Number.isInteger(throughWeek)&&throughWeek>=0?throughWeek:0;
+        const info=open||viewedThroughWeek>0?mystery.inspect(campaign,player,data,{throughWeek:viewedThroughWeek,factionId}):null;
+        const remainingYears=info?.archiveReady?info.remaining:player.candidateYears;
+        const identifiedYear=remainingYears.length===1?remainingYears[0]:null;
+        const selected=info?.candidates.find(row=>row.year===Number(year??identifiedYear))||info?.candidates[0];
+        const clue=identifiedYear?`${identifiedYear} · identified season`:`${player.decade}s · ${remainingYears.length} possible ${remainingYears.length===1?'season':'seasons'}`;
         const panelId=`duat-lineup-research-${factionId}-${player.id}`;
         const content=open&&h('div',compact?{id:panelId,className:'duat-lineup-research-panel',role:'region','aria-label':`${player.name} historical research`,onKeyDown:event=>{if(event.key==='Escape'){event.stopPropagation();setOpen(false);root.document?.getElementById(panelId+'-toggle')?.focus();}}}:null,
                 h('p',{className:'duat-muted'},'One of these seasons was fixed when this card joined an army. The ruler’s origin year does not choose the player’s scoring year.'),
                 info.revealedSeason&&h('p',{className:'duat-notice'},h('strong',null,`Final reveal: ${info.revealedSeason}`)),
+                identifiedYear&&!info.revealedSeason&&h('p',{className:'duat-notice'},h('strong',null,`Identified season: ${identifiedYear}`)),
                 h('h4',null,'What your campaign has revealed'),
                 !info.observed.length?h('p',null,'No completed games have been revealed. Every listed season remains possible.'):
                     h(React.Fragment,null,h('p',null,info.archiveReady?`${info.remaining.length} of ${info.candidates.length} seasons still match all revealed box scores.`:'Load the archive to compare the revealed box scores.'),
