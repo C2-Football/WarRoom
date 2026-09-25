@@ -28,6 +28,13 @@ const fetcher = async url => { calls.push(url); if (url.includes('/state/')) ret
     const before = calls.length;
     await api.load({ leagues, accountId: 'user1', fetcher, onUpdate() {} });
     assert.equal(calls.length - before, 1, 'warm combined edition only checks the calendar');
+    root.WrWireRivalries = { list: league => league.id === 'a' ? [{ owners: ['a1', 'a2'], name: 'Local derby' }] : [] };
+    const selected = {};
+    await api.load({ leagues, accountId: 'user1', fetcher, onUpdate: e => selected[e.league.id] = e });
+    assert(selected.a.stories.some(s => s.followedRivalry && s.text.startsWith('Local derby:')), 'saved selections invalidate a warm edition');
+    const rivalryDesk = api.headlines(Object.values(selected), 'rivalries', 'a');
+    assert(rivalryDesk.length > 0 && rivalryDesk.every(s => s.category === 'Rivalry watch' || s.category === 'Revenge game'));
+    delete root.WrWireRivalries;
     const next = calls.length;
     await api.load({ leagues, accountId: 'user2', fetcher, onUpdate() {} });
     assert(calls.length - next > 1, 'account change does not reuse previous account edition');

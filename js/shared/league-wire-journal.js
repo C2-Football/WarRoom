@@ -118,7 +118,7 @@
         for (const char of String(editionKey)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
         return archive[hash % archive.length];
     }
-    function build({ weeks = [], start = 1, end = 0, nameFor = rid => `Team ${rid}`, playerName = pid => `Player ${pid}`, headToHead = true, league = {}, priorSeasons = [], archiveComplete = false, board = null }) {
+    function build({ weeks = [], start = 1, end = 0, nameFor = rid => `Team ${rid}`, playerName = pid => `Player ${pid}`, headToHead = true, league = {}, priorSeasons = [], archiveComplete = false, board = null, rivalries = [] }) {
         const stories = [], records = [], games = [], stats = new Map(), runs = new Map(), scoreTotals = new Map();
         const season = String(league.season || '');
         const seasonSignature = signature(league);
@@ -261,27 +261,55 @@
                 add('story', 'Playoff race', separation === 0 ? 'The cutline has no breathing room' : `${nameFor(inside.rid)} and ${nameFor(outside.rid)} frame the cutline`, `${nameFor(inside.rid)} (${recordText(inside)}) sit at No. ${inside.rank}; ${nameFor(outside.rid)} (${recordText(outside)}) at No. ${outside.rank}. ${separation === 0 ? 'Their records are level; compare points for and the league tiebreak rules.' : `${separation} result${separation === 1 ? '' : 's'} separate them.`} ${remaining} regular-season week${remaining === 1 ? '' : 's'} remain. Official seeding and tiebreak rules still apply.`, [inside.rid, outside.rid], { weight: 75 });
             }
         }
-        // Upcoming rematches give Week 1 a story before any game is final.
-        const previews = [], rivals = [];
+        // Selections add editorial priority, not invented head-to-head history.
+        const previews = [], rivals = [], followed = new Map();
+        const pairKey = (a, b) => [String(a), String(b)].sort().join(':');
+        if (headToHead) rivalries.forEach(r => {
+            if (!Array.isArray(r.owners) || r.owners.length !== 2 || r.owners[0] === r.owners[1]) return;
+            const rosters = r.owners.map(o => league.rosters?.find(t => t.owner_id && id(t.owner_id) === id(o)));
+            if (rosters.some(r => !r)) return;
+            followed.set(pairKey(...r.owners), { ...r, name: String(r.name || '').trim().slice(0, 60), rosters });
+        });
+        const context = selection => ({ label: 'Rivalry you follow', text: selection.name ? `You named this rivalry “${selection.name}”. Results below come from recorded regular-season meetings.` : 'You selected these teams as a rivalry to follow. Results below come from recorded regular-season meetings.' });
+        stories.filter(s => s.kind === 'recap').forEach(s => {
+            const selection = followed.get(pairKey(...s.rosterIds.map(rid => owner(league, rid))));
+            if (!selection) return;
+            s.followedRivalry = true; s.category = 'Rivalry watch'; s.label = `WK ${s.week} · RIVALRY RECAP`; s.weight = 84;
+            s.related = [...(s.related || []), context(selection)];
+            if (selection.name) s.text = `${selection.name}: ${s.text}`;
+        });
         const nowRows = board?.rows || [], nowPairs = new Map();
         nowRows.forEach(r => { if (r.matchup_id != null) { const k = id(r.matchup_id); if (!nowPairs.has(k)) nowPairs.set(k, []); nowPairs.get(k).push(r); } });
-        if (headToHead) nowPairs.forEach(pair => {
-            if (pair.length !== 2) return;
-            const [a, b] = pair, oa = owner(league, a.roster_id), ob = owner(league, b.roster_id);
+        const addRival = (a, b, selection, scheduled) => {
+            const oa = owner(league, a.roster_id), ob = owner(league, b.roster_id);
             if (!oa || !ob || oa === ob) return;
-            const meetings = series(oa, ob); if (!meetings.length) return;
+            const meetings = series(oa, ob);
+            if (!meetings.length && !selection) return;
             const winsA = meetings.filter(g => g.a === oa ? g.pa > g.pb : g.pb > g.pa).length;
             const winsB = meetings.filter(g => g.a === ob ? g.pa > g.pb : g.pb > g.pa).length;
             const ties = meetings.length - winsA - winsB, last = meetings[meetings.length - 1];
-            const rival = { a: nameFor(a.roster_id), b: nameFor(b.roster_id), winsA, winsB, ties, meetings: meetings.length, rosterIds: [a.roster_id, b.roster_id] };
+            const rival = { a: nameFor(a.roster_id), b: nameFor(b.roster_id), winsA, winsB, ties, meetings: meetings.length, rosterIds: [a.roster_id, b.roster_id], followed: !!selection, name: selection?.name || '', scheduled };
             rivals.push(rival);
-            const lastMargin = Math.abs(last.pa - last.pb);
-            const previewTitle = winsA === winsB ? `${rival.a} and ${rival.b}: break the deadlock`
+            if (!scheduled || !(Number(board.week) > completedThrough && Number(board.week) <= lastReg)) return;
+            const lastMargin = last ? Math.abs(last.pa - last.pb) : null;
+            const previewTitle = !last ? `${rival.a} vs. ${rival.b}: a rivalry to follow`
+                : winsA === winsB ? `${rival.a} and ${rival.b}: break the deadlock`
                 : lastMargin <= 3 ? `${rival.a} and ${rival.b} meet again after a thriller`
                 : meetings.length === 1 ? `${winsA < winsB ? rival.a : rival.b} get another shot at ${winsA < winsB ? rival.b : rival.a}`
                 : Math.abs(winsA - winsB) >= 3 ? `${winsA < winsB ? rival.a : rival.b} have a score to settle`
                 : choose([`${rival.a} vs. ${rival.b}: the next chapter`, `${rival.a} and ${rival.b} renew their rivalry`, `Familiar opponents. Fresh stakes. ${rival.a} vs. ${rival.b}`], board.week, a.roster_id);
-            if (Number(board.week) > completedThrough && Number(board.week) <= lastReg) previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: previewTitle, body: `${rival.a} ${winsA === winsB ? 'are level at' : winsA > winsB ? 'lead the recorded series' : 'trail the recorded series'} ${winsA}–${winsB}${ties ? '–' + ties : ''} across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.`, week: Number(board.week), season, rosterIds: rival.rosterIds, weight: 70, preview: true, metric: `${winsA}–${winsB}`, metricLabel: `recorded series · ${rival.a} / ${rival.b}` });
+            const history = last ? `${rival.a} ${winsA === winsB ? 'are level at' : winsA > winsB ? 'lead the recorded series' : 'trail the recorded series'} ${winsA}–${winsB}${ties ? '–' + ties : ''} across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.` : 'No completed regular-season meetings are available in the loaded history yet.';
+            previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: selection?.name ? `${selection.name}: ${rival.a} vs. ${rival.b}` : previewTitle,
+                body: `${selection ? `One of the rivalries you follow is on the Week ${board.week} schedule. ` : ''}${history}`, week: Number(board.week), season, rosterIds: rival.rosterIds, weight: selection ? 84 : 70, preview: true, followedRivalry: !!selection,
+                related: selection ? [context(selection)] : [], ...(last ? { metric: `${winsA}–${winsB}`, metricLabel: `recorded series · ${rival.a} / ${rival.b}` } : {}) });
+        };
+        if (headToHead) nowPairs.forEach(pair => {
+            if (pair.length !== 2) return;
+            const [a, b] = pair;
+            addRival(a, b, followed.get(pairKey(owner(league, a.roster_id), owner(league, b.roster_id))), true);
+        });
+        followed.forEach(selection => {
+            if (!rivals.some(r => pairKey(...r.rosterIds.map(rid => owner(league, rid))) === pairKey(...selection.owners))) addRival(...selection.rosters, selection, false);
         });
         // A newcomer check-in needs a verified preceding season and current results.
         const preceding = priorSeasons.find(s => Number(s.league.season) === Number(season) - 1);

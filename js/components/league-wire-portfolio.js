@@ -18,7 +18,7 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
     const scope = accountId + '|' + eligible.map(l => (l.league_id || l.id) + ':' + l.season).sort().join(',');
     React.useEffect(() => { dialog.current?.showModal(); return () => { window.requestAnimationFrame(() => { const target = opener.current?.isConnected ? opener.current : document.querySelector('.wr-wire-brand, .wr-wire-mobile-launch, .wr-all-wire-launch'); target?.focus?.(); }); }; }, []);
     React.useEffect(() => {
-        setEntries({}); setLimit(18); setLeagueFilter('all');
+        setEntries({}); setLimit(18);
         const controller = new window.AbortController();
         const timeout = setTimeout(() => controller.abort(), 120000);
         let alive = true;
@@ -30,6 +30,13 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
         });
         return () => { alive = false; controller.abort(); clearTimeout(timeout); };
     }, [scope, revision]);
+    React.useEffect(() => {
+        const refresh = event => { if (!event.key || event.key.includes('wire_rivalries_v1:')) setRevision(n => n + 1); };
+        window.addEventListener('wr:wire-rivalries-changed', refresh);
+        window.addEventListener('storage', refresh);
+        return () => { window.removeEventListener('wr:wire-rivalries-changed', refresh); window.removeEventListener('storage', refresh); };
+    }, []);
+    React.useEffect(() => { if (leagueFilter !== 'all' && !eligible.some(l => String(l.league_id || l.id) === leagueFilter)) setLeagueFilter('all'); }, [scope, leagueFilter]);
     const current = eligible.map(l => entries[l.league_id || l.id]).filter(Boolean);
     const stories = window.WrWirePortfolio.headlines(current, topic, leagueFilter);
     const lookback = window.WrWirePortfolio.lookback(current, leagueFilter);
@@ -47,12 +54,13 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
             </article>);
     return <dialog ref={dialog} className="wr-journal wr-wire-portfolio" aria-labelledby="wr-all-wire-title" onCancel={onClose} onClose={onClose}>
         <header className="wr-journal-bar"><h2 id="wr-all-wire-title">The Wire<span>.</span></h2><span>All your leagues. One edition.</span><button type="button" onClick={onClose} aria-label="Close all-league Wire">Close ×</button></header>
-        <nav className="wr-journal-nav" aria-label="All-league Wire sections">{[['all', 'Front page'], ['recaps', 'Recaps'], ['records', 'Records'], ['history', 'History']].map(([value, text]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => changeTopic(value)}>{text}</button>)}</nav>
+        <nav className="wr-journal-nav" aria-label="All-league Wire sections">{[['all', 'Front page'], ['recaps', 'Recaps'], ['records', 'Records'], ['rivalries', 'Rivalries'], ['history', 'History']].map(([value, text]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => changeTopic(value)}>{text}</button>)}</nav>
         <div className="wr-journal-paper">
             <header className="wr-journal-masthead"><div><span>YOUR WHOLE LEAGUE WORLD</span><h3>{topic === 'all' ? 'Across your leagues' : topic[0].toUpperCase() + topic.slice(1)}</h3></div><p role="status">{ready} of {eligible.length} leagues loaded</p></header>
             {!phone && coverage}
             {!eligible.length && <p className="wr-journal-notice">Connect a Sleeper league to read its Wire coverage.</p>}
             {leagues.length > eligible.length && <p className="wr-journal-footnote">This edition covers connected Sleeper leagues. Other platforms are not included.</p>}
+            {topic === 'rivalries' && <section className="wr-all-wire-rivalries"><label>Set up rivalries for<select aria-label="Rivalry league" value={leagueFilter} onChange={e => setLeagueFilter(e.target.value)}><option value="all">Choose a league</option>{eligible.map(l => <option key={l.league_id || l.id} value={l.league_id || l.id}>{l.name}</option>)}</select></label>{eligible.filter(l => String(l.league_id || l.id) === leagueFilter).map(l => window.App?.Chopped?.isChopped?.(l) || l.type === 'chopped' || l.leagueSkin?.type === 'chopped' ? <p key={l.league_id || l.id}>Rivalry coverage is available for head-to-head leagues.</p> : <window.WrWireRivalryEditor key={l.league_id || l.id} league={l} priorSeasons={entries[l.league_id || l.id]?.rivalryHistory || []} />)}</section>}
             <main className="wr-all-wire-stories">{stories.slice(0, phone ? 1 : limit).map(story)}{phone && coverage}{phone && stories.slice(1, limit).map((s, i) => story(s, i + 1))}</main>
             {topic === 'all' && lookback && <section className="wr-wire-lookback" aria-label="This week’s lookback"><header><span>FROM THE ARCHIVE · {lookback.eventSeason}</span><h3>This week’s lookback</h3><p>One chapter from the past, separate from today’s headlines.</p></header>{story(lookback, 1)}</section>}
             {!stories.length && <p className="wr-journal-notice">{ready < eligible.length ? 'Gathering your headlines… Each league appears as its news arrives.' : 'No stories in this section yet. Try the front page or another league.'}</p>}

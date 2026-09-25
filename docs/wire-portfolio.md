@@ -21,3 +21,10 @@ The existing raw-era/current-rules scoring separation, owner-ID rivalry keys, do
 `npm run test:live-scores` includes the persistent-cache and portfolio tests. Tests cover a new runtime reading a saved season with only a current-lineage request, explicit forced refresh, corrupt/wrong-league cache recovery, storage denial, cancellation, progressive current news, cross-league filtering, fair headline ordering, account-scoped warm reuse and isolated failures. The core suite and compiled browser build also pass.
 
 Browser verification used the user's three connected leagues. After a full page reload, the combined edition reported one cached Shootout season, six cached The One seasons and five cached Psycho seasons, with all three leagues ready. Individual and all-league views share the same completed-season store.
+
+
+## Rivalries you follow
+
+Open Rivalries in a league’s Wire to select two current teams and an optional name. The multi-league Wire has the same controls after choosing a league. Add, rename, and remove pairs without changing automatic discovery. Selected pairs receive priority when a verified scheduled meeting or completed recap provides a current news hook; a selection alone never fabricates a matchup, score, or series record.
+
+Selections are personal, account-scoped browser preferences through `App.AccountStorage`, not shared commissioner settings or cross-device sync. Save failures stay visible and preserve the form. Identity uses owner IDs within provider-linked league seasons, so renames preserve the pairing and replacement owners do not inherit it. Linked renewals inherit the nearest saved list; an explicitly empty list overrides inheritance. Both Wire surfaces refresh after changes, and the multi-league cache includes the selection signature.

@@ -22,16 +22,16 @@
             while (cursor < eligible.length && !signal?.aborted) {
                 const league = eligible[cursor++], span = period(league, nfl), cacheKey = `${accountId}|${keyFor(league)}|${span.week}`;
                 const cached = recent.get(cacheKey);
-                if (!force && cached && now() - cached.at < 60000) { onUpdate(cached.value); continue; }
+                if (!force && cached && cached.selectionKey === JSON.stringify(root.WrWireRivalries?.list(league, cached.value.rivalryHistory) || []) && now() - cached.at < 60000) { onUpdate(cached.value); continue; }
                 const nameFor = rid => root.WrWireStories.oldName(league, rid);
                 let weeks = [], past = { seasons: [], complete: false }, board = null, error = '', currentReady = false;
                 const publish = status => {
                     if (signal?.aborted) return null;
-                    const edition = root.WrWireStories.build({ league, weeks, start: span.start, end: span.end, priorSeasons: past.seasons, archiveComplete: past.complete,
+                    const edition = root.WrWireStories.build({ rivalries: root.WrWireRivalries?.list(league, past.seasons) || [], league, weeks, start: span.start, end: span.end, priorSeasons: past.seasons, archiveComplete: past.complete,
                         board, nameFor, headToHead: !root.App?.Chopped?.isChopped?.(league) && league.type !== 'chopped' && league.leagueSkin?.type !== 'chopped',
                         playerName: pid => root.S?.players?.[pid]?.full_name || 'A starting player' });
                     const stories = edition.stories.filter(s => s.documentary || s.week === span.end).concat(edition.previews);
-                    const value = { league, historical: Number(league.season) < Number(nfl.season), status, error, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
+                    const value = { league, historical: Number(league.season) < Number(nfl.season), status, error, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
                     onUpdate(value); return value;
                 };
                 publish('loading');
@@ -54,7 +54,7 @@
                     catch (_) { error = 'Earlier history is incomplete. Refresh to retry.'; }
                     if (!past.complete && !error) error = past.reason || 'Earlier history is incomplete.';
                     const value = publish(error ? 'partial' : 'ready');
-                    if (value?.status === 'ready') { recent.set(cacheKey, { at: now(), value }); while (recent.size > 40) recent.delete(recent.keys().next().value); }
+                    if (value?.status === 'ready') { recent.set(cacheKey, { at: now(), value, selectionKey: JSON.stringify(root.WrWireRivalries?.list(league, past.seasons) || []) }); while (recent.size > 40) recent.delete(recent.keys().next().value); }
                 });
             }
         }
@@ -66,7 +66,7 @@
     // Round-robin each league's best current story before any league's second.
     function headlines(entries, topic = 'all', leagueId = 'all') {
         const queues = entries.filter(e => leagueId === 'all' || String(e.league.league_id || e.league.id) === leagueId).map(entry => {
-            const stories = entry.stories.filter(s => topic === 'history' ? (s.documentary || entry.historical) : !entry.historical && !s.documentary && (topic === 'all' || (topic === 'recaps' ? s.kind === 'recap' : s.kind === 'record')))
+            const stories = entry.stories.filter(s => topic === 'history' ? (s.documentary || entry.historical) : !entry.historical && !s.documentary && (topic === 'all' || (topic === 'recaps' ? s.kind === 'recap' : topic === 'rivalries' ? s.category === 'Rivalry watch' || s.category === 'Revenge game' : s.kind === 'record')))
                 .slice().sort((a, b) => (b.weight || 0) - (a.weight || 0) || (b.eventSeason || 0) - (a.eventSeason || 0));
             return { entry, stories: topic === 'all' ? root.WrWireStories.frontPage(stories) : stories };
         });
