@@ -29,7 +29,7 @@
         return <section className={'duat-weekly-flow is-'+stage} aria-label={`Week ${week} · ${labels[stage]}`}>
             <header className="duat-weekly-heading" ref={ref} tabIndex="-1"><div><span className="duat-eyebrow">DYNASTY {cycle} · WEEK {week}</span><h2>{titles[stage]}</h2></div><span className="duat-weekly-stage">{labels[stage]}</span></header>
             <div className="duat-weekly-path" aria-label="The weekly journey">{steps.map((id,index)=><span key={id} aria-current={index+1===step?'step':undefined} className={index+1<step?'done':index+1===step?'current':''}>{labels[id]}</span>)}</div>
-            {guidance[stage]&&<aside className="duat-weekly-guide" aria-label="Help with this step"><p>{guidance[stage][0]}</p><details><summary>How this works</summary><p>{guidance[stage][1]}</p></details></aside>}
+            {guidance[stage]&&<aside className="duat-weekly-guide" aria-label="Help with this step"><details><summary>How this works</summary><p>{guidance[stage][1]}</p></details></aside>}
             {stage==='favors'&&action}
             <div className="duat-weekly-content">{children}</div>
             {stage!=='favors'&&action}

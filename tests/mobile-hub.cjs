@@ -22,7 +22,10 @@ function fixture(overrides = {}) {
         EMPIRE_FREE_PRELIVE: false, EMPIRE_ENABLED: true, COMMISH_ENABLED: true, TIME_LEAGUE_ENABLED: true,
         getUserTier: () => 'free', leagueQuery: '', hubAllLeagues: false, lastLeagueId: null, hubSyncing: false,
         commishCount: 0, pendingInvite: false, error: null, distPrefix: '', ProTierIcon: () => null,
-        sleeperUser: { user_id: 'me' }, sleeperLeagues: [],
+        sleeperUser: { user_id: 'me' }, sleeperLeagues: [], sleeperUsername: 'fixture',
+        sleeperCoverage: { status: 'ready', knownCount: 0, unavailable: [] },
+        leagueRouteStatus: { status: 'idle' }, cancelLinkedLeagueRoute: () => {},
+        loadSleeperData: () => events.push('retry-sync'),
         setShowSettings: () => events.push('settings'), setShowConnect: () => events.push('connect'),
         setProMode: () => events.push('empire'), openCommishOffice: () => events.push('commissioner'),
         openTimeLeague: () => events.push('vault'), openDuat: () => events.push('duat'), setAllWireOpen: () => events.push('wire'),
@@ -86,6 +89,7 @@ test('unknown record stays absent and loading, empty, error and invite states re
     all(tree, n => n.type === 'button' && text(n) === 'Connect a league')[0].props.onClick();
     assert.equal(events.pop(), 'connect');
     context.error = 'Connection interrupted'; context.pendingInvite = true;
+    context.sleeperCoverage = { status: 'error', error: 'Connection interrupted', knownCount: null, unavailable: [] };
     tree = render([league('unknown', { wins: undefined, losses: undefined })]);
     assert.match(text(tree), /Connection interrupted/);
     assert(!/undefined|NaN/.test(text(tree)));

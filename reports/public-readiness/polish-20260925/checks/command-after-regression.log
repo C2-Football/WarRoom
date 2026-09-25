@@ -1,0 +1,14 @@
+Commissioner command panel — responsive grid
+  ok  desktop (no phone, no narrowGrid) keeps the fluid eight-column grid
+  ok  phone with no narrowGrid prop still gets the narrow grid (back-compat)
+  ok  portrait tablet — narrowGrid true while phone is false — gets the narrow grid
+  ok  narrowGrid false overrides phone true — the prop wins when given
+  ok  narrow grid scrolls horizontally and pins the league column
+  ok  desktop grid has no scroll wrapper and nothing pinned
+  ok  desk cards go two-up when narrow, four-up on desktop
+  ok  every domain column renders a header button that opens its hub
+  ok  task action preserves league scope and action intent when opening a workspace
+  ok  task review is a separate native button on phone and desktop
+PASS: 10 passed, 0 failed
+(node:9809) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

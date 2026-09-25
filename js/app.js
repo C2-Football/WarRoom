@@ -1550,16 +1550,16 @@
             return (
                 <main className="hub-franchise-picker experience-hub">
                     <div className="hub-welcome">
-                        <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>{leagues.length ? 'Back to the action.' : 'Your home field.'}</h1></div>
+                        <div><h1>{leagues.length ? 'Welcome back.' : 'Your home field.'}</h1></div>
                         <span className="hub-sync-status" role="status">{incomplete ? (hubSyncing ? 'Syncing · ' : '') + coverageText : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
                     {leagueRouteStatus.status !== 'idle' && <div className="hub-invite" role="status" data-testid="league-route-status" style={{ flexWrap: 'wrap' }}><div><strong style={{ fontSize: 16 }}>{leagueRouteStatus.status === 'loading' ? 'Opening linked league…' : 'League link could not open'}</strong><p style={{ fontSize: 16, lineHeight: 1.5 }}>{leagueRouteStatus.status === 'loading' ? 'Checking its season and your connected account.' : leagueRouteStatus.message}</p></div>{leagueRouteStatus.status === 'error' && <button type="button" className="hub-add-button" style={{ fontSize: 16, minHeight: 44 }} onClick={() => resolveLinkedLeagueRoute(leagueRouteStatus.route)}>Retry league link</button>}<button type="button" className="hub-add-button" style={{ fontSize: 16, minHeight: 44 }} onClick={() => { cancelLinkedLeagueRoute(); history.replaceState({ view: 'hub' }, '', routeUrl('')); }}>Stay on home</button></div>}
-                    {focusLeague && <button type="button" className={resume ? 'hub-resume' : 'hub-resume hub-open-league'} onClick={() => onSelect(focusLeague)}><span className="hub-eyebrow">{resume ? 'PICK UP WHERE YOU LEFT OFF' : 'YOUR LEAGUE'}</span><strong>{resume ? 'Resume ' : 'Open '}{leagueTeamName(focusLeague) || focusLeague.name}</strong><span>{focusLeague.name}{focusHealth.wp !== null && <span className="hub-focus-record"> · {focusLeague.wins}–{focusLeague.losses}{focusLeague.ties > 0 ? '–' + focusLeague.ties : ''}</span>}</span><b aria-hidden="true">→</b></button>}
+                    {focusLeague && <button type="button" className={resume ? 'hub-resume' : 'hub-resume hub-open-league'} onClick={() => onSelect(focusLeague)}><span className="hub-eyebrow">{resume ? 'Last opened' : 'Your league'}</span><strong>{resume ? 'Resume ' : 'Open '}{leagueTeamName(focusLeague) || focusLeague.name}</strong><span>{focusLeague.name}{focusHealth.wp !== null && <span className="hub-focus-record"> · {focusLeague.wins}–{focusLeague.losses}{focusLeague.ties > 0 ? '–' + focusLeague.ties : ''}</span>}</span><b aria-hidden="true">→</b></button>}
                     {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
                     <nav className="hub-jump-nav" aria-label="Choose your experience">
-                        <a href="#hub-leagues"><span>01</span> Your leagues <small>{leagues.length}</small></a>
-                        {(EMPIRE_ENABLED || COMMISH_ENABLED) && <a href="#hub-management"><span>02</span> Multi-league</a>}
-                        {TIME_LEAGUE_ENABLED && <a href="#hub-games"><span>03</span> Games</a>}
+                        <a href="#hub-leagues">Your leagues</a>
+                        {(EMPIRE_ENABLED || COMMISH_ENABLED) && <a href="#hub-management">Management</a>}
+                        {TIME_LEAGUE_ENABLED && <a href="#hub-games">Games</a>}
                     </nav>
                     <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
                         <div className="hub-section-heading"><div><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2></div><button type="button" className="hub-add-button" onClick={() => { cancelLinkedLeagueRoute(true); setShowConnect(true); }}>+ Add league</button></div>
@@ -1576,18 +1576,18 @@
                             <div className="hub-management-cards">
                                 {EMPIRE_ENABLED && <button type="button" className="hub-experience-card empire-hero" onClick={() => { cancelLinkedLeagueRoute(true); if (isPaid) setProMode(true); else if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = distPrefix + 'landing.html'; }}>
                                     <span className="hub-card-top"><ProTierIcon size={34} /><span className="hub-product-tag">{isPaid ? 'PORTFOLIO' : 'PRO'}</span></span>
-                                    <strong>Empire Command</strong><span className="hub-card-description">Your players and opportunities across leagues.</span>
+                                    <strong>Empire</strong><span className="hub-card-description">Players, picks, and exposure.</span>
                                     <span className="hub-card-action">{isPaid ? 'Open Empire' : 'Explore Empire Pro'} <span aria-hidden="true">↗</span></span>
                                 </button>}
                                 {COMMISH_ENABLED && <button type="button" className="hub-experience-card commish-hero" disabled={commishCount < 1} onClick={openCommishOffice}>
                                     <span className="hub-card-top"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z"/><path d="m8 12 3 3 5-6"/></svg><span className="hub-product-tag">COMMISSIONER</span></span>
-                                    <strong>Commissioner’s Office</strong><span className="hub-card-description">People, rules, and league operations.</span>
+                                    <strong>Commissioner’s Office</strong><span className="hub-card-description">Rules, people, and league operations.</span>
                                     <span className="hub-card-action">{commishCount >= 1 ? 'Open Commissioner' : hubSyncing ? 'Checking commissioner access…' : 'Requires a commissioner league'} {commishCount >= 1 && <span aria-hidden="true">↗</span>}</span>
                                 </button>}
                             </div>
                         </section>}
                         {TIME_LEAGUE_ENABLED && <section id="hub-games" className="hub-games" aria-labelledby="hub-games-title">
-                            <div className="hub-section-heading"><div><h2 id="hub-games-title">Keep playing</h2></div><span className="hub-section-note">Solo or with friends</span></div>
+                            <div className="hub-section-heading"><div><h2 id="hub-games-title">Keep playing</h2></div><span className="hub-section-note">Football history</span></div>
                             <button type="button" className="hub-experience-card time-league-hero" onClick={openTimeLeague}>
                                 <span className="hub-vault-art" aria-hidden="true"><span className="hub-era-card">1970<span>CLASSIC</span></span><span className="hub-era-card">?<span>YOUR SEASON</span></span><span className="hub-era-card">2025<span>MODERN</span></span></span>
                                 <span className="hub-vault-copy"><span className="hub-product-tag">TIME TRAVEL · BETA</span><strong>The Vault</strong><span className="hub-card-description">Draft legends. Discover their seasons.</span><span className="hub-card-action">Enter The Vault <span aria-hidden="true">↗</span></span></span>
@@ -1597,7 +1597,7 @@
                             </button>
                         </section>}
                     </div>
-                    <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => { cancelLinkedLeagueRoute(true); setShowSettings(true); }}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
+                    <footer className="hub-footer"><span>Dynasty HQ</span><button type="button" onClick={() => { cancelLinkedLeagueRoute(true); setShowSettings(true); }}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
                 </main>
             );
         }

@@ -1,0 +1,6 @@
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/world.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/provinces.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/draft/command-center.js as it exceeds the max of 500KB.
+Compiled 148 Babel scripts into dist-preview/
+(node:21135) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

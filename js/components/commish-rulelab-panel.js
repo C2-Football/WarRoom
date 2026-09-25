@@ -61,7 +61,7 @@ const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
 const SURF2 = 'var(--co-surface-2, #1B1B22)', WELL = 'var(--co-well, #0F0F14)';
 const ACC_FILL = 'var(--co-accent-fill, #12212B)', ACC_LINE = 'var(--co-accent-line, #2B4B63)';
 const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-const MUTED = '#8D887E';
+const MUTED = 'var(--co-muted, #A3ABB8)';
 const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
 const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
@@ -573,7 +573,7 @@ function WrCommishRuleLabPanel({
                 </div>
             ) : null}
 
-            <Section title="Proposal Bench" meta="chips compose — stack a PPR change with a TE premium">
+            <Section title="Scoring proposal" meta="Combine presets to compare scoring changes.">
                 {!presetList.length ? (
                     <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
                 ) : (
@@ -612,7 +612,7 @@ function WrCommishRuleLabPanel({
 
             {phone && <section className="co-rulelab-result" aria-label="Current replay"><div className="co-analysis-state"><p>{hasUnanalyzedChanges ? 'Changes staged. This result still reflects your last analysis.' : 'Current replay for the selected rules.'}</p>{hasUnanalyzedChanges && <button type="button" onClick={() => onAnalyze?.()}>Analyze staged changes</button>}</div>{body}</section>}
             {/* ── Roster Bench: structure proposals ─────────────────────── */}
-            <Section folded={phone} title="Roster Bench" meta="starting-slot changes — superflex, extra flex, the works">
+            <Section folded={phone} title="Roster Bench" meta="Compare changes to your starting lineup slots.">
                 {currentStructures.length ? (
                     <div style={{ marginBottom: '10px' }}>
                         {currentStructures.map((cs, i) => (
@@ -840,7 +840,7 @@ function WrCommishRuleLabPanel({
             </Section>
 
             {/* ── Saved proposals ───────────────────────────────────────── */}
-            <Section folded={phone} title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
+            <Section folded={phone} title="Saved Proposals" meta="Save, compare and record approved changes.">
                 {savedError && <div role="alert" style={{ fontSize: '16px', lineHeight: 1.5, marginBottom: 12 }}>
                     <p>{savedError}</p>
                     {canRecoverSaved && <><button type="button" style={{ ...chipBtn(false), minHeight: 44 }} onClick={onExportRecovery}>Download original data</button>{' '}
@@ -878,9 +878,9 @@ function WrCommishRuleLabPanel({
 
             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5, padding: '0 2px' }}>
                 {rp
-                    ? 'Structure mode: both runs refield each roster’s optimal lineup from identical player pools — the diff isolates the rule change without crediting anyone with lineup skill. '
-                    : 'Both runs use identical as-played lineups rescored from raw stat lines — the diff is the rule change and nothing else. '}
-                Playoffs were real games: we re-cut the field and seeds, we never re-crown a champion.
+                    ? 'Lineup comparisons use each roster’s optimal starters from the same player pool. '
+                    : 'Scoring comparisons use the same historical lineups and stats. '}
+                Playoff game results are preserved; only qualification and seeding are recalculated.
             </div>
         </div>
     );

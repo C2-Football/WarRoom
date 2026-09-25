@@ -1,0 +1,14 @@
+(node:9911) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ hub opens a real league first and resumes the exact previous league before other entries (36.091459ms)
+✔ many leagues collapse after three while team and format search can reach every league (14.56225ms)
+✔ unknown record stays absent and loading, empty, error and invite states remain actionable (12.895916ms)
+✔ compact product entries keep paid routing and commissioner eligibility (13.977791ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81.529792

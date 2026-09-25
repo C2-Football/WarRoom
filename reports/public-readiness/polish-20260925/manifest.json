@@ -1,0 +1,281 @@
+{
+  "scope": "Unmodified local browser and synthetic-fixture evidence, 2026-09-25; not hosted, native or physical-device verification.",
+  "copiedFiles": [
+    {
+      "file": "hub/before-desktop.png",
+      "source": "output/playwright/hub-polish/before-desktop.png",
+      "bytes": 272760,
+      "sha256": "a96c5495868d0e15dccf6a372b734dfefc0122e2117b2417dc6c1c20cfd78253"
+    },
+    {
+      "file": "hub/after-hub-390.png",
+      "source": "output/playwright/hub-polish/after-hub-390.png",
+      "bytes": 250543,
+      "sha256": "ccb9fb4d07c04c4c904950e9c38dc4ad332c9999a46fcdad29a28aae2aae9e17"
+    },
+    {
+      "file": "hub/after-hub-1440.png",
+      "source": "output/playwright/hub-polish/after-hub-1440.png",
+      "bytes": 575241,
+      "sha256": "428165b3e6d851d72f3d7163c8f8033aa9820bbbd19571697b6218dd74ad02bb"
+    },
+    {
+      "file": "empire/empire-before-390.png",
+      "source": "output/playwright/hub-polish/empire-before-390.png",
+      "bytes": 86097,
+      "sha256": "2a952463de8f39bd2507bd68deb0298d5937e897a99cc1c650b2fa3d1de97cfd"
+    },
+    {
+      "file": "empire/review-empire-390.png",
+      "source": "output/playwright/commish-polish/review-empire-390.png",
+      "bytes": 104516,
+      "sha256": "b77e062eeb5954dfacad562a24aa96cdb31be11496667cbea054304e39e11232"
+    },
+    {
+      "file": "empire/review-empire-1440.png",
+      "source": "output/playwright/commish-polish/review-empire-1440.png",
+      "bytes": 267387,
+      "sha256": "3fc5e8e4f44546b5a0826b2247f118720ea42b6fc9ce65ac403999a9e9b6bcc4"
+    },
+    {
+      "file": "commissioner/before-overview-1440.png",
+      "source": "output/playwright/commish-polish/before-overview-1440.png",
+      "bytes": 149756,
+      "sha256": "b6e7b929476ca2fb9b678f9649d55304790ed094b2a9ee67475a4b092917e1cf"
+    },
+    {
+      "file": "commissioner/before-overview-390.png",
+      "source": "output/playwright/commish-polish/before-overview-390.png",
+      "bytes": 75639,
+      "sha256": "06c5ee6d556a803d13b267167e221acca09375d6f1e946a09b56e541c7890b30"
+    },
+    {
+      "file": "commissioner/after-overview-1440.png",
+      "source": "output/playwright/commish-polish/after-overview-1440.png",
+      "bytes": 156602,
+      "sha256": "85d21984e82a60931ea8596c7fd9177194765f3c92d9ba03d8291b33e55ca8b1"
+    },
+    {
+      "file": "commissioner/after-overview-390.png",
+      "source": "output/playwright/commish-polish/after-overview-390.png",
+      "bytes": 77064,
+      "sha256": "982a47053315170af996f1b33b5f652f4f2c9ceae7d192ab746aacff26d09641"
+    },
+    {
+      "file": "commissioner/after-overview-320.png",
+      "source": "output/playwright/commish-polish/after-overview-320.png",
+      "bytes": 74634,
+      "sha256": "73f9fb98ada1e49f23784f7705bddcdddc7043383bd9c5184453a2a9fbdd5c4a"
+    },
+    {
+      "file": "commissioner/before-rules-390.png",
+      "source": "output/playwright/commish-polish/before-rules-390.png",
+      "bytes": 115426,
+      "sha256": "33191097b27065db7f5a8ffe142b3773080ba200e5235b73bdb637eb07dd8546"
+    },
+    {
+      "file": "commissioner/after-rules-390.png",
+      "source": "output/playwright/commish-polish/after-rules-390.png",
+      "bytes": 119055,
+      "sha256": "427099e0e677327115b7bae63fbdbf2d4f4fce8e3e4eeaeb093baa1b2d0f9bde"
+    },
+    {
+      "file": "commissioner/after-menu-390.png",
+      "source": "output/playwright/commish-polish/after-menu-390.png",
+      "bytes": 24619,
+      "sha256": "8304e72eef8e8e62cd7eac5b36f2c4730d6e446386d7371e622ad604aa1be6d5"
+    },
+    {
+      "file": "vault/before-lobby-390.png",
+      "source": "output/playwright/vault-polish/before-lobby-390.png",
+      "bytes": 60781,
+      "sha256": "0aedec02bc0e95f9113eda57ce55c513786309e3fb05258ad7ff79e929f33791"
+    },
+    {
+      "file": "vault/before-lobby-1440.png",
+      "source": "output/playwright/vault-polish/before-lobby-1440.png",
+      "bytes": 234865,
+      "sha256": "f662154f44c7209ee6f0b0bd353d1ce1c52759e02684a53fbb50338418e3e89c"
+    },
+    {
+      "file": "vault/after-lobby-390.png",
+      "source": "output/playwright/vault-polish/after-lobby-390.png",
+      "bytes": 67141,
+      "sha256": "a9c59dab7e8a8bdc5aa0afcc6e49f46124d506404df1d8670be31fb90a64ef6b"
+    },
+    {
+      "file": "vault/after-lobby-1440.png",
+      "source": "output/playwright/vault-polish/after-lobby-1440.png",
+      "bytes": 332559,
+      "sha256": "f0ce265d9b56866a145e27ea39775333d806185cbb1c547d6be174f4740d8375"
+    },
+    {
+      "file": "vault/after-draft-390.png",
+      "source": "output/playwright/vault-polish/after-draft-390.png",
+      "bytes": 75386,
+      "sha256": "8527955d19a6563ff43396a3846c23a3637d43ccd86de744a514fc2628097e4e"
+    },
+    {
+      "file": "vault/after-home-390.png",
+      "source": "output/playwright/vault-polish/after-home-390.png",
+      "bytes": 86225,
+      "sha256": "9acd33a88066dbffdac0f6664af978aa1a8a00d01505e289f19bd3e2f2f8e28f"
+    },
+    {
+      "file": "vault/after-home-1440.png",
+      "source": "output/playwright/vault-polish/after-home-1440.png",
+      "bytes": 188199,
+      "sha256": "9bb462ea7356733c77a82f8c2901b2c136e5cab6d7aacdd22546ea13339e095e"
+    },
+    {
+      "file": "vault/review-era-320.png",
+      "source": "output/playwright/vault-polish/review-era-320.png",
+      "bytes": 52494,
+      "sha256": "4ad25712bdb645068ed8f05197cb8928f5d062323ccbd575db4587531c754738"
+    },
+    {
+      "file": "duat/before-entry-390.png",
+      "source": "output/playwright/duat-polish/before-entry-390.png",
+      "bytes": 57112,
+      "sha256": "9385c9528b079fab71ef178843bce839ec8221a8e2b4674325e219b4eef7002e"
+    },
+    {
+      "file": "duat/entry-390.png",
+      "source": "output/playwright/duat-polish/entry-390.png",
+      "bytes": 178574,
+      "sha256": "8fcfb658530aa697cdfe22563902bf6841cc50fce52bf2020d43757b6b487912"
+    },
+    {
+      "file": "duat/entry-1440.png",
+      "source": "output/playwright/duat-polish/entry-1440.png",
+      "bytes": 940215,
+      "sha256": "f3e8db29a4aa0fc54e38f3a67d205552c3f4e47fb1c39207ba7ebe3069aa42f7"
+    },
+    {
+      "file": "duat/home-390.png",
+      "source": "output/playwright/duat-polish/home-390.png",
+      "bytes": 149634,
+      "sha256": "b3a3d05fcb87740221c292cfaeda535c398e8c8cc2c12800ec422714f6855d9f"
+    },
+    {
+      "file": "duat/lineup-390.png",
+      "source": "output/playwright/duat-polish/lineup-390.png",
+      "bytes": 81942,
+      "sha256": "f12021018f6fe6f5674191c40da328b9f8b47746a1ec8ba71f65bf67cf88ed23"
+    },
+    {
+      "file": "duat/duat-final-landscape-checkboxes-667.png",
+      "source": "output/playwright/vault-polish/duat-final-landscape-checkboxes-667.png",
+      "bytes": 37815,
+      "sha256": "7e22df232457454657dd22aa08da2612c7f04cc7b10c26e21cc0764a9654af5f"
+    },
+    {
+      "file": "checks/command-before-regression.log",
+      "source": "output/playwright/commish-polish/command-before-regression.log",
+      "bytes": 4280,
+      "sha256": "b604357b84868afd7ae5e4e825d8ee01846bf4d0756fce0a6d0231f212f80274"
+    },
+    {
+      "file": "checks/command-after-regression.log",
+      "source": "output/playwright/commish-polish/command-after-regression.log",
+      "bytes": 939,
+      "sha256": "d68d6b2014b956fa602afb59006afbf71069eca6061d1d43a5924666e89e33af"
+    },
+    {
+      "file": "checks/commish-tests.log",
+      "source": "output/playwright/commish-polish/commish-tests.log",
+      "bytes": 35743,
+      "sha256": "09ed595affdb13f430cfc2e7c8e2fd9f828879fa3509a0b645f81fa874c07ff8"
+    },
+    {
+      "file": "checks/workspaces-tests.log",
+      "source": "output/playwright/commish-polish/workspaces-tests.log",
+      "bytes": 2267,
+      "sha256": "f4c9c58d183575bc76ee98ef2a8d7972eb810ee9627fa77e03ab33ac8ba43008"
+    },
+    {
+      "file": "checks/design-tokens.log",
+      "source": "output/playwright/commish-polish/design-tokens.log",
+      "bytes": 163,
+      "sha256": "c6b6576c56634da8e01c5a8841d4b8e993ce281898846b0cf4abee33235ea656"
+    },
+    {
+      "file": "checks/triage-final.log",
+      "source": "output/playwright/commish-polish/triage-final.log",
+      "bytes": 2637,
+      "sha256": "4c8b06aca41b3845b882d1c90f364d5168881f48ee853f8b7362e60dc8b8e3c2"
+    },
+    {
+      "file": "checks/eslint.log",
+      "source": "output/playwright/commish-polish/eslint.log",
+      "bytes": 3597,
+      "sha256": "54ac4d9c948edac6d786bd1a61bad6addb77dab31be607296f73f6879e3f01bd"
+    },
+    {
+      "file": "checks/browser-results.json",
+      "source": "output/playwright/commish-polish/browser-results.json",
+      "bytes": 1972,
+      "sha256": "77dfb0b6a07dfed238d26e4567044f9af9a9a3a79e2b0d54ae0ede4bbe0b712d"
+    },
+    {
+      "file": "checks/browser.log",
+      "source": "output/playwright/commish-polish/browser.log",
+      "bytes": 290,
+      "sha256": "c601be0d95c38446d94932d1b923c17d503f8a90a588f76a7d097ac3b086793f"
+    },
+    {
+      "file": "checks/root-independent-browser.log",
+      "source": "output/playwright/commish-polish/root-independent-browser.log",
+      "bytes": 378,
+      "sha256": "2250f4d4134e499c2b6f39a63cdc951453e396c31c2c383d0924c55dc3a40d73"
+    },
+    {
+      "file": "checks/root-independent-browser-initial-load.log",
+      "source": "output/playwright/commish-polish/root-independent-browser-initial-load.log",
+      "bytes": 322,
+      "sha256": "78b69a486ef9ea68a0e6cd56e9aadbd9251d68b29bffe5b69ac5e8bc38496479"
+    },
+    {
+      "file": "checks/browser-evidence.json",
+      "source": "output/playwright/duat-polish/browser-evidence.json",
+      "bytes": 12316,
+      "sha256": "2cd6a43f9e0718fc2547eb0118fa82b4064aeb2f3b7e32e35f0931abfb649ad4"
+    },
+    {
+      "file": "checks/browser-landscape-control-failure.log",
+      "source": "output/playwright/duat-polish/browser-landscape-control-failure.log",
+      "bytes": 4140,
+      "sha256": "6ff1a99e538f9bf9b2a7f1da3b61438c2cfded7b97c16b42f42f3b9e8d4d54e2"
+    },
+    {
+      "file": "checks/browser-first-harness-error.log",
+      "source": "output/playwright/duat-polish/browser-first-harness-error.log",
+      "bytes": 520,
+      "sha256": "fcb26553cd798b5255a0e1994ad9dae2a2ac2a291333484869e1961bf1f7b9d1"
+    },
+    {
+      "file": "checks/browser-cdn-timeout.log",
+      "source": "output/playwright/duat-polish/browser-cdn-timeout.log",
+      "bytes": 240,
+      "sha256": "e96fd93f48481f5fc5353575302b863532235d1e874ff1c0ab2a824688977251"
+    },
+    {
+      "file": "duat/duat-review-keyboard-320.png",
+      "source": "output/playwright/vault-polish/duat-review-keyboard-320.png",
+      "bytes": 50462,
+      "sha256": "6f2419bc64ddd8645a69d27c814f0632d6aa897c015ea1263389bc1588412740"
+    },
+    {
+      "file": "duat/duat-review-lineup-320.png",
+      "source": "output/playwright/vault-polish/duat-review-lineup-320.png",
+      "bytes": 75013,
+      "sha256": "c5bae5027dce18074a8dd61c6f118b532aa58bf29c2c4aa03b9322132958eb05"
+    },
+    {
+      "file": "duat/duat-review-lineup-667.png",
+      "source": "output/playwright/vault-polish/duat-review-lineup-667.png",
+      "bytes": 53383,
+      "sha256": "d0a6c095e9cdcba18d345b38cf778e9d0aca3bb1119e5a7089926a2a476ade4a"
+    }
+  ]
+}

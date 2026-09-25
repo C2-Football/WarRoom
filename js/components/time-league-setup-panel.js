@@ -52,7 +52,7 @@
     }
     function LobbyStory() {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
-        return h(phone ? 'details' : 'div', { className: 'tl-lobby-story' }, phone && h('summary', null, 'Discover the Vault · how it works'), h(VaultHero));
+        return h(phone ? 'details' : 'div', { className: 'tl-lobby-story' }, phone && h('summary', null, 'How The Vault works'), h(VaultHero));
     }
 
     function PersonaMeterRow({ label, value }) {
@@ -85,10 +85,10 @@
         const years = ['1970', '1985', '1999', '2012', '2025'];
         return h('section', { className: 'tl-lobby-hero' },
             h('div', { className: 'tl-lobby-copy' },
-                h('div', { className: 'tl-hero-kicker' }, h('span', null, '✦'), ' FANTASY FOOTBALL · UNLOCKED'),
-                h('h1', null, 'Legends play here.', h('br'), h('em', null, 'Bring your rivals.')),
-                h('p', null, 'Draft all-time greats. Unwrap their mystery seasons. Take on your friends—or the house.'),
-                h('a', { className: 'tl-btn primary tl-hero-cta', href: '#vault-setup-0', onClick: event => { event.preventDefault(); document.getElementById('vault-setup-0')?.scrollIntoView({ behavior: 'auto', block: 'start' }); } }, 'Let’s play', h('span', { 'aria-hidden': 'true' }, '↗')),
+                h('div', { className: 'tl-hero-kicker' }, h('span', null, '✦'), ' THE HISTORICAL FANTASY GAME'),
+                h('h1', null, 'Football’s greats.', h('br'), h('em', null, 'Your season.')),
+                h('p', null, 'Draft the legends. Discover their seasons. Play 14 weeks for the championship.'),
+                h('a', { className: 'tl-btn primary tl-hero-cta', href: '#vault-setup-0', onClick: event => { event.preventDefault(); document.getElementById('vault-setup-0')?.scrollIntoView({ behavior: 'auto', block: 'start' }); } }, 'Create a league', h('span', { 'aria-hidden': 'true' }, '↗')),
                 h('div', { className: 'tl-hero-proof' },
                     h('span', null, h('b', null, '50+'), ' seasons'),
                     h('span', null, h('b', null, '14'), ' gameweeks'),
@@ -96,8 +96,8 @@
             h('div', { className: `tl-lobby-visual${revealed ? ' revealed' : ''}` },
                 h('div', { className: 'tl-stadium-glow' }),
                 h('div', { className: 'tl-visual-score' },
-                    h('span', { className: 'live' }, 'TAP A CARD. OPEN THE VAULT.'),
-                    h('div', null, h('b', null, revealed ? 'SEASONS UNLOCKED' : 'DRAFT THE PLAYER'), h('strong', null, revealed ? '3 / 3' : '?'))),
+                    h('span', { className: 'live' }, 'FROM THE ARCHIVE · SAMPLE CARDS'),
+                    h('div', null, h('b', null, revealed ? 'SEASONS REVEALED' : 'MYSTERY SEASONS'), h('strong', null, revealed ? '3 / 3' : '?'))),
                 h('div', { className: 'tl-card-fan' },
                     [['QB', '1984', 'Dan Marino'], ['RB', '2006', 'LaDainian Tomlinson'], ['WR', '1995', 'Jerry Rice']].map(([position, year, player], index) => h('button', {
                         key: position, type: 'button', className: `tl-mystery-card card-${index + 1}`,
@@ -144,11 +144,11 @@
     function PlayModeCard({ id, selected, onClick }) {
         const friends = id === 'friends';
         return h('button', { type: 'button', 'aria-pressed': selected, className: `tl-play-mode ${id}${selected ? ' selected' : ''}`, onClick },
-            h('span', { className: 'tl-play-icon' }, friends ? '✌' : '⚡'),
+            h('span', { className: 'tl-play-icon' }, friends ? 'II' : 'I'),
             h('span', { className: 'tl-play-copy' },
-                h('span', { className: 'tl-play-topline' }, h('strong', null, friends ? 'Play with Friends' : 'Play Solo'), !friends && h('em', null, 'FASTEST')),
-                h('span', null, friends ? 'Create a private, live league and invite your crew.' : 'Draft now against distinct AI GMs. No account needed.'),
-                h('small', null, friends ? '2–12 managers · synced live' : 'You + AI rivals · saves on this device')),
+                h('span', { className: 'tl-play-topline' }, h('strong', null, friends ? 'Play with Friends' : 'Play Solo')),
+                h('span', null, friends ? 'Invite friends to a private league.' : 'Take on rival managers. No account needed.'),
+                h('small', null, friends ? '2–12 managers · synced live' : 'AI rivals · saved on this device')),
             h('span', { className: 'tl-radio-dot' }));
     }
 
@@ -158,8 +158,7 @@
             h('span', { className: 'tl-era-copy' },
                 h('small', null, option.eyebrow),
                 h('strong', null, option.label),
-                h('span', null, option.blurb)),
-            option.id === 'position-roulette' && h('span', { className: 'tl-mode-badge' }, 'THE ORIGINAL'));
+                h('span', null, option.blurb)));
     }
 
     function LeagueBuilder({ onCreate, onCreateOnline, onOpenOnline, onlineIndexState }) {
@@ -328,12 +327,12 @@
         const opponentSeats = seats.slice(1);
         return h('section', { className: 'tl-builder', 'aria-busy': creating },
             h('div', { className: 'tl-builder-head' },
-                h('div', null, h('span', { className: 'tl-eyebrow' }, 'YOUR NEXT GREAT RIVALRY'), h('h2', null, 'Make it your game')),
+                h('div', null, h('span', { className: 'tl-eyebrow' }, 'THE VAULT'), h('h2', null, 'Start your season')),
                 h('div', { className: 'tl-flow-steps', 'aria-label': 'League setup progress' },
-                    ['HOW', 'TWIST', 'TEAM'].map((label, index) => h('a', { key: label, href: `#vault-setup-${index}`, className: 'active' }, h('b', null, index + 1), label)))),
+                    ['PLAY', 'DRAFT', 'TEAM'].map((label, index) => h('a', { key: label, href: `#vault-setup-${index}`, className: 'active' }, h('b', null, index + 1), label)))),
 
             h(SetupStep, { id: 'vault-setup-0', title: 'Play mode', summary: playMode === 'friends' ? 'With friends' : 'Solo · AI rivals', first: true },
-                h('div', { className: 'tl-question' }, h('span', null, '1'), h('div', null, h('h3', null, 'How do you want to play?'), h('p', null, 'Both modes use the same draft, waivers, trades, and live gamecast.'))),
+                h('div', { className: 'tl-question' }, h('span', null, '1'), h('div', null, h('h3', null, 'Choose your rivals'), h('p', null, 'A solo season or a private league.'))),
                 h('div', { className: 'tl-play-grid' },
                     h(PlayModeCard, { id: 'solo', selected: playMode === 'solo', onClick: () => choosePlayMode('solo') }),
                     h(PlayModeCard, { id: 'friends', selected: playMode === 'friends', onClick: () => choosePlayMode('friends') })),
@@ -342,8 +341,8 @@
                     h('p', null, h('b', null, 'Sign in to host a friends league.'), ' Your league and every move will sync live across devices.'),
                     h('a', { className: 'tl-btn', href: 'login.html?vault=1' }, 'SIGN IN'))),
 
-            h(SetupStep, { id: 'vault-setup-1', title: 'Time travel & draft', summary: `${selectedEra.label} · ${DRAFT_FORMATS.find(format => format.id === draftFormat).label}`, first: false },
-                h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Pick the time-travel twist'), h('p', null, 'You draft the player. The Vault reveals the season.'))),
+            h(SetupStep, { id: 'vault-setup-1', title: 'Era & draft', summary: `${selectedEra.label} · ${DRAFT_FORMATS.find(format => format.id === draftFormat).label}`, first: false },
+                h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Choose your era'), h('p', null, 'You draft the player. The Vault reveals the season.'))),
                 h('div', { className: 'tl-era-mode-grid' }, ERA_MODE_OPTIONS.map((option) => h(EraModeCard, {
                     key: option.id, option, selected: eraMode === option.id, onClick: () => setEraMode(option.id),
                 }))),
@@ -399,7 +398,7 @@
                 playMode === 'friends' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'WEEKLY ADVANCEMENT'), h('select', { className: 'tl-select', value: advancementMode, onChange: event => setAdvancementMode(event.target.value) }, h('option', { value: 'commissioner' }, 'Commissioner advances'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Timed gates')), advancementMode === 'timed' && h('input', { className: 'tl-input', type: 'number', min: 1, max: 168, value: gateHours, onChange: event => setGateHours(Math.max(1, Math.min(168, Number(event.target.value) || 24))), 'aria-label': 'Hours per gate' }), h('p', { className: 'tl-hint' }, 'Four stops each week: claims, final roster decisions, game day, and final results. The commissioner can override any gate.', advancementMode === 'timed' && ' Deadlines are checked while a manager has the room open and resume on return.'))),
 
             h(SetupStep, { id: 'vault-setup-2', title: 'Your team', summary: seats[0].name || 'Choose a name & helmet', first: false },
-                h('div', { className: 'tl-question' }, h('span', null, '3'), h('div', null, h('h3', null, 'Name your team. Build your helmet.'), h('p', null, 'Choose a retro identity, then take the ready-to-play defaults or tune every rule below.'))),
+                h('div', { className: 'tl-question' }, h('span', null, '3'), h('div', null, h('h3', null, 'Make it your team'), h('p', null, 'Pick a name and helmet. League rules are ready to play.'))),
                 h('div', { className: 'tl-identity-grid' },
                     h('label', null, h('span', { className: 'tl-label' }, 'League name'), h('input', { className: 'tl-input', value: name, maxLength: 80, placeholder: playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season', onChange: (event) => setName(event.target.value) })),
                     h('label', null, h('span', { className: 'tl-label' }, 'Your team & helmet'), h('span', { className: 'tl-team-input' },
@@ -416,7 +415,7 @@
                         h('button', { type: 'button', disabled: seats.length >= 12, 'aria-label': 'Add team', onClick: addSeat }, '+'))))),
 
             h('details', { className: 'tl-advanced' },
-                h('summary', null, h('span', null, '⚙ Customize league rules'), h('small', null, 'Managers, scoring, rosters, waivers and trades')),
+                h('summary', null, h('span', null, 'League rules'), h('small', null, 'Managers, scoring, rosters, waivers and trades')),
                 h('div', { className: 'tl-advanced-body' },
                     h('div', { className: 'tl-field' },
                         h('span', { className: 'tl-label' }, `Managers · ${humanSeats} human · ${seats.length - humanSeats} AI`),

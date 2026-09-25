@@ -699,7 +699,7 @@
                 { term: 'Health Score', def: 'Team grade (0-100). 90+ Elite, 80+ Contender, 70+ Crossroads.' },
                 { term: 'Elite Player', def: '7000+ ' + skinValueShort + ' or top 5 at their position across all league rosters.' },
                 { term: windowTerm, def: skinShowsAgeCurve ? 'Years until your weakest position group ages out.' : 'Current-season readiness for this league format.' },
-                { term: 'Player Tags', def: 'Tag players as Trade Block, Cut, Untouchable, or Watch. Syncs between apps.' },
+                { term: 'Player Tags', def: 'Mark players as Trade Block, Cut, Untouchable, or Watch.' },
                 { term: 'Flash Brief', def: 'Quick-action dashboard. Analyst mode shows deep data.' },
             ];
             const fullItems = [
@@ -747,7 +747,7 @@
                     { term: 'Trade Impact', def: 'Before you send a trade, see exactly how it changes your health score, elite count, positional leverage, and competitive tier. Simulates the roster swap and recalculates the team.' },
                     { term: 'Acceptance Likelihood', def: 'Predicted chance the other owner accepts your offer, based on value difference, their DNA type, positional needs, package shape, and owner behavior.' },
                     { term: 'Fit Score', def: 'How well a draft or waiver target fills your specific roster needs. A team thin at RB will see RB options scored higher than a team already overloaded there.' },
-                    { term: 'Player Tags', def: 'Tag players as Trade Block, Cut, Untouchable, or Watch List. Tags sync between Dynasty HQ and Scout so your decisions carry across both apps.' },
+                    { term: 'Player Tags', def: 'Mark players as Trade Block, Cut, Untouchable, or Watch List to keep your roster decisions in view.' },
                 ]},
 	            ];
 	            if (module) {

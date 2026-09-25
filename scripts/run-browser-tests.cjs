@@ -10,6 +10,7 @@ const suites = [
   'browser-readonly.cjs',
   'browser-qa.js', 'launch-browser-qa.js', 'live-click-paths.js',
   'draft-browser-qa.js', 'league-skin-browser-qa.js', 'empire-save-browser-qa.cjs', 'vault-auth-browser-qa.cjs', 'account-password-browser-qa.cjs', 'empire-seasonal-browser-qa.cjs', 'empire-draft-inventory-browser-qa.cjs', 'league-linked-season-browser-qa.cjs', 'commish-proposal-browser.cjs',
+  'commish-polish-browser.cjs', 'duat-polish-browser.cjs',
 ];
 async function main() {
   let server;
@@ -31,11 +32,18 @@ async function main() {
       });
       server.stderr.on('data', chunk => process.stderr.write(chunk));
     });
+    // Standalone suites accept explicit deployed/dev URLs. The release gate
+    // must always verify its own fresh compiled worktree, even if the caller
+    // previously exported a standalone override.
+    const gateEnv = { ...process.env, READINESS_PREVIEW_ORIGIN: origin, READINESS_PREVIEW_PATH: '/dist-preview/' };
+    delete gateEnv.READINESS_PREVIEW_URL;
+    delete gateEnv.COMMISH_POLISH_URL;
+    delete gateEnv.DUAT_POLISH_URL;
     let failed = 0;
     for (const suite of suites) {
       console.log(`\nRunning ${suite}`);
       const result = spawnSync(process.execPath, [path.join(root, 'tests', suite)], {
-        cwd: root, env: { ...process.env, READINESS_PREVIEW_ORIGIN: origin }, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024,
+        cwd: root, env: gateEnv, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024,
       });
       const output = (result.stdout || '') + (result.stderr || '');
       process.stdout.write(output);

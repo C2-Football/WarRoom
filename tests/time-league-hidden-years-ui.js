@@ -54,6 +54,14 @@ assert(!text(tree).includes('Recorded season · reference scoring'), 'The stats 
 state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, onUpdate() {} });
 assert(text(tree).includes('Draft complete · years hidden'));
 assert(!text(tree).includes('1993') && !text(tree).includes('Your grade'), 'The draft recap cannot grade or reveal actual editions');
+// The draft's help copy must agree with the configured reveal rule.
+for (const hiddenYears of [true, false]) {
+    state = []; cursor = 0;
+    const draft = { ...league, phase: 'draft', seasonsRevealed: false, settings: { ...league.settings, hiddenYears } };
+    tree = WrTimeLeagueDraftPanel({ league: draft, cards, onUpdate() {} });
+    assert(text(tree).includes(hiddenYears ? 'It stays hidden until your final season recap.' : 'revealed after the draft.'), 'Draft research explains the actual year-reveal rule');
+    assert(!text(tree).includes(hiddenYears ? 'revealed after the draft.' : 'It stays hidden until your final season recap.'), 'No conflicting reveal promise is shown');
+}
 state = []; cursor = 0; tree = WrTimeLeagueGamecastPanel({ league, cards, logIndex: logs, onUpdate() {} });
 assert(text(tree).includes('1990s · hidden year') && !text(tree).includes('1993'), 'Pregame lineups preserve hidden years');
 const shownWeek = { week: 13, results: league.teams.map(team => ({ teamId: team.teamId, total: team.teamId === 't1' ? 24 : 8, starters: team.roster.map(entry => ({ ...entry, points: 8, stats: { passYd: 100, passTd: 1 } })) })),

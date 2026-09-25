@@ -54,8 +54,8 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const GOOD = 'var(--good, #2ECC71)';
     const WARN = 'var(--warn, #F0A500)';
     const BAD = 'var(--bad, #E74C3C)';
-    const MUTED = '#8D887E';   // the third text tier; --text-muted is a lie (= --silver)
-    const DIM = '#4A463F';     // "nothing here" — quieter than muted, still legible
+    const MUTED = 'var(--co-muted, #A3ABB8)';   // the third text tier; --text-muted is a lie (= --silver)
+    const DIM = 'var(--co-muted, #A3ABB8)';     // "nothing here" — quieter than muted, still legible
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const BODY = 'var(--font-body, "DM Sans", sans-serif)';
     const HEAD = 'var(--font-title, "Rajdhani", sans-serif)';
@@ -64,14 +64,14 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     // font shorthand first, longhands after — React assigns in key order, so
     // fontVariantNumeric survives the shorthand reset.
     const T = {
-        display: { font: '700 2.25rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: WHITE },
-        metric: { font: '700 1.5rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', color: WHITE },
+        display: { font: '600 2rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: WHITE },
+        metric: { font: '600 1.5rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', color: WHITE },
         metricSm: { font: '600 0.875rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', color: WHITE },
-        title: { font: '700 0.9375rem/1 ' + HEAD, letterSpacing: '0.06em', textTransform: 'uppercase', color: WHITE },
+        title: { font: '600 1.0625rem/1.3 ' + HEAD, letterSpacing: '-0.015em', color: WHITE },
         subject: { font: '600 0.875rem/1.3 ' + BODY, color: WHITE },
         body: { font: '400 var(--co-readable-small, 0.8125rem)/1.55 ' + BODY, maxWidth: '68ch', color: WHITE },
-        label: { font: '700 var(--co-readable-small, 0.6875rem)/1 ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED },
-        chip: { font: '700 var(--co-readable-small, 0.625rem)/1 ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' },
+        label: { font: '500 var(--co-readable-small, 0.75rem)/1.4 ' + BODY, color: MUTED },
+        chip: { font: '600 var(--co-readable-small, 0.6875rem)/1.3 ' + BODY },
         lede: { font: '400 0.9375rem/1.5 ' + BODY, color: WHITE },
     };
     const ell = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
@@ -100,7 +100,8 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
 
     const openHub = (hub, leagueId, extra) => {
         if (typeof onOpenHub !== 'function' || !hub) return;
-        onOpenHub(hub, Object.assign({ leagueId: leagueId == null ? null : String(leagueId) }, extra || {}));
+        const scope = leagueId && typeof leagueId === 'object' ? leagueId : { leagueId };
+        onOpenHub(hub, Object.assign({}, scope, { leagueId: scope.leagueId == null ? null : String(scope.leagueId) }, extra || {}));
     };
     // Always emits the full shape so the container never has to merge.
     const emit = (patch) => {
@@ -130,7 +131,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     if (!queue && !kpis && !grid && !desks) {
         return (
             <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: '16px' }}>
-                <div style={T.body}>The office is still reading your leagues. Command fills in the moment the desk has something to rank.</div>
+                <div style={T.body}>Loading your league overview…</div>
             </div>
         );
     }
@@ -145,10 +146,10 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const renderTile = ({ label, value, unit, valueColor, valueRole, sub, accent, onClick, id, extra }) => (
         <button type="button" key={id} onClick={onClick} onMouseEnter={() => setHovTile(id)} onMouseLeave={() => setHovTile(null)}
             style={{
-                ...bare, display: 'block', width: '100%', boxSizing: 'border-box',
+                ...bare, display: 'block', width: '100%', boxSizing: 'border-box', alignContent: 'start',
                 background: hovTile === id ? SURF3 : SURF2,
-                border: '1px solid ' + LINE, borderTop: '2px solid ' + accent,
-                borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px',
+                border: '1px solid ' + LINE,
+                borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px',
                 minHeight: phone ? '96px' : undefined,
             }}>
             <div style={{ ...T.label, marginBottom: '12px' }}>{label}</div>
@@ -159,7 +160,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             {extra ? <div style={{ marginTop: '8px' }}>{extra}</div> : null}
             {sub ? <div style={{
                 ...T.body, fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, maxWidth: 'none', marginTop: '8px',
-                ...(phone ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' } : ell),
+                display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden',
             }}>{sub}</div> : null}
         </button>
     );
@@ -183,20 +184,20 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const band1 = (
         <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' }}>
             <div style={{ ...T.lede, padding: '16px 16px 12px' }}>
-                {q.diagnosis || 'The office is quiet. Nothing is overdue, nothing is drifting, and no seat is empty.'}
+                {q.diagnosis || 'No open league issues.'}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', padding: '0 16px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(2, 1fr)' : narrowGrid ? 'repeat(3, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: '12px', padding: '0 16px 16px' }}>
                 {renderTile({
-                    id: 't1', label: 'Under your gavel', accent: ACCENT,
+                    id: 't1', label: 'Your leagues', accent: ACCENT,
                     value: K.leagues != null ? K.leagues : '—',
-                    sub: (K.humans != null ? K.humans : '—') + ' humans · ' + (K.crossover != null ? K.crossover : 0) + ' in two of yours',
+                    sub: (K.humans != null ? K.humans : '—') + ' managers',
                     onClick: () => gridRef.current && gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }),
                     extra: K.humans ? (
                         <div>
                             <div style={{ height: '6px', background: SURF, borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden' }}>
                                 <i style={{ display: 'block', height: '100%', width: crossoverPct + '%', background: ACCENT }} />
                             </div>
-                            <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{crossoverPct}% OVERLAP ACROSS LEAGUES</div>
+                            <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{crossoverPct}% in multiple leagues</div>
                         </div>
                     ) : null,
                 })}
@@ -233,10 +234,10 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 })}
                 {renderTile({
                     id: 't4', label: 'Next date', accent: ACCENT,
-                    value: nd ? nd.label : 'NONE SET',
+                    value: nd ? nd.label : 'Not set',
                     valueRole: nd ? (ndLong ? T.metric : T.display) : T.metric,
                     valueColor: nd ? WHITE : WARN,
-                    sub: nd ? nd.sub : 'No draft, no deadline, nothing on the board.',
+                    sub: nd ? nd.sub : 'No upcoming date scheduled.',
                     onClick: () => openHub('ops', null),
                     extra: upcoming.length ? (
                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
@@ -274,39 +275,39 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const tierCount = (t) => t === 'NOW' ? (counts.now || 0) : t === 'SOON' ? (counts.soon || 0) : (counts.backlog || 0);
 
     const renderAllPriorities = () => (
-        <button type="button" onClick={() => emit({ tier: null })}
+        <button type="button" aria-pressed={!f.tier} onClick={() => emit({ tier: null })}
             style={{
                 ...bare, display: 'flex', alignItems: 'center', gap: '8px',
                 background: !f.tier ? ACCENT_FILL : SURF2,
                 border: '1px solid ' + (!f.tier ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
-                padding: '0 8px', height: phone ? '44px' : '28px',
+                padding: '0 8px', height: phone ? '44px' : '36px',
             }}>
             <span style={{ ...T.metricSm, color: !f.tier ? ACCENT : SILVER }}>{items.length}</span>
-            <span style={{ ...T.chip, color: MUTED }}>ALL</span>
+            <span style={{ ...T.chip, color: MUTED }}>All</span>
         </button>
     );
 
     const renderPill = (t) => {
         const on = f.tier === t;
         return (
-            <button type="button" key={t} onClick={() => emit({ tier: on ? null : t })}
+            <button type="button" key={t} aria-pressed={on} onClick={() => emit({ tier: on ? null : t })}
                 style={{
                     ...bare, display: 'flex', alignItems: 'center', gap: '8px',
                     background: on ? ACCENT_FILL : SURF2,
                     border: '1px solid ' + (on ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
-                    padding: '0 8px', height: phone ? '44px' : '28px',
+                    padding: '0 8px', height: phone ? '44px' : '36px',
                 }}>
                 <span style={{ ...T.metricSm, color: sevColor(t) }}>{tierCount(t)}</span>
-                <span style={{ ...T.chip, color: MUTED }}>{t}</span>
+                <span style={{ ...T.chip, color: MUTED }}>{t === 'NOW' ? 'Now' : t === 'SOON' ? 'Soon' : 'Later'}</span>
             </button>
         );
     };
     const renderLeagueChip = ({ id, tag, active, onClick }) => (
-        <button type="button" key={id} onClick={onClick}
+        <button type="button" key={id} aria-pressed={active} onClick={onClick}
             style={{
                 ...bare, background: active ? ACCENT_FILL : SURF2,
                 border: '1px solid ' + (active ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
-                padding: '0 8px', height: phone ? '44px' : '28px',
+                padding: '0 8px', height: phone ? '44px' : '36px',
                 ...T.chip, color: active ? ACCENT : SILVER,
                 display: 'inline-flex', alignItems: 'center',
             }}>{tag}</button>
@@ -359,6 +360,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             openHub(it.hub, { leagueId: (it.leagueIds || [])[0] || null });
         };
         const hoverProps = { onMouseEnter: () => setHovRow(it.id), onMouseLeave: () => setHovRow(null), onClick: onRow };
+        const reviewTask = event => { event.stopPropagation(); onRow(); };
 
         if (phone) {
             return (
@@ -377,7 +379,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                             </div>
                             {whereChips(it)}
                         </div>
-                        <div style={{ ...T.subject, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{it.headline}</div>
+                        <button type="button" aria-label={'Review ' + it.headline} onClick={reviewTask} style={{ ...bare, ...T.subject, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{it.headline}</button>
                         {(it.tier === 'NOW' || it.tier === 'SOON') ? renderAction(it, true) : null}
                     </div>
                 </div>
@@ -395,7 +397,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 </div>
                 <div style={{ minWidth: 0 }}>
                     {it.kicker ? <div style={{ ...T.label, marginBottom: '4px' }}>{it.kicker}</div> : null}
-                    <div style={{ ...T.subject, ...ell }} title={it.headline || ''}>{it.headline}</div>
+                    <button type="button" aria-label={'Review ' + it.headline} onClick={reviewTask} style={{ ...bare, ...T.subject, ...ell, maxWidth: '100%' }} title={it.headline || ''}>{it.headline}</button>
                     {it.detail ? <div style={{ ...T.body, fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED, maxWidth: 'none', marginTop: '4px', ...ell }} title={it.detail}>{it.detail}</div> : null}
                 </div>
                 {whereChips(it)}
@@ -417,27 +419,30 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={T.title}>{f.tier === 'NOW' ? 'Needs you now' : f.tier === 'SOON' ? 'Coming this week' : f.tier === 'BACKLOG' ? 'Backlog' : 'All open work'}</span>
-                    <span style={T.label}>· {visible.length} item{visible.length === 1 ? '' : 's'} · ranked by severity</span>
+                    <span style={T.label}>· {visible.length} item{visible.length === 1 ? '' : 's'} · highest priority first</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={T.label}>Priority</span>
-                    {TIERS.map(t => renderPill(t))}
-                    {renderAllPriorities()}
-                    <span style={{ width: '1px', height: '20px', background: LINE }} />
-                    <span style={T.label}>League</span>
-                    {renderLeagueChip({ id: '__all', tag: 'All', active: !f.leagueId, onClick: () => emit({ leagueId: null }) })}
-                    {gLeagues.map(l => renderLeagueChip({
-                        id: l.leagueId, tag: l.tag,
-                        active: String(f.leagueId || '') === String(l.leagueId),
-                        onClick: () => emit({ leagueId: String(f.leagueId || '') === String(l.leagueId) ? null : l.leagueId }),
-                    }))}
+                    <div className="co-priority-filters" role="group" aria-label="Filter by priority">
+                        <span className="co-filter-label">Priority</span>
+                        {TIERS.map(t => renderPill(t))}
+                        {renderAllPriorities()}
+                    </div>
+                    <div className="co-league-filters" role="group" aria-label="Filter by league">
+                        <span className="co-filter-label">League</span>
+                        {renderLeagueChip({ id: '__all', tag: 'All', active: !f.leagueId, onClick: () => emit({ leagueId: null }) })}
+                        {gLeagues.map(l => renderLeagueChip({
+                            id: l.leagueId, tag: l.tag,
+                            active: String(f.leagueId || '') === String(l.leagueId),
+                            onClick: () => emit({ leagueId: String(f.leagueId || '') === String(l.leagueId) ? null : l.leagueId }),
+                        }))}
+                    </div>
                 </div>
             </div>
             <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden', minHeight: f.tier ? undefined : '420px' }}>
                 {groups.length ? groups.map(g => (
                     <React.Fragment key={g.tier}>
                         <div style={{ height: '28px', display: 'flex', alignItems: 'center', padding: '0 14px', background: WELL, borderBottom: '1px solid ' + LINE, ...T.label }}>
-                            {g.tier} — {g.rows.length} item{g.rows.length === 1 ? '' : 's'}
+                            {g.tier === 'NOW' ? 'Now' : g.tier === 'SOON' ? 'Soon' : 'Later'} · {g.rows.length} item{g.rows.length === 1 ? '' : 's'}
                         </div>
                         {g.rows.map((it, i) => renderRow(it, i === g.rows.length - 1))}
                     </React.Fragment>
@@ -445,13 +450,13 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     <div style={{ height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', textAlign: 'center' }}>
                         {filtered && items.length ? (
                             <React.Fragment>
-                                <div style={{ ...T.metric, color: WHITE }}>NO MATCH</div>
+                                <div style={{ ...T.metric, color: WHITE }}>No matching tasks</div>
                                 <div style={{ ...T.body, textAlign: 'center' }}>Nothing in this slice. Clear the filter to see all {items.length} open item{items.length === 1 ? '' : 's'}.</div>
                             </React.Fragment>
                         ) : (
                             <React.Fragment>
-                                <div style={{ ...T.metric, color: GOOD }}>DESK CLEAR</div>
-                                <div style={{ ...T.body, textAlign: 'center' }}>Nothing needs you right now. The office keeps watching — items appear here the moment a league drifts, a seat empties or a date closes in.</div>
+                                <div style={{ ...T.metric, color: GOOD }}>You’re up to date</div>
+                                <div style={{ ...T.body, textAlign: 'center' }}>No open tasks in your latest league data.</div>
                             </React.Fragment>
                         )}
                     </div>
@@ -482,8 +487,8 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const band3 = (
         <div ref={gridRef}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                <span style={T.title}>The grid</span>
-                <span style={T.label}>Cell = open items · click to filter · click a column to open the hub</span>
+                <span style={T.title}>Across your leagues</span>
+                <span style={T.label}>Select a count to filter tasks, or a heading to open its workspace.</span>
             </div>
             <div style={gNarrow ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : null}>
                 <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '4px', minWidth: gNarrow ? 'min-content' : undefined }}>
@@ -501,10 +506,9 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
 
                     {gLeagues.map(l => (
                         <React.Fragment key={l.leagueId}>
-                            <div style={{ height: '44px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', minWidth: 0, paddingRight: '8px', ...(stickyCell || {}) }}>
+                            <div style={{ minHeight: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px', minWidth: 0, padding: '8px 8px 8px 0', ...(stickyCell || {}) }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                                    <span style={{ ...T.chip, color: MUTED, flex: '0 0 auto' }}>{l.tag}</span>
-                                    <span style={{ ...T.subject, ...ell }} title={l.name || ''}>{l.name}</span>
+                                    <span style={{ ...T.subject, minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>{l.name}</span>
                                     {l.openSeats > 0 ? (
                                         <span title={l.openSeats + ' open seat' + (l.openSeats === 1 ? '' : 's')}
                                             style={{ ...T.chip, color: BAD, background: FILL_BAD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 5px', flex: '0 0 auto' }}>
@@ -517,7 +521,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                             style={{ ...bare, flex: '0 0 auto', marginLeft: 'auto', color: MUTED, cursor: 'pointer', padding: '2px 4px' }}>↗</button>
                                     ) : null}
                                 </div>
-                                <div style={T.label}>{l.pct != null ? l.pct + '% ready' : 'readiness —'}</div>
+                                <div style={T.label}>{l.tag} · {l.pct != null ? l.pct + '% ready' : 'Readiness unavailable'}</div>
                             </div>
                             {gDomains.map(d => {
                                 const c = cellOf(l.leagueId, d.key) || { n: 0, state: 'CLEAR' };
@@ -529,7 +533,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                         onClick={() => emit({ leagueId: sel ? null : l.leagueId, domain: sel ? null : d.key })}
                                         title={l.name + ' · ' + d.label + (counted ? ' · ' + c.n + ' open' : c.state === 'NOT_YET' ? ' · nothing to read until Week 1' : ' · clear')}
                                         style={{
-                                            ...bare, height: '44px', width: '100%', boxSizing: 'border-box',
+                                            ...bare, height: '100%', minHeight: '64px', width: '100%', boxSizing: 'border-box',
                                             background: st.bg, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-xs, 5px)',
                                             outline: sel ? '1px solid ' + ACCENT : 'none', outlineOffset: '-1px',
                                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
@@ -614,7 +618,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const band5 = (
         <div style={{ minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
             <span style={{ ...T.label, textTransform: 'none', lineHeight: 1.5 }}>
-                Discovered from your Sleeper commissioner flag — nothing to configure. The office reads; it never writes to a platform.
+                Plans stay in this browser. Apply league changes on Sleeper.
             </span>
             {K.syncedLabel ? <span style={{ ...T.label, textTransform: 'none', lineHeight: 1.5 }}>{K.syncedLabel}</span> : null}
         </div>

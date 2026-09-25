@@ -1,0 +1,81 @@
+{
+  "evidence": "Actual local browser; synthetic provider fixtures; external writes blocked. Not hosted auth, native-device or deployment evidence.",
+  "results": [
+    {
+      "viewport": {
+        "width": 320,
+        "height": 700
+      },
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "correct task league scope",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 2
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "correct task league scope",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 2
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "correct task league scope",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 0
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "correct task league scope",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 0
+    }
+  ]
+}

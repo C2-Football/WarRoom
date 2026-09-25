@@ -1,0 +1,86 @@
+Commissioner command panel — responsive grid
+  ok  desktop (no phone, no narrowGrid) keeps the fluid eight-column grid
+  ok  phone with no narrowGrid prop still gets the narrow grid (back-compat)
+  ok  portrait tablet — narrowGrid true while phone is false — gets the narrow grid
+  ok  narrowGrid false overrides phone true — the prop wins when given
+  ok  narrow grid scrolls horizontally and pins the league column
+  ok  desktop grid has no scroll wrapper and nothing pinned
+  ok  desk cards go two-up when narrow, four-up on desktop
+  ok  every domain column renders a header button that opens its hub
+  FAIL task action preserves league scope and action intent when opening a workspace
+       Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    [
+      'ops',
+      {
++       leagueId: '[object Object]'
+-       action: 'draft-date',
+-       leagueId: 'league-42'
+      }
+    ]
+  ]
+
+  FAIL task review is a separate native button on phone and desktop
+       keyboard-accessible review control
+FAIL: 8 passed, 2 failed
+  task action preserves league scope and action intent when opening a workspace: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    [
+      'ops',
+      {
++       leagueId: '[object Object]'
+-       action: 'draft-date',
+-       leagueId: 'league-42'
+      }
+    ]
+  ]
+
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:161:10
+    at test (/Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:23:9)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:155:1)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1575:12)
+    at require (node:internal/modules/helpers:191:16)
+    at [stdin]:8:1
+    at runScriptInThisContext (node:internal/vm:219:10)
+    at node:internal/process/execution:451:12
+    at [stdin]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:449:60)
+    at evalFunction (node:internal/process/execution:283:30)
+    at evalTypeScript (node:internal/process/execution:295:3)
+    at node:internal/main/eval_stdin:51:5
+    at ReadStream.<anonymous> (node:internal/process/execution:205:5)
+    at ReadStream.emit (node:events:508:20)
+    at endReadableNT (node:internal/streams/readable:1729:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+  task review is a separate native button on phone and desktop: AssertionError [ERR_ASSERTION]: keyboard-accessible review control
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:170:12
+    at test (/Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:23:9)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/tests/commish-command-panel.js:164:1)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1575:12)
+    at require (node:internal/modules/helpers:191:16)
+    at [stdin]:8:1
+    at runScriptInThisContext (node:internal/vm:219:10)
+    at node:internal/process/execution:451:12
+    at [stdin]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:449:60)
+    at evalFunction (node:internal/process/execution:283:30)
+    at evalTypeScript (node:internal/process/execution:295:3)
+    at node:internal/main/eval_stdin:51:5
+    at ReadStream.<anonymous> (node:internal/process/execution:205:5)
+    at ReadStream.emit (node:events:508:20)
+    at endReadableNT (node:internal/streams/readable:1729:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)

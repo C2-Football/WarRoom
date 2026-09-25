@@ -238,7 +238,7 @@ test('Commissioner workspace selection preserves legacy desk routes and settings
     for (const group of groups) button(tree, group.name);
     button(tree, 'Rules').props.onClick(); assert.equal(target, 'rulelab');
     tree = context.WrCommishSidebar({ ...props, active: target }); button(tree, 'Bylaws & Amendments').props.onClick(); assert.equal(target, 'governance');
-    button(tree, '⚙ Settings').props.onClick(); assert.equal(target, 'settings');
+    button(tree, 'Settings').props.onClick(); assert.equal(target, 'settings');
 });
 
 test('Bylaws and Dues reuse authorized controls while rendering only the selected workflow', () => {

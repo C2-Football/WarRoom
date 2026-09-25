@@ -15,7 +15,7 @@
 // ══════════════════════════════════════════════════════════════════
 (function () {
     const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
-    const MUTED = '#8D887E', ACCENT = 'var(--co-accent, #5DADE2)';
+    const MUTED = 'var(--co-muted, #A3ABB8)', ACCENT = 'var(--co-accent, #5DADE2)';
     const SURF = 'var(--co-surface, #121217)', SURF2 = 'var(--co-surface-2, #1B1B22)';
     const SURF3 = 'var(--co-surface-3, #17171D)', WELL = 'var(--co-well, #0F0F14)';
     const LINE = 'var(--co-line, #27262E)', ACC_FILL = 'var(--co-accent-fill, #12212B)';
@@ -23,8 +23,8 @@
     const BAD = 'var(--bad, #E74C3C)', WARN = 'var(--warn, #F0A500)', GOOD = 'var(--good, #2ECC71)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
 
-    const label = { font: '700 var(--co-readable-small, 0.6875rem) ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED, lineHeight: 1 };
-    const chip = { font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const label = { font: '500 var(--co-readable-small, 0.75rem) ' + MONO, color: MUTED, lineHeight: 1 };
+    const chip = { font: '600 var(--co-readable-small, 0.6875rem) ' + MONO };
     const num = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
 
     // ── Sidebar ──────────────────────────────────────────────────────
@@ -41,7 +41,7 @@
             const isActive = active === hub;
             const n = (counts && counts[hub]) || 0;
             return (
-                <button key={hub} onClick={() => { onSelect(hub); if (phone && onClose) onClose(); }}
+                <button key={hub} aria-current={isActive ? 'page' : undefined} onClick={() => { onSelect(hub); if (phone && onClose) onClose(); }}
                     title={dormant ? 'Wakes at Week 1' : undefined}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
@@ -49,8 +49,8 @@
                         borderLeft: '3px solid ' + (isActive ? ACCENT : 'transparent'),
                         background: isActive ? ACC_FILL : 'transparent',
                         color: isActive ? TEXT : (dormant ? MUTED : SILVER),
-                        font: (isActive ? 700 : 600) + ' 0.75rem ' + MONO,
-                        letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: phone ? '44px' : undefined,
+                        font: (isActive ? 600 : 400) + ' 0.875rem ' + MONO,
+                        minHeight: '44px',
                     }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                     {dormant ? <span style={{ ...chip, color: MUTED }}>WK 1</span> : null}
@@ -63,17 +63,17 @@
 
         const body = (
             <nav aria-label="Commissioner workspaces" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: phone ? '100%' : '208px', flex: 'none', background: phone ? SURF : 'transparent', padding: phone ? '12px 0' : 0 }}>
-                <button onClick={() => { onSelect('command'); if (phone && onClose) onClose(); }}
+                <button aria-current={active === 'command' ? 'page' : undefined} onClick={() => { onSelect('command'); if (phone && onClose) onClose(); }}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
                         padding: '10px 12px', cursor: 'pointer', border: '1px solid ' + (active === 'command' ? ACC_LINE : LINE),
                         borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: '8px',
                         background: active === 'command' ? ACC_FILL : 'transparent',
                         color: active === 'command' ? ACCENT : SILVER,
-                        font: '700 var(--co-readable-small, 0.75rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
-                        minHeight: phone ? '44px' : undefined,
+                        font: '600 0.875rem ' + MONO,
+                        minHeight: '44px',
                     }}>
-                    ◧ Overview
+                    Overview
                 </button>
 
                 {(groups || []).map(g => {
@@ -81,7 +81,7 @@
                     const count = g.hubs.reduce((n, h) => n + ((counts && counts[h.hub]) || 0), 0);
                     return <div key={g.name} style={{ marginBottom: '4px' }}>
                         <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => { onSelect(g.hubs[0].hub); if (phone && onClose) onClose(); }}
-                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: 'var(--card-radius-sm, 8px)', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 var(--co-readable-small, 0.75rem) ' + MONO, cursor: 'pointer' }}>
+                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: 'var(--card-radius-sm, 8px)', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '500 0.875rem ' + MONO, cursor: 'pointer' }}>
                             <span style={{ flex: 1 }}>{g.name}</span>
                             {count ? <span style={{ ...chip, color: BAD }}>{count}</span> : g.dormant ? <span style={{ ...chip, color: MUTED }}>WK 1</span> : null}
                         </button>
@@ -90,17 +90,17 @@
                 })}
 
                 <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
-                    <button onClick={() => { onOpenSettings(); if (phone && onClose) onClose(); }}
+                    <button aria-current={active === 'settings' ? 'page' : undefined} onClick={() => { onOpenSettings(); if (phone && onClose) onClose(); }}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
                             padding: '9px 12px', cursor: 'pointer', border: 'none',
                             borderLeft: '3px solid ' + (active === 'settings' ? ACCENT : 'transparent'),
                             background: active === 'settings' ? ACC_FILL : 'transparent',
                             color: active === 'settings' ? TEXT : SILVER,
-                            font: '600 var(--co-readable-small, 0.75rem) ' + MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
-                            minHeight: phone ? '44px' : undefined,
+                            font: '500 0.875rem ' + MONO,
+                            minHeight: '44px',
                         }}>
-                        ⚙ Settings
+                        Settings
                     </button>
                     <div style={{ ...label, padding: '8px 12px 0', textTransform: 'none', letterSpacing: 0, lineHeight: 1.4 }}>
                         Managing {managedCount} of {leagueCount} league{leagueCount === 1 ? '' : 's'}
@@ -307,7 +307,7 @@
             <div style={{ background: SURF, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' }}>
                 <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ width: '3px', height: '16px', background: ACCENT, borderRadius: '2px' }} />
-                    <span style={{ font: '700 0.9375rem var(--font-title)', letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT }}>{title}</span>
+                    <span style={{ font: '700 0.9375rem var(--font-title)', color: TEXT }}>{title}</span>
                     {meta ? <span style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
                 </div>
                 <div style={{ padding: '16px' }}>{children}</div>

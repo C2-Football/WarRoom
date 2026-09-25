@@ -1,0 +1,55 @@
+
+> fantasy-war-room@1.0.0 test:workspaces
+> node --test tests/league-workspaces.cjs tests/portfolio-consolidation.cjs && node tests/player-notebook.cjs && node tests/workspace-intelligence.cjs
+
+✔ six stable workspaces retain meaningful deep routes (1.397125ms)
+✔ legacy analytics links retain their selected report in its new home (0.094458ms)
+✔ blocked deep links and navigation use the same format rules (0.085083ms)
+✔ callers cannot mutate shared routing metadata (0.061875ms)
+✔ only an untouched previous starter layout receives the new defaults (0.152875ms)
+ok ownership context counts IR/taxi once, excludes opponents, and preserves unknown coverage
+ok hub resumes the last league and puts league work before portfolio and games
+ok real Sleeper IDs survive select, back and direct-link restore without crossing accounts
+ok Empire exposes four workspaces and every prior specialized view remains reachable
+ok full Priority Queue preserves preview records and tracks them into the journal
+ok Empire arbitrage and direct Trade Desk state respect Chopped and disabled-trade leagues
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: Missing button: ⚙ Settings
+    at button (/Users/jacobc/Projects/warroom-polish-20260925/tests/portfolio-consolidation.cjs:52:113)
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/portfolio-consolidation.cjs:241:5
+    at test (/Users/jacobc/Projects/warroom-polish-20260925/tests/portfolio-consolidation.cjs:11:31)
+    at Object.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/tests/portfolio-consolidation.cjs:231:1)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v25.8.1
+✖ tests/portfolio-consolidation.cjs (474.515458ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 481.9285
+
+✖ failing tests:
+
+test at tests/portfolio-consolidation.cjs:1:1
+✖ tests/portfolio-consolidation.cjs (474.515458ms)
+  'test failed'

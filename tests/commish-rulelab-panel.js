@@ -70,7 +70,7 @@ const PRESETS = [
   { key: 'te_premium_full', label: 'TE Premium (+1.0/rec)', overrides: { bonus_rec_te: 1.0 } },
   { key: 'six_pt_pass_td', label: '6-pt Passing TDs', overrides: { pass_td: 6 } },
 ];
-const CAPTION = 'Both runs use identical as-played lineups rescored from raw stat lines — the diff is the rule change and nothing else. Playoffs were real games: we re-cut the field and seeds, we never re-crown a champion.';
+const CAPTION = 'Scoring comparisons use the same historical lineups and stats. Playoff game results are preserved; only qualification and seeding are recalculated.';
 
 // Full runProposal-shaped result: 12 teams, 10 moved / 2 unchanged (tests
 // the cap-8 + "+N more moved · +N unchanged" note), teamDeltas 8 wide.
@@ -181,7 +181,7 @@ test('no presets anywhere → honest engine-not-loaded line, no throw', () => {
 });
 test('bare render with no props at all does not throw', () => {
   const t = textOf(render(Panel, {}));
-  assert.ok(t.includes('Proposal Bench'.toUpperCase()) || t.includes('Proposal Bench'));
+  assert.ok(t.includes('Scoring proposal'.toUpperCase()) || t.includes('Scoring proposal'));
 });
 
 // ── Status states ───────────────────────────────────────────────────

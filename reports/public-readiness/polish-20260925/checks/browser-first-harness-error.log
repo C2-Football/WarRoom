@@ -1,0 +1,8 @@
+locator.click: Error: strict mode violation: locator('.duat-phone-realm details').first().locator('summary') resolved to 2 elements:
+    1) <summary>Season calendar · Week 1</summary> aka getByText('Season calendar · Week')
+    2) <summary>Scheduled offerings · 3 gods</summary> aka getByText('Scheduled offerings · 3 gods')
+
+Call log:
+[2m  - waiting for locator('.duat-phone-realm details').first().locator('summary')[22m
+
+    at /Users/jacobc/Projects/warroom-polish-20260925/tests/duat-polish-browser.cjs:96:80

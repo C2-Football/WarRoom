@@ -87,7 +87,7 @@
         return <section className="duat-panel duat-heptad-context duat-heptad-first-alliance">
             <span className="duat-eyebrow">YOUR ALLIANCE · THE {Heptad.tournamentName(campaign.alliances).toUpperCase()} GAMES</span><h2>{intro.alliance.name}</h2>
             <div className="duat-heptad-partners">{intro.alliance.teamIds.map(id=><div key={id}><FactionMark faction={factionOf(id)}/><strong>{factionOf(id).name}</strong><small>{id===factionId?'Your faction':'Your partner'}</small></div>)}</div>
-            <p><strong>The Games begin in Week {intro.startWeek}.</strong> {intro.entryLabel} You were drawn as entrance {intro.entry} of {campaign.alliances.length}.</p>
+            <p><strong>{intro.entryLabel}</strong> Entrance {intro.entry} of {campaign.alliances.length}.</p>
             <p>Your alliance combines its best eligible players into one lineup. One loss sends you to redemption; a second ends your run. The unbeaten finalist must be beaten twice.</p>
             <p className="duat-muted">{Heptad.describeOptions(intro.options)}</p>
         </section>;

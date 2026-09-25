@@ -559,8 +559,8 @@ function buildEmpirePortfolioModel(input) {
         pushSignal({
             severity: worstQuality === 'missing' || worstQuality === 'degraded' ? 'high' : 'medium',
             type: 'data',
-            title: 'Data confidence is not clean',
-            body: weak + ' need attention before every portfolio number should be trusted.',
+            title: 'Some portfolio data is missing',
+            body: weak + ' are incomplete. Review these sources before acting.',
             metric: worstQuality.toUpperCase(),
             detail: { type: 'quality' },
             cta: 'Review data',
@@ -759,7 +759,7 @@ function EmpirePortfolioLab({ model, onOpen }) {
     const pct = n => n == null ? 'Unavailable' : n.toFixed(1) + '%';
     return <main className="empire-detail empire-lab" data-testid="empire-portfolio-lab">
         <section className="empire-detail-hero">
-            <div><div className="empire-command-kicker">Plan before you move</div><h1>One outcome. Every league.</h1><p>Stress-test your holdings, find the most affected rosters, and decide where to review your exposure.</p></div>
+            <div><div className="empire-command-kicker">Portfolio Lab</div><h1>Test your exposure.</h1><p>See how a hypothetical value drop affects your leagues.</p></div>
             <span className="empire-lab-badge">Hypothetical scenario</span>
         </section>
         <section className="empire-panel">
@@ -1673,8 +1673,8 @@ function buildEmpireBrief(model, userName) {
     if (!model || !model.totals) return '';
     const topSignal = (model.signals || []).find(s => s.type !== 'data' && s.type !== 'balance');
     return topSignal
-        ? 'Top of my list: ' + topSignal.title + (topSignal.metric ? ' (' + topSignal.metric + ')' : '') + '.'
-        : 'No single risk is dominating the portfolio right now.';
+        ? topSignal.title + (topSignal.metric ? ' (' + topSignal.metric + ')' : '') + '.'
+        : 'No priority flagged in the available data.';
 }
 
 function empireCompact(value) {
@@ -1771,10 +1771,10 @@ function EmpireStyles() {
             .empire-header { position: sticky; top: 0; z-index: 60; background: var(--surf-solid, rgb(7,7,7)); border-bottom: 1px solid var(--acc-line1, rgb(53,45,21)); box-shadow: 0 12px 32px rgb(5,5,7); }
             .empire-topbar { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 24px; border-bottom: 1px solid var(--ov-4, rgb(22,22,24)); box-sizing: border-box; }
             .empire-back, .empire-ghost, .empire-filter, .empire-row-btn, .empire-action { border: 1px solid var(--ov-6, rgb(33,33,35)); background: var(--ov-3, rgb(17,17,20)); color: var(--ov-9, rgb(186,186,187)); border-radius: var(--card-radius-sm); cursor: pointer; font-family: inherit; transition: border-color 120ms, background 120ms, transform 120ms, color 120ms; }
-            .empire-back { width: 34px; height: 28px; font-size: var(--text-body, 1rem); }
+            .empire-back { width: 44px; height: 44px; font-size: var(--text-body, 1rem); }
             .empire-back:hover, .empire-ghost:hover, .empire-filter:hover, .empire-row-btn:hover, .empire-action:hover { border-color: var(--acc-line3, rgb(110,92,33)); background: var(--acc-fill1, rgb(22,20,14)); color: var(--k-f7e9b0, #f7e9b0); }
             .empire-title { display: flex; flex-direction: column; min-width: 0; }
-            .empire-title strong { color: var(--gold); font-family: var(--font-title); font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1; }
+            .empire-title strong { color: var(--gold); font-family: var(--font-body); font-size: 22px; font-weight: 600; letter-spacing: -.025em; line-height: 1.2; }
             .empire-title span { color: var(--ov-9, rgb(127,127,128)); font-size: var(--text-label, 0.75rem); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-user { margin-left: auto; color: var(--ov-9, rgb(144,144,145)); font-size: var(--text-label, 0.75rem); white-space: nowrap; }
             .empire-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 0; padding: 0 24px; background: linear-gradient(90deg, var(--acc-fill1, rgb(19,17,13)), rgb(10,13,16), rgb(12,11,19)); }
@@ -1787,7 +1787,7 @@ function EmpireStyles() {
             .empire-filter { min-height: 28px; padding: 5px 10px; font-size: var(--text-label, 0.75rem); font-weight: 800; color: var(--ov-9, rgb(136,136,138)); }
             .empire-filter.is-active { border-color: var(--tone, var(--k-d4af37, #d4af37)); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 16%, #08080b); color: var(--tone, var(--k-d4af37, #d4af37)); }
             .empire-clear { margin-left: auto; border-color: rgb(93,34,30); color: var(--k-e74c3c, #e74c3c); }
-            .empire-shell { max-width: 1760px; margin: 0 auto; padding: 18px 24px 40px; }
+            .empire-shell { max-width: 1440px; margin: 0 auto; padding: 18px 24px 40px; }
             .empire-viewbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; min-height: 44px; margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--ov-4, rgb(24,24,27)); border-radius: var(--card-radius); background: rgb(6,6,8); }
             .empire-viewbar-spacer { flex: 1 1 auto; }
             .empire-filter-toggle { display: inline-flex; align-items: center; gap: 7px; }
@@ -1801,7 +1801,7 @@ function EmpireStyles() {
             .empire-command-primary { position: relative; overflow: hidden; background: radial-gradient(circle at 92% 5%, rgb(25,23,47), #08080b 42%), linear-gradient(135deg, rgb(24,21,15), rgb(12,12,15)); }
             .empire-command-primary::after { content: ''; position: absolute; right: -34px; bottom: -58px; width: 180px; height: 180px; border: 1px solid rgb(26,23,15); border-radius: 50%; pointer-events: none; }
             .empire-command-kicker { color: var(--gold); font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
-            .empire-command-focus { position: relative; z-index: 1; margin: 9px 0 14px; color: var(--white, #fff); font-family: var(--font-title); font-size: clamp(1.15rem, 1.8vw, 1.55rem); line-height: 1.26; }
+            .empire-command-focus { position: relative; z-index: 1; margin: 9px 0 14px; color: var(--white, #fff); font-family: var(--font-body); font-size: clamp(1.25rem, 2vw, 1.75rem); line-height: 1.4; letter-spacing: -.025em; }
             .empire-command-meta { position: relative; z-index: 1; color: var(--ov-9, rgb(151,151,153)); font-size: var(--text-label, 0.75rem); line-height: 1.45; }
             .empire-priority-list { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
             .empire-priority-list .empire-signal { min-height: 112px; display: flex; flex-direction: column; }
@@ -1917,9 +1917,9 @@ function EmpireStyles() {
             .empire-brief-body { color: var(--ov-9, rgb(176,176,177)); font-size: var(--text-body, 1rem); line-height: 1.5; margin-top: 5px; }
             .empire-rolodex { margin-bottom: 12px; }
             .empire-rolodex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
-            .empire-panel { min-width: 0; border: 1px solid var(--acc-fill3, rgb(37,31,17)); background: linear-gradient(180deg, var(--ov-2, rgb(15,15,18)), var(--ov-1, rgb(11,11,14))); border-radius: var(--card-radius); padding: 12px; }
-            .empire-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--acc-fill2, rgb(32,28,16)); }
-            .empire-panel-head strong { color: var(--gold); font-family: var(--font-title); font-size: var(--text-title, 1.125rem); letter-spacing: 0.08em; text-transform: uppercase; }
+            .empire-panel { min-width: 0; border: 1px solid var(--ov-6, rgb(37,37,40)); background: var(--surf-solid, #111114); border-radius: var(--card-radius-lg); padding: 20px; }
+            .empire-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--ov-6, rgb(32,32,35)); }
+            .empire-panel-head strong { color: var(--white); font-family: var(--font-body); font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
             .empire-panel-head em { color: var(--ov-9, rgb(122,122,123)); font-style: normal; font-size: var(--text-label, 0.75rem); text-align: right; }
             .empire-stack { display: flex; flex-direction: column; gap: 8px; }
             .empire-bar-row { display: grid; grid-template-columns: 52px minmax(0,1fr) 46px; gap: 8px; align-items: center; color: var(--ov-9, rgb(161,161,162)); font-size: var(--text-label, 0.75rem); min-width: 0; }
@@ -1961,8 +1961,8 @@ function EmpireStyles() {
             .empire-quality em { display: block; color: var(--ov-9, rgb(136,136,138)); font-style: normal; font-size: var(--text-label, 0.75rem); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-workspace { margin-top: 12px; border: 1px solid var(--acc-fill3, rgb(37,31,17)); border-radius: var(--card-radius); background: var(--ov-1, rgb(12,12,15)); overflow: hidden; }
             .empire-workspace-head, .empire-table-head, .empire-asset-row { display: grid; grid-template-columns: minmax(180px,1.3fr) 46px 54px 76px 78px 72px minmax(140px,1fr); gap: 8px; align-items: center; }
-            .empire-workspace-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 12px; border-bottom: 1px solid var(--acc-fill2, rgb(32,28,16)); }
-            .empire-workspace-head strong { color: var(--gold); font-family: var(--font-title); font-size: var(--text-title, 1.125rem); letter-spacing: 0.08em; text-transform: uppercase; }
+            .empire-workspace-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 12px; border-bottom: 1px solid var(--ov-6, rgb(32,32,35)); }
+            .empire-workspace-head strong { color: var(--white); font-family: var(--font-body); font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
             .empire-sort-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
             .empire-ghost { padding: 5px 9px; font-size: var(--text-label, 0.75rem); font-weight: 800; }
             .empire-ghost.is-active { color: var(--gold); border-color: var(--acc-line3, rgb(100,83,31)); background: var(--acc-fill2, rgb(24,21,15)); }
@@ -3487,7 +3487,7 @@ const renderScoutDetail = () => {
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" aria-label="Back to hub" onClick={onBack}>{"<"}</button>
                     <div className="empire-title">
-                        <strong>Empire Command</strong>
+                        <strong>Empire</strong>
                         <span>{model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · asset allocation · exposure · pick capital</span>
                     </div>
                     {freshness && model.coverage.complete && model.pickCapital.complete ? (
@@ -3502,12 +3502,13 @@ const renderScoutDetail = () => {
                     </button>
                     <div className="empire-user">{userName}</div>
                 </div>
+                <details className="empire-summary" open={!phone} hidden={!allLeagues?.length}><summary>Portfolio snapshot <span>{model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'}</span></summary>
                 <div className="empire-kpis" data-testid="empire-command-strip" hidden={!allLeagues?.length}>
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset
                         table below, not these portfolio-level KPIs. */}
                     {bridge.kpis.map(kpiTile)}
-                </div>
+                </div></details>
             </header>
 
             <main className="empire-shell" data-workspace={workspace} data-asset-view={assetView}>
@@ -3585,10 +3586,10 @@ const renderScoutDetail = () => {
                     <>
                         <section className="empire-command-deck" data-testid="empire-bridge">
                             <div className="empire-panel empire-command-primary">
-                                <div className="empire-panel-head"><strong>Empire Brief</strong><em>Alex · {userName}</em></div>
-                                <div className="empire-command-kicker">Today's command read</div>
+                                <div className="empire-panel-head"><strong>Empire Brief</strong><em>Portfolio overview</em></div>
+
                                 <div className="empire-command-focus">{briefText}</div>
-                                <div className="empire-command-meta">Across {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · {actionQueue.length} ranked moves · {model.pickCapital.complete ? model.pickCapital.total + ' picks under management' : model.pickCapital.loadedLeagues ? model.pickCapital.total + ' known picks · coverage incomplete' : 'pick ownership unavailable'}</div>
+                                <div className="empire-command-meta">Across {model.totals.leagues} {model.coverage.complete ? 'leagues' : 'loaded leagues'} · {actionQueue.length} ranked moves · {model.pickCapital.complete ? model.pickCapital.total + ' picks' : model.pickCapital.loadedLeagues ? model.pickCapital.total + ' known picks · coverage incomplete' : 'pick ownership unavailable'}</div>
                             </div>
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Priority Queue</strong><em>the next {Math.min(3, actionQueue.length)} moves</em></div>
@@ -3599,14 +3600,14 @@ const renderScoutDetail = () => {
                                             <span>{action.detail}</span>
                                             <em>{action.cta}</em>
                                         </button>
-                                    )) : <div className="empire-empty"><strong>Portfolio is clean</strong>No high-leverage moves flagged right now.</div>}
+                                    )) : <div className="empire-empty"><strong>No priorities flagged</strong>No moves stand out in the available data.</div>}
                                 </div>
                                 {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => { setActionView('priority'); setDetail({ type: 'moves' }); }}>View all {actionQueue.length} priorities →</button></div> : null}
                             </div>
                         </section>
                         <EmpireSecondaryDetails active={phone && workspace === 'overview'}>
                         {workspace !== 'assets' && <section className="empire-panel empire-lab-entry">
-                            <div><div className="empire-command-kicker">Portfolio Lab</div><strong>How much of your empire rides on one outcome?</strong><p>Model a player, team, or position value drop across {model.coverage.complete ? 'every' : 'loaded'} league{model.coverage.complete ? '' : 's'}.</p></div>
+                            <div><div className="empire-command-kicker">Portfolio Lab</div><strong>Test a change in player value.</strong><p>Model a player, team, or position value drop across {model.coverage.complete ? 'every' : 'loaded'} league{model.coverage.complete ? '' : 's'}.</p></div>
                             <button className="empire-action" type="button" onClick={() => setDetail({ type: 'lab' })}>Stress-test portfolio →</button>
                         </section>}
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
@@ -3621,7 +3622,7 @@ const renderScoutDetail = () => {
                             <section className="empire-bridge" data-testid="empire-arbitrage">
                                 <div className="empire-panel" style={{ gridColumn: '1 / -1' }}>
                                     <div className="empire-panel-head">
-                                        <strong>Arbitrage — same player, different books</strong>
+                                        <strong>Value differences across leagues</strong>
                                         <em>{marks.arbitrage.length} spreads · {mineTotal} touch your roster · {Object.keys(marks.byLeague).length} leagues marked</em>
                                     </div>
                                     {mineTotal > 0 ? (
@@ -3679,7 +3680,7 @@ const renderScoutDetail = () => {
                         })() : null}
                         {workspace !== 'assets' && rolodex.length ? (
                             <section className="empire-panel empire-rolodex" data-testid="empire-rolodex">
-                                <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues · ranked by edge</em></div>
+                                <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues</em></div>
                                 <div className="empire-rolodex-grid">
                                     {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
                                         <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'owner', ownerId: o.ownerId, leagueId: o.leagueId })}>
@@ -3706,7 +3707,7 @@ const renderScoutDetail = () => {
                             </div>
 
                             <div className="empire-panel empire-center">
-                                <div className="empire-panel-head"><strong>Risks And Opportunities</strong><em>ranked portfolio signals</em></div>
+                                <div className="empire-panel-head"><strong>Risks And Opportunities</strong></div>
                                 <div className="empire-stack">
                                     {model.signals.slice(0, 7).map((signal, i) => (
                                         <button key={i} type="button" className="empire-signal" style={{ '--tone': signalTone(signal.severity) }} onClick={() => actionForSignal(signal)}>

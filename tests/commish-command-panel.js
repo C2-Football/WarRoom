@@ -152,5 +152,27 @@ test('every domain column renders a header button that opens its hub', () => {
   assert.deepStrictEqual(opened, DOMAINS.map(d => d.hub));
 });
 
+test('task action preserves league scope and action intent when opening a workspace', () => {
+  const opened = [];
+  const item = { id: 'draft-date', tier: 'NOW', hub: 'ops', headline: 'Set a draft date', leagueIds: ['league-42'], action: { label: 'Schedule', kind: 'draft-date' } };
+  const tree = render({ phone: true, queue: { items: [item] }, onOpenHub: (...args) => opened.push(args) });
+  const action = findAll(tree, n => n.type === 'button' && n.children?.includes('Schedule'))[0];
+  action.props.onClick({ stopPropagation() {} });
+  assert.deepStrictEqual(opened, [['ops', { leagueId: 'league-42', action: 'draft-date' }]]);
+});
+
+test('task review is a separate native button on phone and desktop', () => {
+  for (const phone of [true, false]) {
+    const selected = [];
+    const item = { id: 'draft-date', tier: 'NOW', headline: 'Set a draft date', leagueIds: ['league-42'] };
+    const tree = render({ phone, queue: { items: [item] }, onSelectItem: it => selected.push(it.id) });
+    const review = findAll(tree, n => n.type === 'button' && n.props['aria-label'] === 'Review Set a draft date')[0];
+    assert.ok(review, 'keyboard-accessible review control');
+    review.props.onClick({ stopPropagation() {} });
+    assert.deepStrictEqual(selected, ['draft-date']);
+    assert.equal(findAll(review.children, n => n.type === 'button').length, 0, 'no nested controls');
+  }
+});
+
 console.log((failed ? 'FAIL' : 'PASS') + ': ' + passed + ' passed, ' + failed + ' failed');
 if (failed) { failures.forEach(f => console.error('  ' + f.name + ': ' + (f.e && f.e.stack || f.e))); process.exit(1); }

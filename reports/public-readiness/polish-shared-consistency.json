@@ -1,0 +1,141 @@
+{
+  "pin": "7bd35313fc78e25a2d1ac24035989673a93f28e6",
+  "checks": [
+    {
+      "file": "reconai-shared/ai-dispatch.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/analytics-engine.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/app-config.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/assistant-tutorial.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/bug-capture.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/constants.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/dhq-ai.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/dhq-core.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/dhq-engine.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/dhq-providers.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/espn-api.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/event-bus.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/gm-engine.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/intelligence-context.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/mfl-api.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/mock-engine.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/nfl-fit.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/pick-value-model.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/platform-provider.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/player-modal.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/rookie-data.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/sleeper-api.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/storage.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/strategy.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/supabase-client.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/team-assess.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/tier.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/trade-engine.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/utils.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "reconai-shared/yahoo-api.js",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "draft-war-room/player.csv",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "draft-war-room/player-enrichment.csv",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "draft-war-room/data/mock_draft_db.csv",
+      "matchesPinnedSource": true
+    },
+    {
+      "file": "js/utils/player-value.js",
+      "matchesPinnedSource": true
+    }
+  ]
+}

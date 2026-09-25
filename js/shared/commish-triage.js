@@ -441,8 +441,7 @@
                     subjectName: nameOf(lid),
                     kicker: 'OPEN SEATS',
                     // Uniform phrasing on purpose — a scannable list beats a
-                    // varied one. Seeded variation belongs in the diagnosis
-                    // line, not in rows the eye has to compare.
+                    // varied one. Keep the same language in comparable rows.
                     headline: nameOf(lid) + ' has ' + group.length + ' ownerless rosters'
                         + (urgent ? ' and drafts in ' + days + ' days.' : '.'),
                     detail: 'Rosters ' + group.slice(0, 4).map(s => s.rosterId).join(', ')
@@ -793,106 +792,41 @@
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // diagnosis — one sentence naming the SHAPE of the workload, chosen by
-    // the top NOW item's domain and interpolated with live counts. Never a
-    // template that could be true of any desk.
+    // Diagnosis reports factual workload counts and the next relevant date.
+    // It follows the top NOW domain without inventing intent or urgency.
     // ══════════════════════════════════════════════════════════════════
     function diagnose(ctx) {
         const items = ctx.items;
         const m = ctx.leagueIds.length;
         const nowCount = ctx.counts.now;
-
-        // Empty desk: say what's next instead of congratulating them.
         if (!items.length) {
             const future = ctx.events
                 .filter(e => e && e.ts != null && (!ctx.hasNow || Number(e.ts) >= ctx.now))
                 .sort((a, b) => Number(a.ts) - Number(b.ts));
             const nx = future[0];
-            if (!nx) {
-                return say('triage:diag:empty:none:' + m, [
-                    'Nothing needs you across ' + plural(m, 'league') + '. Nothing dated on the calendar either.',
-                    'All ' + m + ' leagues are quiet, and the calendar is blank too.',
-                ]);
-            }
-            const label = String(nx.type || 'event');
-            return say('triage:diag:empty:' + m + ':' + nx.leagueId, [
-                'Nothing needs you across ' + plural(m, 'league') + '. Next dated item: '
-                    + fmtDate(nx.ts) + ', ' + (nx.leagueName || ctx.nameOf(nx.leagueId)) + ' ' + label + '.',
-                'All clear in ' + plural(m, 'league') + ' — the next thing on the books is '
-                    + (nx.leagueName || ctx.nameOf(nx.leagueId)) + ' ' + label + ' on ' + fmtDate(nx.ts) + '.',
-            ]);
+            if (!nx) return 'No open tasks across ' + plural(m, 'league') + '. No upcoming dates.';
+            return 'No open tasks across ' + plural(m, 'league') + '. Next: ' + fmtDate(nx.ts)
+                + ', ' + (nx.leagueName || ctx.nameOf(nx.leagueId)) + ' ' + String(nx.type || 'event') + '.';
         }
-
-        // Work exists but nothing is burning — say that plainly rather than
-        // inflating a SOON item into a crisis.
-        if (!nowCount) {
-            return say('triage:diag:calm:' + m + ':' + ctx.counts.soon, [
-                'Nothing is on fire across ' + plural(m, 'league') + ' — ' + plural(ctx.counts.soon, 'thing')
-                    + ' worth an hour this week, ' + ctx.counts.backlog + ' that can wait.',
-                'No emergencies in ' + plural(m, 'league') + '. ' + plural(ctx.counts.soon, 'item')
-                    + ' deserve an hour, the rest can sit.',
-            ]);
-        }
+        if (!nowCount) return 'No urgent tasks. ' + ctx.counts.soon + ' to review soon · '
+            + ctx.counts.backlog + ' in backlog.';
 
         const top = items.find(it => it.tier === 'NOW') || items[0];
         const domain = top.domain;
-
-        if (domain === 'genesis' && ctx.unscheduledCount > 0) {
-            const n = ctx.unscheduledCount;
-            return say('triage:diag:genesis:' + n + ':' + m, [
-                n + ' of your ' + m + ' leagues still have no draft on the calendar — ' + nowCount
-                    + ' things need you before Week 1 is even a question.',
-                'Week 1 is not the problem yet: ' + n + ' of ' + m + ' leagues have no draft date, and '
-                    + nowCount + ' items need you first.',
-            ]);
-        }
-        if (domain === 'genesis') {
-            return say('triage:diag:genesis-ready:' + m + ':' + nowCount, [
-                'Your drafts are booked but the setup behind them is not — ' + top.subjectName
-                    + ' leads ' + plural(nowCount, 'item') + ' that need you before Opening Day.',
-                top.subjectName + ' is the least-ready league on the board, and ' + nowCount
-                    + ' things need you before Opening Day.',
-            ]);
-        }
-
+        if (domain === 'genesis' && ctx.unscheduledCount > 0) return ctx.unscheduledCount + ' of ' + m
+            + (m === 1 ? ' league' : ' leagues') + (ctx.unscheduledCount === 1 ? ' needs' : ' need') + ' a draft date. ' + plural(nowCount, 'priority task') + '.';
+        if (domain === 'genesis') return plural(nowCount, 'priority setup task') + '. Start with ' + top.subjectName + '.';
         if (domain === 'people') {
             const people = (ctx.radar && ctx.radar.people) || [];
             const humans = people.filter(p => p && !p.isMe).length
                 || Object.keys((ctx.graph && ctx.graph.people) || {}).length;
             const dark = people.filter(p => p && !p.isMe && (p.status === 'DARK_ALL' || p.status === 'DARK_ONE')).length;
-            const seatN = ctx.seats.length;
-            return say('triage:diag:people:' + dark + ':' + humans + ':' + seatN, [
-                'Your leagues aren\'t fighting, they\'re going quiet — ' + dark + ' of ' + humans
-                    + ' humans have stopped showing up and ' + plural(seatN, 'seat')
-                    + (seatN === 1 ? ' is empty.' : ' are empty.'),
-                'Nobody is arguing; they are just leaving. ' + dark + ' of your ' + plural(humans, 'human')
-                    + ' have gone quiet and ' + plural(seatN, 'seat') + ' sit empty.',
-            ]);
+            return dark + ' of ' + plural(humans, 'manager') + (dark === 1 ? ' has' : ' have') + ' inactivity signals; ' + plural(ctx.seats.length, 'open seat') + '.';
         }
-
-        if (domain === 'operations' && ctx.driftChangeTotal > 0) {
-            return say('triage:diag:ops:' + ctx.driftChangeTotal + ':' + ctx.driftLeagueCount, [
-                'Someone\'s been editing settings you haven\'t signed off on — ' + ctx.driftChangeTotal
-                    + ' changes across ' + plural(ctx.driftLeagueCount, 'league') + '.',
-                ctx.driftChangeTotal + ' settings moved without your signature, spread over '
-                    + plural(ctx.driftLeagueCount, 'league') + '.',
-            ]);
-        }
-        if (domain === 'operations') {
-            return say('triage:diag:ops-cal:' + nowCount + ':' + m, [
-                'Your calendar is colliding with itself — ' + plural(nowCount, 'item')
-                    + ' need a date moved before they cost you a member.',
-                plural(nowCount, 'scheduling conflict') + ' on the board, starting with ' + top.subjectName + '.',
-            ]);
-        }
-
-        // Bylaws / programmes / anything else that reaches the top.
-        return say('triage:diag:generic:' + domain + ':' + nowCount + ':' + m, [
-            plural(nowCount, 'thing') + ' need you across ' + plural(m, 'league') + ' — start with '
-                + top.subjectName + ': ' + top.headline,
-            'Start with ' + top.subjectName + '. ' + plural(nowCount, 'item') + ' across '
-                + plural(m, 'league') + ' are waiting on you.',
-        ]);
+        if (domain === 'operations' && ctx.driftChangeTotal > 0) return plural(ctx.driftChangeTotal, 'setting change')
+            + ' across ' + plural(ctx.driftLeagueCount, 'league') + ' to review.';
+        if (domain === 'operations') return plural(nowCount, 'priority calendar item') + '. Start with ' + top.subjectName + '.';
+        return plural(nowCount, 'priority task') + ' across ' + plural(m, 'league') + '. Start with ' + top.subjectName + '.';
     }
 
     const api = {

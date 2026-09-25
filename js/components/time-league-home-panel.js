@@ -127,14 +127,14 @@
                 h('div', { className: 'tl-home-hero-copy' },
                     h('span', { className: 'tl-eyebrow' }, heroStatus),
                     league.phase === 'complete'
-                        ? h('h1', null, champion?.teamId === myTeam.teamId ? 'You own the timeline.' : `${champion?.name ?? 'A champion'} owns the timeline.`)
+                        ? h('h1', null, champion?.teamId === myTeam.teamId ? 'Your championship season.' : `${champion?.name ?? 'Your champion'} takes the title.`)
                         : h('h1', { className: 'tl-home-matchup-heading' }, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
                     h('p', null, league.phase === 'complete'
-                        ? `${champion?.name ?? 'The champion'} survived every era and finished on top of ${league.name}.`
+                        ? `${champion?.name ?? 'The champion'} wins ${league.name}.`
                         : postgame
-                            ? 'The final is in. Review the results below, then use End week to open the next bidding window.'
+                            ? 'Results are final. End the week when you’re ready for the next round of claims.'
                         : ready
-                            ? 'Your lineup is ready. Review the matchup, make a final move, then let the week play out live.'
+                            ? 'Lineup ready. Review your team or head to game day.'
                             : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before kickoff.`),
                     league.phase !== 'complete' && !postgame && h('div', { className: 'tl-home-hero-actions' },
                         h('button', { type: 'button', className: `tl-btn ${ready ? '' : 'primary'}`, onClick: () => onNavigate('roster') }, ready ? 'REVIEW LINEUP' : `FIX LINEUP (${lineupProblems.length})`),
@@ -186,7 +186,7 @@
                         h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('activity') }, 'All activity →')))),
 
             h('section', { className: 'tl-home-era-strip' },
-                h('div', null, h('span', { className: 'tl-eyebrow' }, 'YOUR LEAGUE DNA'), h('strong', null, 'Football history is the playing field')),
+                h('div', null, h('span', { className: 'tl-eyebrow' }, 'IN YOUR LEAGUE'), h('strong', null, 'The eras on the field')),
                 h('div', { className: 'tl-home-era-line' }, EraRules.ERA_DECADES.map((decade) => h('span', {
                     key: decade.id, className: eraSpread.decades.includes(decade.id) ? 'live' : '',
                 }, h('b', null, decade.label), h('small', null, `${decade.from}–${decade.to}`)))),

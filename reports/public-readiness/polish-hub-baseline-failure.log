@@ -1,0 +1,70 @@
+(node:9128) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ hub opens a real league first and resumes the exact previous league before other entries (40.959291ms)
+✖ many leagues collapse after three while team and format search can reach every league (14.410083ms)
+✖ unknown record stays absent and loading, empty, error and invite states remain actionable (18.0575ms)
+✖ compact product entries keep paid routing and commissioner eligibility (15.165625ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 92.685666
+
+✖ failing tests:
+
+test at output/playwright/hub-polish/baseline-mobile-hub.cjs:37:1
+✖ hub opens a real league first and resumes the exact previous league before other entries (40.959291ms)
+  ReferenceError: sleeperUsername is not defined
+      at Object.FranchisePicker (evalmachine.<anonymous>:72:22)
+      at render (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:34:58)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:40:16)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+test at output/playwright/hub-polish/baseline-mobile-hub.cjs:52:1
+✖ many leagues collapse after three while team and format search can reach every league (14.410083ms)
+  ReferenceError: sleeperUsername is not defined
+      at Object.FranchisePicker (evalmachine.<anonymous>:72:22)
+      at render (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:34:58)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:55:16)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+
+test at output/playwright/hub-polish/baseline-mobile-hub.cjs:80:1
+✖ unknown record stays absent and loading, empty, error and invite states remain actionable (18.0575ms)
+  ReferenceError: sleeperUsername is not defined
+      at Object.FranchisePicker (evalmachine.<anonymous>:72:22)
+      at render (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:34:58)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:82:16)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at output/playwright/hub-polish/baseline-mobile-hub.cjs:99:1
+✖ compact product entries keep paid routing and commissioner eligibility (15.165625ms)
+  ReferenceError: sleeperUsername is not defined
+      at Object.FranchisePicker (evalmachine.<anonymous>:72:22)
+      at render (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:34:58)
+      at TestContext.<anonymous> (/Users/jacobc/Projects/warroom-polish-20260925/output/playwright/hub-polish/baseline-mobile-hub.cjs:101:16)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)

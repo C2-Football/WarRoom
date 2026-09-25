@@ -540,7 +540,7 @@ test('diagnosis: genesis form when the top NOW item is an unscheduled draft', ()
   assert.strictEqual(q.counts.now, 4);
   assert.strictEqual(
     q.diagnosis,
-    '4 of your 4 leagues still have no draft on the calendar — 4 things need you before Week 1 is even a question.');
+    '4 of 4 leagues need a draft date. 4 priority tasks.');
 });
 
 test('diagnosis: people form when the top NOW item is a human', () => {
@@ -566,7 +566,7 @@ test('diagnosis: people form when the top NOW item is a human', () => {
   assert.strictEqual(q.items[0].domain, 'people');
   assert.strictEqual(
     q.diagnosis,
-    'Your leagues aren\'t fighting, they\'re going quiet — 2 of 3 humans have stopped showing up and 2 seats are empty.');
+    '2 of 3 managers have inactivity signals; 2 open seats.');
 });
 
 test('diagnosis: operations form when the top NOW item is settings drift', () => {
@@ -592,7 +592,7 @@ test('diagnosis: operations form when the top NOW item is settings drift', () =>
   assert.strictEqual(q.items[0].domain, 'operations');
   assert.strictEqual(
     q.diagnosis,
-    'Someone\'s been editing settings you haven\'t signed off on — 4 changes across 2 leagues.');
+    '4 setting changes across 2 leagues to review.');
 });
 
 test('diagnosis: empty queue names the next dated item instead of congratulating', () => {
@@ -608,13 +608,13 @@ test('diagnosis: empty queue names the next dated item instead of congratulating
   });
   assert.strictEqual(q.items.length, 0, 'nothing outstanding');
   assert.deepStrictEqual(q.counts, { now: 0, soon: 0, backlog: 0 });
-  assert.strictEqual(q.diagnosis, 'Nothing needs you across 2 leagues. Next dated item: Aug 28, Alpha League draft.');
+  assert.strictEqual(q.diagnosis, 'No open tasks across 2 leagues. Next: Aug 28, Alpha League draft.');
 });
 
 test('diagnosis: empty queue with an empty calendar says so honestly', () => {
   const q = Triage.buildQueue({ mine: [league('L1', 'Alpha League', { status: 'in_season' })], week: 1, nowMs: NOW });
   assert.strictEqual(q.items.length, 0);
-  assert.strictEqual(q.diagnosis, 'Nothing needs you across 1 league. Nothing dated on the calendar either.');
+  assert.strictEqual(q.diagnosis, 'No open tasks across 1 league. No upcoming dates.');
 });
 
 test('diagnosis: work with no NOW item does not get inflated into a crisis', () => {
@@ -629,7 +629,7 @@ test('diagnosis: work with no NOW item does not get inflated into a crisis', () 
   assert.deepStrictEqual(q.counts, { now: 0, soon: 1, backlog: 0 });
   assert.strictEqual(
     q.diagnosis,
-    'Nothing is on fire across 1 league — 1 thing worth an hour this week, 0 that can wait.');
+    'No urgent tasks. 1 to review soon · 0 in backlog.');
 });
 
 test('drift_acked_no_note fires only when ack history is actually supplied', () => {

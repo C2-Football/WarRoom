@@ -1,0 +1,38 @@
+  ok  WEIGHTS is exported and carries every documented base weight
+  ok  tier boundaries: 70 = NOW, 69.9 = SOON, 40 = SOON, 39.9 = BACKLOG
+  ok  tier boundary end-to-end: renewal_AT_RISK at p=0.20 scores exactly 70 → NOW
+  ok  blast radius: person weight × (1 + 0.08 × (leagueCount − 1))
+  ok  blast radius clamps at 100 — a 3-league DARK_ALL cannot exceed the scale
+  ok  conflicts take +2 per shared human on top of the base weight
+  ok  a deadline cluster is one row spanning every league in the week
+  ok  offseason clamp: person items are ×0.55 and hard-capped at SOON
+  ok  offseason clamp leaves non-person kinds alone
+  ok  offseason clamp does not touch renewal — August is exactly when it is fixable
+  ok  person rollup: a 3-league dark human is ONE row carrying 3 league tags
+  ok  person rollup: ACTIVE + SAFE produces no row at all
+  ok  rollup: one row per league for genesis / drift / dues / constitution
+  ok  an empty constitutions map means "we never looked", not "everyone is lawless"
+  ok  drift_other_path is used when nothing scoring-shaped moved
+  ok  a first-run drift baseline is never a finding
+  ok  Rule Lab contributes nothing — it is a tool, not an obligation
+  ok  an open seat escalates to 92 when the draft is inside 14 days
+  ok  genesis: an unscheduled draft is one row and never doubles with the checklist row
+  ok  genesis: a booked draft inside 30 days with <50% readiness scores 80
+  ok  genesis never demands a draft date once the season is under way
+  ok  byCell emits a value for EVERY league × domain pair (28 for 4 leagues)
+  ok  notYet marks coefficient + programmes in the offseason, and clears in season
+  ok  notYet is per league — a league whose own leg lags still reads not-yet
+  ok  scoredWeeks ignores a stale leg left over from last season
+  ok  sort is deterministic and independent of input ordering
+  ok  sort: score desc, then dueTs asc with nulls last, then league name, then id
+  ok  diagnosis: genesis form when the top NOW item is an unscheduled draft
+  ok  diagnosis: people form when the top NOW item is a human
+  ok  diagnosis: operations form when the top NOW item is settings drift
+  ok  diagnosis: empty queue names the next dated item instead of congratulating
+  ok  diagnosis: empty queue with an empty calendar says so honestly
+  ok  diagnosis: work with no NOW item does not get inflated into a crisis
+  ok  drift_acked_no_note fires only when ack history is actually supplied
+  ok  every item carries the full contract: domain, hub, action verb, metric
+  ok  an empty desk still returns a well-formed envelope
+
+PASS 36 tests — 36 passed, 0 failed

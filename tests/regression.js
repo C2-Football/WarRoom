@@ -249,7 +249,14 @@ test('existing module components consume the league skin contract for labels and
   sourceHas(myTeamSrc, 'const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;', 'My Team must resolve the active skin');
   sourceHas(myTeamSrc, "...(skinFeatures.showTaxi === false ? [] : ['Taxi'])", 'My Team scope filters must hide Taxi when the skin says so');
   sourceHas(myTeamSrc, "...(skinFeatures.showIDP === false ? [] : ['IDP'])", 'My Team scope filters must hide IDP when the skin says so');
-  sourceHas(myTeamSrc, "dhq:        { label: valueLabel, shortLabel: valueShortLabel", 'My Team value column must use skin vocabulary');
+  const columnSource = myTeamSrc.slice(myTeamSrc.indexOf('  const ROSTER_COLUMNS = {'), myTeamSrc.indexOf('  // Free: the Move/Trade-Recommendation'));
+  const columns = showRosterRosPoints => vm.runInNewContext(columnSource + '; ROSTER_COLUMNS', {
+    showRosterRosPoints, isPro: false, wkVerdict: true, valueLabel: 'League value', valueShortLabel: 'Value',
+  });
+  eq(columns(false).dhq.label, 'League value', 'rating column follows the league vocabulary');
+  eq(columns(false).dhq.shortLabel, 'Value', 'rating header follows the league vocabulary');
+  eq(columns(true).dhq.shortLabel, 'ROS pts', 'seasonal points are labelled as points, not a value rating');
+  eq(columns(true).dhq.label, 'Projected rest-of-season fantasy points', 'points column describes the real unit');
   sourceHas(freeAgencySrc, 'const faColumns = useMemo(() => ({', 'Free Agency must derive display columns from the skin');
   sourceHas(freeAgencySrc, 'label: skinFeatures.showAgeCurve === false ? \'Value Window\' : FA_COLUMNS.peakYr.label', 'Free Agency must relabel age-window columns for non-age-curve skins');
   sourceHas(freeAgencySrc, 'leagueSkin: resolvedLeagueSkin', 'Free Agency roster guard must receive the active skin');
@@ -417,9 +424,20 @@ test('Mock Draft Center keeps decision cards readable and roster grade integrate
 });
 
 test('League legend explains the DHQ model in depth and stays theme-aware', () => {
-  sourceHas(leagueDetailSrc, "cat: 'What DHQ Measures'", 'legend should explain the DHQ inputs');
-  sourceHas(leagueDetailSrc, "cat: 'How To Read DHQ'", 'legend should explain DHQ bands');
-  sourceHas(leagueDetailSrc, "cat: 'What DHQ Is Not'", 'legend should explain DHQ limits');
+  const legendStart = leagueDetailSrc.indexOf('            const valueTerm =');
+  const legendEnd = leagueDetailSrc.indexOf('if (module)', legendStart);
+  const legendSource = leagueDetailSrc.slice(legendStart, legendEnd);
+  const legend = dynasty => vm.runInNewContext(legendSource + '; ({ quickItems, fullItems })', {
+    skinValueShort: dynasty ? 'DHQ' : 'Value', skinValueLabel: 'Value rating',
+    skinShowsDynastyValue: dynasty, skinShowsAgeCurve: dynasty,
+  });
+  const dynasty = legend(true), seasonal = legend(false);
+  for (const category of ['What DHQ Measures', 'How To Read DHQ', 'What DHQ Is Not']) {
+    ok(dynasty.fullItems.some(section => section.cat === category && section.items.length), 'Dynasty help retains ' + category);
+  }
+  ok(seasonal.fullItems.some(section => section.cat === 'Points and value ratings'), 'Seasonal help distinguishes rating and points');
+  ok(seasonal.quickItems.some(item => item.term === 'ROS pts' && item.def.includes('Projected fantasy points') && item.def.includes('not a 0–10,000 rating')), 'Seasonal help explains ROS units and limits');
+  ok(!dynasty.quickItems.some(item => item.term === 'ROS pts'), 'Dynasty quick help does not imply ROS as its default value');
   sourceHas(leagueDetailSrc, "background: 'var(--black)'", 'legend cards should use theme-aware surfaces');
 });
 

@@ -1,0 +1,7 @@
+page.goto: Timeout 30000ms exceeded.
+Call log:
+[2m  - navigating to "http://127.0.0.1:3025/index.html?dev=true&user=review-fixture", waiting until "domcontentloaded"[22m
+
+    at /Users/jacobc/Projects/warroom-polish-20260925/output/playwright/commish-polish/root-independent-browser.cjs:13:14 {
+  name: 'TimeoutError'
+}

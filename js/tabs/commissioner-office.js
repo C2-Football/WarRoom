@@ -52,15 +52,20 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // tier) and --charcoal is a translucent gold. These CO_* customs are
     // defined on the shell below and are the only colors the office uses.
     const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
-    const MUTED = '#8D887E', ACCENT = 'var(--co-accent, #5DADE2)';
+    const MUTED = 'var(--co-muted, #A3ABB8)', ACCENT = 'var(--co-accent, #5DADE2)';
     const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const CO_TOKENS = {
-        '--co-page': '#08080B', '--co-surface': '#121217', '--co-surface-2': '#1B1B22',
-        '--co-surface-3': '#17171D', '--co-well': '#0F0F14',
-        '--co-line': '#27262E', '--co-line-soft': '#201F27',
-        '--co-accent': '#5DADE2', '--co-accent-fill': '#12212B', '--co-accent-line': '#2B4B63',
-        '--co-fill-bad': '#2A1512', '--co-fill-warn': '#2A2010', '--co-fill-good': '#14281C',
+        '--co-page': '#0D1118', '--co-surface': '#151B24', '--co-surface-2': '#1D2531',
+        '--co-surface-3': '#202C3A', '--co-well': '#111720',
+        '--co-line': '#2B3544', '--co-line-soft': '#242E3C', '--co-muted': '#A3ABB8',
+        '--co-accent': '#9EC9FA', '--co-accent-fill': '#203348', '--co-accent-line': '#425D7B',
+        '--co-fill-bad': '#352225', '--co-fill-warn': '#332B20', '--co-fill-good': '#1C3029',
+        '--white': '#F3F5F8', '--silver': '#B8C1CD', '--good': '#82C5A4', '--bad': '#F09594', '--warn': '#D7BA7C',
+        '--font-body': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        '--font-title': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        '--font-mono': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        '--card-radius': '18px', '--card-radius-sm': '12px', '--card-radius-xs': '8px',
     };
 
     const C = window.App && window.App.Commish;
@@ -1398,20 +1403,56 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 onClose={() => { if (localSave.canLeave()) setActionItem(null); }}
             />
         ) : null}
-        <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '14px 16px 60px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
-                {/* Blue wordmark, not gold: the cheapest signal that the Office
-                    is a different room from Empire. Gold survives in exactly two
-                    places office-wide — the LABS chip and the "this is you" row. */}
-                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: isPhone ? '1.15rem' : '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
-                <span style={{ fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.625rem)', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
-                {state.status === 'ready' ? (
-                    <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
-                        {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER
-                    </span>
-                ) : null}
-            </div>
+        <style>{`
+            .co-office { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+            .co-office-frame { max-width: 1320px; margin: 0 auto; padding: 28px 28px 64px; }
+            .co-office-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+            .co-office-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+            .co-office-title { margin: 6px 0 0; font-size: clamp(24px, 2.2vw, 32px); line-height: 1.2; font-weight: 650; letter-spacing: -.035em; }
+            .co-office-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .05em; color: var(--co-muted); }
+            .co-office-meta { margin-top: 10px; color: var(--co-muted); font-size: 13px; line-height: 1.5; }
+            .co-office-back { border: 1px solid var(--co-line); border-radius: 999px; padding: 10px 16px; min-height: 44px; background: transparent; color: var(--silver); cursor: pointer; font: 600 13px var(--font-body); white-space: nowrap; }
+            .co-office :is(button, input, select, textarea) { font-family: var(--font-body); }
+            .co-office button { text-transform: none !important; }
+            .co-office :is(button, summary, input, select, textarea, [role=button]):focus-visible { outline: 2px solid var(--co-accent) !important; outline-offset: 3px; }
+            .co-office button:disabled { cursor: default; }
+            .co-workspace-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-bottom: 22px; min-height: 48px; padding: 12px 16px; cursor: pointer; background: var(--co-surface); border: 1px solid var(--co-line); border-radius: var(--card-radius-sm); color: var(--white); font: 600 14px var(--font-body); }
+            .co-view-switcher { display: flex; flex-wrap: wrap; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; margin-bottom: 22px; background: var(--co-well); border: 1px solid var(--co-line); border-radius: var(--card-radius-sm); }
+            .co-view-switcher button { min-height: 40px; padding: 9px 14px; border: 0; border-radius: var(--card-radius-xs); background: transparent; color: var(--co-muted); font: 500 13px var(--font-body); cursor: pointer; }
+            .co-view-switcher button[aria-current=page] { background: var(--co-surface-2); color: var(--white); }
+            .co-office .co-disclosure { padding: 10px 16px; }
+            .co-office .co-disclosure > summary { font-weight: 500; }
+            .co-priority-filters, .co-league-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+            .co-filter-label { font-size: 12px; color: var(--co-muted); min-width: 42px; }
+            .co-workspace-dialog { font-family: var(--font-body); }
+            @media (max-width: 767px) {
+                .co-office-frame { padding: 24px 16px calc(36px + env(safe-area-inset-bottom, 0px)); }
+                .co-office-header { position: relative; align-items: flex-start; gap: 10px; margin-bottom: 22px; }
+                .co-office-header > div { width: 100%; }
+                .co-office-heading { gap: 8px; }
+                .co-office-title { font-size: 26px; margin-top: 12px; }
+                .co-office-back { position: absolute; right: 0; top: -10px; padding: 10px 12px; white-space: nowrap !important; }
+                .co-office-eyebrow { font-size: 11px; }
+                .co-office-meta { font-size: 13px; }
+                .co-view-switcher { width: 100%; box-sizing: border-box; }
+                .co-view-switcher button { flex: 1; }
+                .co-priority-filters, .co-league-filters { width: 100%; }
+                .co-priority-filters button { flex: 1; justify-content: center; padding: 0 7px !important; }
+                .co-priority-filters .co-filter-label { display: none; }
+                .co-office .co-command { gap: 20px !important; }
+            }
+            @media (max-width: 359px) { .co-priority-filters button { gap: 4px !important; } .co-priority-filters button span { font-size: 13px !important; white-space: nowrap; overflow-wrap: normal; } }
+            @media (prefers-reduced-motion: reduce) { .co-office * { scroll-behavior: auto !important; transition: none !important; } }
+        `}</style>
+        <div className="co-office-frame">
+            <header className="co-office-header">
+                <div>
+                    <div className="co-office-eyebrow">League management <span style={{ marginLeft: 6, opacity: .75 }}>· Beta</span></div>
+                    <div className="co-office-heading"><h1 className="co-office-title">Commissioner's Office</h1></div>
+                    {state.status === 'ready' ? <div className="co-office-meta">{state.mine.length} league{state.mine.length === 1 ? '' : 's'} · {Object.keys(state.graph?.people || {}).length} managers · {(state.graph?.overlap || []).length} in multiple leagues</div> : null}
+                </div>
+                <button type="button" className="co-office-back" onClick={onBack}>‹ Hub</button>
+            </header>
             {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div>{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry} style={{ marginTop: 8 }}>{localSave.failure.retryLabel || 'Retry save'}</button>}<button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
             {state.status === 'ready' ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
@@ -1427,13 +1468,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     ) : null}
                     <div style={{ flex: 1, minWidth: 0 }}>
                         {isPhone ? (
-                            <button aria-haspopup="dialog" aria-expanded={navOpen} onClick={() => setNavOpen(true)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                ☰ Workspaces
+                            <button className="co-workspace-trigger" aria-haspopup="dialog" aria-expanded={navOpen} onClick={() => setNavOpen(true)}>
+                                <span>Workspaces</span><span style={{ color: MUTED, fontWeight: 400 }}>{activeWorkspace?.name || (tab === 'settings' ? 'Settings' : 'Overview')} <span aria-hidden="true">⌄</span></span>
                             </button>
                         ) : null}
-                        {activeWorkspace && <nav aria-label={activeWorkspace.name + ' views'} style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                            {activeWorkspace.hubs.map(h => <button key={h.hub} type="button" aria-current={tab === h.hub ? 'page' : undefined} onClick={() => openHub(h.hub, scopeLeagueId)} style={{ minHeight: '44px', padding: '8px 12px', border: '1px solid ' + (tab === h.hub ? ACCENT : LINE), borderRadius: 'var(--card-radius-sm, 8px)', background: tab === h.hub ? 'var(--co-accent-fill)' : PANEL, color: tab === h.hub ? ACCENT : TEXT, fontFamily: MONO, cursor: 'pointer' }}>{h.name}</button>)}
+                        {activeWorkspace && <nav className="co-view-switcher" aria-label={activeWorkspace.name + ' views'}>
+                            {activeWorkspace.hubs.map(h => <button key={h.hub} type="button" aria-current={tab === h.hub ? 'page' : undefined} onClick={() => openHub(h.hub, scopeLeagueId)}>{h.name}</button>)}
                         </nav>}
                         {scopeLeagueId ? (
                             <button onClick={() => setScopeLeagueId(null)}
@@ -1448,8 +1488,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             {/* The command panel prints its own provenance footer; only add one
                 here for the hub views, so the two never stack. */}
             {tab !== 'command' ? (
-                <div style={{ marginTop: '24px', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
-                    The office reads; it never writes to a platform.
+                <div style={{ marginTop: '24px', fontFamily: MONO, fontSize: 'var(--co-readable-small, 0.6875rem)', fontWeight: 400, lineHeight: 1.6, color: MUTED }}>
+                    Plans stay in this browser. Apply league changes on Sleeper.
                 </div>
             ) : null}
         </div>
@@ -1460,7 +1500,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: 'var(--co-readable-body, 0.78rem)' }}>{state.step || 'Opening the office…'}</div>);
     }
     if (state.status === 'none') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)', lineHeight: 1.6 }}>No commissioner leagues found. Connect a Sleeper account with commissioner access to open your league tools.</div>);
     }
     if (state.status === 'error' || state.status === 'unavailable') {
         return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: 'var(--co-readable-body, 0.82rem)' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);

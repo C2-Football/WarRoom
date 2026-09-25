@@ -1,0 +1,36 @@
+
+> fantasy-war-room@1.0.0 test:workspaces
+> node --test tests/league-workspaces.cjs tests/portfolio-consolidation.cjs && node tests/player-notebook.cjs && node tests/workspace-intelligence.cjs
+
+✔ six stable workspaces retain meaningful deep routes (2.027916ms)
+✔ legacy analytics links retain their selected report in its new home (0.158541ms)
+✔ blocked deep links and navigation use the same format rules (0.113834ms)
+✔ callers cannot mutate shared routing metadata (0.066167ms)
+✔ only an untouched previous starter layout receives the new defaults (0.181542ms)
+ok ownership context counts IR/taxi once, excludes opponents, and preserves unknown coverage
+ok hub resumes the last league and puts league work before portfolio and games
+ok real Sleeper IDs survive select, back and direct-link restore without crossing accounts
+ok Empire exposes four workspaces and every prior specialized view remains reachable
+ok full Priority Queue preserves preview records and tracks them into the journal
+ok Empire arbitrage and direct Trade Desk state respect Chopped and disabled-trade leagues
+ok Commissioner workspace selection preserves legacy desk routes and settings
+ok Bylaws and Dues reuse authorized controls while rendering only the selected workflow
+PASS 8 portfolio consolidation tests
+(node:10392) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tests/portfolio-consolidation.cjs (515.046291ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 524.323375
+PASS notebook owner/provider/league scopes, migration preservation, action capabilities, contextual handoffs and real player-card actions
+PASS saved-targets to waiver-plan mount reuse and view-prop effect ordering
+(node:10395) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS workspace intelligence: isolated views, acquisition continuity, shared agenda dates, format-aware actions, and compact Home survival
+(node:10396) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

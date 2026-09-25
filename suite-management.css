@@ -141,3 +141,73 @@
   .wr-wire-portfolio .wr-journal-kicker { letter-spacing:.02em; }
   .wr-wire-portfolio .wr-journal-bar > span { display:none; }
 }
+
+/* Empire: quieter portfolio chrome, readable evidence, and one mobile focus. */
+.empire-root { background: var(--page-bg, #0c0d0f); }
+.empire-root .empire-header { display: flex; flex-direction: column; border-bottom: 1px solid var(--ov-6, #ffffff18); box-shadow: none; }
+.empire-root .empire-topbar { order: -1; padding: 18px 28px; gap: 14px; }
+.empire-root .empire-title strong { color: var(--white); }
+.empire-root .empire-title span { margin-top: 6px; line-height: 1.5; }
+.empire-root .empire-workspace-nav { padding: 8px 24px 12px; background: transparent; }
+.empire-root .empire-workspace-primary { width: fit-content; max-width: 100%; padding: 4px; background: var(--ov-3, #ffffff08); border-radius: var(--card-radius); gap: 4px; }
+.empire-root .empire-workspace-primary button { min-width: 118px; font-weight: 500; border-color: transparent; }
+.empire-root .empire-workspace-nav button[aria-current="page"] { background: var(--ov-6, #ffffff18); color: var(--white); border-color: transparent; }
+.empire-root .empire-workspace-secondary { padding: 5px 0 0; gap: 3px; }
+.empire-root .empire-workspace-secondary button { font-weight: 500; }
+.empire-root :is(.empire-action,.empire-ghost,.empire-filter,.empire-row-btn) { min-height: 40px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+.empire-root .empire-summary { padding: 0 28px; border: 0; background: var(--ov-1, #ffffff04); }
+.empire-root .empire-summary > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--silver); font-size: 13px; }
+.empire-root .empire-summary > summary span { float: right; font-size: 12px; }
+.empire-root .empire-kpis { background: transparent; padding: 0 0 16px; gap: 0; }
+.empire-root .empire-kpi { padding: 12px 16px; }
+.empire-root .empire-kpi:first-child { padding-left: 0; }
+.empire-root .empire-kpi:last-child { border-right: 0; }
+.empire-root .empire-kpi strong { font: 500 24px/1.2 var(--font-body); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.empire-root .empire-kpi span { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--silver); }
+.empire-root .empire-kpi em { font-size: 12px; line-height: 1.45; margin-top: 5px; }
+.empire-root .empire-shell { padding-top: 24px; }
+.empire-root .empire-command-deck { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 18px; margin-bottom: 18px; }
+.empire-root .empire-command-deck .empire-panel { padding: 24px; }
+.empire-root .empire-command-primary { background: linear-gradient(135deg, #22221d, #151617); }
+.empire-root .empire-command-primary::after { display: none; }
+.empire-root .empire-command-focus { margin: 22px 0; font-weight: 500; }
+.empire-root .empire-command-meta { line-height: 1.65; }
+.empire-root .empire-priority-list { grid-template-columns: 1fr; gap: 0; }
+.empire-root .empire-priority-list .empire-signal { border: 0; border-bottom: 1px solid var(--ov-6, #ffffff18); border-radius: 0; background: transparent; padding: 14px 0; min-height: 0; gap: 5px; }
+.empire-root .empire-priority-list .empire-signal:last-child { border-bottom: 0; }
+.empire-root .empire-priority-list .empire-signal:hover { background: var(--ov-2, #ffffff06); }
+.empire-root .empire-priority-list .empire-signal-top { flex-wrap: wrap; gap: 6px 14px; }
+.empire-root .empire-priority-list .empire-signal-top strong { display: block; font-size: 15px; line-height: 1.4; overflow: visible; }
+.empire-root .empire-signal em { font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.empire-root .empire-main-grid { gap: 18px; }
+.empire-root .empire-panel-head { padding-bottom: 14px; margin-bottom: 8px; }
+.empire-root .empire-panel-head em { font-size: 12px; line-height: 1.4; }
+.empire-root .empire-lab-entry { padding: 20px 24px; background: var(--surf-solid, #131416); }
+.empire-root .empire-command-kicker { font: 500 12px/1.5 var(--font-body); letter-spacing: .02em; text-transform: none; margin-bottom: 6px; }
+.empire-root .empire-live { font-size: 11px; letter-spacing: .02em; }
+.empire-root .empire-live::before { animation: none; }
+.empire-root :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+@media (max-width: 1000px) { .empire-root .empire-command-deck { grid-template-columns: 1fr; } }
+@media (max-width: 767px), (max-height: 500px) {
+ .empire-root .empire-header { position: static; }
+ .empire-root .empire-topbar { padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 12px; }
+ .empire-root.is-local-preview .empire-topbar { padding-top: 32px; }
+ .empire-root .empire-workspace-nav { padding: 4px 12px 12px; }
+ .empire-root .empire-workspace-primary { width: 100%; box-sizing: border-box; }
+ .empire-root .empire-workspace-primary button { min-width: 0; padding: 8px 4px; font-size: 14px; }
+ .empire-root .empire-summary { padding: 0 16px; }
+ .empire-root .empire-summary > summary { font-size: 14px; }
+ .empire-root .empire-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+ .empire-root .empire-kpis[hidden] { display: none; }
+ .empire-root .empire-kpi { padding: 14px 10px; border-bottom: 1px solid var(--ov-6, #ffffff18); }
+ .empire-root .empire-kpi:first-child { padding-left: 10px; }
+ .empire-root .empire-kpi:nth-child(2n) { border-right: 0; }
+ .empire-root .empire-kpi em { white-space: normal; }
+ .empire-root .empire-shell { padding: 16px 14px 36px; }
+ .empire-root .empire-command-deck { gap: 14px; margin-bottom: 14px; }
+ .empire-root .empire-command-deck .empire-panel { padding: 20px; }
+ .empire-root .empire-command-focus { font-size: 22px; line-height: 1.4; margin: 16px 0; }
+ .empire-root .empire-title strong { font-size: 20px; }
+ .empire-root .empire-panel-head strong { font-size: 17px; }
+ .empire-root :is(.empire-action,.empire-ghost,.empire-filter,.empire-row-btn) { min-height: 44px; font-size: 14px; }
+}

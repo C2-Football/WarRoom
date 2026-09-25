@@ -1,0 +1,99 @@
+{
+  "source": "Actual local UI and historical-engine fixtures; isolated from hosted backend",
+  "passed": true,
+  "evidence": [
+    {
+      "width": 320,
+      "height": 740,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blockedRequestCount": 20,
+      "blockedMutationCount": 17
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blockedRequestCount": 19,
+      "blockedMutationCount": 16
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "overflow": false,
+      "actionHeight": 50,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled",
+        "Realm calendar",
+        "backup export",
+        "More Escape dismissal"
+      ],
+      "pageErrors": [],
+      "blockedRequestCount": 20,
+      "blockedMutationCount": 17
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "actionHeight": 44,
+      "actionDockOverlap": 0,
+      "checks": [
+        "entry mode selection",
+        "Resurrection gate",
+        "faction disclosure and search",
+        "create and draft pick",
+        "new-campaign scroll",
+        "Home and alliance",
+        "lineup legality",
+        "saved weekly step after reload",
+        "kickoff enabled"
+      ],
+      "pageErrors": [],
+      "blockedRequestCount": 15,
+      "blockedMutationCount": 12
+    }
+  ]
+}

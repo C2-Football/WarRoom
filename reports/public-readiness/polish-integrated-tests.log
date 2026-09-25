@@ -1,0 +1,81 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 43 test suites…
+
+  ✓ core
+  ✓ design-tokens
+  ✓ landing-content
+  ✓ login-auth
+  ✓ sleeper-connect
+  ✓ sleeper-portfolio
+  ✗ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing
+  ✓ security
+  ✓ native
+  ✓ bug-capture
+  ✓ analytics
+  ✓ tutorial
+  ✓ rookies
+  ✓ rookie-capital
+  ✓ rookie-fields
+  ✓ redraft
+  ✓ live-scores
+  ✓ dashboard-league
+  ✓ fa-market
+  ✓ stats
+  ✓ forecast-ledger
+  ✓ cup
+  ✓ chopped
+  ✓ first-class
+  ✓ workspaces
+  ✓ empire
+  ✓ commish
+  ✓ timeleague
+  ✓ duat
+
+────────────────────────────────────────────────────────────────
+FAILED: regression
+────────────────────────────────────────────────────────────────
+
+  cold-load routes  ..........F........F.
+  click-through paths  ..
+  draft autosave  ....
+  live draft feed  .
+  live platform gate  ...
+  mobile overflow  ...
+  my team roster density  ..
+  compare fields  ..
+  dashboard widgets  .......
+  league-scoped history  ......
+  no discord  ..
+  compiled preview  .
+
+  FAIL: existing module components consume the league skin contract for labels and controls
+        My Team value column must use skin vocabulary
+  FAIL: League legend explains the DHQ model in depth and stays theme-aware
+        legend should explain the DHQ inputs
+
+FAIL 54 tests - 52 passed, 2 failed
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/world.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/duat/provinces.js as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /js/draft/command-center.js as it exceeds the max of 500KB.
+(node:11224) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+FAIL  43 suites in 151.6s — 42 passed, 1 failed, 0 quarantined
