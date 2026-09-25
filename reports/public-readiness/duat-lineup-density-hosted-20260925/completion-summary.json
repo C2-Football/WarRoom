@@ -1,0 +1,176 @@
+{
+  "verifiedAt": "2026-09-25T19:51:01.385Z",
+  "revision": "45b18264f9b08ef2e74726c77f659d8c9183b010",
+  "environments": {
+    "live": {
+      "target": "https://c2-football.github.io/WarRoom/index.html?duat=1",
+      "terminalExitCode": 0,
+      "passed": true,
+      "viewports": [
+        {
+          "width": 390,
+          "height": 844,
+          "rowHeights": [
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 19,
+          "loadingObserved": false
+        },
+        {
+          "width": 320,
+          "height": 740,
+          "rowHeights": [
+            96.09375,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 16,
+          "loadingObserved": false
+        },
+        {
+          "width": 667,
+          "height": 375,
+          "rowHeights": [
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 16,
+          "loadingObserved": false
+        },
+        {
+          "width": 1440,
+          "height": 1000,
+          "rowHeights": [
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 13,
+          "loadingObserved": false
+        }
+      ],
+      "testedSources": {
+        "duat-polish.css": "70431a74522c52e7b61e655b15b264b2bd5469a7df9c86a662612dc60dbc1de3",
+        "js/components/duat-weekly-flow.js": "d5d3217c4ff1af79285e60409813c90b10b9f3204ec2c9ed2769ed2e94e83b02",
+        "js/components/duat-mystery.js": "1790ab321ee468d3970d3765a7daa1ab5233f085e6a87aad91a1586efd496d89",
+        "js/tabs/duat.js": "7aa7e76a08d76ee7fc4b7cda65b6e49d6bf09c1af943a320010d893c9eb520a8"
+      }
+    },
+    "sandbox": {
+      "target": "https://c2-football.github.io/WarRoom-sandbox/index.html?duat=1",
+      "terminalExitCode": 0,
+      "passed": true,
+      "viewports": [
+        {
+          "width": 390,
+          "height": 844,
+          "rowHeights": [
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 19,
+          "loadingObserved": false
+        },
+        {
+          "width": 320,
+          "height": 740,
+          "rowHeights": [
+            96.09375,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 16,
+          "loadingObserved": false
+        },
+        {
+          "width": 667,
+          "height": 375,
+          "rowHeights": [
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625,
+            76.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 16,
+          "loadingObserved": false
+        },
+        {
+          "width": 1440,
+          "height": 1000,
+          "rowHeights": [
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625,
+            80.640625
+          ],
+          "overflow": false,
+          "pageErrors": 0,
+          "checks": 13,
+          "loadingObserved": false
+        }
+      ],
+      "testedSources": {
+        "duat-polish.css": "70431a74522c52e7b61e655b15b264b2bd5469a7df9c86a662612dc60dbc1de3",
+        "js/components/duat-weekly-flow.js": "d5d3217c4ff1af79285e60409813c90b10b9f3204ec2c9ed2769ed2e94e83b02",
+        "js/components/duat-mystery.js": "1790ab321ee468d3970d3765a7daa1ab5233f085e6a87aad91a1586efd496d89",
+        "js/tabs/duat.js": "7aa7e76a08d76ee7fc4b7cda65b6e49d6bf09c1af943a320010d893c9eb520a8"
+      }
+    }
+  }
+}

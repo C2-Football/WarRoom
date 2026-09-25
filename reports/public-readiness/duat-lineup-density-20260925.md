@@ -1,6 +1,6 @@
 # Duat compact lineup — 25 September 2026
 
-Status: compact layout deployed on both sites; final loading-copy follow-up is locally tested and awaiting final compiled/hosted release verification. This bounded polish update does not establish whole-suite launch readiness.
+Status: **complete for this scoped polish update**. Final application `45b18264f9b08ef2e74726c77f659d8c9183b010` is verified on both live and sandbox, with all six workflows, 734 served-asset comparisons and all eight hosted viewport journeys passing. This does not establish whole-suite launch readiness.
 
 ## Scope and baseline
 
@@ -34,8 +34,12 @@ Position colors plus checked/outlined states distinguish starters from bench. Se
 
 Initial layout revision `34a6b4c2b239e7d35425746ec797220ce79261ab` deployed successfully on live and sandbox. All six CI/Pages/C2 validation workflows passed, and both manifests plus 734 served assets matched the intended build. [Initial workflows](duat-lineup-density-initial-workflows-20260925.json), [initial assets](duat-lineup-density-initial-deployment-assets-20260925.json), [initial build](duat-lineup-density-initial-release-build-20260925.log). The hosted loading-race failure and diagnostic remain preserved in [hosted evidence](duat-lineup-density-hosted-20260925/README.md).
 
-Final release candidate: validated and pending commit. Next: publish the bounded comparison-copy and browser-readiness follow-up; wait for all six workflows; verify exact manifests and served bytes; complete live and sandbox four-viewport journeys. Do not count the initial hosted attempt as a pass.
+Final application revision: `45b18264f9b08ef2e74726c77f659d8c9183b010`, pushed successfully to both remote main branches. Production build passed (149 JSX /263 total modules). All six final workflows passed. Both cache-busted release manifests and all 367 served assets per host match this exact build (734 total). Final live and sandbox browser matrices each passed all four sizes, with both processes exiting 0. The initial failed/interrupted hosted attempts remain preserved separately and are not counted as passes. [Final workflows](duat-lineup-density-workflows-20260925.json), [served-asset verification](duat-lineup-density-deployment-assets-20260925.json), [production build](duat-lineup-density-release-build-20260925.log).
 
 Live and sandbox share the production backend. All fixture browser checks block network mutations before navigation and use disposable browser-local saves. Hosted targets use public guest entry without a development bypass. Push-triggered C2 workflows validate contracts/builds/types; backend release jobs intentionally require explicit dispatch and are skipped here.
 
 Recovery is an ordinary frontend revert/redeploy to the prior application revision; no data rollback, migration or dependency change is involved. Evidence is responsive browser emulation and browser-local persistence, not physical phones, native distribution, hosted-account or multiplayer verification. The broader public-readiness effort remains incomplete.
+
+[Final hosted evidence](duat-lineup-density-hosted-20260925/README.md) verifies selection, exact statistics, accessible research, hidden-year boundaries, safe areas, saving and reopening on both published versions, with no page exceptions or overflow. [Published phone screenshot](duat-lineup-density-hosted-20260925/live-lineup-390.png). Archive loading had completed before research opened in all eight final cases; the two deterministic regression cases establish the transient loading-copy fix. Final live C2 logs report 395 passed, zero failed/skipped/todo; no quarantine was found.
+
+No remaining blocker for this scoped update. Post-release evidence is retained in a local documentation-only follow-up commit; deployed application remains45b18264. The broader persistent readiness goal is still blocked/incomplete. Temporary preview and sleep-prevention processes are stopped at handoff; no background implementation is claimed.

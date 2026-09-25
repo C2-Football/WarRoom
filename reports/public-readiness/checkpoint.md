@@ -1,5 +1,18 @@
 # Readiness checkpoint
 
+Updated 2026-09-25. The owner stopped the broad readiness run, then resumed work with visual polish as the priority. **The entire suite is not declared launch-ready.** The September20 snapshot below preserves historical evidence and its old next steps; its ACTIVE status and release revisions are not current.
+
+## Current scoped polish state
+
+- Worktree `/Users/jacobc/Projects/warroom-polish-20260925`, branch `codex/duat-lineup-density-20260925`. Original dirty checkout preserved. Do not stage the untracked `node_modules` symlink.
+- Latest application release `45b18264f9b08ef2e74726c77f659d8c9183b010` is deployed to both existing C2 live/sandbox sites. All six workflows and 734 served-asset checks pass. Both final four-size browser matrices pass, with both processes exiting 0. No backend, migration, shared-pin or save-format change.
+- Latest user request: make The Duat lineup closer to the supplied compact football reference. Rows are about59% shorter, with colored selection badges, independent player research, aligned estimates/actual results and a simpler confirmation action. A transient research comparison claim is now guarded until archive readiness.
+- [Current Duat evidence and remaining release step](duat-lineup-density-20260925.md). Earlier scoped releases: [Vault phone density](vault-phone-density-20260925.md), [suite polish](polish-20260925.md).
+- Canonical shared remains pinned to `7bd35313fc78e25a2d1ac24035989673a93f28e6`, using the clean `dhq-shared-polish-20260925` checkout. Sandbox shares production data; fixture browsers deny network mutations before navigation.
+- This scoped polish update is complete; evidence is archived and owned preview/sleep-prevention processes are stopped at handoff. The persistent broad readiness goal remains blocked/incomplete; no background work is running. Do not represent responsive-browser evidence as physical-device/native/store or hosted-account/multiplayer proof. Broader launch gates remain unclosed.
+
+## Historical September20 checkpoint — superseded status and next steps
+
 Updated2026-09-20 18:53UTC after reviewed Commissioner integration and actual-owner session/portfolio proposals. **ACTIVE; entire suite NOT READY.** Persistent goal remains active and productive paths remain. Resume here, not from historical audit claims.
 
 ## Working and release state

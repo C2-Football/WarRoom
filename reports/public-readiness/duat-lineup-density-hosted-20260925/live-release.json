@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-09-25T19:32:42.146Z",
-  "expected": "34a6b4c2b239e7d35425746ec797220ce79261ab",
-  "url": "https://c2-football.github.io/WarRoom/release.json?duat-lineup-qa=1790364762049",
+  "checkedAt": "2026-09-25T19:45:56.193Z",
+  "expected": "45b18264f9b08ef2e74726c77f659d8c9183b010",
+  "url": "https://c2-football.github.io/WarRoom/release.json?duat-lineup-qa=1790365556036",
   "release": {
-    "revision": "34a6b4c2b239e7d35425746ec797220ce79261ab",
-    "builtAt": "2026-09-25T19:31:43.807Z",
+    "revision": "45b18264f9b08ef2e74726c77f659d8c9183b010",
+    "builtAt": "2026-09-25T19:45:14.557Z",
     "environment": "C2-Football/WarRoom",
     "assets": {
       "js/duat/rules.js": "67c98bc001",
@@ -37,7 +37,7 @@
       "js/components/duat-library.js": "161bb656b8",
       "js/components/duat-rituals.js": "d0f3bccd6c",
       "js/components/duat-heptad.js": "9668df5357",
-      "js/components/duat-mystery.js": "833e218755",
+      "js/components/duat-mystery.js": "4fcec86213",
       "js/components/duat-council.js": "5d925377d9",
       "js/components/duat-weekly-flow.js": "97bb8a233f",
       "js/components/duat-season-home.js": "4da6af6adf",

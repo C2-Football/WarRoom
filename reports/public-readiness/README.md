@@ -49,7 +49,8 @@ establish rollback/recovery. Ask only when no productive authorized path remains
 
 ## Evidence index
 
-- [Latest: Vault phone density, verification and dual-site release](vault-phone-density-20260925.md)
+- [Latest: Duat compact lineup, verification and dual-site release](duat-lineup-density-20260925.md)
+- [Vault phone density, verification and dual-site release](vault-phone-density-20260925.md)
 - [Suite polish release and evidence](polish-20260925.md)
 - [Checkpoint and next steps](checkpoint.md)
 - [Inventory](inventory.md) (being assembled)
