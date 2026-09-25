@@ -1,6 +1,6 @@
 # Public launch readiness
 
-Status: **active, not launch-ready or fully assessed**. Started 2026-09-18.
+Status: **not launch-ready or fully assessed**. Started 2026-09-18; the owner subsequently stopped the broad readiness work and resumed with product polish as the priority on 2026-09-25. A completed polish release does not close the remaining launch gates.
 
 This record implements the owner's delegated, persistent readiness goal. Existing
 functionality stays in scope; passing unit checks does not establish complete
@@ -49,6 +49,8 @@ establish rollback/recovery. Ask only when no productive authorized path remains
 
 ## Evidence index
 
+- [Latest: Vault phone density, verification and dual-site release](vault-phone-density-20260925.md)
+- [Suite polish release and evidence](polish-20260925.md)
 - [Checkpoint and next steps](checkpoint.md)
 - [Inventory](inventory.md) (being assembled)
 - `evidence/`: command logs and compact machine-readable verification

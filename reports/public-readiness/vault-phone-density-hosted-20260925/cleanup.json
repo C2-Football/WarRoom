@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-09-25T19:07:22.154Z",
+  "browserJourneys": {
+    "live": 4,
+    "sandbox": 4,
+    "allAssertionsPassed": true,
+    "individualContextsClosed": true
+  },
+  "harness": {
+    "pids": [
+      28388,
+      28389
+    ],
+    "termination": "SIGTERM after more than three minutes idle",
+    "exitCodes": [
+      143,
+      143
+    ],
+    "remainingBrowserChildrenBeforeTermination": 0,
+    "networkConnectionsBeforeTermination": 0,
+    "knownHandles": "event-loop and IPC descriptors; root cause not established",
+    "remainingOwnedHarnessProcesses": 0
+  },
+  "localCompiledRun": {
+    "viewports": 4,
+    "exitCode": 0,
+    "terminated": false
+  },
+  "sourceEdited": false
+}

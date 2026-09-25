@@ -1,6 +1,6 @@
 # Vault phone density — 25 September 2026
 
-Status: implementation, full Vault behavior suite, four-size compiled browser matrix and independent review pass; deployment pending.
+Status: **complete for this scoped polish update**. Release `e6c1c8e909c648c1bc110b2438cd8bdd5e287337` deployed to both existing sites. Full Vault behavior checks, independent review, all four CI/Pages workflows,734 served-asset comparisons, and all eight hosted viewport journeys pass.
 
 ## Scope and baseline
 
@@ -33,4 +33,12 @@ Worktree: `/Users/jacobc/Projects/warroom-polish-20260925`; branch `codex/vault-
 
 No backend, migration, save-format, or dependency change. Recovery is a normal frontend revert/redeploy to the prior application revision; no user-data rollback is needed. Existing live and sandbox share a production backend, so all fixture tests deny network mutations.
 
-Next executable steps: commit the coherent batch; fast-forward both existing main branches; verify successful Pages workflows, release metadata and actual served assets; repeat phone journeys against both destinations. Report responsive-browser evidence separately from physical-device/native evidence. This scoped polish batch does not complete the original public-launch goal.
+Current deployment runs: [live Pages](https://github.com/C2-Football/WarRoom/actions/runs/36176698211), [live CI](https://github.com/C2-Football/WarRoom/actions/runs/36176698220), [sandbox Pages](https://github.com/C2-Football/WarRoom-sandbox/actions/runs/36176715499), [sandbox CI](https://github.com/C2-Football/WarRoom-sandbox/actions/runs/36176715751). Local production build passes at the released revision:149 JSX /263 total modules.
+
+[Workflow evidence](vault-phone-density-workflows-20260925.json): both CI and both Pages runs succeeded at the intended revision. [Served-asset evidence](vault-phone-density-deployment-assets-20260925.json):367/367 actual assets per destination,734 total, match the local production output or unchanged source; both release manifests match the intended revision. [Production build](vault-phone-density-release-build-20260925.log) passes.
+
+[Post-deployment browser evidence](vault-phone-density-hosted-20260925/README.md): all320/390/667/1440 journeys pass independently on live and sandbox through a completed Week2 game, with no page exceptions. Public guest routes were used, with isolated browser-local saves and blocked network mutations. [Live roster](vault-phone-density-hosted-20260925/live-roster-390.png) and [live matchup](vault-phone-density-hosted-20260925/live-gameday-390.png) show the published layout.
+
+Test-runner cleanup limitation: both hosted harnesses remained idle after all assertions, evidence writes and browser-context closures completed. Only those two owned Node processes were terminated (exit143); their precise lingering handle is unknown. Do not describe these hosted harness exits as0. The complete local compiled four-size run exited0 normally. [Cleanup record](vault-phone-density-hosted-20260925/cleanup.json) preserves the distinction; no application failure was observed.
+
+No outstanding blocker for this scoped update. No backend, migration, save, or dependency changed. Responsive desktop-browser emulation and hosted local-save journeys are the evidence obtained; physical phones, native distribution and online multiplayer were not revalidated in this pass. The original public-launch goal remains incomplete. All new release evidence is retained here; temporary processes are closed at handoff.

@@ -1,0 +1,4432 @@
+{
+  "verifiedAt": "2026-09-25T19:02:18.104Z",
+  "expectedRevision": "e6c1c8e909c648c1bc110b2438cd8bdd5e287337",
+  "sharedPin": "7bd35313fc78e25a2d1ac24035989673a93f28e6",
+  "evidence": "Cache-busted hosted release metadata and SHA-256 comparison against local production output or unchanged source assets",
+  "environments": [
+    {
+      "base": "https://c2-football.github.io/WarRoom/",
+      "revision": "e6c1c8e909c648c1bc110b2438cd8bdd5e287337",
+      "builtAt": "2026-09-25T19:01:13.732Z",
+      "environment": "C2-Football/WarRoom",
+      "assetCount": 367,
+      "passed": true,
+      "assets": [
+        {
+          "file": "charts.js",
+          "bytes": 6377,
+          "sha256": "bb99b9565f3f491ff2257451ae565dc0f3db3c4f1c88776fad43acce35820c41",
+          "match": true
+        },
+        {
+          "file": "college-stats.js",
+          "bytes": 3065,
+          "sha256": "ef22b739ae4ddcb653c8355927bcae3d3dd2f37fd67c0063e2a37fb111aba421",
+          "match": true
+        },
+        {
+          "file": "dashboard-league-widgets.css",
+          "bytes": 4730,
+          "sha256": "a59bffb5f847f24e3c0fc600437adb6b9ecc1d021825f29d4a0765d7f5bd0500",
+          "match": true
+        },
+        {
+          "file": "data/duat/lore-catalog.json",
+          "bytes": 54989,
+          "sha256": "fc603128043633b88f55f2089e256788608199cc73623da429c9805237db44a6",
+          "match": true
+        },
+        {
+          "file": "draft-history.js",
+          "bytes": 3982,
+          "sha256": "0a02a5dd2abbf1053f6999ee7449a276fb94f4279c0661391c1d4cc93b717f14",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/csv-loader.js",
+          "bytes": 5762,
+          "sha256": "492179b13ba22454c1c69f66a319719136bcb16d8816a3dc1ea09ed159116809",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/index.html",
+          "bytes": 66979,
+          "sha256": "4abd26eaed3210ebe9725c55e5d8a423d58662f4757d2515586fd16adafe33e8",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/supabase-config.js",
+          "bytes": 292,
+          "sha256": "21c0ac75b3b809fbb9b9c8e882efa9b2985fd2b1e677ffb75ab39d28aff460a3",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/supabase-draft-client.js",
+          "bytes": 3597,
+          "sha256": "191fecaf74da5a4cf052d4532b441bb7ec9498cf08977f09fe95c0cfe17452f5",
+          "match": true
+        },
+        {
+          "file": "draft-warroom.html",
+          "bytes": 62340,
+          "sha256": "a7d193ca3264f39c237de3f429461fa1dfe750a694cb61cc88d14537f3dd12ee",
+          "match": true
+        },
+        {
+          "file": "duat-council.css",
+          "bytes": 4777,
+          "sha256": "83a8fea2a6e974c66f6f8b8c53cb9bf8a7b195d91132afaf16c911ff8d14bddb",
+          "match": true
+        },
+        {
+          "file": "duat-dynasty.css",
+          "bytes": 10856,
+          "sha256": "5d4103a4913d9dbd974ab3620c62b9a36a4f45fa574ad005cefadb4c97eccced",
+          "match": true
+        },
+        {
+          "file": "duat-faction-marks.css",
+          "bytes": 1953,
+          "sha256": "f6710e2b41ddee1348f30f0ce740c009238ac38623a67f4ef1f85df2739c8052",
+          "match": true
+        },
+        {
+          "file": "duat-heptad.css",
+          "bytes": 14529,
+          "sha256": "4bc9c6d4b968a61302291f9f85b3bed6864e04acca5b3a78d0a62be0948a0b20",
+          "match": true
+        },
+        {
+          "file": "duat-home-mobile.css",
+          "bytes": 4104,
+          "sha256": "bbacf42f05d874ebde3f206c82adfdd8de4e773044b8ad27384a7ddbeaaf45a7",
+          "match": true
+        },
+        {
+          "file": "duat-identity-library.css",
+          "bytes": 4380,
+          "sha256": "e7fc903d420a353622cddee011c35d996be806a34de9c19b5ed070d29582cd4b",
+          "match": true
+        },
+        {
+          "file": "duat-library.css",
+          "bytes": 10556,
+          "sha256": "c6830843ff65485dace0fec83d17af7baeb7c1e13751d63e75c178a60dbfbcc8",
+          "match": true
+        },
+        {
+          "file": "duat-map.css",
+          "bytes": 5369,
+          "sha256": "044b175343d11705d3ed24f6538e9ef851983f5afda6da6bee003f97bfadc8fa",
+          "match": true
+        },
+        {
+          "file": "duat-mobile-flow.css",
+          "bytes": 5351,
+          "sha256": "d7ec53d0263a3550642e990b369a7e03d78f203e670b73c6d8a22127cdda1521",
+          "match": true
+        },
+        {
+          "file": "duat-phone.css",
+          "bytes": 17571,
+          "sha256": "5b63af7a1b6282a59e12aee5de9d81e8cc7f0f44ea8abe08ac58be663947dbc7",
+          "match": true
+        },
+        {
+          "file": "duat-polish.css",
+          "bytes": 11158,
+          "sha256": "aeff66c002f33af7f94619414785a0d1b5a459b8e16a2acf5b8144b679008f24",
+          "match": true
+        },
+        {
+          "file": "duat-rituals.css",
+          "bytes": 14162,
+          "sha256": "21973e785b537a129263491e4efbd1c380674cd87dfb2f37961a17c1a85d2398",
+          "match": true
+        },
+        {
+          "file": "duat-season-home.css",
+          "bytes": 16681,
+          "sha256": "f9893bcfd66c31f318649e1774dd6842afa47c624b08fbd31bf546eedc9ca190",
+          "match": true
+        },
+        {
+          "file": "duat-weekly-flow.css",
+          "bytes": 6889,
+          "sha256": "2651dd2d3f987589e6ed732436497cbf369b3c28836d53d6bb721725ccd788fe",
+          "match": true
+        },
+        {
+          "file": "duat.css",
+          "bytes": 40794,
+          "sha256": "d2524ca180b0fbad60bcc36020d5b64482057cbebfbdf84bc76ef8a836544792",
+          "match": true
+        },
+        {
+          "file": "experience-hub.css",
+          "bytes": 24516,
+          "sha256": "60bebbb485335412dfa9bf7b2379c1e40856afbc5090e36e9d391c6390c210a6",
+          "match": true
+        },
+        {
+          "file": "free-agency-market.css",
+          "bytes": 4778,
+          "sha256": "8bd2c3c03a95cc69ce67376f21fc45534669608b4f28f0d9b159c183c93eedcd",
+          "match": true
+        },
+        {
+          "file": "free-agency.html",
+          "bytes": 103491,
+          "sha256": "2c87ce69b6f70eb33d044881671b843c614ff74a555e39c4f496088880f49e3a",
+          "match": true
+        },
+        {
+          "file": "gameday-mobile.css",
+          "bytes": 21058,
+          "sha256": "eae4c3b7ba8af7e4d7a37887bc67349b556d017adc04a774b2f784c90b9ca3d1",
+          "match": true
+        },
+        {
+          "file": "icon-192.png",
+          "bytes": 31548,
+          "sha256": "d0a6472e069c3c68ab85ea86c96914d0a7816135c0c4248a3aca9a9ad16cfb46",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/carthage.png",
+          "bytes": 36275,
+          "sha256": "f5a34aaf3b459652e153f3d4bd5891e8668668ca48815a81ca5267bafee414e1",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/china.png",
+          "bytes": 63900,
+          "sha256": "f4879064a7d71bfb5fb4dcd5de836d0146a5738a80b6df8ed30d9ea2098bf3cd",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/egypt.png",
+          "bytes": 70284,
+          "sha256": "7ce64994ef04397dc47af5bc523595907d8477290ef11bdbff6ba894e928f739",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/gaul.png",
+          "bytes": 36746,
+          "sha256": "2c98817275f583729fd933ad312cb31258b1f9a077f20df4f4ffb66eac0877be",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/greece.png",
+          "bytes": 30750,
+          "sha256": "60d55e5f1ee9ec1120bd32e60788256734516b7ad3170d87cf536a26e8f06be0",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/india.png",
+          "bytes": 48533,
+          "sha256": "b1a05dbcab3e3db6dc8f9687259ff5ca740da3490e02ca4741e54e48e06d15e7",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/inis-fail.png",
+          "bytes": 109238,
+          "sha256": "f6df4575c4363306c12e35f5fdfe440855a3c6afc6c5e442b8e8fd127bc2b195",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/japan.png",
+          "bytes": 35448,
+          "sha256": "77fe1b2a8676b0e732a96d0636a3d7b70f11cca4f7886c776a8b41ea6332cfcd",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/mayans.png",
+          "bytes": 53473,
+          "sha256": "b867a9f1637413f8ecabf4b90c1629ff103eeb9849054f4f1b3af67d5756a12b",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/mesopotamia.png",
+          "bytes": 72927,
+          "sha256": "e1f2ca36fe61c44f493a4f41ad396e1783db1d0e253345a455942c8d81f6d15c",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/nubia.png",
+          "bytes": 18581,
+          "sha256": "faf8fe59bd1801fd4011ae98dabc7523a676c55ebb382df91fd4544e85a06348",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/rome.png",
+          "bytes": 107977,
+          "sha256": "921fe0615d6fa25e861dc65b01ef17ca1eb0ff512a58f02d3fa7346c8038c3e1",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/vikings.png",
+          "bytes": 112821,
+          "sha256": "0054a27a6f731204aecc21dae7fa9e442326618416b4a58621e2d6e1550c675a",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/warhorsemen.png",
+          "bytes": 94190,
+          "sha256": "bb21c4248fcc1eb8bdce5528d94a7737cf0a0407c9f9f355a2bcae8bc8aacbdc",
+          "match": true
+        },
+        {
+          "file": "images/duat/excavation.webp",
+          "bytes": 283806,
+          "sha256": "c6a49f88e1cd29f6d75b921de276c28da276a8f165ff40a0950e6ac0047f1f65",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/aksum.webp",
+          "bytes": 245032,
+          "sha256": "68cff3fc81f0b5a141d48d4b7f308c292719ef5b5faf502b5a30744412186050",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/aztecs.webp",
+          "bytes": 191948,
+          "sha256": "3c4f455ad6a3378f3c18887919820eb6383974628339d0201944130d20783a6e",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/carthage.webp",
+          "bytes": 222970,
+          "sha256": "463d7db327f3026236c7e027a8b1f1c8b6b89945d4af75c66904bfbd752f8e34",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/china.webp",
+          "bytes": 231144,
+          "sha256": "5b14d78aabfd12411079af03d480e9af557fe04d7cc335a16d6958361401af2a",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/egypt.webp",
+          "bytes": 205342,
+          "sha256": "04ebf74a81f55911812cc68a40f7793fe608043f7c830f5ae6ba067f8f155b8a",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/england.webp",
+          "bytes": 187056,
+          "sha256": "ee890a060c3441061ae5038464810f12048e76da5e4587dd2cd6741f3612dcbb",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/gaul.webp",
+          "bytes": 268592,
+          "sha256": "8d4868caf59e2971b28c7befb0a17b74b572110fe6303e13c9c3587b5797843f",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/greece.webp",
+          "bytes": 244824,
+          "sha256": "4fa9ec1b5d144840dd53e6bd219adb13e6701dc14539a987ca879a750724ad0c",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/inca.webp",
+          "bytes": 320754,
+          "sha256": "fdb41151f40ae7193fc40f35b49cedc35a32d27870c24b8352c61c67b0159800",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/india.webp",
+          "bytes": 230814,
+          "sha256": "1feab06332754f490c10995daecc0d2e32a6eb1a072e59a90a5e14766b4d8a13",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/inis-fail.webp",
+          "bytes": 268410,
+          "sha256": "7be106b5ac9d56b0582834fd7a97db2c2619499df3449017b9e8c096a3d8a664",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/japan.webp",
+          "bytes": 244452,
+          "sha256": "76d7dfe4ad2f0cc3d8a25b7a8513639a31157039666b292275df19efe457e848",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/khmer.webp",
+          "bytes": 266198,
+          "sha256": "6b293a852e7e3fd61549fe2d9c494827b26ecf99b3ac3de1b05e7f4876fe2d45",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/korea.webp",
+          "bytes": 212232,
+          "sha256": "830d4aa63d98a664efcc1cc0f40ffabe59a44c9bca23e67adc76c997ffd88f90",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/majapahit.webp",
+          "bytes": 264856,
+          "sha256": "bf73125e254537b3b7019a94eb440ef18e78b91c0c04f7d3417e1f41ed49ff9b",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mali.webp",
+          "bytes": 205108,
+          "sha256": "7b1b211cabd56dd927a2a8f7806ca3a198d4f1b541ea7a21e41fd065b35b0c16",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mayans.webp",
+          "bytes": 259440,
+          "sha256": "eb69f6a0efd86bc30f6ae72b69fb89565df9857177419f52a87b00c525138daf",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mesopotamia.webp",
+          "bytes": 229500,
+          "sha256": "0dba14f253d782b70dc3eff408897a20b15c9b20f89f0cee241afba95d102edc",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mongols.webp",
+          "bytes": 169916,
+          "sha256": "f77545f89a6ce7d1feb1f788ab1127329440b502a113dda497eb491fc10229f8",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/nubia.webp",
+          "bytes": 189240,
+          "sha256": "05906d1dfeb76f81fd7fd2e2863a9320d69ab76667bf4a203edffe2c029e2f56",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/persia.webp",
+          "bytes": 231972,
+          "sha256": "6d07dab1348b781b52053d38745860b32ddb54c6bf8df2fa82f93f16cb3f97e3",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/poland.webp",
+          "bytes": 210434,
+          "sha256": "54141cc694b6bb5cfe12af96823168b275818f06092a26391cc4651ca06bdf7f",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/portugal.webp",
+          "bytes": 176120,
+          "sha256": "41617960c5899f0ea9999a1fbf47e90a7c319e9b5db22864399b21ac12efc715",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/provenance-set-a.json",
+          "bytes": 26091,
+          "sha256": "19d44c3c315ba32a6cca36f2853b9278a2458afbc114bc369bbe4bb8af5fbba6",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/provenance-set-b.json",
+          "bytes": 34689,
+          "sha256": "12d7338aae040ecee546b8cfb5121de0ceec384b661e25a65f5bd183be9f33ed",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/rome.webp",
+          "bytes": 211906,
+          "sha256": "b7ce673c470adbf6a15f1f96cb542abff2aaacbfab8f4e0d1c7bdcb0366084c4",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/siam.webp",
+          "bytes": 233548,
+          "sha256": "1d874fbc4a9c8e78c151fbe62be64522bcb0c794db55332bbaa4b55c90d2e780",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/vikings.webp",
+          "bytes": 224522,
+          "sha256": "6c3746b6de0253e3d8a139b0df75a18e575b1ce77a781993f6737dbf95c4e468",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/warhorsemen.webp",
+          "bytes": 250454,
+          "sha256": "b4c044016888ae59ce299a5313d87af07dca0bc584fc62bba88aad777fc8b1ca",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/zulu.webp",
+          "bytes": 224670,
+          "sha256": "c51643c5b15fdf6ce683101301bb4b36a5e888ec2e33919207e9961d2b3a0b10",
+          "match": true
+        },
+        {
+          "file": "images/duat/hero.webp",
+          "bytes": 249132,
+          "sha256": "b00bb96b43758455600f83f361063d828dbadf22c9e183ef5d7ccf805746250f",
+          "match": true
+        },
+        {
+          "file": "images/duat/horus.webp",
+          "bytes": 291924,
+          "sha256": "5808fbb3f8a585e448226290c89bad0a674c91330455342cb0868dedee4cb860",
+          "match": true
+        },
+        {
+          "file": "images/duat/janus.webp",
+          "bytes": 256306,
+          "sha256": "f2e7a2b2403662688a735c385426b4d8bee4304daf4c4c5adb17a1fa118eb61a",
+          "match": true
+        },
+        {
+          "file": "images/duat/kratos.webp",
+          "bytes": 258906,
+          "sha256": "f434e24bfcb7758b0069fe17cc8bcb2c07be018b2789601a8f23e18fad0587a1",
+          "match": true
+        },
+        {
+          "file": "images/duat/manifest.json",
+          "bytes": 11706,
+          "sha256": "756231d0b267a4601d4b269b8128e35a5189348db8d10dd05f9d1f02ee636909",
+          "match": true
+        },
+        {
+          "file": "images/duat/pantheon-atlas.provenance.json",
+          "bytes": 2175,
+          "sha256": "152258ea5790daaa4df44ea2deaee25dca37b97869523edb5d93f76bf4cf5e05",
+          "match": true
+        },
+        {
+          "file": "images/duat/pantheon-atlas.webp",
+          "bytes": 407948,
+          "sha256": "6396db89c9375e18280d297fe8ba0fa93c921746f76fbd7c691882abc703dd66",
+          "match": true
+        },
+        {
+          "file": "index.html",
+          "bytes": 267606,
+          "sha256": "b0eb1ca569bcbd9e03b5032165272e33d7ef0c0d0577c5c954a3c3325ba93e22",
+          "match": true
+        },
+        {
+          "file": "js/app.js",
+          "bytes": 70254,
+          "sha256": "017acbd7bda99211538b27556626d9732f8c0fed19519c9e2035bcade07f35a6",
+          "match": true
+        },
+        {
+          "file": "js/components.js",
+          "bytes": 23714,
+          "sha256": "6102ddcee8bfa526427326c188f23e36ad19fe61f607367a176c8ed7ba969d5f",
+          "match": true
+        },
+        {
+          "file": "js/components/chop-block-panel.js",
+          "bytes": 7200,
+          "sha256": "1899500cbadef1aa4c56b43c8404913ef2ae3131fe24299d7c1ba0bc20dd8693",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-command-panel.js",
+          "bytes": 22957,
+          "sha256": "1d80a2d44c5332b6364af4aaa58577619f445dd21519dd674c128c35aaaed834",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-genesis-panel.js",
+          "bytes": 10843,
+          "sha256": "db80f5c6294b4202785cf3323acf56aa861f207ff0a34cb29d9aedcb48edfafd",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-governance-panel.js",
+          "bytes": 10651,
+          "sha256": "87056f8b60742a31532fd1ee0e3c9feea7cf8210d4f803c69ec938ec9bbfef4a",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-network-panel.js",
+          "bytes": 11860,
+          "sha256": "8d7224cce0a5d18323024496d4ed1f65d0989edd09dcbda867b8facff7229662",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-ops-panel.js",
+          "bytes": 15644,
+          "sha256": "c61a8c8ecd04651bee0c036a7e0b04d61a3c85875fa62250ff2b9321be79e048",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-people-panel.js",
+          "bytes": 12132,
+          "sha256": "ff8a04c9408dd8d486d0ee6e028f8fb8bfecd6fa5be2e98b622d198a7d216ace",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-rulelab-panel.js",
+          "bytes": 36054,
+          "sha256": "60059993efced9e7f72ca30bd30149ae8d2dded6e19e8d156e08418b036b16c4",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-schedule-panel.js",
+          "bytes": 14613,
+          "sha256": "14c2dd84ff9d97c178c66255fd6b304eed8008a73b68a4300c0dafef07e1ded4",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-sidebar.js",
+          "bytes": 20218,
+          "sha256": "6c33199c56035d6bcc07f0a4dc18d347134175a3660bb633ef4898332092dcc3",
+          "match": true
+        },
+        {
+          "file": "js/components/cup-honours.js",
+          "bytes": 4962,
+          "sha256": "39ae77e2926808fc4edb2762d2ad7ae0a746983dc886a9bf93d5fc1cfb71337d",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-council.js",
+          "bytes": 6799,
+          "sha256": "5d925377d993ee6c4ab3015ab2d47c1bed56001e8c04697449864ca29e0f1b38",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-faction-marks.js",
+          "bytes": 12391,
+          "sha256": "94dc675a06ef6c6df1c37b55e9dfc69fb6196336df12eedff67cef1566d81602",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-heptad.js",
+          "bytes": 25184,
+          "sha256": "9668df5357d72e21b77aa09efa14e9cdca33e06085d4b8e09328fee631568460",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-identity-library.js",
+          "bytes": 9477,
+          "sha256": "3d4b96e466584662925d759d8f2cbc29eb81bba550dcb79da0fd5ac77ff2f1f7",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-library.js",
+          "bytes": 16418,
+          "sha256": "161bb656b8eeb3d2c2fee90790c5c2c7c45dc9ed6fe64d573d73fb8961f8eb9b",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-mystery.js",
+          "bytes": 4737,
+          "sha256": "72aeb892b7c6c49806172ededb0f0506080343d8c9ee35cc316ebaba4f47dae1",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-presentation.js",
+          "bytes": 43223,
+          "sha256": "0ba7652cbb3f0f0258dd174267c1724382bd08aab917c67f6728cc4f3a3bef04",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-rituals.js",
+          "bytes": 20256,
+          "sha256": "d0f3bccd6c7652339a8f671303213ffacda6f64e39f82c75fc72d0b4c8f38a9d",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-season-home.js",
+          "bytes": 20782,
+          "sha256": "4da6af6adfc8a27524296c8d51dd72cb7c1539cc1b733f20a50bc387e886c149",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-weekly-flow.js",
+          "bytes": 15931,
+          "sha256": "07286c19b4f753429b9397e537928d6282010c70923234307331e8d06134fda8",
+          "match": true
+        },
+        {
+          "file": "js/components/league-live-scoreboard.js",
+          "bytes": 16832,
+          "sha256": "b2b3137fa6f5f4a03850e277207b75aad9e19268123327cb0465a926d8b314f3",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire-portfolio.js",
+          "bytes": 8297,
+          "sha256": "5c7b1f9691978e2e48875348f2aad57c8897740f9521e58e7a4dab2a9e3899ce",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire-rivalries.js",
+          "bytes": 4016,
+          "sha256": "7c6025204840843ab9c1b07769c0d39527fe9b3940b5869a5354e5af291acdd6",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire.js",
+          "bytes": 43486,
+          "sha256": "4f61ba157c258da575ee6c200af9b7f31419893ddeda6e923aa248bfc13a25a9",
+          "match": true
+        },
+        {
+          "file": "js/components/manual-seasons-editor.js",
+          "bytes": 5893,
+          "sha256": "925a5f76aafe5fe1751b492144d80a01411d3e0a345730022e2e99e813c3872b",
+          "match": true
+        },
+        {
+          "file": "js/components/player-card.js",
+          "bytes": 42608,
+          "sha256": "f6c38f2913e551b160ad8650150599a2f0f5d9bb8be7256963cfee16998ed6cc",
+          "match": true
+        },
+        {
+          "file": "js/components/season-odds-panel.js",
+          "bytes": 15475,
+          "sha256": "59b1230a00c251bf27787fde06978a25135985215ac0dc5bd01211d6113c794d",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-activity-panel.js",
+          "bytes": 1023,
+          "sha256": "f3ca9a89155c42b965e19c57297745b883776aac5543e016dac4e59dadad1340",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-career-panel.js",
+          "bytes": 3394,
+          "sha256": "22595d1616a40fd8f8796c8509490eaf699cb3af2dc733e94ca98a7855b3560c",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-career-view.js",
+          "bytes": 2331,
+          "sha256": "ad47dbd02c90c6fdb513f9894e77363dac702a876b947d4cc68222789fa46caa",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-ceremony.js",
+          "bytes": 3613,
+          "sha256": "817a878a32da3f4e2da5c08f269c9fe799e4ca6d54a1f04bed02ff57c9a7a9d7",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-community-panel.js",
+          "bytes": 8822,
+          "sha256": "b7884cfc50093fd951677520224d152c8fb614210c7bc52b21ef5a60ebf93f53",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-controls.js",
+          "bytes": 13482,
+          "sha256": "684e5b6718317c4891a5e57ff5f563544f4b7537918d99a8b8a2fe7dd2295859",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-panel.js",
+          "bytes": 41090,
+          "sha256": "90784684946afd815138b472084394c79329c7af67587b58c23bb92d68f2cb40",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-roster.js",
+          "bytes": 2622,
+          "sha256": "92f81af6e79ce10a2aee06d0c4586d94a240951cfb87d57476253c89d9e35c44",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-gamecast-panel.js",
+          "bytes": 21166,
+          "sha256": "a55b7c0cf7e8a79e455f54bd1c1efd67481abd4367f096ddf244632f816cdf05",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-helmet.js",
+          "bytes": 6716,
+          "sha256": "0889b502f90716f728a7d00c944d6772e7efc4ffb4d4aa4a35c0e0a34dd7b2bb",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-home-panel.js",
+          "bytes": 11946,
+          "sha256": "3386a5dc05a85edf2509f32038a8354583074f70092e8f2ec56f79b0dd8c664d",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-profile-panel.js",
+          "bytes": 5544,
+          "sha256": "fe7fe83f081932630dbf0d62acf8105cc5e39e07ac03cfa394980c2fed8ae18e",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-rivals-panel.js",
+          "bytes": 12222,
+          "sha256": "c69d8838ecc6afaf2733fc92f85fd611378e0cb839ef697593e2dac022174807",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-setup-panel.js",
+          "bytes": 29364,
+          "sha256": "6321fb70b4346380531feea6a968ea80f27d26e1f51e4c30fa390ea0300864f6",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-standings-panel.js",
+          "bytes": 6068,
+          "sha256": "bdff5d53d1b339d548188e596ea5e855d188cc45a6e3068db69fd64ea74eac64",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-stats-panel.js",
+          "bytes": 7277,
+          "sha256": "07f2fb9b3050fc82f7bc7bc4c7cbd55f6ce90b74992b8995bee52938558eb4ef",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-team-panel.js",
+          "bytes": 51898,
+          "sha256": "e954dad74ddc41c14d2d0e4f8cf21ec1cc952e2daef911cc36869797cf42f1a2",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-week-gates.js",
+          "bytes": 5401,
+          "sha256": "94ea1ad69726d62034d647d6d395e233b4688585b6cfbf090be4b08a4825f537",
+          "match": true
+        },
+        {
+          "file": "js/components/woeppel-cup-panel.js",
+          "bytes": 41127,
+          "sha256": "33c3802b601ea0a150ec4c824ca08c38174ef4cbbc80c5d8c22060bbbff1c792",
+          "match": true
+        },
+        {
+          "file": "js/components/wr-primitives.js",
+          "bytes": 34334,
+          "sha256": "36a499eca5904267e7f4c482a68d731abccea65c699a13f36f28ddd5acd7ad3c",
+          "match": true
+        },
+        {
+          "file": "js/core.js",
+          "bytes": 17931,
+          "sha256": "00febe8fead1ec13d54c4a9dca5b6bd85b3645eef5f7256320516dbfe5dfab01",
+          "match": true
+        },
+        {
+          "file": "js/draft-room.js",
+          "bytes": 158827,
+          "sha256": "bd86d83c5cca0a7f3652983983587682874be2c7b4242884352fde661a29a5d2",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-call.js",
+          "bytes": 5387,
+          "sha256": "1824976cc0c40a2e9b2f6131685ac68bf139907df8556238113020bb5155b09b",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-edge-glow.js",
+          "bytes": 1995,
+          "sha256": "8f89115b56c8d8d985f1087d111698890230891675d2c9be2f5405e2beb36b3e",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-stream.js",
+          "bytes": 7024,
+          "sha256": "4301b966d5d6e331090db4462e1ab1179421e9f320252f1f3ae03621faaf9d4c",
+          "match": true
+        },
+        {
+          "file": "js/draft/analyst-mock.js",
+          "bytes": 28346,
+          "sha256": "882164b6b6aae63d432b982271089c66e551e0a505fbd324d445f6b6d616d92b",
+          "match": true
+        },
+        {
+          "file": "js/draft/ask-window.js",
+          "bytes": 14726,
+          "sha256": "e0b6af2d685a2a1864ded1c32a080cf513436e43c84e7676b0c1c5a75abc4ebd",
+          "match": true
+        },
+        {
+          "file": "js/draft/big-board.js",
+          "bytes": 32243,
+          "sha256": "5b3fac70886a9578b0d598912aef74bc00c8ac108a268b26889e8cea6dd00028",
+          "match": true
+        },
+        {
+          "file": "js/draft/command-center.js",
+          "bytes": 255449,
+          "sha256": "4df257c60df0dc743f39bbfd26da9bea3bf22760ecd242acf19c71d08a626494",
+          "match": true
+        },
+        {
+          "file": "js/draft/context.js",
+          "bytes": 21187,
+          "sha256": "855debc48342c5681842d6aa10ca47ca678dbd7f948f0d92ef89cd69cd89feba",
+          "match": true
+        },
+        {
+          "file": "js/draft/cpu-engine.js",
+          "bytes": 1106,
+          "sha256": "481ea1149718a78a5c1c3a5384e45b37aa4c77574622a2d2d3c2d027d236d03e",
+          "match": true
+        },
+        {
+          "file": "js/draft/draft-grid.js",
+          "bytes": 11536,
+          "sha256": "ad914808837d44d18f1489e39fb6a279388c022a85ca7b31281fe6b800fdba4e",
+          "match": true
+        },
+        {
+          "file": "js/draft/exports.js",
+          "bytes": 6241,
+          "sha256": "abc429c4f31a8006b7a9aae92d05443d6f75a8824e2e9867497f006d32464577",
+          "match": true
+        },
+        {
+          "file": "js/draft/ghost-replay.js",
+          "bytes": 2818,
+          "sha256": "e34dbba4e4eb7529773576976cf20b261f69348de51518d5de8ef45b351abea9",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-analytics.js",
+          "bytes": 14799,
+          "sha256": "5ac2cddb0112ebd88b4ad8ff700fde2cd43819a16011af0897d58a8f542c14c0",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-decision-engine.js",
+          "bytes": 27009,
+          "sha256": "3bf160495366bc6bdb38786d9104106943274ea7ec7a91113f068a738a982956",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-pick-brief.js",
+          "bytes": 20224,
+          "sha256": "8e2eb63c3db1618f335d7ebaa5c0afb18377547df627c081a2c6f78c6f37e5c3",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-room-engine.js",
+          "bytes": 11561,
+          "sha256": "ca87285dccf5764537f7bb4b35aac9e05e28a17c76ec4a35a1a5d92d83574cec",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-room.js",
+          "bytes": 18947,
+          "sha256": "f6d767386057e7fa24858b07ec73f81eb65f9ab2601205b95270ae896c849b95",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-sync.js",
+          "bytes": 6812,
+          "sha256": "9a42d9a26b4e6b2e0fcf03b1564f65ccab5a8c67177946d206f8682a0e8f6e63",
+          "match": true
+        },
+        {
+          "file": "js/draft/opponent-intel.js",
+          "bytes": 16303,
+          "sha256": "fbf11233ca93c42d8007a433217a2725ceab529f927dc8086dc7bbe42871dfd7",
+          "match": true
+        },
+        {
+          "file": "js/draft/persistence.js",
+          "bytes": 3013,
+          "sha256": "0d3ea4a4edf0f3e08d488ebdc2ce61905cd9987b1e74fd6245eb734de9290964",
+          "match": true
+        },
+        {
+          "file": "js/draft/persona.js",
+          "bytes": 3515,
+          "sha256": "3c292654ffbd25f9da4ec71297632e4d4adbac589089327863d7a7bd25588982",
+          "match": true
+        },
+        {
+          "file": "js/draft/scenarios.js",
+          "bytes": 2554,
+          "sha256": "dce007df7ce5517b9d9aad61c0e47232abaa44719e35e1f6e79a50a10fd7eb3e",
+          "match": true
+        },
+        {
+          "file": "js/draft/scouting.js",
+          "bytes": 2805,
+          "sha256": "1b60b93d43ccfad26bb1fa6383099eebe140f05edc1007ea2690b436d6fded15",
+          "match": true
+        },
+        {
+          "file": "js/draft/state.js",
+          "bytes": 69765,
+          "sha256": "b6d9c131fe56d7c7e991cf18c4e9cadaf59e68da7e05d1cc0d1999535a878999",
+          "match": true
+        },
+        {
+          "file": "js/draft/styles.js",
+          "bytes": 1147,
+          "sha256": "02e886f838d99b3eb0a6059a7d89e6ee00a546942fe5d2e569368380f6f9c1d5",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-helpers.js",
+          "bytes": 4847,
+          "sha256": "0c5d262970703a07a320dca449eefef8a873873dbe96b7127f6451710a617c75",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-modal.js",
+          "bytes": 9115,
+          "sha256": "efd87be960adb2688a5ca3c662cee051b092f6ae925497c19f1eff2544adc070",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-proposer.js",
+          "bytes": 43357,
+          "sha256": "686dccfe6ea73a50da99fa2a115391e5c5f52df93c5d1277713aeaad314fad43",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-simulator.js",
+          "bytes": 29885,
+          "sha256": "4e3d7ce5c98d728fd1911b8347c6b29365ed8eae0b575176653552858ceeeb78",
+          "match": true
+        },
+        {
+          "file": "js/duat/army-generation.js",
+          "bytes": 11344,
+          "sha256": "850f54b1600fd787874453aeab89ee88dbc40e7c80a1290a6fcb95ddde0cca06",
+          "match": true
+        },
+        {
+          "file": "js/duat/campaign.js",
+          "bytes": 34475,
+          "sha256": "18ed0f78dfd0d0c2928afe177ab7587a360cd072af0053901978ce2a6914a42f",
+          "match": true
+        },
+        {
+          "file": "js/duat/conquest.js",
+          "bytes": 20757,
+          "sha256": "aff44f4b0f979a69580bcd4a0c35c85471bd8c89936fcf546ac192da50a3b751",
+          "match": true
+        },
+        {
+          "file": "js/duat/council-state.js",
+          "bytes": 3521,
+          "sha256": "d2e85883d16b88fed517002abdaf8b83d58c209062dcadbcb6ed04560e8e4e1b",
+          "match": true
+        },
+        {
+          "file": "js/duat/dynasty.js",
+          "bytes": 40844,
+          "sha256": "0958de70d873ea2f31f8e843471f2f4810c14b431393cc4d4e1988bae3d5a3b4",
+          "match": true
+        },
+        {
+          "file": "js/duat/favor-availability.js",
+          "bytes": 8577,
+          "sha256": "d05688700fc9dc121ff9b373ea7163ad89e5310e809213da41564fbce38b318b",
+          "match": true
+        },
+        {
+          "file": "js/duat/favors.js",
+          "bytes": 8453,
+          "sha256": "dac675f777e91fe7373ccd17f64c6e04083cb98b442472baaa97ea6dbe8bd245",
+          "match": true
+        },
+        {
+          "file": "js/duat/heptad.js",
+          "bytes": 9642,
+          "sha256": "d0183c7f62e581bc3c967ac95bf6de6a966f295675b6173736d2a35d5ee1aa12",
+          "match": true
+        },
+        {
+          "file": "js/duat/identity-library.js",
+          "bytes": 127737,
+          "sha256": "78c83a2aead2e8b80dd3ed32cede27828fbcbe25c37c628c7c01fd058e153ba4",
+          "match": true
+        },
+        {
+          "file": "js/duat/lore.js",
+          "bytes": 61337,
+          "sha256": "0a5f6d6d8514cdf18bb707b909feb748a85b95dd6987d94d95501d79a7aba3a6",
+          "match": true
+        },
+        {
+          "file": "js/duat/map.js",
+          "bytes": 4006,
+          "sha256": "63c7ed4e08a69419da5bbba083f2bfb4c845ffacf165647e6a2bbe0e444ac52e",
+          "match": true
+        },
+        {
+          "file": "js/duat/mystery.js",
+          "bytes": 8283,
+          "sha256": "6f6606fbafdb95e809c53d7cdc0708353bfd2778af0c229cf706fae6cc6eb359",
+          "match": true
+        },
+        {
+          "file": "js/duat/personalities.js",
+          "bytes": 59784,
+          "sha256": "7a396cc5ab389ca6e739e596f0a4b6fd18bef682d8c235135eb16192082daf91",
+          "match": true
+        },
+        {
+          "file": "js/duat/provinces.js",
+          "bytes": 6697161,
+          "sha256": "1b3cd552be9c29ab4a1085d7bd1efeb5b36c2c2845e2f6c72981d2d993f347b1",
+          "match": true
+        },
+        {
+          "file": "js/duat/remote.js",
+          "bytes": 934,
+          "sha256": "3268794defd79c3f392c82be8ea80f75f52348a3f39f19655bd3b7be23f84585",
+          "match": true
+        },
+        {
+          "file": "js/duat/rituals.js",
+          "bytes": 22815,
+          "sha256": "f32789184aed132357cd66fe441b6fe7876cc90d296ea2159c759b588e996444",
+          "match": true
+        },
+        {
+          "file": "js/duat/rules.js",
+          "bytes": 28109,
+          "sha256": "67c98bc001309820014789bdf9579e4a26ee4c0f871053db76b45fe52fda73b5",
+          "match": true
+        },
+        {
+          "file": "js/duat/season-home.js",
+          "bytes": 8948,
+          "sha256": "6818d790767c393d999868ce90f6a2a5d5d70722062babc74496449cbfa89dda",
+          "match": true
+        },
+        {
+          "file": "js/duat/session.js",
+          "bytes": 7809,
+          "sha256": "7134a74e8dc30d2d3855b1155d423ef5b8f24a9014d476614ff2ff2ac13ff8de",
+          "match": true
+        },
+        {
+          "file": "js/duat/storage.js",
+          "bytes": 2944,
+          "sha256": "9527de4f54f5441868c51392c11822ff045d09d105f57122c5d9b06f7d89b937",
+          "match": true
+        },
+        {
+          "file": "js/duat/strategy.js",
+          "bytes": 3817,
+          "sha256": "d8527c3109597fd9f771f295729814260a945b5a0ea4c9a7984455ea4afb518a",
+          "match": true
+        },
+        {
+          "file": "js/duat/vendor/lz-string-1.5.0.js",
+          "bytes": 4815,
+          "sha256": "0b0c3db2b7a388216f119f7b2e7b23f331de7cac3b6889ac20489ecd4874da0d",
+          "match": true
+        },
+        {
+          "file": "js/duat/weekly-flow.js",
+          "bytes": 13016,
+          "sha256": "b9e2bba71c31e00060fdddba0be397c56fdb0fa6b75f3f85653bdf1fd749aa99",
+          "match": true
+        },
+        {
+          "file": "js/duat/weekly-progress.js",
+          "bytes": 4214,
+          "sha256": "4db6f01e655eb61ffe1e1d5c9405b6b5b97430e1d90a780a7a8d4e60274e9c54",
+          "match": true
+        },
+        {
+          "file": "js/duat/world.js",
+          "bytes": 579904,
+          "sha256": "124d3d787064ab22d869f294792d444e8a23bd1d92382d7f650cea26ff47100d",
+          "match": true
+        },
+        {
+          "file": "js/export.js",
+          "bytes": 1032,
+          "sha256": "e4fc218598f2ce97436c8851970e83baf1964043c41b6d2aef39dad7145fc994",
+          "match": true
+        },
+        {
+          "file": "js/free-agency.js",
+          "bytes": 115023,
+          "sha256": "c38921c073c948fae673af7e92674aba1d5b4f227107cc447b49643bd4308ce9",
+          "match": true
+        },
+        {
+          "file": "js/league-detail.js",
+          "bytes": 116133,
+          "sha256": "956d3b94cb0905edc025e41dfc4444c78fff38b31508e2a7816872168d8ded06",
+          "match": true
+        },
+        {
+          "file": "js/league-skin.js",
+          "bytes": 11359,
+          "sha256": "77f6372d995c3ed1d1232334ab8f9bbdd2de23808cd7d3d43d7e93befbeac7dd",
+          "match": true
+        },
+        {
+          "file": "js/mock-draft.js",
+          "bytes": 24228,
+          "sha256": "a35163e3fe5aa4fad013223d20bf4eb2862de75d49c0cfe06674533c4b347832",
+          "match": true
+        },
+        {
+          "file": "js/module-loader.js",
+          "bytes": 1397,
+          "sha256": "2e570fa769ebeb3ae17503265e6b1d8d7f6b3dc3350f07af9e5710698cf62946",
+          "match": true
+        },
+        {
+          "file": "js/post-draft.js",
+          "bytes": 5667,
+          "sha256": "5cf7afa3166a7e80c19b8e74d03896036ec3cf5b2a4cbb56e1de8cf403e8798e",
+          "match": true
+        },
+        {
+          "file": "js/pro-launch.js",
+          "bytes": 18141,
+          "sha256": "499b5967190ac4747a4e3c8c0edc944f7397d6720682eab1d7cb39dc1a32abb8",
+          "match": true
+        },
+        {
+          "file": "js/settings.js",
+          "bytes": 30814,
+          "sha256": "23f216bb1910b208c8327af5b11b3ac13d7ac180bd1a4d69d0aa74dfcd1ca17f",
+          "match": true
+        },
+        {
+          "file": "js/shared/account-password.js",
+          "bytes": 3454,
+          "sha256": "56d3f3e67cee4562f27e4ef10068afa3fa181a6d29dd16c00f109b2c46e77754",
+          "match": true
+        },
+        {
+          "file": "js/shared/account-storage.js",
+          "bytes": 6402,
+          "sha256": "2790ae55f0b190e2d2ab45d94917cdfa1674a4e2fdf138d6c6c2db5f6ac9e8d3",
+          "match": true
+        },
+        {
+          "file": "js/shared/achievements.js",
+          "bytes": 5251,
+          "sha256": "c23effa2bf6da920e16c24412c7f35c9805f92491b6e84cf67d587b3c32967f8",
+          "match": true
+        },
+        {
+          "file": "js/shared/adp-market.js",
+          "bytes": 4842,
+          "sha256": "c531f3db046f30f1ddedc73e02a144a3cf6d46628c74d295b4d27dcc7b6eeaa9",
+          "match": true
+        },
+        {
+          "file": "js/shared/ai-access.js",
+          "bytes": 5274,
+          "sha256": "f66981d57cf5e46d0ade9b80fcd4f83a837b3b0b042cd8104d126083717f8493",
+          "match": true
+        },
+        {
+          "file": "js/shared/alex-settings.js",
+          "bytes": 2068,
+          "sha256": "4d992f86ed862cb29a2a63f1383ea5cf60ffcd72bc8d00ef1d683a8ddedab157",
+          "match": true
+        },
+        {
+          "file": "js/shared/alex-voice.js",
+          "bytes": 2553,
+          "sha256": "30747f9a43d51e6a8de66cf495b07e58d8993b6704d09ee891c4f6e271fd79d0",
+          "match": true
+        },
+        {
+          "file": "js/shared/availability-forecast.js",
+          "bytes": 1859,
+          "sha256": "494cecf298b480798332fafa20d6f86a6454164c393d543c74146bc6067f78bf",
+          "match": true
+        },
+        {
+          "file": "js/shared/chop-odds.js",
+          "bytes": 3843,
+          "sha256": "2506af1ace5a49e5ce8ca27417806668d82936bc31e9bbbab039493824420cb9",
+          "match": true
+        },
+        {
+          "file": "js/shared/chopped.js",
+          "bytes": 1603,
+          "sha256": "2d553b5eabc852def4bb734c36913dc29577e10d9f587bef4def1971f76ef578",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-bench.js",
+          "bytes": 6714,
+          "sha256": "a700d95530879e079ff55a22b6fa889db08dc1bdd2317c21061c248d88a85c58",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-bylaws.js",
+          "bytes": 5499,
+          "sha256": "638417ae4eaf9c0eaacdfdaf3f880034bab9afd8727a241d638ff7a9fc3e0393",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-calendar.js",
+          "bytes": 4814,
+          "sha256": "84b9e1bbad6b79687d08b5c42536db8b3729972ec2485d1919be5a42de53b98a",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-coefficient.js",
+          "bytes": 1885,
+          "sha256": "61cc6fedcfbf175e0a62835bfae1bd9bdd803494771b43b9e3f11b90d991136b",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-drift.js",
+          "bytes": 3018,
+          "sha256": "9485d36966f5497ca28ac44f9b4960e98f6d6c92ae7c1d0ff2351e2ad409feb3",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-engine.js",
+          "bytes": 2511,
+          "sha256": "82655accae378d11971dd1eacb2d8429dc2744a3793af5ef2b66858e236d0584",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-followups.js",
+          "bytes": 2873,
+          "sha256": "0cbd40ce09cef424be3a6270f2f5d6b601b6ecc84367cd54783a286194e3d2ff",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-genesis.js",
+          "bytes": 5583,
+          "sha256": "232e1c5e7bcbbb7304ba660e8d3c859128889feb29f1d58d6e6906a1deff646e",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-prefs.js",
+          "bytes": 3410,
+          "sha256": "45ba9ca5e22d0f2a74a1f7992b6818ad4be8cbeb3fa2a92828e5326742c16da2",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-programme.js",
+          "bytes": 3985,
+          "sha256": "0346c657d2ca20c5048e5d6ddf3bcfb1dd70b91217350aed4e6d99f8b73feb22",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-proposals.js",
+          "bytes": 3151,
+          "sha256": "412d0c46a3463acfa9871c732891c5811283ce8ca2cc0049df54d86860d65d6f",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-radar.js",
+          "bytes": 4947,
+          "sha256": "2ec80ace68862df71c59ad538df4f0ff1022d87b8dc83bcbe0e092eeaa9f3915",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-renewal.js",
+          "bytes": 4880,
+          "sha256": "476dc9ab4aa913e90d1557ef3aed7ca79e600244a98c5ceb6d85b9c1fac7d938",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-rulelab.js",
+          "bytes": 13366,
+          "sha256": "11c6977ea30cda5e7c784959370eb848c98e0162ac0869a70fa6decaea32e538",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-schedule-nfl.js",
+          "bytes": 4569,
+          "sha256": "48a0ea253f251ffbf48227e9ca359f7f6e96d60a7cf6d1f5c8cf86d168acc55b",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-schedule.js",
+          "bytes": 5568,
+          "sha256": "354b6ae862cb1d7f530cd918cee884e145e7e8130f95ec95d3d3cde5cf366b0d",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-tasks.js",
+          "bytes": 2156,
+          "sha256": "59d05203897dc64d985b53ecdeee9bbe79904dd0e541e3569599ad14dd2df779",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-treasury.js",
+          "bytes": 4362,
+          "sha256": "b2d349b6143ec54904f87ed02d1ee6ad73e8d2ebee0a2591de2f3362cdc92cd9",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-triage.js",
+          "bytes": 17040,
+          "sha256": "6af8878a39f8c6ee0dcd7ee12491e8a5ea561979b0ff711b1a2bc6f190cd5ec6",
+          "match": true
+        },
+        {
+          "file": "js/shared/dashboard-league-data.js",
+          "bytes": 8487,
+          "sha256": "4a4b662fa3f03eeb2179938cdabf46fd490890c90beaeb441dfd3d4de904f286",
+          "match": true
+        },
+        {
+          "file": "js/shared/dashboard-league-layout.js",
+          "bytes": 816,
+          "sha256": "4d27a93c52c9eb8fd91f55ad13d2fd9e131d18880cc83036d5b5058c8b052688",
+          "match": true
+        },
+        {
+          "file": "js/shared/draft-gameplan.js",
+          "bytes": 4930,
+          "sha256": "3e720f5aa13cf80d992e7bca82f1af04b96d14bd2abb9e0bc23229704908db56",
+          "match": true
+        },
+        {
+          "file": "js/shared/draft-profile-data.js",
+          "bytes": 131290,
+          "sha256": "9fa5f8f2308068ca4267bec3c7e949622371954d99d3df0014df7bd459751b81",
+          "match": true
+        },
+        {
+          "file": "js/shared/empire-decisions.js",
+          "bytes": 2912,
+          "sha256": "7eb9cde4e5558e825f609bdb3a9800e27edb8e4095f986f78d8f0215dfa32caa",
+          "match": true
+        },
+        {
+          "file": "js/shared/empire-values.js",
+          "bytes": 5054,
+          "sha256": "9891cdfbff11f650cb706a2c160faa5876c15f926c8605175dcc6236964d0947",
+          "match": true
+        },
+        {
+          "file": "js/shared/fa-market-data.js",
+          "bytes": 1306,
+          "sha256": "974743a2227ee23ea2109982aa3132c848e6abdc2be06588c44228a3dbded1ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/faab-engine.js",
+          "bytes": 4352,
+          "sha256": "de8117cb8c1fb761a95878edade41df720d765c1231577c452e44a623c75aaac",
+          "match": true
+        },
+        {
+          "file": "js/shared/feedback-hub.js",
+          "bytes": 16072,
+          "sha256": "fedd47ce0f74610e73c76269ef38fc3be3fbb9f60d3523f63a2bb1466ae115ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/forecast-archive.js",
+          "bytes": 1426,
+          "sha256": "fd69abfdd3e8e0a145c40ac0fa8785055df4ae71b3ea56d0a98d4b91a41f7e99",
+          "match": true
+        },
+        {
+          "file": "js/shared/forecast-ledger.js",
+          "bytes": 8730,
+          "sha256": "dd20fc0998eed90e15ddda47dfcb9ff78baf487ca21055813321b9d3768cf0d3",
+          "match": true
+        },
+        {
+          "file": "js/shared/gm-mode.js",
+          "bytes": 9673,
+          "sha256": "7b405846195bb6c35cde0c7931578380e5f4f806a502c6745af4b45b88ec7825",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-history.js",
+          "bytes": 12306,
+          "sha256": "110ffed9e19904351ea1274865ecd97adf8448599abeeb53a4cd98ff8df672cd",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-scores.js",
+          "bytes": 3916,
+          "sha256": "95a9d3d9fe295ce6d3e91e18153b78d19ff769b3f0b68f3022264108adad358e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-standings.js",
+          "bytes": 4888,
+          "sha256": "db078768d85c12c612954ceb0350f81ca1b5909a455945a8cbc9e7b26124113e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-table.js",
+          "bytes": 3511,
+          "sha256": "0713467759168077dfab3bf78911f5d4efb451a16a5e99a1afbdf38d18d01009",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-stats.js",
+          "bytes": 14761,
+          "sha256": "334620e6e0f82effea7b7e23dec6d5980416617cdedfacac3898c8fcc47dffc6",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-cache.js",
+          "bytes": 1834,
+          "sha256": "30451ff734c206c8704f6f9ef207649acdbe32d8a537da1a669b52e818111b2e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-chronicles-data.js",
+          "bytes": 58281,
+          "sha256": "507653d83c175cca3e9227d465a7065a00d2b4e5e90cb147d5d7215b4d2f07c7",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-chronicles.js",
+          "bytes": 7751,
+          "sha256": "89a57f92fa8a15b3d3633314e2e048277069b98465e67e5d9844ccf274b10ac7",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-journal.js",
+          "bytes": 19783,
+          "sha256": "cbecf57435be5cb03307365db58af5a4e60a41d6f19e85e265bdaf68939d8254",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-portfolio.js",
+          "bytes": 4641,
+          "sha256": "a46763548a35a30bb521f42f9428620dd83c989d4229a4dffba0bed4c47411d2",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-rivalries.js",
+          "bytes": 1907,
+          "sha256": "f5be4d75dad1d69a1692c71979f7e49d410ff3b8e262d3b99af24337fcae0885",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-workspaces.js",
+          "bytes": 4655,
+          "sha256": "7dee4d4887f2f5142c55e39e1489a3262db34d741263dd1392d27e2cfe483950",
+          "match": true
+        },
+        {
+          "file": "js/shared/lineup-forecast-snapshots.js",
+          "bytes": 1239,
+          "sha256": "f5d7845ee05f8a0aad771b294aae4b343be418586bb17f0ead921834dbfbaab4",
+          "match": true
+        },
+        {
+          "file": "js/shared/luck-engine.js",
+          "bytes": 2796,
+          "sha256": "35c238074aa9291abc5fec8cf4fabd4b76bf70ff231716ba3b4e3cbcd0947e96",
+          "match": true
+        },
+        {
+          "file": "js/shared/matchup.js",
+          "bytes": 4917,
+          "sha256": "63d5b4822db7a3fd83ad5189538ad3b847c03c7b53707f3144c524d6a3240b8a",
+          "match": true
+        },
+        {
+          "file": "js/shared/navigation-guard.js",
+          "bytes": 357,
+          "sha256": "80b3223843a6e02fa6c4e53c2b5fd29b16a0c77d1abcf466b98e9d767a1d4323",
+          "match": true
+        },
+        {
+          "file": "js/shared/nfl-context.js",
+          "bytes": 5395,
+          "sha256": "1cb64c90f9c277c5e4151ea0abf7652fd9b63abfd8774b3f50db55d8b8a48d22",
+          "match": true
+        },
+        {
+          "file": "js/shared/player-notebook.js",
+          "bytes": 8539,
+          "sha256": "7d539e1e6c94e76ba9b8f8846b6a314c6de8c52e3c7e697010735633b0524a8b",
+          "match": true
+        },
+        {
+          "file": "js/shared/playoff-odds.js",
+          "bytes": 5639,
+          "sha256": "697f0c14810de55a87a3809cd4305996a91b7b9ebc4ebc7e274caca0f261ec76",
+          "match": true
+        },
+        {
+          "file": "js/shared/pro-gate.js",
+          "bytes": 646,
+          "sha256": "d408581bac3d51e8e9338e9261700d879bf684ac64814facb7b9d564badceffb",
+          "match": true
+        },
+        {
+          "file": "js/shared/roster-cutdown.js",
+          "bytes": 1488,
+          "sha256": "eac0f262120eb3cceafdd127781e605fb8e7743b43c2f8c094edae60c75a50ce",
+          "match": true
+        },
+        {
+          "file": "js/shared/saved-reports.js",
+          "bytes": 2046,
+          "sha256": "a3cf8a45a86cbbbe4a635925ee2a2a999e2bfe87c91be60c044941e620a2f6a9",
+          "match": true
+        },
+        {
+          "file": "js/shared/saved-views.js",
+          "bytes": 6196,
+          "sha256": "3f14899cf7d213ad59319d868e5a1932b34513d8056766ee3d95d2b29b310972",
+          "match": true
+        },
+        {
+          "file": "js/shared/shared-loader.js",
+          "bytes": 2214,
+          "sha256": "23751556d1ce42369fe981925dd4b49eb215fc789a85530cf10b61a253aaf376",
+          "match": true
+        },
+        {
+          "file": "js/shared/snapshot-store.js",
+          "bytes": 3754,
+          "sha256": "ade1df276738ad682c40e15200c8d358d72d5e8589f0198d5485a7a00debea47",
+          "match": true
+        },
+        {
+          "file": "js/shared/startsit-engine.js",
+          "bytes": 5640,
+          "sha256": "d722df5685fb061db9306f97a387ddecc8ffe33dbad97c15bd8167df9af20066",
+          "match": true
+        },
+        {
+          "file": "js/shared/stat-catalog.js",
+          "bytes": 7924,
+          "sha256": "21b6ddefb308b96a2fce989770cdc3a3f6e9fbc2001dcd863d74621c5c3693d9",
+          "match": true
+        },
+        {
+          "file": "js/shared/sync-manager.js",
+          "bytes": 1279,
+          "sha256": "ab687e439a779012a295244cd51b7991622eb7e88ad20e5e9a784502b19aac18",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-achievements.js",
+          "bytes": 3890,
+          "sha256": "f3263da37dca4b110174d6639e5f1f077beb03c7b267b17209d5021e6f8dc513",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-actions.js",
+          "bytes": 9376,
+          "sha256": "92cd3ee06c5985e70da223bb518d302f8f9077e0bcf11b7085a9c0a72feea040",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-ai.js",
+          "bytes": 14539,
+          "sha256": "6bda1a000510629f1b8d43cf3750ba0d7db871ac33dc6094ea7cfc7ec489717a",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-career-store.js",
+          "bytes": 930,
+          "sha256": "dc62cd09a9cc4b404b8feb18ec81a93270e73ab8dc43dd265cdc6fc489f7862c",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-career.js",
+          "bytes": 2971,
+          "sha256": "b3f4f5ab2094e39d902cfbbb4529503d643532c49323b2e532faf1633284a47e",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-draft-clock.js",
+          "bytes": 1294,
+          "sha256": "86ba552f60ad5bf067f0f3a05cedf8c5ee9ae7f35121c299f352dcc52c7f617b",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-draft-room.js",
+          "bytes": 1227,
+          "sha256": "ae212677a66948b12a1517bbb5d4b10112e9cc9871dab0063af4b4137426c51d",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-engine.js",
+          "bytes": 50634,
+          "sha256": "44421009f2b6c1a8eb27b57e48add1771d22546a7236276bac8e9a4c7fa34dcc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-era-rules.js",
+          "bytes": 4267,
+          "sha256": "86d146321a7a5d573b86f6c7119b6cf2d1dd09cb4490d00457caf6531b8961ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-gamecast.js",
+          "bytes": 7628,
+          "sha256": "dbfbfb1b468dc62117f97231ae931a9560f58f73392f7654a7aa675af68c266f",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet-artwork.js",
+          "bytes": 2101,
+          "sha256": "acffe67ab0ea44249bd929f44fb1423c5e1fec724d45fbea146a5e1724177d0d",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet-sources.js",
+          "bytes": 40609,
+          "sha256": "f5bf34b074ea3fc01c820babbb4bd283910cb634fd27fc3bb5322916726bef69",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet.js",
+          "bytes": 10681,
+          "sha256": "21d9c76a1a52a41d2e4862e39388bc7de9aca6313e80ab5e9f2247e2c04bd8c6",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-hidden-years.js",
+          "bytes": 4107,
+          "sha256": "d4a70851bef8214747e48d597bdcbc0caa50bffc48fffbc74a2ba48506266019",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-player-cards.js",
+          "bytes": 2604,
+          "sha256": "fc784b9322ee8d2fd06b13313905fdcf395e5b58db1bc285b9fc593530206e6c",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-player-stats.js",
+          "bytes": 4056,
+          "sha256": "d0f5c249f0498caef1ccdfb0fa953ebb0964ada223a13642e09a80d6b9fc7797",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-profile.js",
+          "bytes": 3343,
+          "sha256": "04e0bc390ca586bcee3988c99ef7f78a463d59219f2d23bd5ae5f5ee9313c2fc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-public-state.js",
+          "bytes": 10363,
+          "sha256": "804763fd48a078dac5ba46718e23d155e92154ceccc975588bbee4fab896a868",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-remote-client.js",
+          "bytes": 3146,
+          "sha256": "44b5c3c9ac7d363a982443a8f024b2a70956567521d012a484403a2e592ce9e3",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-rivals.js",
+          "bytes": 43066,
+          "sha256": "00a278f63bd46169e6234bea25cad20f905bea22fae9ee1232c2c6b3e637c064",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-roster.js",
+          "bytes": 2269,
+          "sha256": "efbb3138e2c285c6dca9b74dabbf55efdc048f97a03b63028176bdafe98036ad",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-rules.js",
+          "bytes": 287,
+          "sha256": "146ee62bf7de99077193e5b779230025f16cdae42b1ef23e636d8af0bc490538",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-season.js",
+          "bytes": 12311,
+          "sha256": "6878c13380c5a6d60d8ec8eab30a77b677ccb196e5b35fb87a2d5bc9be0b2e58",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-storage.js",
+          "bytes": 1551,
+          "sha256": "68de5c7d6997dbaacfc25100ee7f4323512746dfd6c090342a66f70df3c310fc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-strategy.js",
+          "bytes": 11309,
+          "sha256": "40515fecc349810d65cda5deeec80e241e05071638b09ab525621ed37a7070d4",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-types.js",
+          "bytes": 275,
+          "sha256": "f086210ada06a8c1be2c2888eea9a7a800430a9e18db41fb7c3179855ed7e620",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-ui.js",
+          "bytes": 1236,
+          "sha256": "c7a1a87ebdf12ea1bd484cfbde6800c164db1e13dfe4a9adbf72ccf4491895bb",
+          "match": true
+        },
+        {
+          "file": "js/shared/trend-badge.js",
+          "bytes": 520,
+          "sha256": "9646e21cbe821d4928c8aba45c42d2e4eb2738f65e2ff996a2fefea23ed4e5a3",
+          "match": true
+        },
+        {
+          "file": "js/shared/txn-store.js",
+          "bytes": 1829,
+          "sha256": "25f2cca0d32265e03555108ff2e8d2fe8aa31d3c1b08e533401d7e9378308f3a",
+          "match": true
+        },
+        {
+          "file": "js/shared/viewport.js",
+          "bytes": 1519,
+          "sha256": "b7ef21c64de86638ddbd7227723b4519de1544087df1b386c40cce2edd7f0562",
+          "match": true
+        },
+        {
+          "file": "js/shared/weekly-proj.js",
+          "bytes": 9838,
+          "sha256": "367f01490e2e42b3dc292478b39f68292c7c0ae3d5c96c6d69368261640b887b",
+          "match": true
+        },
+        {
+          "file": "js/shared/woeppel-cup.js",
+          "bytes": 14768,
+          "sha256": "b4bbefadcc53a71d3f569da4fe1bc48c548ba686f17135ae8c5e15f519f0645a",
+          "match": true
+        },
+        {
+          "file": "js/shared/wr-ai-context.js",
+          "bytes": 5570,
+          "sha256": "2feb680cefd94518ba4a1c0d3082b82297f1c2bf009d3a8f1680f6c83125edc4",
+          "match": true
+        },
+        {
+          "file": "js/tabs/alex-insights.js",
+          "bytes": 67351,
+          "sha256": "a9e17a44859d97d85618b3cd737217b97eac40b1dc1ceae36140e85fdf640b78",
+          "match": true
+        },
+        {
+          "file": "js/tabs/analytics.js",
+          "bytes": 81713,
+          "sha256": "e6283302fe3df21fccdc63918cb00c91a88265925a6cb91a0c484cbd4e400a2e",
+          "match": true
+        },
+        {
+          "file": "js/tabs/calendar.js",
+          "bytes": 11026,
+          "sha256": "832a82fba1f5ceebc6d5d888a481b827acd127a4fbe7b1aa76173598b6e598fe",
+          "match": true
+        },
+        {
+          "file": "js/tabs/commissioner-office.js",
+          "bytes": 51439,
+          "sha256": "1aacc81a9a255873c2446e8421428ed5ad1bf719fa0ce0af306aa5dcb4f64e05",
+          "match": true
+        },
+        {
+          "file": "js/tabs/compare.js",
+          "bytes": 105094,
+          "sha256": "420dcccfc72d208392f6065fba65c1127b31ee8e9145c28bd16ad8a28b731cc8",
+          "match": true
+        },
+        {
+          "file": "js/tabs/dashboard.js",
+          "bytes": 71487,
+          "sha256": "cbe14b8dfaa0cf954ddd5cb405ca4a2478ce9579004d9d948545b94d7324b5c6",
+          "match": true
+        },
+        {
+          "file": "js/tabs/duat.js",
+          "bytes": 61728,
+          "sha256": "703e276d634bc2a3d7f0a7a71dc60fc450cb2bf4af5d34bf55022615c015a008",
+          "match": true
+        },
+        {
+          "file": "js/tabs/flash-brief.js",
+          "bytes": 37891,
+          "sha256": "d5e64f4d3c47b6cc5e1e9c57da11b3c69b9edef11106c1ae73c27e44c94df827",
+          "match": true
+        },
+        {
+          "file": "js/tabs/global-view.js",
+          "bytes": 195534,
+          "sha256": "954cbe8ba982b36a679b52330b509cd8f8a57ef24d375ac88b9adc7d2e5529b3",
+          "match": true
+        },
+        {
+          "file": "js/tabs/league-central.js",
+          "bytes": 30630,
+          "sha256": "10a510809c22b1766f1389455fb9662c8cdac014e67e518c7afb4c2ebc722ba2",
+          "match": true
+        },
+        {
+          "file": "js/tabs/league-map.js",
+          "bytes": 106991,
+          "sha256": "306e0d17cf5204a13388c1d55e0ce1b0cd3063db804f4bc9ee405b9af7464cc0",
+          "match": true
+        },
+        {
+          "file": "js/tabs/lineup.js",
+          "bytes": 76301,
+          "sha256": "ae4e085572ec5787c9529927c78e8f1dd5f6ed3343cbc2f8ca88048a3070e6ff",
+          "match": true
+        },
+        {
+          "file": "js/tabs/my-team.js",
+          "bytes": 103688,
+          "sha256": "db22a7ec53b078c420bc4cef031cedc4889c37aec0442512648e5de5e43e9e64",
+          "match": true
+        },
+        {
+          "file": "js/tabs/stats.js",
+          "bytes": 31990,
+          "sha256": "88cc860689975b7b116c969eab05c102484aa208cf9dd0637f65567004266b8e",
+          "match": true
+        },
+        {
+          "file": "js/tabs/strategy-editor.js",
+          "bytes": 31564,
+          "sha256": "98c575b7e0bde20fddec98a3a3014a4269a9f73821378f7bbefcfac0eff03c1c",
+          "match": true
+        },
+        {
+          "file": "js/tabs/time-league.js",
+          "bytes": 118528,
+          "sha256": "ecf140e841e14f7d5c6ee8fc3054e4661a86c1db3cf1657868ca865ffd22ef2a",
+          "match": true
+        },
+        {
+          "file": "js/tabs/trophy-room.js",
+          "bytes": 61381,
+          "sha256": "c064a6a5fd8e1205dbad15e22ebf211ea2468948c9ec4d7555668338018c5bd6",
+          "match": true
+        },
+        {
+          "file": "js/theme.js",
+          "bytes": 13998,
+          "sha256": "8a3b0c8e4fbb65e533148f2dc0fbe27bc268afc53bcf827616fb04f30e65386c",
+          "match": true
+        },
+        {
+          "file": "js/trade-calc.js",
+          "bytes": 195615,
+          "sha256": "2525bb3684282d91a25298ecfa9a5cbd32a657e9416ecb66664605ce3a9f32b7",
+          "match": true
+        },
+        {
+          "file": "js/tutorial.js",
+          "bytes": 3878,
+          "sha256": "4a56e2d613eb540a5f5ce9655cd7e7008dcdb3ade27a263b80a5bdf8fb56d758",
+          "match": true
+        },
+        {
+          "file": "js/utils/gamelog-engine.js",
+          "bytes": 2214,
+          "sha256": "916c02e29400dc1da7077e44fe3f0616353e8132a4dfc53fea382d632c4c30a7",
+          "match": true
+        },
+        {
+          "file": "js/utils/nfl-byes.js",
+          "bytes": 1174,
+          "sha256": "b19183eef33fde6066ec0431edfcb91cc2df5c8b6b22724be11c828c98f9a534",
+          "match": true
+        },
+        {
+          "file": "js/utils/player-value.js",
+          "bytes": 13382,
+          "sha256": "cce8f695c768015096bae12b4aefdb73791ef7885ca78a549a96503d50cbc4b9",
+          "match": true
+        },
+        {
+          "file": "js/utils/schedule-engine.js",
+          "bytes": 3692,
+          "sha256": "111a2e1c84e8246f9ad24331f1623347b9f6904b9628169bfcf70c66b854934c",
+          "match": true
+        },
+        {
+          "file": "js/utils/sos-engine.js",
+          "bytes": 3840,
+          "sha256": "d25c2e9d38372e79d63791f0f713f7787fd65948e3b406c46f98fa07a5cf812b",
+          "match": true
+        },
+        {
+          "file": "js/widgets/analyst-mock.js",
+          "bytes": 3927,
+          "sha256": "669cd06cc7b760d3a6f922d15dd3d2150c7fabb165a2f12e1be76b7bb370773e",
+          "match": true
+        },
+        {
+          "file": "js/widgets/competitive-tiers.js",
+          "bytes": 26422,
+          "sha256": "18166e91be866a30e37ef81e9d76da34981757d9681d4eab499a893d3f379d49",
+          "match": true
+        },
+        {
+          "file": "js/widgets/draft-capital.js",
+          "bytes": 20010,
+          "sha256": "82fed9f43833c7a3536b8dcbb0681967a187d6e5721aeb3728fca8c050a851d6",
+          "match": true
+        },
+        {
+          "file": "js/widgets/faab-command.js",
+          "bytes": 5081,
+          "sha256": "23b81ae431b1ac18fd38ee666fa171e84b790cd92c31c91c0ae0100ae59c7261",
+          "match": true
+        },
+        {
+          "file": "js/widgets/gap-plan.js",
+          "bytes": 11519,
+          "sha256": "f72962705e8e8dc1cb5687efa5612d11cb26fb67f9cbf816f4479dec480b7a3b",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-calendar.js",
+          "bytes": 4659,
+          "sha256": "768f25f5d5cdc764ef9225c01b1d98602e04519b75c4052001ef58cffbd299d0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-landscape.js",
+          "bytes": 19532,
+          "sha256": "48137763383951bfd98d096797fc0826fb9e97af6301e3a718a1a3885d847598",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-progress.js",
+          "bytes": 8431,
+          "sha256": "3801255554c2073c61c4e4393796f288af8ae359c895e562c420a457071bfb5a",
+          "match": true
+        },
+        {
+          "file": "js/widgets/lineup-check.js",
+          "bytes": 3748,
+          "sha256": "8851d9613adc389aad95ca9c2396953f3ae4d54d73c230c2033212e34271ccb0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/market-radar.js",
+          "bytes": 33043,
+          "sha256": "5b2315b6cfa3097faee974ad906685780f457e43067abf47502ef7d8203c1eb4",
+          "match": true
+        },
+        {
+          "file": "js/widgets/my-trophies.js",
+          "bytes": 17434,
+          "sha256": "a051f5a8417b55f2adc1490e033368ff2c7b4c4cdee1b5c93f7056650a66d6f0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/player-tags.js",
+          "bytes": 10343,
+          "sha256": "f3396ee9b79ed516f1809b68ed887cb1193fbedb1ce7d43aa02655bf367b7ee9",
+          "match": true
+        },
+        {
+          "file": "js/widgets/power-rankings.js",
+          "bytes": 22676,
+          "sha256": "8a4172348333877fb3fe8c597ca05b2f4c62697bfa1ecdb0277034827a1c00c0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/roster-pulse.js",
+          "bytes": 19504,
+          "sha256": "7bb24b0a50b9667a397e720fa3275fa255f330559d3002b4fe1cfa2db9d03ed6",
+          "match": true
+        },
+        {
+          "file": "js/widgets/window-forecast.js",
+          "bytes": 12145,
+          "sha256": "b3ad143cf33383122183bc925d082b2aaa36e31370132d84cc49e1f27896f9e5",
+          "match": true
+        },
+        {
+          "file": "league-actions-mobile.css",
+          "bytes": 11623,
+          "sha256": "1e52616d90800d69d461b0fc586d8b37f80bc68e5634e98c203c183d142757b6",
+          "match": true
+        },
+        {
+          "file": "league-analysis-mobile.css",
+          "bytes": 18971,
+          "sha256": "84e715b21515392897995e00ae6c0c64da8112249711c9df4475b7c5dea38578",
+          "match": true
+        },
+        {
+          "file": "league-live-standings.css",
+          "bytes": 7406,
+          "sha256": "0c967cb40d1918df95263b4c61cf4e7e4c74cb603ab3058f04ea34aff3e2726c",
+          "match": true
+        },
+        {
+          "file": "league-wire.css",
+          "bytes": 31121,
+          "sha256": "ea005e3b44d19b311476910e82c29979665f358e15244ffd221bab9be20aab8a",
+          "match": true
+        },
+        {
+          "file": "league-workspaces.css",
+          "bytes": 5461,
+          "sha256": "7cfece2f1a07509a5564406273bd0c4c7963d02502ef9b7a373a0a7ad8c85855",
+          "match": true
+        },
+        {
+          "file": "manifest.json",
+          "bytes": 889,
+          "sha256": "41bfefa46a835bb11caad906b16e334b26ced6ed80eaeef32e19a1cd56c85dec",
+          "match": true
+        },
+        {
+          "file": "mobile-foundation.css",
+          "bytes": 4086,
+          "sha256": "8f9488ce2ea6205d4ca73b3ffe8b423fb01051890784d54b9251c909700d4ab6",
+          "match": true
+        },
+        {
+          "file": "roster-mobile.css",
+          "bytes": 9847,
+          "sha256": "d85122a3c909b298fcf61892229b3d87f8485917712ea8d20ab43fd15e4f3076",
+          "match": true
+        },
+        {
+          "file": "stats-mobile.css",
+          "bytes": 14172,
+          "sha256": "33cd3a1312a2abd4bc64b0ab0c673b37cba1a1ecb7e73a3d202686b0bdc1ad8d",
+          "match": true
+        },
+        {
+          "file": "suite-management.css",
+          "bytes": 19104,
+          "sha256": "85ab407bfdf047b73f95cf5d1a88dc3baa4d2eb8b47646eb1b67e1090b4af7bc",
+          "match": true
+        },
+        {
+          "file": "time-league-career.css",
+          "bytes": 2349,
+          "sha256": "651efce9f13819e7c21af77b8991e256af43efa3b61004eb010788f872721938",
+          "match": true
+        },
+        {
+          "file": "time-league-ceremony.css",
+          "bytes": 1977,
+          "sha256": "94d208f9a26c3c4e5f725e25144702003b0e827124953afa4f02f0a352f6abd5",
+          "match": true
+        },
+        {
+          "file": "time-league-community.css",
+          "bytes": 2128,
+          "sha256": "ead2ad9a15e6a317df1105792fbe6f9942ce5f936bfadd175a31d8c72d512ba1",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-controls.css",
+          "bytes": 10892,
+          "sha256": "f12268d4e485842f1c342acb778e71a767620ca8cb0533264db227b3f4fbe6b5",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-experience.css",
+          "bytes": 13401,
+          "sha256": "63dd1a66874f029f8af9689e76f7a1c7330ad588b3ef3e79b430891476548258",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-reveal.css",
+          "bytes": 8121,
+          "sha256": "1ff5b12a74714bdcedde040b8ab447c03a6e4a5ab6741947293a5f28fbcfad87",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-roster.css",
+          "bytes": 4980,
+          "sha256": "a79739cb267f289debc2f24816b9b9a579edc41a38ca91b1d079871096463ddb",
+          "match": true
+        },
+        {
+          "file": "time-league-focus.css",
+          "bytes": 20658,
+          "sha256": "fde6447d49ed92844acb3be6311e2f43909efd863c6f6dd2a3bbfa3fdf3be463",
+          "match": true
+        },
+        {
+          "file": "time-league-helmet-studio.css",
+          "bytes": 3023,
+          "sha256": "b732e5daccd0b9d9ba12c6af36d8dc67cde0c4da78220468f93b76e38978b265",
+          "match": true
+        },
+        {
+          "file": "time-league-mobile.css",
+          "bytes": 27930,
+          "sha256": "87393f596bfc40447173a0d79841706a5d2ad1469440f7f6cd56df985ec50ae4",
+          "match": true
+        },
+        {
+          "file": "time-league-play.css",
+          "bytes": 81348,
+          "sha256": "e1262864de6d79738fa3e41c7a92e5646d0f1fcc6f101c55f6217ed6b3aef046",
+          "match": true
+        },
+        {
+          "file": "time-league-profile.css",
+          "bytes": 7199,
+          "sha256": "bcd3ba3f0cb67310e17b784ba9686fb9b846658b9735355ce534f6471ebeebc0",
+          "match": true
+        },
+        {
+          "file": "time-league-rivals.css",
+          "bytes": 13320,
+          "sha256": "05fab741c6cfcc62149991d3b0e74fff1d41a6237bc9040a1755e95ca69e4eb4",
+          "match": true
+        },
+        {
+          "file": "time-league-roster-home.css",
+          "bytes": 15833,
+          "sha256": "c74166796dd5c1108199049556f0fffe16677afcb2e910d5c33e0592088aebd8",
+          "match": true
+        },
+        {
+          "file": "trade-calculator.html",
+          "bytes": 212040,
+          "sha256": "b612851c835121d030a7abbe38cdc34117e68653cef315927ceeadf0ff9f9937",
+          "match": true
+        },
+        {
+          "file": "trade-center.css",
+          "bytes": 6268,
+          "sha256": "f1330c87eb8268551d07683bcf9ea311373caf55e27c53343d6faf5cf931223a",
+          "match": true
+        },
+        {
+          "file": "woeppel-cup.css",
+          "bytes": 13608,
+          "sha256": "e1b6bbdea3f611a0af0937649e28bdc130711ca39b69a1416c11ff5037630908",
+          "match": true
+        }
+      ]
+    },
+    {
+      "base": "https://c2-football.github.io/WarRoom-sandbox/",
+      "revision": "e6c1c8e909c648c1bc110b2438cd8bdd5e287337",
+      "builtAt": "2026-09-25T19:01:25.468Z",
+      "environment": "C2-Football/WarRoom-sandbox",
+      "assetCount": 367,
+      "passed": true,
+      "assets": [
+        {
+          "file": "charts.js",
+          "bytes": 6377,
+          "sha256": "bb99b9565f3f491ff2257451ae565dc0f3db3c4f1c88776fad43acce35820c41",
+          "match": true
+        },
+        {
+          "file": "college-stats.js",
+          "bytes": 3065,
+          "sha256": "ef22b739ae4ddcb653c8355927bcae3d3dd2f37fd67c0063e2a37fb111aba421",
+          "match": true
+        },
+        {
+          "file": "dashboard-league-widgets.css",
+          "bytes": 4730,
+          "sha256": "a59bffb5f847f24e3c0fc600437adb6b9ecc1d021825f29d4a0765d7f5bd0500",
+          "match": true
+        },
+        {
+          "file": "data/duat/lore-catalog.json",
+          "bytes": 54989,
+          "sha256": "fc603128043633b88f55f2089e256788608199cc73623da429c9805237db44a6",
+          "match": true
+        },
+        {
+          "file": "draft-history.js",
+          "bytes": 3982,
+          "sha256": "0a02a5dd2abbf1053f6999ee7449a276fb94f4279c0661391c1d4cc93b717f14",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/csv-loader.js",
+          "bytes": 5762,
+          "sha256": "492179b13ba22454c1c69f66a319719136bcb16d8816a3dc1ea09ed159116809",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/index.html",
+          "bytes": 66979,
+          "sha256": "4abd26eaed3210ebe9725c55e5d8a423d58662f4757d2515586fd16adafe33e8",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/supabase-config.js",
+          "bytes": 292,
+          "sha256": "21c0ac75b3b809fbb9b9c8e882efa9b2985fd2b1e677ffb75ab39d28aff460a3",
+          "match": true
+        },
+        {
+          "file": "draft-war-room/supabase-draft-client.js",
+          "bytes": 3597,
+          "sha256": "191fecaf74da5a4cf052d4532b441bb7ec9498cf08977f09fe95c0cfe17452f5",
+          "match": true
+        },
+        {
+          "file": "draft-warroom.html",
+          "bytes": 62340,
+          "sha256": "a7d193ca3264f39c237de3f429461fa1dfe750a694cb61cc88d14537f3dd12ee",
+          "match": true
+        },
+        {
+          "file": "duat-council.css",
+          "bytes": 4777,
+          "sha256": "83a8fea2a6e974c66f6f8b8c53cb9bf8a7b195d91132afaf16c911ff8d14bddb",
+          "match": true
+        },
+        {
+          "file": "duat-dynasty.css",
+          "bytes": 10856,
+          "sha256": "5d4103a4913d9dbd974ab3620c62b9a36a4f45fa574ad005cefadb4c97eccced",
+          "match": true
+        },
+        {
+          "file": "duat-faction-marks.css",
+          "bytes": 1953,
+          "sha256": "f6710e2b41ddee1348f30f0ce740c009238ac38623a67f4ef1f85df2739c8052",
+          "match": true
+        },
+        {
+          "file": "duat-heptad.css",
+          "bytes": 14529,
+          "sha256": "4bc9c6d4b968a61302291f9f85b3bed6864e04acca5b3a78d0a62be0948a0b20",
+          "match": true
+        },
+        {
+          "file": "duat-home-mobile.css",
+          "bytes": 4104,
+          "sha256": "bbacf42f05d874ebde3f206c82adfdd8de4e773044b8ad27384a7ddbeaaf45a7",
+          "match": true
+        },
+        {
+          "file": "duat-identity-library.css",
+          "bytes": 4380,
+          "sha256": "e7fc903d420a353622cddee011c35d996be806a34de9c19b5ed070d29582cd4b",
+          "match": true
+        },
+        {
+          "file": "duat-library.css",
+          "bytes": 10556,
+          "sha256": "c6830843ff65485dace0fec83d17af7baeb7c1e13751d63e75c178a60dbfbcc8",
+          "match": true
+        },
+        {
+          "file": "duat-map.css",
+          "bytes": 5369,
+          "sha256": "044b175343d11705d3ed24f6538e9ef851983f5afda6da6bee003f97bfadc8fa",
+          "match": true
+        },
+        {
+          "file": "duat-mobile-flow.css",
+          "bytes": 5351,
+          "sha256": "d7ec53d0263a3550642e990b369a7e03d78f203e670b73c6d8a22127cdda1521",
+          "match": true
+        },
+        {
+          "file": "duat-phone.css",
+          "bytes": 17571,
+          "sha256": "5b63af7a1b6282a59e12aee5de9d81e8cc7f0f44ea8abe08ac58be663947dbc7",
+          "match": true
+        },
+        {
+          "file": "duat-polish.css",
+          "bytes": 11158,
+          "sha256": "aeff66c002f33af7f94619414785a0d1b5a459b8e16a2acf5b8144b679008f24",
+          "match": true
+        },
+        {
+          "file": "duat-rituals.css",
+          "bytes": 14162,
+          "sha256": "21973e785b537a129263491e4efbd1c380674cd87dfb2f37961a17c1a85d2398",
+          "match": true
+        },
+        {
+          "file": "duat-season-home.css",
+          "bytes": 16681,
+          "sha256": "f9893bcfd66c31f318649e1774dd6842afa47c624b08fbd31bf546eedc9ca190",
+          "match": true
+        },
+        {
+          "file": "duat-weekly-flow.css",
+          "bytes": 6889,
+          "sha256": "2651dd2d3f987589e6ed732436497cbf369b3c28836d53d6bb721725ccd788fe",
+          "match": true
+        },
+        {
+          "file": "duat.css",
+          "bytes": 40794,
+          "sha256": "d2524ca180b0fbad60bcc36020d5b64482057cbebfbdf84bc76ef8a836544792",
+          "match": true
+        },
+        {
+          "file": "experience-hub.css",
+          "bytes": 24516,
+          "sha256": "60bebbb485335412dfa9bf7b2379c1e40856afbc5090e36e9d391c6390c210a6",
+          "match": true
+        },
+        {
+          "file": "free-agency-market.css",
+          "bytes": 4778,
+          "sha256": "8bd2c3c03a95cc69ce67376f21fc45534669608b4f28f0d9b159c183c93eedcd",
+          "match": true
+        },
+        {
+          "file": "free-agency.html",
+          "bytes": 103491,
+          "sha256": "2c87ce69b6f70eb33d044881671b843c614ff74a555e39c4f496088880f49e3a",
+          "match": true
+        },
+        {
+          "file": "gameday-mobile.css",
+          "bytes": 21058,
+          "sha256": "eae4c3b7ba8af7e4d7a37887bc67349b556d017adc04a774b2f784c90b9ca3d1",
+          "match": true
+        },
+        {
+          "file": "icon-192.png",
+          "bytes": 31548,
+          "sha256": "d0a6472e069c3c68ab85ea86c96914d0a7816135c0c4248a3aca9a9ad16cfb46",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/carthage.png",
+          "bytes": 36275,
+          "sha256": "f5a34aaf3b459652e153f3d4bd5891e8668668ca48815a81ca5267bafee414e1",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/china.png",
+          "bytes": 63900,
+          "sha256": "f4879064a7d71bfb5fb4dcd5de836d0146a5738a80b6df8ed30d9ea2098bf3cd",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/egypt.png",
+          "bytes": 70284,
+          "sha256": "7ce64994ef04397dc47af5bc523595907d8477290ef11bdbff6ba894e928f739",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/gaul.png",
+          "bytes": 36746,
+          "sha256": "2c98817275f583729fd933ad312cb31258b1f9a077f20df4f4ffb66eac0877be",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/greece.png",
+          "bytes": 30750,
+          "sha256": "60d55e5f1ee9ec1120bd32e60788256734516b7ad3170d87cf536a26e8f06be0",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/india.png",
+          "bytes": 48533,
+          "sha256": "b1a05dbcab3e3db6dc8f9687259ff5ca740da3490e02ca4741e54e48e06d15e7",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/inis-fail.png",
+          "bytes": 109238,
+          "sha256": "f6df4575c4363306c12e35f5fdfe440855a3c6afc6c5e442b8e8fd127bc2b195",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/japan.png",
+          "bytes": 35448,
+          "sha256": "77fe1b2a8676b0e732a96d0636a3d7b70f11cca4f7886c776a8b41ea6332cfcd",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/mayans.png",
+          "bytes": 53473,
+          "sha256": "b867a9f1637413f8ecabf4b90c1629ff103eeb9849054f4f1b3af67d5756a12b",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/mesopotamia.png",
+          "bytes": 72927,
+          "sha256": "e1f2ca36fe61c44f493a4f41ad396e1783db1d0e253345a455942c8d81f6d15c",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/nubia.png",
+          "bytes": 18581,
+          "sha256": "faf8fe59bd1801fd4011ae98dabc7523a676c55ebb382df91fd4544e85a06348",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/rome.png",
+          "bytes": 107977,
+          "sha256": "921fe0615d6fa25e861dc65b01ef17ca1eb0ff512a58f02d3fa7346c8038c3e1",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/vikings.png",
+          "bytes": 112821,
+          "sha256": "0054a27a6f731204aecc21dae7fa9e442326618416b4a58621e2d6e1550c675a",
+          "match": true
+        },
+        {
+          "file": "images/duat/crests/warhorsemen.png",
+          "bytes": 94190,
+          "sha256": "bb21c4248fcc1eb8bdce5528d94a7737cf0a0407c9f9f355a2bcae8bc8aacbdc",
+          "match": true
+        },
+        {
+          "file": "images/duat/excavation.webp",
+          "bytes": 283806,
+          "sha256": "c6a49f88e1cd29f6d75b921de276c28da276a8f165ff40a0950e6ac0047f1f65",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/aksum.webp",
+          "bytes": 245032,
+          "sha256": "68cff3fc81f0b5a141d48d4b7f308c292719ef5b5faf502b5a30744412186050",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/aztecs.webp",
+          "bytes": 191948,
+          "sha256": "3c4f455ad6a3378f3c18887919820eb6383974628339d0201944130d20783a6e",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/carthage.webp",
+          "bytes": 222970,
+          "sha256": "463d7db327f3026236c7e027a8b1f1c8b6b89945d4af75c66904bfbd752f8e34",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/china.webp",
+          "bytes": 231144,
+          "sha256": "5b14d78aabfd12411079af03d480e9af557fe04d7cc335a16d6958361401af2a",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/egypt.webp",
+          "bytes": 205342,
+          "sha256": "04ebf74a81f55911812cc68a40f7793fe608043f7c830f5ae6ba067f8f155b8a",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/england.webp",
+          "bytes": 187056,
+          "sha256": "ee890a060c3441061ae5038464810f12048e76da5e4587dd2cd6741f3612dcbb",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/gaul.webp",
+          "bytes": 268592,
+          "sha256": "8d4868caf59e2971b28c7befb0a17b74b572110fe6303e13c9c3587b5797843f",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/greece.webp",
+          "bytes": 244824,
+          "sha256": "4fa9ec1b5d144840dd53e6bd219adb13e6701dc14539a987ca879a750724ad0c",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/inca.webp",
+          "bytes": 320754,
+          "sha256": "fdb41151f40ae7193fc40f35b49cedc35a32d27870c24b8352c61c67b0159800",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/india.webp",
+          "bytes": 230814,
+          "sha256": "1feab06332754f490c10995daecc0d2e32a6eb1a072e59a90a5e14766b4d8a13",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/inis-fail.webp",
+          "bytes": 268410,
+          "sha256": "7be106b5ac9d56b0582834fd7a97db2c2619499df3449017b9e8c096a3d8a664",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/japan.webp",
+          "bytes": 244452,
+          "sha256": "76d7dfe4ad2f0cc3d8a25b7a8513639a31157039666b292275df19efe457e848",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/khmer.webp",
+          "bytes": 266198,
+          "sha256": "6b293a852e7e3fd61549fe2d9c494827b26ecf99b3ac3de1b05e7f4876fe2d45",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/korea.webp",
+          "bytes": 212232,
+          "sha256": "830d4aa63d98a664efcc1cc0f40ffabe59a44c9bca23e67adc76c997ffd88f90",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/majapahit.webp",
+          "bytes": 264856,
+          "sha256": "bf73125e254537b3b7019a94eb440ef18e78b91c0c04f7d3417e1f41ed49ff9b",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mali.webp",
+          "bytes": 205108,
+          "sha256": "7b1b211cabd56dd927a2a8f7806ca3a198d4f1b541ea7a21e41fd065b35b0c16",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mayans.webp",
+          "bytes": 259440,
+          "sha256": "eb69f6a0efd86bc30f6ae72b69fb89565df9857177419f52a87b00c525138daf",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mesopotamia.webp",
+          "bytes": 229500,
+          "sha256": "0dba14f253d782b70dc3eff408897a20b15c9b20f89f0cee241afba95d102edc",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/mongols.webp",
+          "bytes": 169916,
+          "sha256": "f77545f89a6ce7d1feb1f788ab1127329440b502a113dda497eb491fc10229f8",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/nubia.webp",
+          "bytes": 189240,
+          "sha256": "05906d1dfeb76f81fd7fd2e2863a9320d69ab76667bf4a203edffe2c029e2f56",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/persia.webp",
+          "bytes": 231972,
+          "sha256": "6d07dab1348b781b52053d38745860b32ddb54c6bf8df2fa82f93f16cb3f97e3",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/poland.webp",
+          "bytes": 210434,
+          "sha256": "54141cc694b6bb5cfe12af96823168b275818f06092a26391cc4651ca06bdf7f",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/portugal.webp",
+          "bytes": 176120,
+          "sha256": "41617960c5899f0ea9999a1fbf47e90a7c319e9b5db22864399b21ac12efc715",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/provenance-set-a.json",
+          "bytes": 26091,
+          "sha256": "19d44c3c315ba32a6cca36f2853b9278a2458afbc114bc369bbe4bb8af5fbba6",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/provenance-set-b.json",
+          "bytes": 34689,
+          "sha256": "12d7338aae040ecee546b8cfb5121de0ceec384b661e25a65f5bd183be9f33ed",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/rome.webp",
+          "bytes": 211906,
+          "sha256": "b7ce673c470adbf6a15f1f96cb542abff2aaacbfab8f4e0d1c7bdcb0366084c4",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/siam.webp",
+          "bytes": 233548,
+          "sha256": "1d874fbc4a9c8e78c151fbe62be64522bcb0c794db55332bbaa4b55c90d2e780",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/vikings.webp",
+          "bytes": 224522,
+          "sha256": "6c3746b6de0253e3d8a139b0df75a18e575b1ce77a781993f6737dbf95c4e468",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/warhorsemen.webp",
+          "bytes": 250454,
+          "sha256": "b4c044016888ae59ce299a5313d87af07dca0bc584fc62bba88aad777fc8b1ca",
+          "match": true
+        },
+        {
+          "file": "images/duat/expeditions/zulu.webp",
+          "bytes": 224670,
+          "sha256": "c51643c5b15fdf6ce683101301bb4b36a5e888ec2e33919207e9961d2b3a0b10",
+          "match": true
+        },
+        {
+          "file": "images/duat/hero.webp",
+          "bytes": 249132,
+          "sha256": "b00bb96b43758455600f83f361063d828dbadf22c9e183ef5d7ccf805746250f",
+          "match": true
+        },
+        {
+          "file": "images/duat/horus.webp",
+          "bytes": 291924,
+          "sha256": "5808fbb3f8a585e448226290c89bad0a674c91330455342cb0868dedee4cb860",
+          "match": true
+        },
+        {
+          "file": "images/duat/janus.webp",
+          "bytes": 256306,
+          "sha256": "f2e7a2b2403662688a735c385426b4d8bee4304daf4c4c5adb17a1fa118eb61a",
+          "match": true
+        },
+        {
+          "file": "images/duat/kratos.webp",
+          "bytes": 258906,
+          "sha256": "f434e24bfcb7758b0069fe17cc8bcb2c07be018b2789601a8f23e18fad0587a1",
+          "match": true
+        },
+        {
+          "file": "images/duat/manifest.json",
+          "bytes": 11706,
+          "sha256": "756231d0b267a4601d4b269b8128e35a5189348db8d10dd05f9d1f02ee636909",
+          "match": true
+        },
+        {
+          "file": "images/duat/pantheon-atlas.provenance.json",
+          "bytes": 2175,
+          "sha256": "152258ea5790daaa4df44ea2deaee25dca37b97869523edb5d93f76bf4cf5e05",
+          "match": true
+        },
+        {
+          "file": "images/duat/pantheon-atlas.webp",
+          "bytes": 407948,
+          "sha256": "6396db89c9375e18280d297fe8ba0fa93c921746f76fbd7c691882abc703dd66",
+          "match": true
+        },
+        {
+          "file": "index.html",
+          "bytes": 267606,
+          "sha256": "b0eb1ca569bcbd9e03b5032165272e33d7ef0c0d0577c5c954a3c3325ba93e22",
+          "match": true
+        },
+        {
+          "file": "js/app.js",
+          "bytes": 70254,
+          "sha256": "017acbd7bda99211538b27556626d9732f8c0fed19519c9e2035bcade07f35a6",
+          "match": true
+        },
+        {
+          "file": "js/components.js",
+          "bytes": 23714,
+          "sha256": "6102ddcee8bfa526427326c188f23e36ad19fe61f607367a176c8ed7ba969d5f",
+          "match": true
+        },
+        {
+          "file": "js/components/chop-block-panel.js",
+          "bytes": 7200,
+          "sha256": "1899500cbadef1aa4c56b43c8404913ef2ae3131fe24299d7c1ba0bc20dd8693",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-command-panel.js",
+          "bytes": 22957,
+          "sha256": "1d80a2d44c5332b6364af4aaa58577619f445dd21519dd674c128c35aaaed834",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-genesis-panel.js",
+          "bytes": 10843,
+          "sha256": "db80f5c6294b4202785cf3323acf56aa861f207ff0a34cb29d9aedcb48edfafd",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-governance-panel.js",
+          "bytes": 10651,
+          "sha256": "87056f8b60742a31532fd1ee0e3c9feea7cf8210d4f803c69ec938ec9bbfef4a",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-network-panel.js",
+          "bytes": 11860,
+          "sha256": "8d7224cce0a5d18323024496d4ed1f65d0989edd09dcbda867b8facff7229662",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-ops-panel.js",
+          "bytes": 15644,
+          "sha256": "c61a8c8ecd04651bee0c036a7e0b04d61a3c85875fa62250ff2b9321be79e048",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-people-panel.js",
+          "bytes": 12132,
+          "sha256": "ff8a04c9408dd8d486d0ee6e028f8fb8bfecd6fa5be2e98b622d198a7d216ace",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-rulelab-panel.js",
+          "bytes": 36054,
+          "sha256": "60059993efced9e7f72ca30bd30149ae8d2dded6e19e8d156e08418b036b16c4",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-schedule-panel.js",
+          "bytes": 14613,
+          "sha256": "14c2dd84ff9d97c178c66255fd6b304eed8008a73b68a4300c0dafef07e1ded4",
+          "match": true
+        },
+        {
+          "file": "js/components/commish-sidebar.js",
+          "bytes": 20218,
+          "sha256": "6c33199c56035d6bcc07f0a4dc18d347134175a3660bb633ef4898332092dcc3",
+          "match": true
+        },
+        {
+          "file": "js/components/cup-honours.js",
+          "bytes": 4962,
+          "sha256": "39ae77e2926808fc4edb2762d2ad7ae0a746983dc886a9bf93d5fc1cfb71337d",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-council.js",
+          "bytes": 6799,
+          "sha256": "5d925377d993ee6c4ab3015ab2d47c1bed56001e8c04697449864ca29e0f1b38",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-faction-marks.js",
+          "bytes": 12391,
+          "sha256": "94dc675a06ef6c6df1c37b55e9dfc69fb6196336df12eedff67cef1566d81602",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-heptad.js",
+          "bytes": 25184,
+          "sha256": "9668df5357d72e21b77aa09efa14e9cdca33e06085d4b8e09328fee631568460",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-identity-library.js",
+          "bytes": 9477,
+          "sha256": "3d4b96e466584662925d759d8f2cbc29eb81bba550dcb79da0fd5ac77ff2f1f7",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-library.js",
+          "bytes": 16418,
+          "sha256": "161bb656b8eeb3d2c2fee90790c5c2c7c45dc9ed6fe64d573d73fb8961f8eb9b",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-mystery.js",
+          "bytes": 4737,
+          "sha256": "72aeb892b7c6c49806172ededb0f0506080343d8c9ee35cc316ebaba4f47dae1",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-presentation.js",
+          "bytes": 43223,
+          "sha256": "0ba7652cbb3f0f0258dd174267c1724382bd08aab917c67f6728cc4f3a3bef04",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-rituals.js",
+          "bytes": 20256,
+          "sha256": "d0f3bccd6c7652339a8f671303213ffacda6f64e39f82c75fc72d0b4c8f38a9d",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-season-home.js",
+          "bytes": 20782,
+          "sha256": "4da6af6adfc8a27524296c8d51dd72cb7c1539cc1b733f20a50bc387e886c149",
+          "match": true
+        },
+        {
+          "file": "js/components/duat-weekly-flow.js",
+          "bytes": 15931,
+          "sha256": "07286c19b4f753429b9397e537928d6282010c70923234307331e8d06134fda8",
+          "match": true
+        },
+        {
+          "file": "js/components/league-live-scoreboard.js",
+          "bytes": 16832,
+          "sha256": "b2b3137fa6f5f4a03850e277207b75aad9e19268123327cb0465a926d8b314f3",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire-portfolio.js",
+          "bytes": 8297,
+          "sha256": "5c7b1f9691978e2e48875348f2aad57c8897740f9521e58e7a4dab2a9e3899ce",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire-rivalries.js",
+          "bytes": 4016,
+          "sha256": "7c6025204840843ab9c1b07769c0d39527fe9b3940b5869a5354e5af291acdd6",
+          "match": true
+        },
+        {
+          "file": "js/components/league-wire.js",
+          "bytes": 43486,
+          "sha256": "4f61ba157c258da575ee6c200af9b7f31419893ddeda6e923aa248bfc13a25a9",
+          "match": true
+        },
+        {
+          "file": "js/components/manual-seasons-editor.js",
+          "bytes": 5893,
+          "sha256": "925a5f76aafe5fe1751b492144d80a01411d3e0a345730022e2e99e813c3872b",
+          "match": true
+        },
+        {
+          "file": "js/components/player-card.js",
+          "bytes": 42608,
+          "sha256": "f6c38f2913e551b160ad8650150599a2f0f5d9bb8be7256963cfee16998ed6cc",
+          "match": true
+        },
+        {
+          "file": "js/components/season-odds-panel.js",
+          "bytes": 15475,
+          "sha256": "59b1230a00c251bf27787fde06978a25135985215ac0dc5bd01211d6113c794d",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-activity-panel.js",
+          "bytes": 1023,
+          "sha256": "f3ca9a89155c42b965e19c57297745b883776aac5543e016dac4e59dadad1340",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-career-panel.js",
+          "bytes": 3394,
+          "sha256": "22595d1616a40fd8f8796c8509490eaf699cb3af2dc733e94ca98a7855b3560c",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-career-view.js",
+          "bytes": 2331,
+          "sha256": "ad47dbd02c90c6fdb513f9894e77363dac702a876b947d4cc68222789fa46caa",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-ceremony.js",
+          "bytes": 3613,
+          "sha256": "817a878a32da3f4e2da5c08f269c9fe799e4ca6d54a1f04bed02ff57c9a7a9d7",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-community-panel.js",
+          "bytes": 8822,
+          "sha256": "b7884cfc50093fd951677520224d152c8fb614210c7bc52b21ef5a60ebf93f53",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-controls.js",
+          "bytes": 13482,
+          "sha256": "684e5b6718317c4891a5e57ff5f563544f4b7537918d99a8b8a2fe7dd2295859",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-panel.js",
+          "bytes": 41090,
+          "sha256": "90784684946afd815138b472084394c79329c7af67587b58c23bb92d68f2cb40",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-draft-roster.js",
+          "bytes": 2622,
+          "sha256": "92f81af6e79ce10a2aee06d0c4586d94a240951cfb87d57476253c89d9e35c44",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-gamecast-panel.js",
+          "bytes": 21166,
+          "sha256": "a55b7c0cf7e8a79e455f54bd1c1efd67481abd4367f096ddf244632f816cdf05",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-helmet.js",
+          "bytes": 6716,
+          "sha256": "0889b502f90716f728a7d00c944d6772e7efc4ffb4d4aa4a35c0e0a34dd7b2bb",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-home-panel.js",
+          "bytes": 11946,
+          "sha256": "3386a5dc05a85edf2509f32038a8354583074f70092e8f2ec56f79b0dd8c664d",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-profile-panel.js",
+          "bytes": 5544,
+          "sha256": "fe7fe83f081932630dbf0d62acf8105cc5e39e07ac03cfa394980c2fed8ae18e",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-rivals-panel.js",
+          "bytes": 12222,
+          "sha256": "c69d8838ecc6afaf2733fc92f85fd611378e0cb839ef697593e2dac022174807",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-setup-panel.js",
+          "bytes": 29364,
+          "sha256": "6321fb70b4346380531feea6a968ea80f27d26e1f51e4c30fa390ea0300864f6",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-standings-panel.js",
+          "bytes": 6068,
+          "sha256": "bdff5d53d1b339d548188e596ea5e855d188cc45a6e3068db69fd64ea74eac64",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-stats-panel.js",
+          "bytes": 7277,
+          "sha256": "07f2fb9b3050fc82f7bc7bc4c7cbd55f6ce90b74992b8995bee52938558eb4ef",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-team-panel.js",
+          "bytes": 51898,
+          "sha256": "e954dad74ddc41c14d2d0e4f8cf21ec1cc952e2daef911cc36869797cf42f1a2",
+          "match": true
+        },
+        {
+          "file": "js/components/time-league-week-gates.js",
+          "bytes": 5401,
+          "sha256": "94ea1ad69726d62034d647d6d395e233b4688585b6cfbf090be4b08a4825f537",
+          "match": true
+        },
+        {
+          "file": "js/components/woeppel-cup-panel.js",
+          "bytes": 41127,
+          "sha256": "33c3802b601ea0a150ec4c824ca08c38174ef4cbbc80c5d8c22060bbbff1c792",
+          "match": true
+        },
+        {
+          "file": "js/components/wr-primitives.js",
+          "bytes": 34334,
+          "sha256": "36a499eca5904267e7f4c482a68d731abccea65c699a13f36f28ddd5acd7ad3c",
+          "match": true
+        },
+        {
+          "file": "js/core.js",
+          "bytes": 17931,
+          "sha256": "00febe8fead1ec13d54c4a9dca5b6bd85b3645eef5f7256320516dbfe5dfab01",
+          "match": true
+        },
+        {
+          "file": "js/draft-room.js",
+          "bytes": 158827,
+          "sha256": "bd86d83c5cca0a7f3652983983587682874be2c7b4242884352fde661a29a5d2",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-call.js",
+          "bytes": 5387,
+          "sha256": "1824976cc0c40a2e9b2f6131685ac68bf139907df8556238113020bb5155b09b",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-edge-glow.js",
+          "bytes": 1995,
+          "sha256": "8f89115b56c8d8d985f1087d111698890230891675d2c9be2f5405e2beb36b3e",
+          "match": true
+        },
+        {
+          "file": "js/draft/alex-stream.js",
+          "bytes": 7024,
+          "sha256": "4301b966d5d6e331090db4462e1ab1179421e9f320252f1f3ae03621faaf9d4c",
+          "match": true
+        },
+        {
+          "file": "js/draft/analyst-mock.js",
+          "bytes": 28346,
+          "sha256": "882164b6b6aae63d432b982271089c66e551e0a505fbd324d445f6b6d616d92b",
+          "match": true
+        },
+        {
+          "file": "js/draft/ask-window.js",
+          "bytes": 14726,
+          "sha256": "e0b6af2d685a2a1864ded1c32a080cf513436e43c84e7676b0c1c5a75abc4ebd",
+          "match": true
+        },
+        {
+          "file": "js/draft/big-board.js",
+          "bytes": 32243,
+          "sha256": "5b3fac70886a9578b0d598912aef74bc00c8ac108a268b26889e8cea6dd00028",
+          "match": true
+        },
+        {
+          "file": "js/draft/command-center.js",
+          "bytes": 255449,
+          "sha256": "4df257c60df0dc743f39bbfd26da9bea3bf22760ecd242acf19c71d08a626494",
+          "match": true
+        },
+        {
+          "file": "js/draft/context.js",
+          "bytes": 21187,
+          "sha256": "855debc48342c5681842d6aa10ca47ca678dbd7f948f0d92ef89cd69cd89feba",
+          "match": true
+        },
+        {
+          "file": "js/draft/cpu-engine.js",
+          "bytes": 1106,
+          "sha256": "481ea1149718a78a5c1c3a5384e45b37aa4c77574622a2d2d3c2d027d236d03e",
+          "match": true
+        },
+        {
+          "file": "js/draft/draft-grid.js",
+          "bytes": 11536,
+          "sha256": "ad914808837d44d18f1489e39fb6a279388c022a85ca7b31281fe6b800fdba4e",
+          "match": true
+        },
+        {
+          "file": "js/draft/exports.js",
+          "bytes": 6241,
+          "sha256": "abc429c4f31a8006b7a9aae92d05443d6f75a8824e2e9867497f006d32464577",
+          "match": true
+        },
+        {
+          "file": "js/draft/ghost-replay.js",
+          "bytes": 2818,
+          "sha256": "e34dbba4e4eb7529773576976cf20b261f69348de51518d5de8ef45b351abea9",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-analytics.js",
+          "bytes": 14799,
+          "sha256": "5ac2cddb0112ebd88b4ad8ff700fde2cd43819a16011af0897d58a8f542c14c0",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-decision-engine.js",
+          "bytes": 27009,
+          "sha256": "3bf160495366bc6bdb38786d9104106943274ea7ec7a91113f068a738a982956",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-pick-brief.js",
+          "bytes": 20224,
+          "sha256": "8e2eb63c3db1618f335d7ebaa5c0afb18377547df627c081a2c6f78c6f37e5c3",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-room-engine.js",
+          "bytes": 11561,
+          "sha256": "ca87285dccf5764537f7bb4b35aac9e05e28a17c76ec4a35a1a5d92d83574cec",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-room.js",
+          "bytes": 18947,
+          "sha256": "f6d767386057e7fa24858b07ec73f81eb65f9ab2601205b95270ae896c849b95",
+          "match": true
+        },
+        {
+          "file": "js/draft/live-sync.js",
+          "bytes": 6812,
+          "sha256": "9a42d9a26b4e6b2e0fcf03b1564f65ccab5a8c67177946d206f8682a0e8f6e63",
+          "match": true
+        },
+        {
+          "file": "js/draft/opponent-intel.js",
+          "bytes": 16303,
+          "sha256": "fbf11233ca93c42d8007a433217a2725ceab529f927dc8086dc7bbe42871dfd7",
+          "match": true
+        },
+        {
+          "file": "js/draft/persistence.js",
+          "bytes": 3013,
+          "sha256": "0d3ea4a4edf0f3e08d488ebdc2ce61905cd9987b1e74fd6245eb734de9290964",
+          "match": true
+        },
+        {
+          "file": "js/draft/persona.js",
+          "bytes": 3515,
+          "sha256": "3c292654ffbd25f9da4ec71297632e4d4adbac589089327863d7a7bd25588982",
+          "match": true
+        },
+        {
+          "file": "js/draft/scenarios.js",
+          "bytes": 2554,
+          "sha256": "dce007df7ce5517b9d9aad61c0e47232abaa44719e35e1f6e79a50a10fd7eb3e",
+          "match": true
+        },
+        {
+          "file": "js/draft/scouting.js",
+          "bytes": 2805,
+          "sha256": "1b60b93d43ccfad26bb1fa6383099eebe140f05edc1007ea2690b436d6fded15",
+          "match": true
+        },
+        {
+          "file": "js/draft/state.js",
+          "bytes": 69765,
+          "sha256": "b6d9c131fe56d7c7e991cf18c4e9cadaf59e68da7e05d1cc0d1999535a878999",
+          "match": true
+        },
+        {
+          "file": "js/draft/styles.js",
+          "bytes": 1147,
+          "sha256": "02e886f838d99b3eb0a6059a7d89e6ee00a546942fe5d2e569368380f6f9c1d5",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-helpers.js",
+          "bytes": 4847,
+          "sha256": "0c5d262970703a07a320dca449eefef8a873873dbe96b7127f6451710a617c75",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-modal.js",
+          "bytes": 9115,
+          "sha256": "efd87be960adb2688a5ca3c662cee051b092f6ae925497c19f1eff2544adc070",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-proposer.js",
+          "bytes": 43357,
+          "sha256": "686dccfe6ea73a50da99fa2a115391e5c5f52df93c5d1277713aeaad314fad43",
+          "match": true
+        },
+        {
+          "file": "js/draft/trade-simulator.js",
+          "bytes": 29885,
+          "sha256": "4e3d7ce5c98d728fd1911b8347c6b29365ed8eae0b575176653552858ceeeb78",
+          "match": true
+        },
+        {
+          "file": "js/duat/army-generation.js",
+          "bytes": 11344,
+          "sha256": "850f54b1600fd787874453aeab89ee88dbc40e7c80a1290a6fcb95ddde0cca06",
+          "match": true
+        },
+        {
+          "file": "js/duat/campaign.js",
+          "bytes": 34475,
+          "sha256": "18ed0f78dfd0d0c2928afe177ab7587a360cd072af0053901978ce2a6914a42f",
+          "match": true
+        },
+        {
+          "file": "js/duat/conquest.js",
+          "bytes": 20757,
+          "sha256": "aff44f4b0f979a69580bcd4a0c35c85471bd8c89936fcf546ac192da50a3b751",
+          "match": true
+        },
+        {
+          "file": "js/duat/council-state.js",
+          "bytes": 3521,
+          "sha256": "d2e85883d16b88fed517002abdaf8b83d58c209062dcadbcb6ed04560e8e4e1b",
+          "match": true
+        },
+        {
+          "file": "js/duat/dynasty.js",
+          "bytes": 40844,
+          "sha256": "0958de70d873ea2f31f8e843471f2f4810c14b431393cc4d4e1988bae3d5a3b4",
+          "match": true
+        },
+        {
+          "file": "js/duat/favor-availability.js",
+          "bytes": 8577,
+          "sha256": "d05688700fc9dc121ff9b373ea7163ad89e5310e809213da41564fbce38b318b",
+          "match": true
+        },
+        {
+          "file": "js/duat/favors.js",
+          "bytes": 8453,
+          "sha256": "dac675f777e91fe7373ccd17f64c6e04083cb98b442472baaa97ea6dbe8bd245",
+          "match": true
+        },
+        {
+          "file": "js/duat/heptad.js",
+          "bytes": 9642,
+          "sha256": "d0183c7f62e581bc3c967ac95bf6de6a966f295675b6173736d2a35d5ee1aa12",
+          "match": true
+        },
+        {
+          "file": "js/duat/identity-library.js",
+          "bytes": 127737,
+          "sha256": "78c83a2aead2e8b80dd3ed32cede27828fbcbe25c37c628c7c01fd058e153ba4",
+          "match": true
+        },
+        {
+          "file": "js/duat/lore.js",
+          "bytes": 61337,
+          "sha256": "0a5f6d6d8514cdf18bb707b909feb748a85b95dd6987d94d95501d79a7aba3a6",
+          "match": true
+        },
+        {
+          "file": "js/duat/map.js",
+          "bytes": 4006,
+          "sha256": "63c7ed4e08a69419da5bbba083f2bfb4c845ffacf165647e6a2bbe0e444ac52e",
+          "match": true
+        },
+        {
+          "file": "js/duat/mystery.js",
+          "bytes": 8283,
+          "sha256": "6f6606fbafdb95e809c53d7cdc0708353bfd2778af0c229cf706fae6cc6eb359",
+          "match": true
+        },
+        {
+          "file": "js/duat/personalities.js",
+          "bytes": 59784,
+          "sha256": "7a396cc5ab389ca6e739e596f0a4b6fd18bef682d8c235135eb16192082daf91",
+          "match": true
+        },
+        {
+          "file": "js/duat/provinces.js",
+          "bytes": 6697161,
+          "sha256": "1b3cd552be9c29ab4a1085d7bd1efeb5b36c2c2845e2f6c72981d2d993f347b1",
+          "match": true
+        },
+        {
+          "file": "js/duat/remote.js",
+          "bytes": 934,
+          "sha256": "3268794defd79c3f392c82be8ea80f75f52348a3f39f19655bd3b7be23f84585",
+          "match": true
+        },
+        {
+          "file": "js/duat/rituals.js",
+          "bytes": 22815,
+          "sha256": "f32789184aed132357cd66fe441b6fe7876cc90d296ea2159c759b588e996444",
+          "match": true
+        },
+        {
+          "file": "js/duat/rules.js",
+          "bytes": 28109,
+          "sha256": "67c98bc001309820014789bdf9579e4a26ee4c0f871053db76b45fe52fda73b5",
+          "match": true
+        },
+        {
+          "file": "js/duat/season-home.js",
+          "bytes": 8948,
+          "sha256": "6818d790767c393d999868ce90f6a2a5d5d70722062babc74496449cbfa89dda",
+          "match": true
+        },
+        {
+          "file": "js/duat/session.js",
+          "bytes": 7809,
+          "sha256": "7134a74e8dc30d2d3855b1155d423ef5b8f24a9014d476614ff2ff2ac13ff8de",
+          "match": true
+        },
+        {
+          "file": "js/duat/storage.js",
+          "bytes": 2944,
+          "sha256": "9527de4f54f5441868c51392c11822ff045d09d105f57122c5d9b06f7d89b937",
+          "match": true
+        },
+        {
+          "file": "js/duat/strategy.js",
+          "bytes": 3817,
+          "sha256": "d8527c3109597fd9f771f295729814260a945b5a0ea4c9a7984455ea4afb518a",
+          "match": true
+        },
+        {
+          "file": "js/duat/vendor/lz-string-1.5.0.js",
+          "bytes": 4815,
+          "sha256": "0b0c3db2b7a388216f119f7b2e7b23f331de7cac3b6889ac20489ecd4874da0d",
+          "match": true
+        },
+        {
+          "file": "js/duat/weekly-flow.js",
+          "bytes": 13016,
+          "sha256": "b9e2bba71c31e00060fdddba0be397c56fdb0fa6b75f3f85653bdf1fd749aa99",
+          "match": true
+        },
+        {
+          "file": "js/duat/weekly-progress.js",
+          "bytes": 4214,
+          "sha256": "4db6f01e655eb61ffe1e1d5c9405b6b5b97430e1d90a780a7a8d4e60274e9c54",
+          "match": true
+        },
+        {
+          "file": "js/duat/world.js",
+          "bytes": 579904,
+          "sha256": "124d3d787064ab22d869f294792d444e8a23bd1d92382d7f650cea26ff47100d",
+          "match": true
+        },
+        {
+          "file": "js/export.js",
+          "bytes": 1032,
+          "sha256": "e4fc218598f2ce97436c8851970e83baf1964043c41b6d2aef39dad7145fc994",
+          "match": true
+        },
+        {
+          "file": "js/free-agency.js",
+          "bytes": 115023,
+          "sha256": "c38921c073c948fae673af7e92674aba1d5b4f227107cc447b49643bd4308ce9",
+          "match": true
+        },
+        {
+          "file": "js/league-detail.js",
+          "bytes": 116133,
+          "sha256": "956d3b94cb0905edc025e41dfc4444c78fff38b31508e2a7816872168d8ded06",
+          "match": true
+        },
+        {
+          "file": "js/league-skin.js",
+          "bytes": 11359,
+          "sha256": "77f6372d995c3ed1d1232334ab8f9bbdd2de23808cd7d3d43d7e93befbeac7dd",
+          "match": true
+        },
+        {
+          "file": "js/mock-draft.js",
+          "bytes": 24228,
+          "sha256": "a35163e3fe5aa4fad013223d20bf4eb2862de75d49c0cfe06674533c4b347832",
+          "match": true
+        },
+        {
+          "file": "js/module-loader.js",
+          "bytes": 1397,
+          "sha256": "2e570fa769ebeb3ae17503265e6b1d8d7f6b3dc3350f07af9e5710698cf62946",
+          "match": true
+        },
+        {
+          "file": "js/post-draft.js",
+          "bytes": 5667,
+          "sha256": "5cf7afa3166a7e80c19b8e74d03896036ec3cf5b2a4cbb56e1de8cf403e8798e",
+          "match": true
+        },
+        {
+          "file": "js/pro-launch.js",
+          "bytes": 18141,
+          "sha256": "499b5967190ac4747a4e3c8c0edc944f7397d6720682eab1d7cb39dc1a32abb8",
+          "match": true
+        },
+        {
+          "file": "js/settings.js",
+          "bytes": 30814,
+          "sha256": "23f216bb1910b208c8327af5b11b3ac13d7ac180bd1a4d69d0aa74dfcd1ca17f",
+          "match": true
+        },
+        {
+          "file": "js/shared/account-password.js",
+          "bytes": 3454,
+          "sha256": "56d3f3e67cee4562f27e4ef10068afa3fa181a6d29dd16c00f109b2c46e77754",
+          "match": true
+        },
+        {
+          "file": "js/shared/account-storage.js",
+          "bytes": 6402,
+          "sha256": "2790ae55f0b190e2d2ab45d94917cdfa1674a4e2fdf138d6c6c2db5f6ac9e8d3",
+          "match": true
+        },
+        {
+          "file": "js/shared/achievements.js",
+          "bytes": 5251,
+          "sha256": "c23effa2bf6da920e16c24412c7f35c9805f92491b6e84cf67d587b3c32967f8",
+          "match": true
+        },
+        {
+          "file": "js/shared/adp-market.js",
+          "bytes": 4842,
+          "sha256": "c531f3db046f30f1ddedc73e02a144a3cf6d46628c74d295b4d27dcc7b6eeaa9",
+          "match": true
+        },
+        {
+          "file": "js/shared/ai-access.js",
+          "bytes": 5274,
+          "sha256": "f66981d57cf5e46d0ade9b80fcd4f83a837b3b0b042cd8104d126083717f8493",
+          "match": true
+        },
+        {
+          "file": "js/shared/alex-settings.js",
+          "bytes": 2068,
+          "sha256": "4d992f86ed862cb29a2a63f1383ea5cf60ffcd72bc8d00ef1d683a8ddedab157",
+          "match": true
+        },
+        {
+          "file": "js/shared/alex-voice.js",
+          "bytes": 2553,
+          "sha256": "30747f9a43d51e6a8de66cf495b07e58d8993b6704d09ee891c4f6e271fd79d0",
+          "match": true
+        },
+        {
+          "file": "js/shared/availability-forecast.js",
+          "bytes": 1859,
+          "sha256": "494cecf298b480798332fafa20d6f86a6454164c393d543c74146bc6067f78bf",
+          "match": true
+        },
+        {
+          "file": "js/shared/chop-odds.js",
+          "bytes": 3843,
+          "sha256": "2506af1ace5a49e5ce8ca27417806668d82936bc31e9bbbab039493824420cb9",
+          "match": true
+        },
+        {
+          "file": "js/shared/chopped.js",
+          "bytes": 1603,
+          "sha256": "2d553b5eabc852def4bb734c36913dc29577e10d9f587bef4def1971f76ef578",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-bench.js",
+          "bytes": 6714,
+          "sha256": "a700d95530879e079ff55a22b6fa889db08dc1bdd2317c21061c248d88a85c58",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-bylaws.js",
+          "bytes": 5499,
+          "sha256": "638417ae4eaf9c0eaacdfdaf3f880034bab9afd8727a241d638ff7a9fc3e0393",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-calendar.js",
+          "bytes": 4814,
+          "sha256": "84b9e1bbad6b79687d08b5c42536db8b3729972ec2485d1919be5a42de53b98a",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-coefficient.js",
+          "bytes": 1885,
+          "sha256": "61cc6fedcfbf175e0a62835bfae1bd9bdd803494771b43b9e3f11b90d991136b",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-drift.js",
+          "bytes": 3018,
+          "sha256": "9485d36966f5497ca28ac44f9b4960e98f6d6c92ae7c1d0ff2351e2ad409feb3",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-engine.js",
+          "bytes": 2511,
+          "sha256": "82655accae378d11971dd1eacb2d8429dc2744a3793af5ef2b66858e236d0584",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-followups.js",
+          "bytes": 2873,
+          "sha256": "0cbd40ce09cef424be3a6270f2f5d6b601b6ecc84367cd54783a286194e3d2ff",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-genesis.js",
+          "bytes": 5583,
+          "sha256": "232e1c5e7bcbbb7304ba660e8d3c859128889feb29f1d58d6e6906a1deff646e",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-prefs.js",
+          "bytes": 3410,
+          "sha256": "45ba9ca5e22d0f2a74a1f7992b6818ad4be8cbeb3fa2a92828e5326742c16da2",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-programme.js",
+          "bytes": 3985,
+          "sha256": "0346c657d2ca20c5048e5d6ddf3bcfb1dd70b91217350aed4e6d99f8b73feb22",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-proposals.js",
+          "bytes": 3151,
+          "sha256": "412d0c46a3463acfa9871c732891c5811283ce8ca2cc0049df54d86860d65d6f",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-radar.js",
+          "bytes": 4947,
+          "sha256": "2ec80ace68862df71c59ad538df4f0ff1022d87b8dc83bcbe0e092eeaa9f3915",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-renewal.js",
+          "bytes": 4880,
+          "sha256": "476dc9ab4aa913e90d1557ef3aed7ca79e600244a98c5ceb6d85b9c1fac7d938",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-rulelab.js",
+          "bytes": 13366,
+          "sha256": "11c6977ea30cda5e7c784959370eb848c98e0162ac0869a70fa6decaea32e538",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-schedule-nfl.js",
+          "bytes": 4569,
+          "sha256": "48a0ea253f251ffbf48227e9ca359f7f6e96d60a7cf6d1f5c8cf86d168acc55b",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-schedule.js",
+          "bytes": 5568,
+          "sha256": "354b6ae862cb1d7f530cd918cee884e145e7e8130f95ec95d3d3cde5cf366b0d",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-tasks.js",
+          "bytes": 2156,
+          "sha256": "59d05203897dc64d985b53ecdeee9bbe79904dd0e541e3569599ad14dd2df779",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-treasury.js",
+          "bytes": 4362,
+          "sha256": "b2d349b6143ec54904f87ed02d1ee6ad73e8d2ebee0a2591de2f3362cdc92cd9",
+          "match": true
+        },
+        {
+          "file": "js/shared/commish-triage.js",
+          "bytes": 17040,
+          "sha256": "6af8878a39f8c6ee0dcd7ee12491e8a5ea561979b0ff711b1a2bc6f190cd5ec6",
+          "match": true
+        },
+        {
+          "file": "js/shared/dashboard-league-data.js",
+          "bytes": 8487,
+          "sha256": "4a4b662fa3f03eeb2179938cdabf46fd490890c90beaeb441dfd3d4de904f286",
+          "match": true
+        },
+        {
+          "file": "js/shared/dashboard-league-layout.js",
+          "bytes": 816,
+          "sha256": "4d27a93c52c9eb8fd91f55ad13d2fd9e131d18880cc83036d5b5058c8b052688",
+          "match": true
+        },
+        {
+          "file": "js/shared/draft-gameplan.js",
+          "bytes": 4930,
+          "sha256": "3e720f5aa13cf80d992e7bca82f1af04b96d14bd2abb9e0bc23229704908db56",
+          "match": true
+        },
+        {
+          "file": "js/shared/draft-profile-data.js",
+          "bytes": 131290,
+          "sha256": "9fa5f8f2308068ca4267bec3c7e949622371954d99d3df0014df7bd459751b81",
+          "match": true
+        },
+        {
+          "file": "js/shared/empire-decisions.js",
+          "bytes": 2912,
+          "sha256": "7eb9cde4e5558e825f609bdb3a9800e27edb8e4095f986f78d8f0215dfa32caa",
+          "match": true
+        },
+        {
+          "file": "js/shared/empire-values.js",
+          "bytes": 5054,
+          "sha256": "9891cdfbff11f650cb706a2c160faa5876c15f926c8605175dcc6236964d0947",
+          "match": true
+        },
+        {
+          "file": "js/shared/fa-market-data.js",
+          "bytes": 1306,
+          "sha256": "974743a2227ee23ea2109982aa3132c848e6abdc2be06588c44228a3dbded1ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/faab-engine.js",
+          "bytes": 4352,
+          "sha256": "de8117cb8c1fb761a95878edade41df720d765c1231577c452e44a623c75aaac",
+          "match": true
+        },
+        {
+          "file": "js/shared/feedback-hub.js",
+          "bytes": 16072,
+          "sha256": "fedd47ce0f74610e73c76269ef38fc3be3fbb9f60d3523f63a2bb1466ae115ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/forecast-archive.js",
+          "bytes": 1426,
+          "sha256": "fd69abfdd3e8e0a145c40ac0fa8785055df4ae71b3ea56d0a98d4b91a41f7e99",
+          "match": true
+        },
+        {
+          "file": "js/shared/forecast-ledger.js",
+          "bytes": 8730,
+          "sha256": "dd20fc0998eed90e15ddda47dfcb9ff78baf487ca21055813321b9d3768cf0d3",
+          "match": true
+        },
+        {
+          "file": "js/shared/gm-mode.js",
+          "bytes": 9673,
+          "sha256": "7b405846195bb6c35cde0c7931578380e5f4f806a502c6745af4b45b88ec7825",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-history.js",
+          "bytes": 12306,
+          "sha256": "110ffed9e19904351ea1274865ecd97adf8448599abeeb53a4cd98ff8df672cd",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-scores.js",
+          "bytes": 3916,
+          "sha256": "95a9d3d9fe295ce6d3e91e18153b78d19ff769b3f0b68f3022264108adad358e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-standings.js",
+          "bytes": 4888,
+          "sha256": "db078768d85c12c612954ceb0350f81ca1b5909a455945a8cbc9e7b26124113e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-live-table.js",
+          "bytes": 3511,
+          "sha256": "0713467759168077dfab3bf78911f5d4efb451a16a5e99a1afbdf38d18d01009",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-stats.js",
+          "bytes": 14761,
+          "sha256": "334620e6e0f82effea7b7e23dec6d5980416617cdedfacac3898c8fcc47dffc6",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-cache.js",
+          "bytes": 1834,
+          "sha256": "30451ff734c206c8704f6f9ef207649acdbe32d8a537da1a669b52e818111b2e",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-chronicles-data.js",
+          "bytes": 58281,
+          "sha256": "507653d83c175cca3e9227d465a7065a00d2b4e5e90cb147d5d7215b4d2f07c7",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-chronicles.js",
+          "bytes": 7751,
+          "sha256": "89a57f92fa8a15b3d3633314e2e048277069b98465e67e5d9844ccf274b10ac7",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-journal.js",
+          "bytes": 19783,
+          "sha256": "cbecf57435be5cb03307365db58af5a4e60a41d6f19e85e265bdaf68939d8254",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-portfolio.js",
+          "bytes": 4641,
+          "sha256": "a46763548a35a30bb521f42f9428620dd83c989d4229a4dffba0bed4c47411d2",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-wire-rivalries.js",
+          "bytes": 1907,
+          "sha256": "f5be4d75dad1d69a1692c71979f7e49d410ff3b8e262d3b99af24337fcae0885",
+          "match": true
+        },
+        {
+          "file": "js/shared/league-workspaces.js",
+          "bytes": 4655,
+          "sha256": "7dee4d4887f2f5142c55e39e1489a3262db34d741263dd1392d27e2cfe483950",
+          "match": true
+        },
+        {
+          "file": "js/shared/lineup-forecast-snapshots.js",
+          "bytes": 1239,
+          "sha256": "f5d7845ee05f8a0aad771b294aae4b343be418586bb17f0ead921834dbfbaab4",
+          "match": true
+        },
+        {
+          "file": "js/shared/luck-engine.js",
+          "bytes": 2796,
+          "sha256": "35c238074aa9291abc5fec8cf4fabd4b76bf70ff231716ba3b4e3cbcd0947e96",
+          "match": true
+        },
+        {
+          "file": "js/shared/matchup.js",
+          "bytes": 4917,
+          "sha256": "63d5b4822db7a3fd83ad5189538ad3b847c03c7b53707f3144c524d6a3240b8a",
+          "match": true
+        },
+        {
+          "file": "js/shared/navigation-guard.js",
+          "bytes": 357,
+          "sha256": "80b3223843a6e02fa6c4e53c2b5fd29b16a0c77d1abcf466b98e9d767a1d4323",
+          "match": true
+        },
+        {
+          "file": "js/shared/nfl-context.js",
+          "bytes": 5395,
+          "sha256": "1cb64c90f9c277c5e4151ea0abf7652fd9b63abfd8774b3f50db55d8b8a48d22",
+          "match": true
+        },
+        {
+          "file": "js/shared/player-notebook.js",
+          "bytes": 8539,
+          "sha256": "7d539e1e6c94e76ba9b8f8846b6a314c6de8c52e3c7e697010735633b0524a8b",
+          "match": true
+        },
+        {
+          "file": "js/shared/playoff-odds.js",
+          "bytes": 5639,
+          "sha256": "697f0c14810de55a87a3809cd4305996a91b7b9ebc4ebc7e274caca0f261ec76",
+          "match": true
+        },
+        {
+          "file": "js/shared/pro-gate.js",
+          "bytes": 646,
+          "sha256": "d408581bac3d51e8e9338e9261700d879bf684ac64814facb7b9d564badceffb",
+          "match": true
+        },
+        {
+          "file": "js/shared/roster-cutdown.js",
+          "bytes": 1488,
+          "sha256": "eac0f262120eb3cceafdd127781e605fb8e7743b43c2f8c094edae60c75a50ce",
+          "match": true
+        },
+        {
+          "file": "js/shared/saved-reports.js",
+          "bytes": 2046,
+          "sha256": "a3cf8a45a86cbbbe4a635925ee2a2a999e2bfe87c91be60c044941e620a2f6a9",
+          "match": true
+        },
+        {
+          "file": "js/shared/saved-views.js",
+          "bytes": 6196,
+          "sha256": "3f14899cf7d213ad59319d868e5a1932b34513d8056766ee3d95d2b29b310972",
+          "match": true
+        },
+        {
+          "file": "js/shared/shared-loader.js",
+          "bytes": 2214,
+          "sha256": "23751556d1ce42369fe981925dd4b49eb215fc789a85530cf10b61a253aaf376",
+          "match": true
+        },
+        {
+          "file": "js/shared/snapshot-store.js",
+          "bytes": 3754,
+          "sha256": "ade1df276738ad682c40e15200c8d358d72d5e8589f0198d5485a7a00debea47",
+          "match": true
+        },
+        {
+          "file": "js/shared/startsit-engine.js",
+          "bytes": 5640,
+          "sha256": "d722df5685fb061db9306f97a387ddecc8ffe33dbad97c15bd8167df9af20066",
+          "match": true
+        },
+        {
+          "file": "js/shared/stat-catalog.js",
+          "bytes": 7924,
+          "sha256": "21b6ddefb308b96a2fce989770cdc3a3f6e9fbc2001dcd863d74621c5c3693d9",
+          "match": true
+        },
+        {
+          "file": "js/shared/sync-manager.js",
+          "bytes": 1279,
+          "sha256": "ab687e439a779012a295244cd51b7991622eb7e88ad20e5e9a784502b19aac18",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-achievements.js",
+          "bytes": 3890,
+          "sha256": "f3263da37dca4b110174d6639e5f1f077beb03c7b267b17209d5021e6f8dc513",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-actions.js",
+          "bytes": 9376,
+          "sha256": "92cd3ee06c5985e70da223bb518d302f8f9077e0bcf11b7085a9c0a72feea040",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-ai.js",
+          "bytes": 14539,
+          "sha256": "6bda1a000510629f1b8d43cf3750ba0d7db871ac33dc6094ea7cfc7ec489717a",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-career-store.js",
+          "bytes": 930,
+          "sha256": "dc62cd09a9cc4b404b8feb18ec81a93270e73ab8dc43dd265cdc6fc489f7862c",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-career.js",
+          "bytes": 2971,
+          "sha256": "b3f4f5ab2094e39d902cfbbb4529503d643532c49323b2e532faf1633284a47e",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-draft-clock.js",
+          "bytes": 1294,
+          "sha256": "86ba552f60ad5bf067f0f3a05cedf8c5ee9ae7f35121c299f352dcc52c7f617b",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-draft-room.js",
+          "bytes": 1227,
+          "sha256": "ae212677a66948b12a1517bbb5d4b10112e9cc9871dab0063af4b4137426c51d",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-engine.js",
+          "bytes": 50634,
+          "sha256": "44421009f2b6c1a8eb27b57e48add1771d22546a7236276bac8e9a4c7fa34dcc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-era-rules.js",
+          "bytes": 4267,
+          "sha256": "86d146321a7a5d573b86f6c7119b6cf2d1dd09cb4490d00457caf6531b8961ef",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-gamecast.js",
+          "bytes": 7628,
+          "sha256": "dbfbfb1b468dc62117f97231ae931a9560f58f73392f7654a7aa675af68c266f",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet-artwork.js",
+          "bytes": 2101,
+          "sha256": "acffe67ab0ea44249bd929f44fb1423c5e1fec724d45fbea146a5e1724177d0d",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet-sources.js",
+          "bytes": 40609,
+          "sha256": "f5bf34b074ea3fc01c820babbb4bd283910cb634fd27fc3bb5322916726bef69",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-helmet.js",
+          "bytes": 10681,
+          "sha256": "21d9c76a1a52a41d2e4862e39388bc7de9aca6313e80ab5e9f2247e2c04bd8c6",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-hidden-years.js",
+          "bytes": 4107,
+          "sha256": "d4a70851bef8214747e48d597bdcbc0caa50bffc48fffbc74a2ba48506266019",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-player-cards.js",
+          "bytes": 2604,
+          "sha256": "fc784b9322ee8d2fd06b13313905fdcf395e5b58db1bc285b9fc593530206e6c",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-player-stats.js",
+          "bytes": 4056,
+          "sha256": "d0f5c249f0498caef1ccdfb0fa953ebb0964ada223a13642e09a80d6b9fc7797",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-profile.js",
+          "bytes": 3343,
+          "sha256": "04e0bc390ca586bcee3988c99ef7f78a463d59219f2d23bd5ae5f5ee9313c2fc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-public-state.js",
+          "bytes": 10363,
+          "sha256": "804763fd48a078dac5ba46718e23d155e92154ceccc975588bbee4fab896a868",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-remote-client.js",
+          "bytes": 3146,
+          "sha256": "44b5c3c9ac7d363a982443a8f024b2a70956567521d012a484403a2e592ce9e3",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-rivals.js",
+          "bytes": 43066,
+          "sha256": "00a278f63bd46169e6234bea25cad20f905bea22fae9ee1232c2c6b3e637c064",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-roster.js",
+          "bytes": 2269,
+          "sha256": "efbb3138e2c285c6dca9b74dabbf55efdc048f97a03b63028176bdafe98036ad",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-rules.js",
+          "bytes": 287,
+          "sha256": "146ee62bf7de99077193e5b779230025f16cdae42b1ef23e636d8af0bc490538",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-season.js",
+          "bytes": 12311,
+          "sha256": "6878c13380c5a6d60d8ec8eab30a77b677ccb196e5b35fb87a2d5bc9be0b2e58",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-storage.js",
+          "bytes": 1551,
+          "sha256": "68de5c7d6997dbaacfc25100ee7f4323512746dfd6c090342a66f70df3c310fc",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-strategy.js",
+          "bytes": 11309,
+          "sha256": "40515fecc349810d65cda5deeec80e241e05071638b09ab525621ed37a7070d4",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-types.js",
+          "bytes": 275,
+          "sha256": "f086210ada06a8c1be2c2888eea9a7a800430a9e18db41fb7c3179855ed7e620",
+          "match": true
+        },
+        {
+          "file": "js/shared/time-league-ui.js",
+          "bytes": 1236,
+          "sha256": "c7a1a87ebdf12ea1bd484cfbde6800c164db1e13dfe4a9adbf72ccf4491895bb",
+          "match": true
+        },
+        {
+          "file": "js/shared/trend-badge.js",
+          "bytes": 520,
+          "sha256": "9646e21cbe821d4928c8aba45c42d2e4eb2738f65e2ff996a2fefea23ed4e5a3",
+          "match": true
+        },
+        {
+          "file": "js/shared/txn-store.js",
+          "bytes": 1829,
+          "sha256": "25f2cca0d32265e03555108ff2e8d2fe8aa31d3c1b08e533401d7e9378308f3a",
+          "match": true
+        },
+        {
+          "file": "js/shared/viewport.js",
+          "bytes": 1519,
+          "sha256": "b7ef21c64de86638ddbd7227723b4519de1544087df1b386c40cce2edd7f0562",
+          "match": true
+        },
+        {
+          "file": "js/shared/weekly-proj.js",
+          "bytes": 9838,
+          "sha256": "367f01490e2e42b3dc292478b39f68292c7c0ae3d5c96c6d69368261640b887b",
+          "match": true
+        },
+        {
+          "file": "js/shared/woeppel-cup.js",
+          "bytes": 14768,
+          "sha256": "b4bbefadcc53a71d3f569da4fe1bc48c548ba686f17135ae8c5e15f519f0645a",
+          "match": true
+        },
+        {
+          "file": "js/shared/wr-ai-context.js",
+          "bytes": 5570,
+          "sha256": "2feb680cefd94518ba4a1c0d3082b82297f1c2bf009d3a8f1680f6c83125edc4",
+          "match": true
+        },
+        {
+          "file": "js/tabs/alex-insights.js",
+          "bytes": 67351,
+          "sha256": "a9e17a44859d97d85618b3cd737217b97eac40b1dc1ceae36140e85fdf640b78",
+          "match": true
+        },
+        {
+          "file": "js/tabs/analytics.js",
+          "bytes": 81713,
+          "sha256": "e6283302fe3df21fccdc63918cb00c91a88265925a6cb91a0c484cbd4e400a2e",
+          "match": true
+        },
+        {
+          "file": "js/tabs/calendar.js",
+          "bytes": 11026,
+          "sha256": "832a82fba1f5ceebc6d5d888a481b827acd127a4fbe7b1aa76173598b6e598fe",
+          "match": true
+        },
+        {
+          "file": "js/tabs/commissioner-office.js",
+          "bytes": 51439,
+          "sha256": "1aacc81a9a255873c2446e8421428ed5ad1bf719fa0ce0af306aa5dcb4f64e05",
+          "match": true
+        },
+        {
+          "file": "js/tabs/compare.js",
+          "bytes": 105094,
+          "sha256": "420dcccfc72d208392f6065fba65c1127b31ee8e9145c28bd16ad8a28b731cc8",
+          "match": true
+        },
+        {
+          "file": "js/tabs/dashboard.js",
+          "bytes": 71487,
+          "sha256": "cbe14b8dfaa0cf954ddd5cb405ca4a2478ce9579004d9d948545b94d7324b5c6",
+          "match": true
+        },
+        {
+          "file": "js/tabs/duat.js",
+          "bytes": 61728,
+          "sha256": "703e276d634bc2a3d7f0a7a71dc60fc450cb2bf4af5d34bf55022615c015a008",
+          "match": true
+        },
+        {
+          "file": "js/tabs/flash-brief.js",
+          "bytes": 37891,
+          "sha256": "d5e64f4d3c47b6cc5e1e9c57da11b3c69b9edef11106c1ae73c27e44c94df827",
+          "match": true
+        },
+        {
+          "file": "js/tabs/global-view.js",
+          "bytes": 195534,
+          "sha256": "954cbe8ba982b36a679b52330b509cd8f8a57ef24d375ac88b9adc7d2e5529b3",
+          "match": true
+        },
+        {
+          "file": "js/tabs/league-central.js",
+          "bytes": 30630,
+          "sha256": "10a510809c22b1766f1389455fb9662c8cdac014e67e518c7afb4c2ebc722ba2",
+          "match": true
+        },
+        {
+          "file": "js/tabs/league-map.js",
+          "bytes": 106991,
+          "sha256": "306e0d17cf5204a13388c1d55e0ce1b0cd3063db804f4bc9ee405b9af7464cc0",
+          "match": true
+        },
+        {
+          "file": "js/tabs/lineup.js",
+          "bytes": 76301,
+          "sha256": "ae4e085572ec5787c9529927c78e8f1dd5f6ed3343cbc2f8ca88048a3070e6ff",
+          "match": true
+        },
+        {
+          "file": "js/tabs/my-team.js",
+          "bytes": 103688,
+          "sha256": "db22a7ec53b078c420bc4cef031cedc4889c37aec0442512648e5de5e43e9e64",
+          "match": true
+        },
+        {
+          "file": "js/tabs/stats.js",
+          "bytes": 31990,
+          "sha256": "88cc860689975b7b116c969eab05c102484aa208cf9dd0637f65567004266b8e",
+          "match": true
+        },
+        {
+          "file": "js/tabs/strategy-editor.js",
+          "bytes": 31564,
+          "sha256": "98c575b7e0bde20fddec98a3a3014a4269a9f73821378f7bbefcfac0eff03c1c",
+          "match": true
+        },
+        {
+          "file": "js/tabs/time-league.js",
+          "bytes": 118528,
+          "sha256": "ecf140e841e14f7d5c6ee8fc3054e4661a86c1db3cf1657868ca865ffd22ef2a",
+          "match": true
+        },
+        {
+          "file": "js/tabs/trophy-room.js",
+          "bytes": 61381,
+          "sha256": "c064a6a5fd8e1205dbad15e22ebf211ea2468948c9ec4d7555668338018c5bd6",
+          "match": true
+        },
+        {
+          "file": "js/theme.js",
+          "bytes": 13998,
+          "sha256": "8a3b0c8e4fbb65e533148f2dc0fbe27bc268afc53bcf827616fb04f30e65386c",
+          "match": true
+        },
+        {
+          "file": "js/trade-calc.js",
+          "bytes": 195615,
+          "sha256": "2525bb3684282d91a25298ecfa9a5cbd32a657e9416ecb66664605ce3a9f32b7",
+          "match": true
+        },
+        {
+          "file": "js/tutorial.js",
+          "bytes": 3878,
+          "sha256": "4a56e2d613eb540a5f5ce9655cd7e7008dcdb3ade27a263b80a5bdf8fb56d758",
+          "match": true
+        },
+        {
+          "file": "js/utils/gamelog-engine.js",
+          "bytes": 2214,
+          "sha256": "916c02e29400dc1da7077e44fe3f0616353e8132a4dfc53fea382d632c4c30a7",
+          "match": true
+        },
+        {
+          "file": "js/utils/nfl-byes.js",
+          "bytes": 1174,
+          "sha256": "b19183eef33fde6066ec0431edfcb91cc2df5c8b6b22724be11c828c98f9a534",
+          "match": true
+        },
+        {
+          "file": "js/utils/player-value.js",
+          "bytes": 13382,
+          "sha256": "cce8f695c768015096bae12b4aefdb73791ef7885ca78a549a96503d50cbc4b9",
+          "match": true
+        },
+        {
+          "file": "js/utils/schedule-engine.js",
+          "bytes": 3692,
+          "sha256": "111a2e1c84e8246f9ad24331f1623347b9f6904b9628169bfcf70c66b854934c",
+          "match": true
+        },
+        {
+          "file": "js/utils/sos-engine.js",
+          "bytes": 3840,
+          "sha256": "d25c2e9d38372e79d63791f0f713f7787fd65948e3b406c46f98fa07a5cf812b",
+          "match": true
+        },
+        {
+          "file": "js/widgets/analyst-mock.js",
+          "bytes": 3927,
+          "sha256": "669cd06cc7b760d3a6f922d15dd3d2150c7fabb165a2f12e1be76b7bb370773e",
+          "match": true
+        },
+        {
+          "file": "js/widgets/competitive-tiers.js",
+          "bytes": 26422,
+          "sha256": "18166e91be866a30e37ef81e9d76da34981757d9681d4eab499a893d3f379d49",
+          "match": true
+        },
+        {
+          "file": "js/widgets/draft-capital.js",
+          "bytes": 20010,
+          "sha256": "82fed9f43833c7a3536b8dcbb0681967a187d6e5721aeb3728fca8c050a851d6",
+          "match": true
+        },
+        {
+          "file": "js/widgets/faab-command.js",
+          "bytes": 5081,
+          "sha256": "23b81ae431b1ac18fd38ee666fa171e84b790cd92c31c91c0ae0100ae59c7261",
+          "match": true
+        },
+        {
+          "file": "js/widgets/gap-plan.js",
+          "bytes": 11519,
+          "sha256": "f72962705e8e8dc1cb5687efa5612d11cb26fb67f9cbf816f4479dec480b7a3b",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-calendar.js",
+          "bytes": 4659,
+          "sha256": "768f25f5d5cdc764ef9225c01b1d98602e04519b75c4052001ef58cffbd299d0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-landscape.js",
+          "bytes": 19532,
+          "sha256": "48137763383951bfd98d096797fc0826fb9e97af6301e3a718a1a3885d847598",
+          "match": true
+        },
+        {
+          "file": "js/widgets/league-progress.js",
+          "bytes": 8431,
+          "sha256": "3801255554c2073c61c4e4393796f288af8ae359c895e562c420a457071bfb5a",
+          "match": true
+        },
+        {
+          "file": "js/widgets/lineup-check.js",
+          "bytes": 3748,
+          "sha256": "8851d9613adc389aad95ca9c2396953f3ae4d54d73c230c2033212e34271ccb0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/market-radar.js",
+          "bytes": 33043,
+          "sha256": "5b2315b6cfa3097faee974ad906685780f457e43067abf47502ef7d8203c1eb4",
+          "match": true
+        },
+        {
+          "file": "js/widgets/my-trophies.js",
+          "bytes": 17434,
+          "sha256": "a051f5a8417b55f2adc1490e033368ff2c7b4c4cdee1b5c93f7056650a66d6f0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/player-tags.js",
+          "bytes": 10343,
+          "sha256": "f3396ee9b79ed516f1809b68ed887cb1193fbedb1ce7d43aa02655bf367b7ee9",
+          "match": true
+        },
+        {
+          "file": "js/widgets/power-rankings.js",
+          "bytes": 22676,
+          "sha256": "8a4172348333877fb3fe8c597ca05b2f4c62697bfa1ecdb0277034827a1c00c0",
+          "match": true
+        },
+        {
+          "file": "js/widgets/roster-pulse.js",
+          "bytes": 19504,
+          "sha256": "7bb24b0a50b9667a397e720fa3275fa255f330559d3002b4fe1cfa2db9d03ed6",
+          "match": true
+        },
+        {
+          "file": "js/widgets/window-forecast.js",
+          "bytes": 12145,
+          "sha256": "b3ad143cf33383122183bc925d082b2aaa36e31370132d84cc49e1f27896f9e5",
+          "match": true
+        },
+        {
+          "file": "league-actions-mobile.css",
+          "bytes": 11623,
+          "sha256": "1e52616d90800d69d461b0fc586d8b37f80bc68e5634e98c203c183d142757b6",
+          "match": true
+        },
+        {
+          "file": "league-analysis-mobile.css",
+          "bytes": 18971,
+          "sha256": "84e715b21515392897995e00ae6c0c64da8112249711c9df4475b7c5dea38578",
+          "match": true
+        },
+        {
+          "file": "league-live-standings.css",
+          "bytes": 7406,
+          "sha256": "0c967cb40d1918df95263b4c61cf4e7e4c74cb603ab3058f04ea34aff3e2726c",
+          "match": true
+        },
+        {
+          "file": "league-wire.css",
+          "bytes": 31121,
+          "sha256": "ea005e3b44d19b311476910e82c29979665f358e15244ffd221bab9be20aab8a",
+          "match": true
+        },
+        {
+          "file": "league-workspaces.css",
+          "bytes": 5461,
+          "sha256": "7cfece2f1a07509a5564406273bd0c4c7963d02502ef9b7a373a0a7ad8c85855",
+          "match": true
+        },
+        {
+          "file": "manifest.json",
+          "bytes": 889,
+          "sha256": "41bfefa46a835bb11caad906b16e334b26ced6ed80eaeef32e19a1cd56c85dec",
+          "match": true
+        },
+        {
+          "file": "mobile-foundation.css",
+          "bytes": 4086,
+          "sha256": "8f9488ce2ea6205d4ca73b3ffe8b423fb01051890784d54b9251c909700d4ab6",
+          "match": true
+        },
+        {
+          "file": "roster-mobile.css",
+          "bytes": 9847,
+          "sha256": "d85122a3c909b298fcf61892229b3d87f8485917712ea8d20ab43fd15e4f3076",
+          "match": true
+        },
+        {
+          "file": "stats-mobile.css",
+          "bytes": 14172,
+          "sha256": "33cd3a1312a2abd4bc64b0ab0c673b37cba1a1ecb7e73a3d202686b0bdc1ad8d",
+          "match": true
+        },
+        {
+          "file": "suite-management.css",
+          "bytes": 19104,
+          "sha256": "85ab407bfdf047b73f95cf5d1a88dc3baa4d2eb8b47646eb1b67e1090b4af7bc",
+          "match": true
+        },
+        {
+          "file": "time-league-career.css",
+          "bytes": 2349,
+          "sha256": "651efce9f13819e7c21af77b8991e256af43efa3b61004eb010788f872721938",
+          "match": true
+        },
+        {
+          "file": "time-league-ceremony.css",
+          "bytes": 1977,
+          "sha256": "94d208f9a26c3c4e5f725e25144702003b0e827124953afa4f02f0a352f6abd5",
+          "match": true
+        },
+        {
+          "file": "time-league-community.css",
+          "bytes": 2128,
+          "sha256": "ead2ad9a15e6a317df1105792fbe6f9942ce5f936bfadd175a31d8c72d512ba1",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-controls.css",
+          "bytes": 10892,
+          "sha256": "f12268d4e485842f1c342acb778e71a767620ca8cb0533264db227b3f4fbe6b5",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-experience.css",
+          "bytes": 13401,
+          "sha256": "63dd1a66874f029f8af9689e76f7a1c7330ad588b3ef3e79b430891476548258",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-reveal.css",
+          "bytes": 8121,
+          "sha256": "1ff5b12a74714bdcedde040b8ab447c03a6e4a5ab6741947293a5f28fbcfad87",
+          "match": true
+        },
+        {
+          "file": "time-league-draft-roster.css",
+          "bytes": 4980,
+          "sha256": "a79739cb267f289debc2f24816b9b9a579edc41a38ca91b1d079871096463ddb",
+          "match": true
+        },
+        {
+          "file": "time-league-focus.css",
+          "bytes": 20658,
+          "sha256": "fde6447d49ed92844acb3be6311e2f43909efd863c6f6dd2a3bbfa3fdf3be463",
+          "match": true
+        },
+        {
+          "file": "time-league-helmet-studio.css",
+          "bytes": 3023,
+          "sha256": "b732e5daccd0b9d9ba12c6af36d8dc67cde0c4da78220468f93b76e38978b265",
+          "match": true
+        },
+        {
+          "file": "time-league-mobile.css",
+          "bytes": 27930,
+          "sha256": "87393f596bfc40447173a0d79841706a5d2ad1469440f7f6cd56df985ec50ae4",
+          "match": true
+        },
+        {
+          "file": "time-league-play.css",
+          "bytes": 81348,
+          "sha256": "e1262864de6d79738fa3e41c7a92e5646d0f1fcc6f101c55f6217ed6b3aef046",
+          "match": true
+        },
+        {
+          "file": "time-league-profile.css",
+          "bytes": 7199,
+          "sha256": "bcd3ba3f0cb67310e17b784ba9686fb9b846658b9735355ce534f6471ebeebc0",
+          "match": true
+        },
+        {
+          "file": "time-league-rivals.css",
+          "bytes": 13320,
+          "sha256": "05fab741c6cfcc62149991d3b0e74fff1d41a6237bc9040a1755e95ca69e4eb4",
+          "match": true
+        },
+        {
+          "file": "time-league-roster-home.css",
+          "bytes": 15833,
+          "sha256": "c74166796dd5c1108199049556f0fffe16677afcb2e910d5c33e0592088aebd8",
+          "match": true
+        },
+        {
+          "file": "trade-calculator.html",
+          "bytes": 212040,
+          "sha256": "b612851c835121d030a7abbe38cdc34117e68653cef315927ceeadf0ff9f9937",
+          "match": true
+        },
+        {
+          "file": "trade-center.css",
+          "bytes": 6268,
+          "sha256": "f1330c87eb8268551d07683bcf9ea311373caf55e27c53343d6faf5cf931223a",
+          "match": true
+        },
+        {
+          "file": "woeppel-cup.css",
+          "bytes": 13608,
+          "sha256": "e1b6bbdea3f611a0af0937649e28bdc130711ca39b69a1416c11ff5037630908",
+          "match": true
+        }
+      ]
+    }
+  ]
+}

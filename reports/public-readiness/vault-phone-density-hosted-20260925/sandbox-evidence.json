@@ -1,0 +1,788 @@
+{
+  "target": "https://c2-football.github.io/WarRoom-sandbox/",
+  "fixture": "Real 72-pick, 6-team Hidden Years season; Week 1 completed, legal Week 2 free-agent claim; isolated local saves only",
+  "plannedWidths": [
+    320,
+    390,
+    667,
+    1440
+  ],
+  "passed": true,
+  "evidence": [
+    {
+      "width": 320,
+      "height": 740,
+      "rosterMedian": 87.390625,
+      "rosterFirst": 87.390625,
+      "rosterHeights": [
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625,
+        105.65625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625
+      ],
+      "matchupMedian": 88.1875,
+      "matchupFirst": 67.390625,
+      "matchupHeights": [
+        67.390625,
+        88.1875,
+        88.1875,
+        88.1875,
+        88.1875,
+        67.390625,
+        88.1875
+      ],
+      "nameFontSize": 16,
+      "rosterLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 12,
+          "width": 296,
+          "height": 66.6875,
+          "top": 12,
+          "right": 308,
+          "bottom": 78.6875,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 572.109375,
+          "width": 320,
+          "height": 97.890625,
+          "top": 572.109375,
+          "right": 320,
+          "bottom": 670,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 663.8125,
+          "width": 320,
+          "height": 76.1875,
+          "top": 663.8125,
+          "right": 320,
+          "bottom": 740,
+          "left": 0
+        }
+      },
+      "gamedayLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 0,
+          "width": 296,
+          "height": 66.6875,
+          "top": 0,
+          "right": 308,
+          "bottom": 66.6875,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 572.109375,
+          "width": 320,
+          "height": 97.890625,
+          "top": 572.109375,
+          "right": 320,
+          "bottom": 670,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 663.8125,
+          "width": 320,
+          "height": 76.1875,
+          "top": 663.8125,
+          "right": 320,
+          "bottom": 740,
+          "left": 0
+        }
+      },
+      "checks": [
+        "Observed PPG versus archive estimate",
+        "Hidden-year boundaries",
+        "History and completed game log",
+        "Move dialog close and Escape",
+        "Week options open and close",
+        "Atomic legal swap",
+        "Reload persistence",
+        "Pregame zeroes",
+        "Quarter1 matches landed historical events",
+        "Final equals saved results",
+        "Points and metadata never overlap",
+        "44px controls and unblocked clicks",
+        "No horizontal overflow"
+      ],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "rosterMedian": 87.390625,
+      "rosterFirst": 87.390625,
+      "rosterHeights": [
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625
+      ],
+      "matchupMedian": 67.390625,
+      "matchupFirst": 67.390625,
+      "matchupHeights": [
+        67.390625,
+        88.1875,
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625
+      ],
+      "nameFontSize": 16,
+      "rosterLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 12,
+          "width": 366,
+          "height": 66.6875,
+          "top": 12,
+          "right": 378,
+          "bottom": 78.6875,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 683.703125,
+          "width": 390,
+          "height": 90.296875,
+          "top": 683.703125,
+          "right": 390,
+          "bottom": 774,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 769,
+          "width": 390,
+          "height": 75,
+          "top": 769,
+          "right": 390,
+          "bottom": 844,
+          "left": 0
+        }
+      },
+      "gamedayLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 0,
+          "width": 366,
+          "height": 66.6875,
+          "top": 0,
+          "right": 378,
+          "bottom": 66.6875,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 683.703125,
+          "width": 390,
+          "height": 90.296875,
+          "top": 683.703125,
+          "right": 390,
+          "bottom": 774,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 769,
+          "width": 390,
+          "height": 75,
+          "top": 769,
+          "right": 390,
+          "bottom": 844,
+          "left": 0
+        }
+      },
+      "checks": [
+        "Observed PPG versus archive estimate",
+        "Hidden-year boundaries",
+        "History and completed game log",
+        "Move dialog close and Escape",
+        "Week options open and close",
+        "Atomic legal swap",
+        "Reload persistence",
+        "Pregame zeroes",
+        "Quarter1 matches landed historical events",
+        "Final equals saved results",
+        "Points and metadata never overlap",
+        "44px controls and unblocked clicks",
+        "No horizontal overflow"
+      ],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "rosterMedian": 87.390625,
+      "rosterFirst": 87.390625,
+      "rosterHeights": [
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        87.390625,
+        86.390625
+      ],
+      "matchupMedian": 67.390625,
+      "matchupFirst": 67.390625,
+      "matchupHeights": [
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625,
+        67.390625
+      ],
+      "nameFontSize": 16,
+      "rosterLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 0,
+          "width": 643,
+          "height": 74.125,
+          "top": 0,
+          "right": 655,
+          "bottom": 74.125,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 257.40625,
+          "width": 667,
+          "height": 64.59375,
+          "top": 257.40625,
+          "right": 667,
+          "bottom": 322,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 322,
+          "width": 667,
+          "height": 53,
+          "top": 322,
+          "right": 667,
+          "bottom": 375,
+          "left": 0
+        }
+      },
+      "gamedayLayout": {
+        "overflow": false,
+        "header": {
+          "x": 12,
+          "y": 0,
+          "width": 643,
+          "height": 74.125,
+          "top": 0,
+          "right": 655,
+          "bottom": 74.125,
+          "left": 12
+        },
+        "footer": {
+          "x": 0,
+          "y": 257.40625,
+          "width": 667,
+          "height": 64.59375,
+          "top": 257.40625,
+          "right": 667,
+          "bottom": 322,
+          "left": 0
+        },
+        "dock": {
+          "x": 0,
+          "y": 322,
+          "width": 667,
+          "height": 53,
+          "top": 322,
+          "right": 667,
+          "bottom": 375,
+          "left": 0
+        }
+      },
+      "checks": [
+        "Observed PPG versus archive estimate",
+        "Hidden-year boundaries",
+        "History and completed game log",
+        "Move dialog close and Escape",
+        "Week options open and close",
+        "Atomic legal swap",
+        "Reload persistence",
+        "Pregame zeroes",
+        "Quarter1 matches landed historical events",
+        "Final equals saved results",
+        "Points and metadata never overlap",
+        "44px controls and unblocked clicks",
+        "No horizontal overflow",
+        "Emulated24px safe-area menu reachability"
+      ],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "rosterMedian": 146.90625,
+      "rosterFirst": 146.90625,
+      "rosterHeights": [
+        146.90625,
+        146.90625,
+        146.90625,
+        146.90625,
+        146.90625,
+        146.90625,
+        145.90625,
+        146.90625,
+        146.90625,
+        146.90625,
+        146.90625,
+        145.90625
+      ],
+      "matchupMedian": 87.78125,
+      "matchupFirst": 87.78125,
+      "matchupHeights": [
+        87.78125,
+        87.78125,
+        87.78125,
+        87.78125,
+        87.78125,
+        87.78125,
+        87.78125
+      ],
+      "nameFontSize": 12.5,
+      "rosterLayout": {
+        "overflow": false,
+        "header": {
+          "x": 218,
+          "y": 28,
+          "width": 1180,
+          "height": 67.03125,
+          "top": 28,
+          "right": 1398,
+          "bottom": 95.03125,
+          "left": 218
+        },
+        "footer": {
+          "x": 176,
+          "y": 931,
+          "width": 1264,
+          "height": 69,
+          "top": 931,
+          "right": 1440,
+          "bottom": 1000,
+          "left": 176
+        },
+        "dock": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "gamedayLayout": {
+        "overflow": false,
+        "header": {
+          "x": 218,
+          "y": -323,
+          "width": 1180,
+          "height": 67.03125,
+          "top": -323,
+          "right": 1398,
+          "bottom": -255.96875,
+          "left": 218
+        },
+        "footer": {
+          "x": 176,
+          "y": 931,
+          "width": 1264,
+          "height": 69,
+          "top": 931,
+          "right": 1440,
+          "bottom": 1000,
+          "left": 176
+        },
+        "dock": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "checks": [
+        "Observed PPG versus archive estimate",
+        "Hidden-year boundaries",
+        "History and completed game log",
+        "Move dialog close and Escape",
+        "Week options open and close",
+        "Atomic legal swap",
+        "Reload persistence",
+        "Pregame zeroes",
+        "Quarter1 matches landed historical events",
+        "Final equals saved results",
+        "Points and metadata never overlap",
+        "44px controls and unblocked clicks",
+        "No horizontal overflow"
+      ],
+      "blocked": [
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "GET",
+          "host": "browser.sentry-cdn.com",
+          "path": "/8.55.0/bundle.min.js"
+        },
+        {
+          "method": "GET",
+          "host": "api.fantasycalc.com",
+          "path": "/values/current"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/functions/v1/mfl-proxy"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        },
+        {
+          "method": "POST",
+          "host": "sxshiqyxhhifvtfqawbq.supabase.co",
+          "path": "/rest/v1/analytics_events"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

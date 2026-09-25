@@ -1,0 +1,4 @@
+PASS 320x740: roster 87.4px, matchup 88.2px; history, swap/reload, pregame and exact Q1 playback
+PASS 390x844: roster 87.4px, matchup 67.4px; history, swap/reload, pregame and exact Q1 playback
+PASS 667x375: roster 87.4px, matchup 67.4px; history, swap/reload, pregame and exact Q1 playback
+PASS 1440x1000: roster 146.9px, matchup 87.8px; history, swap/reload, pregame and exact Q1 playback
