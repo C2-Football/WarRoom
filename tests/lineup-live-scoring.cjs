@@ -41,14 +41,14 @@ ctx.window.App.LeagueLiveScores = {
 };
 const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { presets: ['react'] }).code;
 vm.runInContext(source, ctx);
-const out = ctx.LineupTab({ myRoster: { roster_id: 1, starters: ['other'] }, currentLeague: { league_id: '123', season: 2026, roster_positions: ['QB'] }, playersData: { a: { full_name: 'Zero Starter' }, b: { full_name: 'Negative Starter' }, c: { full_name: 'Missing Starter' } } });
+const out = ctx.LineupTab({ rosterView: true, myRoster: { roster_id: 1, starters: ['other'] }, currentLeague: { league_id: '123', season: 2026, roster_positions: ['QB', 'QB', 'QB'] }, playersData: { a: { full_name: 'Zero Starter' }, b: { full_name: 'Negative Starter' }, c: { full_name: 'Missing Starter' } } });
 const rendered = JSON.stringify(out);
 assert.match(rendered, /Zero Starter/);
 assert.match(rendered, /Negative Starter/);
 assert.match(rendered, /Missing Starter/);
 assert.match(rendered, /0.00/);
 assert.match(rendered, /-2.50/);
-assert.match(rendered, /SAVED PROJ/);
+assert.match(rendered, /Proj/);
 assert.match(rendered, /not an original pregame forecast/);
 assert.doesNotMatch(rendered, /Player other/);
 console.log('PASS lineup live scoring: kickoff locks, schedule aliases, and missing-projection scoring render');

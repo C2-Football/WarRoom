@@ -280,8 +280,8 @@ function MyTeamTab({
           const ra = window.App.computeRollingPPG(a.pid, n);
           const rb = window.App.computeRollingPPG(b.pid, n);
           // Only override if rolling data is available for the player; else fall back to seasonal.
-          if (ra > 0) av = ra;
-          if (rb > 0) bv = rb;
+          if (Number.isFinite(ra)) av = ra;
+          if (Number.isFinite(rb)) bv = rb;
         }
         return (bv - av) * dir;
       }
@@ -1204,16 +1204,17 @@ function MyTeamTab({
         // If a window is active but weekly data isn't ready for this player, fall back
         // to seasonal and mark the cell "· Szn" so the user knows it's not rolling.
         let shown = r.effectivePPG;
+        let hasRolling = false;
         let marker = r.curPPG === 0 && r.prevPPG > 0 ? '*' : '';
         if (ppgWindow !== 'season') {
           const n = ppgWindow === 'l3' ? 3 : 5;
           const rolling = typeof window.App?.computeRollingPPG === 'function'
             ? window.App.computeRollingPPG(r.pid, n)
-            : 0;
-          if (rolling > 0) { shown = rolling; marker = ' · L' + n; }
+            : null;
+          if (Number.isFinite(rolling)) { shown = rolling; hasRolling = true; marker = ' · L' + n; }
           else { marker = ' · Szn'; }
         }
-        return <div key={colKey} style={{...base, background: ppgBg(shown, r.pos)}}><span style={{ color: 'var(--silver)', fontWeight: 500 }}>{shown > 0 ? shown : '\u2014'}{marker}</span></div>;
+        return <div key={colKey} style={{...base, background: ppgBg(shown, r.pos)}}><span style={{ color: 'var(--silver)', fontWeight: 500 }}>{hasRolling || shown > 0 ? shown : '\u2014'}{marker}</span></div>;
       }
       case 'prev': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG > 0 ? r.prevPPG : '\u2014'}</span></div>;
       case 'trend': {
@@ -1556,13 +1557,14 @@ function MyTeamTab({
         // the window rides the LABEL (L5/L3) since card slots have no room
         // for the " · L5" marker.
         let shown = r.effectivePPG;
+        let hasRolling = false;
         let lbl = 'PPG';
         if (ppgWindow !== 'season') {
           const n = ppgWindow === 'l3' ? 3 : 5;
-          const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(r.pid, n) : 0;
-          if (rolling > 0) { shown = rolling; lbl = 'L' + n; } else { lbl = 'SZN'; }
+          const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(r.pid, n) : null;
+          if (Number.isFinite(rolling)) { shown = rolling; hasRolling = true; lbl = 'L' + n; } else { lbl = 'SZN'; }
         }
-        return { label: lbl, value: shown > 0 ? shown : '—' };
+        return { label: lbl, value: hasRolling || shown > 0 ? shown : '—' };
       }
       case 'prev': return { label: short, value: r.prevPPG > 0 ? r.prevPPG : '—', tone: 'mute' };
       case 'trend': return { label: short, value: r.trend > 0 ? '+' + r.trend + '%' : r.trend < 0 ? r.trend + '%' : '—', tone: 'mute' };

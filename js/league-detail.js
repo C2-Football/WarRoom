@@ -1710,7 +1710,7 @@
         // Last successful rolling weekly-points fetch (league-tagged). The block
         // fires up to 18 parallel /matchups/{week} requests — background
         // revalidations only re-run it when the week rolled or this is stale.
-        const wppFetchedAtRef = useRef({ ts: 0, leagueId: null });
+        const wppFetchedAtRef = useRef({ ts: 0, scope: null, throughWeek: 0 });
         // League closed / component unmounted: drop the background revalidator
         // so WR.Sync stops syncing a dead closure (also resets its lastSyncedAt).
         // Also bump loadSeqRef so any ALREADY in-flight background hydrate fails
@@ -1984,13 +1984,16 @@
                 window.S.rosters = rosters;
                 window.S.leagueUsers = leagueUsers;
                 window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
-                // Invalidate any previously-loaded weekly points from a different
-                // league before kicking off the fresh fetch below.
-                if (window.S.weeklyPlayerPointsLeagueId && window.S.weeklyPlayerPointsLeagueId !== currentLeague.id) {
+                const pointsLeagueId = currentLeague.id || currentLeague.league_id;
+                const pointsScope = window.App.WeeklyProj.weeklyPointsScope(pointsLeagueId, activeYear, currentLeague.scoring_settings);
+                if (window.S.weeklyPlayerPointsScope !== pointsScope) {
                     window.S.weeklyPlayerPoints = {};
+                    window.S.weeklyPlayerPlayed = {};
                     window.S.weeklyPlayerPointsLeagueId = null;
+                    window.S.weeklyPlayerPointsScope = pointsScope;
+                    window.S.weeklyPlayerPointsSeason = activeYear;
                 }
-                window.S.currentLeagueId = currentLeague.id;
+                window.S.currentLeagueId = pointsLeagueId;
                 window.S.season = activeYear;
                 window.S.nflState = hydrated.nflState && Object.keys(hydrated.nflState).length ? hydrated.nflState : nflState;
                 window.S.currentWeek = currentWeek;
@@ -2003,56 +2006,27 @@
                 // Trade Center shows real future picks, not invented N-round sets.
                 window.S._mflFuturePicks = hydrated._extras?.mflFuturePicks || null;
 
-                // Rolling PPG — fetch all played weeks' matchups in parallel
-                // so we can compute last-N-games PPG for each player. Runs
-                // in the background; consumers listen for wr:weekly-points-loaded.
-                // Only runs for Sleeper (other providers don't have this endpoint shape).
-                // Single-flight + league-tagged: rapidly switching leagues must not
-                // let a stale fetch from league A overwrite league B's results.
-                const _wppLeagueId = currentLeague.id || currentLeague.league_id;
-                // Background syncs (~5min focus cadence): skip the 18-fetch
-                // weekly-points reload unless the week rolled or the last
-                // successful fetch for THIS league is older than ~15 minutes.
-                // Foreground (league open / manual refresh) always runs.
-                const _wppFresh = wppFetchedAtRef.current.leagueId === _wppLeagueId
-                    && (Date.now() - wppFetchedAtRef.current.ts) < 15 * 60 * 1000;
-                const _wppSkipBg = background && !weekRolled && _wppFresh;
-                if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0 && !_wppSkipBg) {
+                // Completed NFL logs fill history gaps for recent pickups; league
+                // matchup actuals preserve custom scoring wherever available.
+                const throughWeek = Number(activeYear) < Number(window.S.nflState?.season) || window.S.nflState?.season_type === 'post'
+                    ? 18 : window.S.nflState?.season_type === 'pre' ? 0 : Math.max(0, Math.min(18, currentWeek - 1));
+                window.S.weeklyPlayerPointsThroughWeek = throughWeek;
+                const pointsFresh = wppFetchedAtRef.current.scope === pointsScope
+                    && wppFetchedAtRef.current.throughWeek === throughWeek
+                    && Date.now() - wppFetchedAtRef.current.ts < 15 * 60 * 1000;
+                if (provider.id === 'sleeper' && pointsLeagueId && !(background && !weekRolled && pointsFresh)) {
                     const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
-                    const fetchLeagueId = _wppLeagueId;
-                    (async () => {
-                        try {
-                            const weeks = [];
-                            const maxWeek = Math.min(18, Math.max(1, currentWeek));
-                            for (let w = 1; w <= maxWeek; w++) weeks.push(w);
-                            const results = await Promise.all(weeks.map(w =>
-                                fetch('https://api.sleeper.app/v1/league/' + fetchLeagueId + '/matchups/' + w)
-                                    .then(r => r.ok ? r.json() : [])
-                                    .catch(() => [])
-                            ));
-                            // Guard: abort if a newer fetch has started or the
-                            // active league has changed under us.
-                            if (fetchToken !== window._wppFetchToken) return;
-                            const activeLeagueId = window.S?.currentLeagueId;
-                            if (activeLeagueId && activeLeagueId !== fetchLeagueId) return;
-                            const wpp = {};
-                            weeks.forEach((w, i) => {
-                                const wk = {};
-                                (results[i] || []).forEach(m => {
-                                    if (m && m.players_points) {
-                                        Object.entries(m.players_points).forEach(([pid, pts]) => {
-                                            if (pts != null) wk[pid] = pts;
-                                        });
-                                    }
-                                });
-                                wpp[w] = wk;
-                            });
-                            window.S.weeklyPlayerPoints = wpp;
-                            window.S.weeklyPlayerPointsLeagueId = fetchLeagueId;
-                            wppFetchedAtRef.current = { ts: Date.now(), leagueId: fetchLeagueId };
-                            window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: fetchLeagueId } }));
-                        } catch (e) { /* non-fatal */ }
-                    })();
+                    window.App.WeeklyProj.loadWeeklyPoints({
+                        leagueId: pointsLeagueId, season: activeYear, throughWeek, scoring: currentLeague.scoring_settings,
+                        previousPoints: window.S.weeklyPlayerPoints, previousPlayed: window.S.weeklyPlayerPlayed,
+                    }).then(history => {
+                        if (fetchToken !== window._wppFetchToken || window.S?.weeklyPlayerPointsScope !== pointsScope) return;
+                        window.S.weeklyPlayerPoints = history.points;
+                        window.S.weeklyPlayerPlayed = history.played;
+                        window.S.weeklyPlayerPointsLeagueId = pointsLeagueId;
+                        if (history.complete) wppFetchedAtRef.current = { ts: Date.now(), scope: pointsScope, throughWeek };
+                        window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: pointsLeagueId, season: activeYear } }));
+                    }).catch(e => window.wrLog?.('weekly-points.load', e));
                 }
                 window.S.myRosterId = myRoster?.roster_id;
                 window.S.platform = provider.id;   // canonical marker
@@ -2099,25 +2073,8 @@
                 window.App.getFAAB = window.getFAAB;
                 window.App.loadMentality = window.loadMentality;
 
-                // Rolling PPG helper — returns avg points over the last N
-                // games where the player actually played (> minPts threshold).
-                // Uses window.S.weeklyPlayerPoints populated by the background
-                // weekly fetch above. Returns 0 if no data yet.
-                window.App.computeRollingPPG = function (pid, lastN, minPts) {
-                    const wpp = window.S?.weeklyPlayerPoints || {};
-                    const weeks = Object.keys(wpp).map(Number).sort((a, b) => b - a);
-                    const threshold = minPts == null ? 0.1 : minPts;
-                    const games = [];
-                    for (const w of weeks) {
-                        const pts = wpp[w]?.[pid];
-                        if (pts != null && pts >= threshold) {
-                            games.push(pts);
-                            if (games.length >= (lastN || 5)) break;
-                        }
-                    }
-                    if (!games.length) return 0;
-                    return +(games.reduce((a, b) => a + b, 0) / games.length).toFixed(1);
-                };
+                // Keep every roster surface on the same played-game average.
+                window.App.computeRollingPPG = (pid, lastN) => window.App.WeeklyProj.formStats(pid, lastN || 5)?.rollingPPG ?? null;
 
                 // AI credentials are owned by the session-scoped request adapter.
                 window.S.apiKey = '';
@@ -3476,7 +3433,9 @@
                         initialSubTab={tradeSubTab}
                         onSubTabConsumed={() => setTradeSubTab(null)}
                     />
-                ) : viewTab === 'myteam' ? <MyTeamTabLazy
+                ) : viewTab === 'myteam' ? <React.Fragment>
+                    {workspaceOptions.showGameDay && <LineupTabLazy rosterView myRoster={myRoster} currentLeague={currentLeague} leagueSkin={leagueSkin} playersData={playersData} statsData={statsData} stats2025Data={stats2025Data} sleeperUserId={sleeperUserId} gmStrategy={gmStrategy} setActiveTab={setActiveTab} timeRecomputeTs={timeRecomputeTs} />}
+                    <MyTeamTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3507,7 +3466,8 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
-                /> : viewTab === 'lineup' ? <LineupTabLazy
+                />
+                </React.Fragment> : viewTab === 'lineup' ? <LineupTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}

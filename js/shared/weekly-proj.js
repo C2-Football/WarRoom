@@ -109,48 +109,95 @@
         return vol > 0 ? line : null;
     }
 
-    // Weekly actuals are stored league-scored as weeklyPlayerPoints[week][pid].
-    // Returns [{week, pts}] ascending for a player (only weeks with a value).
-    function weeklyHistory(pid) {
-        const wpp = (root.S && root.S.weeklyPlayerPoints) || {};
-        const out = [];
-        for (const k of Object.keys(wpp)) {
-            const w = Number(k); if (!(w > 0)) continue;
-            const pts = wpp[k] && wpp[k][pid];
-            if (pts != null) out.push({ week: w, pts: Number(pts) });
-        }
-        out.sort((a, b) => a.week - b.week);
-        return out;
+    // Build league-scored histories independently of fantasy roster ownership.
+    // Matchup actuals remain authoritative where present; raw NFL game logs
+    // fill gaps for free agents / recent pickups and identify genuine zero games.
+    function weeklyPointsScope(leagueId, season, scoring) {
+        return [String(leagueId), String(season), JSON.stringify(Object.entries(scoring || {}).sort(([a], [b]) => a.localeCompare(b)))].join('|');
+    }
+    function playedStatLine(raw, scoring) {
+        if (!raw || typeof raw !== 'object') return false;
+        if (['gp', 'off_snp', 'def_snp', 'st_snp', 'pass_att', 'rush_att', 'rec_tgt', 'fga', 'xpa'].some(key => Number(raw[key]) > 0)) return true;
+        return Object.keys(scoring || {}).some(key => Number(scoring[key]) !== 0 && Number.isFinite(Number(raw[key])) && Number(raw[key]) !== 0);
+    }
+    async function loadWeeklyPoints({ leagueId, season, throughWeek, scoring, previousPoints = {}, previousPlayed = {}, fetcher = root.fetch }) {
+        if (typeof fetcher !== 'function') throw new Error('Weekly stats fetch unavailable');
+        const points = {}, played = {};
+        let complete = true;
+        const weeks = Array.from({ length: Math.max(0, Math.min(18, Number(throughWeek) || 0)) }, (_, i) => i + 1);
+        const get = async url => {
+            try { const response = await fetcher(url); return response.ok ? await response.json() : null; }
+            catch (_) { return null; }
+        };
+        await Promise.all(weeks.map(async week => {
+            const [raw, matchups] = await Promise.all([
+                get('https://api.sleeper.app/v1/stats/nfl/regular/' + season + '/' + week),
+                get('https://api.sleeper.app/v1/league/' + leagueId + '/matchups/' + week),
+            ]);
+            const rawReady = raw && !Array.isArray(raw) && Object.keys(raw).length > 0;
+            const matchupReady = Array.isArray(matchups) && matchups.length > 0;
+            if (!rawReady || !matchupReady) complete = false;
+            const wk = { ...(previousPoints[week] || {}) }, participation = { ...(previousPlayed[week] || {}) };
+            if (rawReady && scoring && Object.keys(scoring).length) Object.entries(raw).forEach(([pid, line]) => {
+                const didPlay = playedStatLine(line, scoring);
+                participation[pid] = didPlay;
+                if (!didPlay) { delete wk[pid]; return; }
+                if (!matchupReady && Number.isFinite(previousPoints[week]?.[pid])) return;
+                // Raw stat keys match the league's scoring keys, including return
+                // yards, first downs and position bonuses. Keep full precision.
+                const total = Object.entries(scoring).reduce((sum, [key, weight]) => sum + (Number.isFinite(Number(line[key])) && Number.isFinite(Number(weight)) ? Number(line[key]) * Number(weight) : 0), 0);
+                if (Number.isFinite(total)) wk[pid] = Math.round(total * 100) / 100;
+            });
+            if (matchupReady) matchups.forEach(row => Object.entries(row?.players_points || {}).forEach(([pid, value]) => {
+                if (value == null || value === '' || !Number.isFinite(Number(value))) return;
+                const pts = Number(value);
+                if (pts !== 0 || participation[pid] === true) {
+                    wk[pid] = pts;
+                    participation[pid] = true;
+                } else if (rawReady) {
+                    // An inactive roster placeholder is not a played zero game.
+                    delete wk[pid];
+                    participation[pid] = false;
+                }
+            }));
+            points[week] = wk;
+            played[week] = participation;
+        }));
+        return { points, played, complete };
     }
 
-    // Rolling PPG over the last `lastN` PLAYED weeks (>0 pts), plus season
-    // high/low. lastN === 'season' (or huge) → full-season average.
+    // Histories contain completed regular-season games in the active league.
+    // Missing data is unavailable, while genuine zero and negative games count.
+    function weeklyHistory(pid) {
+        const state = root.S || {};
+        if (state.weeklyPlayerPointsLeagueId != null && state.currentLeagueId != null && String(state.weeklyPlayerPointsLeagueId) !== String(state.currentLeagueId)) return [];
+        if (state.weeklyPlayerPointsSeason != null && state.season != null && String(state.weeklyPlayerPointsSeason) !== String(state.season)) return [];
+        const wpp = state.weeklyPlayerPoints || {};
+        const through = state.weeklyPlayerPointsThroughWeek ?? (Number(state.currentWeek) > 0 ? Number(state.currentWeek) - 1 : 18);
+        return Object.keys(wpp).map(Number).filter(week => week > 0 && week <= through).sort((a, b) => a - b).flatMap(week => {
+            const value = wpp[week]?.[pid];
+            if (value == null || value === '' || !Number.isFinite(Number(value)) || state.weeklyPlayerPlayed?.[week]?.[pid] === false) return [];
+            return [{ week, pts: Number(value) }];
+        });
+    }
+
     function formStats(pid, lastN) {
         const hist = weeklyHistory(pid);
         if (!hist.length) return null;
-        const played = hist.filter(g => g.pts > 0.1);
-        const pool = played.length ? played : hist;
-        const n = (lastN === 'season' || !lastN) ? pool.length : Math.max(1, Number(lastN));
-        const recent = [...pool].sort((a, b) => b.week - a.week).slice(0, n);
-        const avg = recent.reduce((s, g) => s + g.pts, 0) / (recent.length || 1);
+        const n = lastN === 'season' || !lastN ? hist.length : Math.max(1, Number(lastN) || 5);
+        const recent = hist.slice(-n);
         return {
-            rollingPPG: +avg.toFixed(1),
-            high: +Math.max(...pool.map(g => g.pts)).toFixed(1),
-            low: +Math.min(...pool.map(g => g.pts)).toFixed(1),
-            games: pool.length,
+            rollingPPG: +(recent.reduce((sum, game) => sum + game.pts, 0) / recent.length).toFixed(1),
+            high: +Math.max(...hist.map(game => game.pts)).toFixed(1),
+            low: +Math.min(...hist.map(game => game.pts)).toFixed(1),
+            games: hist.length,
             recentCount: recent.length,
         };
     }
 
-    // Recent-form points average over the last `lookback` completed weeks.
     function recentPPG(pid, week, lookback) {
-        const wpp = (root.S && root.S.weeklyPlayerPoints) || null;
-        if (!wpp) return null;
-        const weeks = Object.keys(wpp).map(Number).filter(w => w > 0 && w < week).sort((a, b) => b - a).slice(0, lookback || 3);
-        if (!weeks.length) return null;
-        const vals = weeks.map(w => Number(wpp[w] && wpp[w][pid]) || 0).filter(v => v > 0);
-        if (!vals.length) return null;
-        return vals.reduce((a, b) => a + b, 0) / vals.length;
+        const recent = weeklyHistory(pid).filter(game => game.week < week).slice(-(lookback || 3));
+        return recent.length ? recent.reduce((sum, game) => sum + game.pts, 0) / recent.length : null;
     }
 
     // Build a per-game baseline STAT LINE for a player: blend current-season
@@ -412,7 +459,7 @@
     }
 
     App.WeeklyProj = App.WeeklyProj || {
-        setContext, currentWeek, recentPPG, weeklyHistory, formStats, buildBaseline, buildSeasonBaseline,
+        setContext, currentWeek, recentPPG, weeklyHistory, formStats, loadWeeklyPoints, weeklyPointsScope, buildBaseline, buildSeasonBaseline,
         projectPlayer, projectRoster, optimalForRoster, explainPlayer,
         ensureWeekProjections, providerLine,
         objectiveForMode, modeFor,

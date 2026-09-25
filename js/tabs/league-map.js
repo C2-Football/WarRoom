@@ -1886,15 +1886,15 @@ function LeagueMapTab({
                             let ppgShown = x.ppg, ppgLbl = 'PPG';
                             if (ppgWindow !== 'season') {
                                 const n = ppgWindow === 'l3' ? 3 : 5;
-                                const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(x.pid, n) : 0;
-                                if (rolling > 0) { ppgShown = rolling; ppgLbl = 'L' + n; } else { ppgLbl = 'SZN'; }
+                                const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(x.pid, n) : null;
+                                if (Number.isFinite(rolling)) { ppgShown = rolling; ppgLbl = 'L' + n; } else { ppgLbl = 'SZN'; }
                             }
                             return React.createElement(window.WR.AssetRow, {
                                 key: x.pid,
                                 pos: x.pos,
                                 name: x.p.full_name || ((x.p.first_name || '') + ' ' + (x.p.last_name || '')).trim(),
                                 tag: (x.p.team || 'FA') + (x.age ? ' · ' + x.age : '') + ' · ' + x.teamName + (x.isMe ? ' (You)' : ''),
-                                slots: [lpSort.key === 'ppg' ? { label: ppgLbl, value: ppgShown > 0 ? ppgShown : '—' } : lpSort.key === 'age' ? { label: 'Age', value: x.age || '—' } : { label: 'DHQ', value: x.dhq > 0 ? x.dhq.toLocaleString() : '—', tone: x.dhq >= 7000 ? 'good' : undefined }],
+                                slots: [lpSort.key === 'ppg' ? { label: ppgLbl, value: ppgLbl.startsWith('L') || ppgShown > 0 ? ppgShown : '—' } : lpSort.key === 'age' ? { label: 'Age', value: x.age || '—' } : { label: 'DHQ', value: x.dhq > 0 ? x.dhq.toLocaleString() : '—', tone: x.dhq >= 7000 ? 'good' : undefined }],
                                 accent: x.isMe ? 'gold' : undefined,
                                 onClick: () => openLeagueMapPlayerCard(x.pid, { context: 'analytics_all_players', scoringSettings: currentLeague?.scoring_settings }),
                                 title: 'Open player card',
@@ -2044,11 +2044,11 @@ function LeagueMapTab({
                                             const n = ppgWindow === 'l3' ? 3 : 5;
                                             const rolling = typeof window.App?.computeRollingPPG === 'function'
                                                 ? window.App.computeRollingPPG(x.pid, n)
-                                                : 0;
-                                            if (rolling > 0) { shown = rolling; marker = ' · L' + n; }
+                                                : null;
+                                            if (Number.isFinite(rolling)) { shown = rolling; marker = ' · L' + n; }
                                             else { marker = ' · Szn'; }
                                         }
-                                        return <span key={c.key} style={{ color: 'var(--silver)' }}>{shown || '\u2014'}{marker}</span>;
+                                        return <span key={c.key} style={{ color: 'var(--silver)' }}>{marker.startsWith(' · L') || shown ? shown : '\u2014'}{marker}</span>;
                                     }
                                     case 'tier':
                                         return <span key={c.key} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: tier === 'ELITE' ? 'var(--good)' : tier === 'CONTENDER' ? 'var(--k-3498db, #3498db)' : tier === 'REBUILDING' ? 'var(--bad)' : 'var(--silver)', fontWeight: 700, letterSpacing: '0.04em' }}>{tier || '\u2014'}</span>;
