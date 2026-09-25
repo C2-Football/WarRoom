@@ -17,7 +17,7 @@
     function oldName(league, rid) {
         const roster = league.rosters?.find(r => id(r.roster_id) === id(rid));
         const user = league.users?.find(u => u.user_id === roster?.owner_id);
-        return user?.metadata?.team_name || user?.display_name || user?.username || `Team ${rid}`;
+        return String(user?.metadata?.team_name || user?.display_name || user?.username || `Team ${rid}`).trim();
     }
     function inspect(rows, league) {
         if (!Array.isArray(rows) || !rows.length || rows.some(r => !r || r.roster_id == null || points(r) == null)) return null;
@@ -96,6 +96,27 @@
         const rows = [...stats.values()].map(t => ({ ...t })).sort((a, b) => (b.wins + b.ties / 2) - (a.wins + a.ties / 2) || b.pf - a.pf || id(a.rid).localeCompare(id(b.rid)));
         rows.forEach((r, i) => { const prev = rows[i - 1]; r.rank = prev && prev.wins + prev.ties / 2 === r.wins + r.ties / 2 && round(prev.pf) === round(r.pf) ? prev.rank : i + 1; });
         return rows;
+    }
+    // Front-page slots belong to distinct current stories, never archive facts.
+    function frontPage(stories, limit = 5) {
+        const subjects = new Set(), categories = new Set(), matchups = new Set(), texts = new Set();
+        return stories.filter(s => !s.documentary).slice().sort((a, b) => (b.weight || 40) - (a.weight || 40)).filter(s => {
+            const teamIds = (s.rosterIds || []).map(id);
+            const pair = (s.preview || s.kind === 'recap') && s.rosterIds?.length === 2 ? s.rosterIds.map(id).sort().join(':') : null;
+            const category = s.category || s.kind;
+            if (texts.has(s.text) || teamIds.some(teamId => subjects.has(teamId)) || (pair && matchups.has(pair)) || categories.has(category)) return false;
+            texts.add(s.text); categories.add(category);
+            teamIds.forEach(teamId => subjects.add(teamId));
+            if (pair) matchups.add(pair);
+            return true;
+        }).slice(0, limit);
+    }
+    function weeklyLookback(stories, editionKey) {
+        const archive = stories.filter(s => s.documentary).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        if (!archive.length) return null;
+        let hash = 0;
+        for (const char of String(editionKey)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+        return archive[hash % archive.length];
     }
     function build({ weeks = [], start = 1, end = 0, nameFor = rid => `Team ${rid}`, playerName = pid => `Player ${pid}`, headToHead = true, league = {}, priorSeasons = [], archiveComplete = false, board = null }) {
         const stories = [], records = [], games = [], stats = new Map(), runs = new Map(), scoreTotals = new Map();
@@ -262,9 +283,24 @@
                 : choose([`${rival.a} vs. ${rival.b}: the next chapter`, `${rival.a} and ${rival.b} renew their rivalry`, `Familiar opponents. Fresh stakes. ${rival.a} vs. ${rival.b}`], board.week, a.roster_id);
             if (Number(board.week) > completedThrough && Number(board.week) <= lastReg) previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: previewTitle, body: `${rival.a} ${winsA === winsB ? 'are level at' : winsA > winsB ? 'lead the recorded series' : 'trail the recorded series'} ${winsA}–${winsB}${ties ? '–' + ties : ''} across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.`, week: Number(board.week), season, rosterIds: rival.rosterIds, weight: 70, preview: true, metric: `${winsA}–${winsB}`, metricLabel: `recorded series · ${rival.a} / ${rival.b}` });
         });
+        // A newcomer check-in needs a verified preceding season and current results.
+        const preceding = priorSeasons.find(s => Number(s.league.season) === Number(season) - 1);
+        if (headToHead && archiveComplete && preceding?.league.rosters?.length && completedThrough === end && end >= start && end <= start + 3) {
+            const previousOwners = new Set(preceding.league.rosters.map(r => r.owner_id).filter(Boolean).map(id));
+            const arrivals = latestTable.filter(t => owner(league, t.rid) && !previousOwners.has(id(owner(league, t.rid))));
+            if (arrivals.length) {
+                const names = arrivals.map(t => nameFor(t.rid));
+                stories.push({ id: `newcomers:${season}:${end}`, kind: 'story', category: 'New faces', label: `WK ${end} · NEW FACES`, season, week: end,
+                    text: arrivals.length === 1 ? `Checking in on ${names[0]}` : 'New faces, first impressions',
+                    body: `${names.join(', ')} ${arrivals.length === 1 ? 'wasn’t' : 'weren’t'} on last season’s manager list. Through Week ${end}: ${arrivals.map(t => `${nameFor(t.rid)} at ${recordText(t)}`).join('; ')}. ${arrivals.length === 1 ? 'A new chapter in the league is underway.' : 'The new arrivals are starting to put their stamp on this season.'}`,
+                    rosterIds: arrivals.map(t => t.rid), weight: 74,
+                    related: [{ label: 'Manager continuity', text: `Compared verified owner accounts with the ${Number(season) - 1} league roster. A new team name alone does not count as a new manager. This does not claim these are first-ever appearances in the league.` }],
+                });
+            }
+        }
         const result = { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
             archive: { historicalHigh, historicalRecords, allSeasons: [...new Set([...priorSeasons.map(s => String(s.league.season)), ...(completedThrough >= start ? [season] : [])])].sort(), high: archiveHigh, margin: archiveMargin, records: archiveRecords, margins: archiveMargins, complete: archiveComplete, rulesChanged, seasons: [...new Set([...comparableSeasons, ...(completedThrough >= start ? [season] : [])])].sort(), priorCount: priorSeasons.length } };
         return root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor }) || result;
     }
-    root.WrWireStories = { build, loadArchive, signature, inspect, bounds, oldName };
+    root.WrWireStories = { build, loadArchive, signature, inspect, bounds, oldName, frontPage, weeklyLookback };
 })(typeof window !== 'undefined' ? window : globalThis);

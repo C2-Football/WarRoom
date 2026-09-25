@@ -32,6 +32,7 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
     }, [scope, revision]);
     const current = eligible.map(l => entries[l.league_id || l.id]).filter(Boolean);
     const stories = window.WrWirePortfolio.headlines(current, topic, leagueFilter);
+    const lookback = window.WrWirePortfolio.lookback(current, leagueFilter);
     const ready = current.filter(e => e.status !== 'loading').length;
     const changeTopic = value => { setTopic(value); setLimit(18); };
     const partial = current.filter(e => e.status === 'partial').length;
@@ -53,6 +54,7 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
             {!eligible.length && <p className="wr-journal-notice">Connect a Sleeper league to read its Wire coverage.</p>}
             {leagues.length > eligible.length && <p className="wr-journal-footnote">This edition covers connected Sleeper leagues. Other platforms are not included.</p>}
             <main className="wr-all-wire-stories">{stories.slice(0, phone ? 1 : limit).map(story)}{phone && coverage}{phone && stories.slice(1, limit).map((s, i) => story(s, i + 1))}</main>
+            {topic === 'all' && lookback && <section className="wr-wire-lookback" aria-label="This week’s lookback"><header><span>FROM THE ARCHIVE · {lookback.eventSeason}</span><h3>This week’s lookback</h3><p>One chapter from the past, separate from today’s headlines.</p></header>{story(lookback, 1)}</section>}
             {!stories.length && <p className="wr-journal-notice">{ready < eligible.length ? 'Gathering your headlines… Each league appears as its news arrives.' : 'No stories in this section yet. Try the front page or another league.'}</p>}
             {stories.length > limit && <button className="wr-all-wire-more" type="button" onClick={() => setLimit(n => n + 18)}>More stories · {stories.length - limit} remaining</button>}
             <footer className="wr-journal-footer"><strong>FROM EVERY LEAGUE YOU CALL HOME.</strong><p>Scores and rivalries stay within their own league. Completed older seasons are saved on this device and reused across visits. Current news is a snapshot; refresh to update it. Use a league’s Sources & coverage → Recheck older seasons for historical corrections.</p></footer>

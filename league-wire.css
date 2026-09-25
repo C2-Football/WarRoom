@@ -86,3 +86,10 @@
 @media(max-width:600px){.wr-nfl-games{grid-template-columns:minmax(0,1fr)}.wr-nfl-game{padding:16px}.wr-nfl-teams>div{font-size:1rem}.wr-nfl-box summary{font-size:.88rem}.wr-nfl-box table{font-size:.8rem}}
 .wr-nfl-game-title{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .wr-nfl-jump{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 24px}.wr-nfl-jump button{min-height:44px;padding:10px 14px;border:1px solid var(--rule);font-size:.8rem}.wr-nfl-week{scroll-margin-top:100px;outline-offset:4px}
+
+/* Archive features have their own weekly slot, outside the current headlines. */
+.wr-wire-lookback{grid-column:1/-1;border-top:3px solid var(--rule);padding-top:18px;margin-top:24px;min-width:0}
+.wr-wire-lookback>header{margin-bottom:18px}.wr-wire-lookback>header>span{font-size:.65rem;font-weight:700;letter-spacing:.08em;color:var(--accent)}
+.wr-wire-lookback>header h3{font:700 1.2rem var(--serif);margin:6px 0}.wr-wire-lookback>header p{font-size:.8rem;line-height:1.5;color:var(--muted)}
+.wr-wire-lookback>.wr-journal-story{display:grid;grid-template-columns:80px minmax(0,1fr);gap:16px}.wr-wire-lookback .wr-journal-art{aspect-ratio:1;margin:0}.wr-wire-lookback .wr-journal-story-copy{min-width:0}
+.wr-wire-portfolio .wr-wire-lookback{max-width:72ch}.wr-wire-lookback .wr-all-wire-story h3{font-size:24px}

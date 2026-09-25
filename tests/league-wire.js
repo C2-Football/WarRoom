@@ -153,3 +153,23 @@ assert(!nodes(tabTree).some(n => n.props['aria-label'] === 'Story week'), 'fanta
     await assert.rejects(NC.loadScoreboard(4, '2026', 2), /Invalid NFL scoreboard/);
     console.log('PASS NFL desk: quarter scores, leaders, week boundaries, missing data, UI states, caching and retries');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+const editorialApp = harness({ week: 3 });
+const underlyingBuild = editorialApp.engine.build;
+editorialApp.engine.build = opts => {
+    const result = underlyingBuild(opts);
+    result.stories.push({ id: 'archived-title', kind: 'story', category: 'Championship history', documentary: true, eventSeason: 2024, season: '2026', week: 2, label: '2024 · FROM THE ARCHIVE', text: 'Looking back: old champion', body: 'The 2024 championship.', rosterIds: [], weight: 999 });
+    return result;
+};
+editorialApp.setArchive({ key: 'test|2026|1|2', status: 'ready', weeks: weeks.slice(0, 2) });
+let editorialTree = editorialApp.render();
+nodes(editorialTree).find(n => n.props.className === 'wr-wire-brand').props.onClick();
+editorialTree = editorialApp.render();
+const sidebar = nodes(editorialTree).find(n => n.props.className === 'wr-journal-headlines');
+assert(sidebar && !text(sidebar).includes('old champion'), 'current headline rail excludes documentary facts');
+const retrospective = nodes(editorialTree).find(n => n.props['aria-label'] === 'This week’s lookback');
+assert(retrospective && text(retrospective).includes('old champion'), 'documentary feature has a separate labeled slot');
+nodes(editorialTree).find(n => n.type === 'button' && text(n) === 'Stories').props.onClick();
+editorialTree = editorialApp.render();
+assert(!text(editorialTree).includes('Looking back: old champion'), 'stories section remains current');
+console.log('PASS current-news UI: separate lookback, current-only headline rail and Stories section');

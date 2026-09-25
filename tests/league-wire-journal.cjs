@@ -90,3 +90,20 @@ assert(!build([w(1,130,100)], { end: 1, priorSeasons: [pastNineWins], archiveCom
     await assert.rejects(Journal.loadArchive({ league: rootInfo, fetcher, force: true, signal: abort.signal }), /interrupted/);
     console.log('PASS Wire journal: owner continuity, revenge, streak resets, median results, playoff boundaries, milestones, rule changes, history caching, partial data and cancellation');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+const candidates = [
+    { id: 'archive', documentary: true, weight: 999, text: 'An old title' },
+    { id: 'lead', kind: 'story', category: 'Power shift', rosterIds: [1], weight: 82, text: 'Grannies go first' },
+    { id: 'repeat', kind: 'story', category: 'Scoring crown', rosterIds: [1], weight: 45, text: 'Grannies lead scoring' },
+    { id: 'rivalry', kind: 'story', category: 'Rivalry watch', rosterIds: [2, 3], weight: 70, preview: true, text: 'A rivalry' },
+    { id: 'duplicate', kind: 'story', category: 'Other preview', rosterIds: [3, 2], weight: 60, preview: true, text: 'Same matchup again' },
+];
+assert.equal(Journal.frontPage(candidates).map(s => s.id).join(','), 'lead,rivalry');
+assert.equal(Journal.weeklyLookback(candidates, 'L2026:2').id, 'archive');
+assert.equal(Journal.weeklyLookback(candidates.slice().reverse(), 'L2026:2').id, 'archive');
+const newcomerLeague = league(2026, { rosters: [{ roster_id: 1, owner_id: 'new' }, { roster_id: 2, owner_id: 'b' }] });
+const arrivals = build([w(1, 100, 90), w(2, 100, 90)], { end: 2, league: newcomerLeague, priorSeasons: [earlier], archiveComplete: true });
+assert(arrivals.stories.some(s => s.category === 'New faces' && /2–0/.test(s.body)));
+assert(!build([w(1, 100, 90)], { end: 1, league: newcomerLeague, priorSeasons: [earlier], archiveComplete: false }).stories.some(s => s.category === 'New faces'));
+assert(!build([w(1, 100, 90)], { end: 1, priorSeasons: [earlier], archiveComplete: true, nameFor: () => 'Rebranded team' }).stories.some(s => s.category === 'New faces'), 'name changes are not new managers');
+console.log('PASS editorial selection: current-only headlines, distinct subjects, stable weekly lookback and verified newcomers');

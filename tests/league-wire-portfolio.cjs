@@ -18,6 +18,13 @@ const fetcher = async url => { calls.push(url); if (url.includes('/state/')) ret
     assert.equal(new Set(headlines.slice(0, 3).map(s => s.league.id)).size, 3, 'front page gives each league a turn');
     const recaps = api.headlines(Object.values(state), 'recaps', 'b');
     assert(recaps.length); assert(recaps.every(s => s.league.id === 'b' && s.kind === 'recap'));
+    const archived = { ...state.a, stories: state.a.stories.concat({ id: 'old-title', text: 'Old title', documentary: true, eventSeason: 2024, weight: 999 }) };
+    assert(!api.headlines([archived]).some(s => s.documentary), 'archive facts cannot compete for current multi-league headlines');
+    assert(api.headlines([archived], 'history').some(s => s.id === 'old-title'));
+    assert.equal(api.lookback([archived]).id, 'old-title');
+    assert.equal(api.lookback([archived], 'b'), null, 'lookbacks respect the league filter');
+    assert.equal(api.headlines([{ ...state.a, historical: true }]).length, 0, 'past connected seasons are not current headlines');
+    assert(api.headlines([{ ...state.a, historical: true }], 'history').every(s => s.documentary), 'past editions stay available as labeled history');
     const before = calls.length;
     await api.load({ leagues, accountId: 'user1', fetcher, onUpdate() {} });
     assert.equal(calls.length - before, 1, 'warm combined edition only checks the calendar');

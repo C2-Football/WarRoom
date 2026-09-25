@@ -31,7 +31,7 @@
                         board, nameFor, headToHead: !root.App?.Chopped?.isChopped?.(league) && league.type !== 'chopped' && league.leagueSkin?.type !== 'chopped',
                         playerName: pid => root.S?.players?.[pid]?.full_name || 'A starting player' });
                     const stories = edition.stories.filter(s => s.documentary || s.week === span.end).concat(edition.previews);
-                    const value = { league, status, error, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
+                    const value = { league, historical: Number(league.season) < Number(nfl.season), status, error, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
                     onUpdate(value); return value;
                 };
                 publish('loading');
@@ -65,13 +65,20 @@
     }
     // Round-robin each league's best current story before any league's second.
     function headlines(entries, topic = 'all', leagueId = 'all') {
-        const queues = entries.filter(e => leagueId === 'all' || String(e.league.league_id || e.league.id) === leagueId).map(entry => ({ entry,
-            stories: entry.stories.filter(s => topic === 'all' || (topic === 'history' ? s.documentary : topic === 'recaps' ? s.kind === 'recap' : s.kind === 'record'))
-                .slice().sort((a, b) => Number(!!a.documentary) - Number(!!b.documentary) || (b.weight || 0) - (a.weight || 0) || (b.eventSeason || 0) - (a.eventSeason || 0)),
-        }));
+        const queues = entries.filter(e => leagueId === 'all' || String(e.league.league_id || e.league.id) === leagueId).map(entry => {
+            const stories = entry.stories.filter(s => topic === 'history' ? (s.documentary || entry.historical) : !entry.historical && !s.documentary && (topic === 'all' || (topic === 'recaps' ? s.kind === 'recap' : s.kind === 'record')))
+                .slice().sort((a, b) => (b.weight || 0) - (a.weight || 0) || (b.eventSeason || 0) - (a.eventSeason || 0));
+            return { entry, stories: topic === 'all' ? root.WrWireStories.frontPage(stories) : stories };
+        });
         const out = [];
-        for (let i = 0; queues.some(q => q.stories.length > i); i++) queues.forEach(q => { if (q.stories[i]) out.push({ ...q.stories[i], league: q.entry.league }); });
+        for (let i = 0; queues.some(q => q.stories.length > i); i++) queues.forEach(q => { if (q.stories[i]) out.push({ ...q.stories[i], ...(q.entry.historical && !q.stories[i].documentary ? { documentary: true, eventSeason: Number(q.entry.league.season), label: `FROM THE ARCHIVE · ${q.entry.league.season} · ${q.stories[i].label}` } : {}), league: q.entry.league }); });
         return out;
     }
-    root.WrWirePortfolio = { load, period, headlines };
+    function lookback(entries, leagueId = 'all') {
+        const scoped = entries.filter(e => leagueId === 'all' || String(e.league.league_id || e.league.id) === leagueId);
+        const stories = scoped.flatMap(e => e.stories.filter(s => s.documentary).map(s => ({ ...s, league: e.league })));
+        const key = scoped.map(e => `${keyFor(e.league)}:${e.week}`).sort().join(',');
+        return root.WrWireStories.weeklyLookback(stories, key);
+    }
+    root.WrWirePortfolio = { load, period, headlines, lookback };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -455,7 +455,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     React.useEffect(() => {
         if (expanded) dialogRef.current?.showModal?.();
     }, [expanded]);
-    const visible = items.filter(it => topic === 'all' || (topic === 'history' ? it.documentary : topic === 'stories' ? ['story', 'record'].includes(it.kind) : topic === 'recaps' ? it.kind === 'recap' : topic === 'records' ? it.kind === 'record' : topic === 'rivalries' ? it.category === 'Rivalry watch' || it.category === 'Revenge game' : topic === 'nfl' ? it.kind.startsWith('nfl') : topic === 'trends' ? it.kind === 'trend' : !it.kind.startsWith('nfl') && it.kind !== 'trend'));
+    const visible = items.filter(it => (topic === 'history' || !it.documentary) && (topic === 'all' || (topic === 'history' ? it.documentary : topic === 'stories' ? ['story', 'record'].includes(it.kind) : topic === 'recaps' ? it.kind === 'recap' : topic === 'records' ? it.kind === 'record' : topic === 'rivalries' ? it.category === 'Rivalry watch' || it.category === 'Revenge game' : topic === 'nfl' ? it.kind.startsWith('nfl') : topic === 'trends' ? it.kind === 'trend' : !it.kind.startsWith('nfl') && it.kind !== 'trend')));
     const currentIndex = visible.length ? index % visible.length : 0;
     React.useEffect(() => {
         if (isPhone || paused || hovered || focused || expanded || reduced || visible.length < 2) return undefined;
@@ -471,11 +471,8 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         .filter(it => teamFilter === 'all' || (it.rosterIds || []).some(rid => sameId(rid, teamFilter)))
         .sort((a, b) => (topic === 'history' ? (b.eventSeason || 0) - (a.eventSeason || 0) : 0) || (editionWeek === 'all' ? (b.week || 0) - (a.week || 0) : 0) || (b.weight || 40) - (a.weight || 40));
     // A front page is edited, not a dump of every generated headline.
-    const editorial = topic === 'all' ? (() => {
-        const seen = new Set(), firsts = [], rest = [];
-        allEditorial.forEach(it => { const category = it.category || it.kind; if (seen.has(category)) rest.push(it); else { seen.add(category); firsts.push(it); } });
-        return firsts.concat(rest).slice(0, 8);
-    })() : allEditorial;
+    const editorial = topic === 'all' ? window.WrWireStories.frontPage(allEditorial) : allEditorial;
+    const lookback = window.WrWireStories.weeklyLookback(edition.stories.filter(it => teamFilter === 'all' || (it.rosterIds || []).some(rid => sameId(rid, teamFilter))), `${leagueId}:${editionLeague.season}:${storyThrough}`);
     const liveItems = visible.filter(it => !['story', 'record', 'recap'].includes(it.kind));
     const lead = editorial[0];
     const fullCoverage = past.key === pastKey && past.complete && (historicalEdition || archiveReady) && edition.completedThrough === storyThrough;
@@ -563,10 +560,11 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                 {topic === 'nfl' ? <WrNflDesk desk={nflDesk} leaders={nflLeaders} /> : <div className="wr-journal-layout"><main className={'wr-journal-main' + (cards.length ? '' : ' is-single')}>
                     {lead ? storyCard(lead, true) : <article className="wr-journal-empty"><span>THE NEXT CHAPTER</span><h3>{edition.stories.length || teamFilter !== 'all' ? 'A quiet edition here.' : 'The first chapter is still being written.'}</h3><p>{edition.stories.length || teamFilter !== 'all' ? 'Try another section, team, or week to follow a different story.' : 'The schedule is set. Rivalries are waiting. Recaps arrive after the first completed regular-season week.'}</p></article>}
                     {cards.length > 0 && <div className="wr-journal-grid">{cards.map(it => storyCard(it))}</div>}
+                    {topic === 'all' && lookback && <section className="wr-wire-lookback" aria-label="This week’s lookback"><header><span>FROM THE ARCHIVE · {lookback.eventSeason}</span><h3>This week’s lookback</h3><p>One chapter from the past. Current stories lead the edition above.</p></header>{storyCard(lookback)}</section>}
                     {allEditorial.length > editorial.length && <div className="wr-journal-more"><span>{allEditorial.length - editorial.length} more headlines in this edition</span><button type="button" onClick={() => setTopic('stories')}>Read all stories →</button><button type="button" onClick={() => setTopic('recaps')}>Every game recap →</button></div>}
                     {liveItems.length > 0 && <details className="wr-journal-live" open={['nfl', 'trends', 'league'].includes(topic)}><summary>{topic === 'nfl' ? 'Around the NFL' : topic === 'trends' ? 'Player trends' : 'The live desk'} · {liveItems.length} updates</summary><ul>{liveItems.map((it, i) => <li key={it.label + ':' + i}><span className="wr-wire-tag">{it.label}</span>{it.text}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</li>)}</ul></details>}
                 </main><aside className="wr-journal-rail" aria-label="League record book and rivalries">
-                    {editorial.length > 0 && <section className="wr-journal-headlines"><h3>Headlines</h3><ul>{editorial.slice(0, 7).map(it => <li key={it.id || it.text}><button type="button" onClick={() => jumpToStory(it)}>{it.text}</button></li>)}</ul></section>}
+                    {editorial.length > 0 && <section className="wr-journal-headlines"><h3>{topic === 'history' ? 'From the archive' : 'Headlines'}</h3><ul>{editorial.slice(0, 7).map(it => <li key={it.id || it.text}><button type="button" onClick={() => jumpToStory(it)}>{it.text}</button></li>)}</ul></section>}
                     <details className="wr-journal-rail-section" open={topic === 'records'}><summary>The record book <span>Regular season</span></summary>
                         {recordCard('Season scoring high', edition.high, edition.records, 'points · ' + editionLeague.season)}
                         {recordCard(archiveTitle, edition.archive.high, edition.archive.records, 'scoring high · ' + (edition.archive.seasons.join(' / ') || 'awaiting scores'))}

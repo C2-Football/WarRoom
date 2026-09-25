@@ -49,3 +49,11 @@ These are season-specific raw scores, not normalized cross-era rankings. The ori
 `scripts/import-wire-chronicles.py` generates the bundled data from the local read-only cell captures and reconciliation snapshots in `output/league-histories/`. An alternate input directory may be passed as its first argument. Original file hashes are retained in the local manifest. Workbook cell coordinates and exact Sleeper endpoint references travel with each published fact; owner-binding evidence is retained in the collection. Raw workbooks and the full raw cell archives are not deployed.
 
 The browser-facing enrichment is a pure optional layer in `js/shared/league-wire-chronicles.js`, invoked by `league-wire-journal.js`. It does not mutate shared facts or base record totals. `tests/league-wire-chronicles.cjs` covers cross-league isolation, verified renewal IDs, replacement owners, scoring overlap, preserved original scores, title supplements, edition cutoffs and matchup/recap context. It runs within `npm run test:live-scores`.
+
+## Current-news editorial policy
+
+The front page and ticker exclude documentary stories. The front page selects up to five distinct current stories per league, avoiding repeated lead subjects, categories, and matchup previews. Full current coverage remains in Stories/Recaps; the History section retains the documentary archive.
+
+One separately labeled “This week’s lookback” is selected deterministically per edition week. It stays stable on reload, respects league/team filters, and never occupies a current headline slot. This is an in-product weekly editorial selection, not a scheduled notification.
+
+Title-watch stories join current completed records to documented titles by verified owner identity within the league. They cover title defenses, attempts at another run, and groups chasing another documented championship. They do not claim first-ever milestones when the championship archive has gaps. Newcomer check-ins require complete linked history and the immediately preceding season’s manager list, appear during the first four completed weeks, and do not equate a renamed team with a new owner. Current standings are observations, not projected championship odds; no season forecast is invented.
