@@ -18,7 +18,7 @@ function test(name, fn) {
 
 const LEAGUE = {
   league_id: 'CHOP', name: 'Shootout', users: [],
-  settings: { type: 3, last_chopped_leg: 6, waiver_budget: 10000 },
+  settings: { type: 3, num_teams: 7, start_week: 1, last_chopped_leg: 0, waiver_budget: 10000 },
 };
 const REDRAFT = { league_id: 'RD', settings: { type: 0, playoff_week_start: 15 } };
 
@@ -40,6 +40,23 @@ test('returns null for a non-chopped league — this simulator has no business t
 });
 test('returns null with no rosters', () => {
   assert.strictEqual(ChopOdds.simulate({ league: LEAGUE, rosters: [] }), null);
+});
+
+test('live week 3: last_chopped_leg is the completed chop, not the season boundary', () => {
+  const league = {
+    league_id: 'shootout-week-3', total_rosters: 18,
+    settings: { type: 3, num_teams: 18, start_week: 1, leg: 3, last_scored_leg: 2, last_chopped_leg: 2 },
+  };
+  const field = rosters(Array.from({ length: 18 }, (_, i) => i + 1), { 16: 2, 17: 1 });
+  const ledger = ledgerOf(Object.fromEntries(field.map(r => [r.roster_id, [75 + r.roster_id * 3, 65 + r.roster_id * 4]])));
+  const sim = ChopOdds.simulate({ league, rosters: field, ledger, week: 3, sims: 4000 });
+  assert.strictEqual(sim.aliveCount, 16);
+  assert.deepStrictEqual(sim.weeks, Array.from({ length: 15 }, (_, i) => i + 3));
+  const alive = sim.rows.filter(r => r.alive);
+  assert.ok(Math.abs(alive.reduce((sum, r) => sum + r.chopThisWeekPct, 0) - 100) < 1);
+  assert.ok(Math.abs(alive.reduce((sum, r) => sum + r.winPct, 0) - 100) < 1);
+  assert.ok(alive.every(r => r.expWeeksLeft >= 1));
+  assert.ok(sim.rows.filter(r => !r.alive).every(r => r.expWeeksLeft === 0));
 });
 
 // ── The core claim: the weakest team is the likeliest to be chopped ─
@@ -152,17 +169,33 @@ test('survivalHorizon prefers the simulated horizon, falls back to the calendar'
   assert.strictEqual(ChopOdds.survivalHorizon(null, 12), 12, 'no sim → calendar');
   assert.strictEqual(ChopOdds.survivalHorizon({ me: null }, 9), 9);
 });
-test('the survival curve decays and is capped at the last chopped leg', () => {
+test('the survival curve decays and is capped at the final scheduled chop', () => {
   const sim = ChopOdds.simulate({
     league: LEAGUE, rosters: rosters([1, 2, 3, 4]), ledger: ledgerOf(SPEC), week: 2, myRosterId: 1, sims: 2000,
   });
   const curve = sim.me.curve;
-  assert.deepStrictEqual(curve.map(c => c.week), [2, 3, 4, 5, 6], 'runs to last_chopped_leg 6');
+  assert.deepStrictEqual(curve.map(c => c.week), [2, 3, 4, 5, 6], 'seven starting teams need six chops');
   assert.strictEqual(curve[0].alivePct, 100, 'alive right now by definition');
   for (let i = 1; i < curve.length; i++) {
     assert.ok(curve[i].alivePct <= curve[i - 1].alivePct, 'survival never increases');
   }
   assert.ok(curve[curve.length - 1].alivePct < curve[0].alivePct, 'and it does decay');
+});
+
+test('late-start leagues begin at their first scheduled week and stop at the NFL boundary', () => {
+  const league = { settings: { type: 3, num_teams: 4, start_week: 17, last_chopped_leg: 0 } };
+  const sim = ChopOdds.simulate({ league, rosters: rosters([1, 2, 3, 4]), week: 16, sims: 1000 });
+  assert.deepStrictEqual(sim.weeks, [17, 18]);
+  assert.strictEqual(sim.finalChopWeek, 18);
+  assert.strictEqual(sim.rows.reduce((sum, r) => sum + r.winPct, 0), 0, 'two chops cannot crown a four-team field');
+});
+
+test('a just-completed chop is not simulated again before the displayed week rolls over', () => {
+  const league = { settings: { type: 3, num_teams: 4, last_chopped_leg: 1 } };
+  const sim = ChopOdds.simulate({ league, rosters: rosters([1, 2, 3, 4], { 1: 1 }), week: 1, sims: 1000 });
+  assert.deepStrictEqual(sim.weeks, [2, 3]);
+  assert.strictEqual(sim.lastChoppedLeg, 1);
+  assert.strictEqual(sim.finalChopWeek, 3);
 });
 
 // ── Preseason ───────────────────────────────────────────────────────

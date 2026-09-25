@@ -4,7 +4,7 @@
 //
 // Fixtures mirror a REAL league verified against the Sleeper API: 18 teams,
 // $10,000 FAAB, trades disabled, playoff_teams null / playoff_week_start 0,
-// last_chopped_leg 17, one chop per week, roster.settings.eliminated carrying
+// last_chopped_leg tracks completed chops, roster.settings.eliminated carrying
 // the week each team went out.
 'use strict';
 
@@ -23,7 +23,7 @@ const CHOP_LEAGUE = {
   league_id: 'CHOP', name: '🪓 Shootout', season: '2026', total_rosters: 18,
   roster_positions: ['QB', 'RB', 'WR', 'FLEX', 'FLEX', 'FLEX', 'FLEX'],
   scoring_settings: { rec: 0.5, rec_yd: 0.1, rec_td: 6 },
-  settings: { type: 3, last_chopped_leg: 17, waiver_budget: 10000, disable_trades: 1, playoff_week_start: 0, leg: 6, max_keepers: 1 },
+  settings: { type: 3, last_chopped_leg: 3, waiver_budget: 10000, disable_trades: 1, playoff_week_start: 0, leg: 6, max_keepers: 1 },
 };
 const REDRAFT_LEAGUE = {
   league_id: 'RD', name: 'Normal', total_rosters: 12,
@@ -53,8 +53,20 @@ test('isChopped: honors a normalized/overridden type string', () => {
   assert.strictEqual(Chopped.isChopped({ type: 'dynasty', settings: {} }), false);
 });
 test('lastChoppedLeg: exposed, null when absent', () => {
-  assert.strictEqual(Chopped.lastChoppedLeg(CHOP_LEAGUE), 17);
+  assert.strictEqual(Chopped.lastChoppedLeg(CHOP_LEAGUE), 3);
   assert.strictEqual(Chopped.lastChoppedLeg(REDRAFT_LEAGUE), null);
+});
+test('finalChopWeek: original field size and start week determine the horizon', () => {
+  assert.strictEqual(Chopped.finalChopWeek(CHOP_LEAGUE), 17);
+  assert.strictEqual(Chopped.finalChopWeek({ settings: { num_teams: 8, start_week: 3, last_chopped_leg: 4 } }), 9);
+  assert.strictEqual(Chopped.finalChopWeek({ settings: { num_teams: 18, start_week: 3 } }), 18, 'NFL calendar caps late starts');
+  assert.strictEqual(Chopped.finalChopWeek({}, ROSTERS), 4, 'fallback counts eliminated rosters too');
+});
+test('state: live week 3 still has a next chop after week 2 completed', () => {
+  const league = { ...CHOP_LEAGUE, settings: { ...CHOP_LEAGUE.settings, last_chopped_leg: 2 } };
+  assert.strictEqual(Chopped.state({ league, rosters: ROSTERS, week: 3 }).nextChopWeek, 3);
+  assert.strictEqual(Chopped.state({ league, rosters: ROSTERS, week: 2 }).nextChopWeek, null, 'completed chop is not upcoming');
+  assert.strictEqual(Chopped.state({ league, rosters: [ROSTERS[3]], week: 3 }).nextChopWeek, null, 'winner has no next chop');
 });
 
 // ── Elimination ─────────────────────────────────────────────────────
@@ -87,7 +99,8 @@ test('state: full picture with the chop order sorted by week', () => {
   assert.strictEqual(s.aliveCount, 2);
   assert.strictEqual(s.choppedCount, 3);
   assert.deepStrictEqual(s.order.map(o => o.week), [1, 2, 3]);
-  assert.strictEqual(s.lastChoppedLeg, 17);
+  assert.strictEqual(s.lastChoppedLeg, 3);
+  assert.strictEqual(s.finalChopWeek, 17);
   assert.strictEqual(s.nextChopWeek, 6, 'chops still running');
   assert.strictEqual(s.survivorRosterId, null, 'two alive — nobody has won');
 });
@@ -99,7 +112,7 @@ test('state: crowns a survivor only when everyone else is chopped', () => {
   assert.strictEqual(s.aliveCount, 1);
   assert.strictEqual(s.survivorRosterId, 5);
 });
-test('state: past the last chopped leg there is no next chop', () => {
+test('state: past the final scheduled chop there is no next chop', () => {
   const s = Chopped.state({ league: CHOP_LEAGUE, rosters: ROSTERS, week: 18 });
   assert.strictEqual(s.nextChopWeek, null);
 });

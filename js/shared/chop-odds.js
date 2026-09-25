@@ -6,7 +6,7 @@
 //     → { rows: [{ rosterId, name, alive, eliminatedWeek,
 //                  chopThisWeekPct, survivePct, winPct,
 //                  expWeeksLeft, expChopWeek, curve: [{week, alivePct}] }],
-//         me, aliveCount, lastChoppedLeg, weeks, simCount, basis }
+//         me, aliveCount, lastChoppedLeg, finalChopWeek, weeks, simCount, basis }
 //
 // The model, stated plainly:
 //  · Each LIVING team's weekly score ~ Normal(mean, sd), fitted from its own
@@ -15,7 +15,7 @@
 //    supplied projected mean (seedMeans) — in the preseason that is the ONLY
 //    signal there is, and pretending otherwise would make every team identical.
 //  · Each simulated week: draw a score for every living team, the LOWEST is
-//    chopped. Repeat to lastChoppedLeg (or until one team remains).
+//    chopped. Repeat to finalChopWeek (or until one team remains).
 //  · Nothing else. No schedule, no matchups — there are none in this format.
 //
 // Why this and not playoff odds: chopped leagues have no bracket, so the only
@@ -120,10 +120,12 @@
         if (!rosters.length) return null;
 
         const week = Number(opts.week) || 1;
-        const lastLeg = Chopped.lastChoppedLeg(league) || 17;
+        const lastLeg = Chopped.finalChopWeek(league, rosters);
         // Weeks still to be played, inclusive of the current one.
         const weeks = [];
-        for (let w = week; w <= lastLeg; w++) weeks.push(w);
+        const firstWeek = Math.max(week, Number((league.settings || {}).start_week) || 1,
+            (Chopped.lastChoppedLeg(league) || 0) + 1);
+        for (let w = firstWeek; w <= lastLeg; w++) weeks.push(w);
 
         const living = rosters.filter(r => !Chopped.isEliminated(r));
         const ledgerRows = (opts.ledger && opts.ledger.rows) || [];
@@ -200,7 +202,7 @@
                 alive: true,
                 eliminatedWeek: null,
                 chopThisWeekPct: pct(chopThisWeek[id]),
-                // P(never chopped through the last chopped leg)
+                // P(never chopped through the final scheduled chop)
                 survivePct: pct(survived),
                 winPct: pct(wins[id]),
                 expWeeksLeft: Math.round((sumWeeksLeft[id] / sims) * 10) / 10,
@@ -219,7 +221,8 @@
             rows: out,
             me: myId ? out.find(r => String(r.rosterId) === myId) || null : null,
             aliveCount: n,
-            lastChoppedLeg: lastLeg,
+            lastChoppedLeg: Chopped.lastChoppedLeg(league),
+            finalChopWeek: lastLeg,
             weeks,
             simCount: sims,
             // 'played' once anybody has real scores; 'projected' preseason.

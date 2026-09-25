@@ -9,7 +9,7 @@
 //
 // Sleeper marks this natively and we read it rather than infer it:
 //   league.settings.type            3
-//   league.settings.last_chopped_leg  last week a chop happens (e.g. 17)
+//   league.settings.last_chopped_leg  most recently completed chop (not the finale)
 //   league.settings.leg / last_scored_leg   current / last scored week
 //   roster.settings.eliminated      THE WEEK that roster was chopped (absent
 //                                   while alive) — verified against a
@@ -44,6 +44,17 @@
     function lastChoppedLeg(league) {
         const n = Number(settingsOf(league).last_chopped_leg);
         return n > 0 ? n : null;
+    }
+
+    // One elimination per week needs N - 1 weeks from the league's start.
+    // Keep the original field size, including eliminated rosters. Sleeper's
+    // last_chopped_leg advances AFTER each chop and cannot bound the future.
+    function finalChopWeek(league, rosters) {
+        const settings = settingsOf(league);
+        const start = Math.max(1, Number(settings.start_week) || 1);
+        const teams = Number(league && league.total_rosters) || Number(settings.num_teams)
+            || (rosters || (league && league.rosters) || []).length || 18;
+        return Math.min(18, start + Math.max(1, teams - 1) - 1);
     }
 
     // The week this roster was chopped, or null while it's alive.
@@ -89,19 +100,23 @@
             choppedCount: order.length,
             order,
             lastChoppedLeg: lastChoppedLeg(league),
+            finalChopWeek: finalChopWeek(league, rosters),
             // Only a finished league has a survivor; mid-season "1 alive" can't
             // happen, but guard anyway rather than crowning someone early.
             survivorRosterId: (chopped && alive.length === 1 && order.length === (rosters || []).length - 1)
                 ? alive[0].roster_id : null,
             // Next chop lands on the current week while the format is still
-            // executing; null once the last chopped leg has passed.
-            nextChopWeek: (chopped && week && lastChoppedLeg(league) && week <= lastChoppedLeg(league)) ? week : null,
+            // executing; a completed chop never terminates a living field.
+            nextChopWeek: (chopped && alive.length > 1 && week
+                && week >= (Number(settingsOf(league).start_week) || 1)
+                && week > (lastChoppedLeg(league) || 0)
+                && week <= finalChopWeek(league, rosters)) ? week : null,
         };
     }
 
     const api = {
         CHOPPED_TYPE,
-        isChopped, lastChoppedLeg,
+        isChopped, lastChoppedLeg, finalChopWeek,
         eliminatedWeek, isEliminated, isAliveInWeek,
         aliveRosters, eliminatedRosters,
         state,
