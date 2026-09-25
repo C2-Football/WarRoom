@@ -49,6 +49,6 @@ assert.match(rendered, /Missing Starter/);
 assert.match(rendered, /0.00/);
 assert.match(rendered, /-2.50/);
 assert.match(rendered, /Proj/);
-assert.match(rendered, /not an original pregame forecast/);
+assert.match(rendered, /Weekly projections remain estimates/);
 assert.doesNotMatch(rendered, /Player other/);
 console.log('PASS lineup live scoring: kickoff locks, schedule aliases, and missing-projection scoring render');

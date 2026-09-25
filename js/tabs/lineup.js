@@ -603,6 +603,20 @@ function LineupTab({
         : liveScores.status === 'loading' ? 'Loading scores'
         : !liveScores.supported ? 'Scoring unavailable'
         : weekStarted ? 'Actual points' : 'Submitted lineup · actual points';
+    const trackingLineup = weekStarted || (liveTotal != null && liveTotal !== 0);
+    // The existing Game Day lineup is the single home for planning and scores.
+    function LineupLiveStatus({ pid }) {
+        if (!trackingLineup || !pid) return null;
+        const state = gameState(pid);
+        if (state === 'upcoming') return <span style={{ display: 'block', color: SILVER, fontSize: '0.75rem', marginTop: '4px' }}>Upcoming</span>;
+        const started = ['live', 'final', 'locked'].includes(state);
+        const submitted = platformStarters.map(String).includes(String(pid));
+        const actual = submitted && Live && liveRow ? Live.playerPoints(liveRow, pid) : null;
+        const label = state === 'final' ? 'Final' : state === 'live' ? 'Live' : state === 'locked' ? 'Kickoff' : 'Status unverified';
+        return <span style={{ display: 'block', color: state === 'live' ? GREEN : SILVER, fontSize: '0.75rem', marginTop: '4px' }}>
+            {label}{started && submitted ? ' · ' + (Number.isFinite(actual) ? actual.toFixed(2) : '—') + ' pts' : ''}{started ? ' · Locked' : ''}
+        </span>;
+    }
     const mobileScoreboard = (
         <section className="gd-scoreboard" aria-label="Week matchup score">
             <div className="gd-eyebrow">Week {liveWeek} · {mobileScoreStatus}</div>
@@ -620,7 +634,7 @@ function LineupTab({
         <details className="gd-disclosure">
             <summary>Scoring &amp; lineup rules</summary>
             <div className="gd-disclosure-body">
-                <p>Actual points follow your submitted lineup. Saved projections stay fixed in this browser: Pregame means captured before kickoff; First-view means first captured after kickoff, not an original pregame forecast. A dash means unavailable.</p>
+                <p>Actual points follow your submitted lineup. Weekly projections remain estimates. A dash means unavailable.</p>
                 <p>Scores refresh every 30 seconds while open; provider updates can lag. Injury tags are periodic updates, not instant alerts.</p>
                 <p>A player whose game has started cannot normally be replaced. Check unstarted bench options and confirm eligibility on your league platform.</p>
                 {!savedForecasts.persistent && Object.keys(savedForecasts.players).length ? <p>Browser storage is unavailable; projections are saved for this visit only.</p> : null}
@@ -706,9 +720,10 @@ function LineupTab({
         return (
             <div style={{ padding: isPhone ? '14px 12px' : '20px 16px', color: SILVER, maxWidth: '1240px', margin: '0 auto' }}>
 
+                {trackingLineup ? mobileScoreboard : null}
                 <div style={{ padding: '32px 12px', textAlign: 'center', maxWidth: '520px', margin: '0 auto' }}>
                 <div style={{ fontSize: '1.1rem', color: GOLD, fontWeight: 600, marginBottom: '10px', letterSpacing: '0.04em' }}>{isPhone ? 'Projections unavailable' : 'LINEUP COMMAND CENTER'}</div>
-                <div>{isPhone ? 'Follow live scores in Roster. Lineup planning will appear when weekly projections load.' : "No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings."}</div>
+                <div>{isPhone ? 'Lineup planning will appear when weekly projections load.' : "No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings."}</div>
                 </div>
             </div>
         );
@@ -774,6 +789,7 @@ function LineupTab({
                 {opp && opp.abbr ? <span style={{ color: SILVER, fontSize: '0.66rem', marginLeft: '6px', opacity: 0.85 }}>{opp.home ? 'vs ' : '@ '}{opp.abbr}</span> : null}
                 {wxTag(weather)}
                 <LineupInjuryBadge status={status} />
+                <LineupLiveStatus pid={pid} />
             </span>
             <span style={{ textAlign: 'right', ...(pro && pts ? { cursor: 'pointer' } : {}) }}
                 title={pro && pts ? 'Why this number — tap for the projection ledger' : undefined}
@@ -1218,7 +1234,7 @@ function LineupTab({
             const tag = [slotLabel, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null].filter(Boolean).join(' · ');
             const fs = formOf(pid);
             const atRisk = !!status || (proj && proj.available === false);
-            return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} injuryStatus={status} tag={tag}
+            return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} injuryStatus={status} tag={<>{tag}<LineupLiveStatus pid={pid} /></>}
                 slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(fs?.rollingPPG) ? fs.rollingPPG.toFixed(1) : '—' }]}
                 accent={open ? 'gold' : atRisk ? 'risk' : undefined}
                 onClick={() => setOpenSlot(open ? null : sl.idx)} />;
@@ -1252,7 +1268,7 @@ function LineupTab({
                 <div className="gd-eyebrow">Week {liveWeek} · Local lineup plan</div>
                 <h2>{!optimizerAvailable ? 'Review your lineup' : !formComplete ? 'More game history needed' : missingPlanForm ? 'Some averages are missing' : planUnavailable ? 'Replace unavailable starters' : pro ? isOptimal ? 'Your strongest ' + formWinLabel + ' lineup' : '+' + benchPts.toFixed(1) + ' ' + formWinLabel + ' PPG available' : 'Check your starters'}</h2>
                 <p>{!optimizerAvailable ? 'Whole-lineup optimization is paused while games are underway or kickoff status is unverified.' : !formComplete || missingPlanForm ? formHelp : planUnavailable ? 'Auto-fill replaces unavailable starters using the selected rolling average.' : pro ? isOptimal ? 'No improvement in ' + formWinLabel + ' PPG from a swap.' : swapFacts : 'Tap a player in your plan to compare eligible options.'}</p>
-                {pro && canOptimize && !isOptimal ? <button type="button" className="gd-primary" onClick={() => { applyOptimalWithSummary(); }}>Use optimal in my plan</button> : <button type="button" className="gd-primary" onClick={() => setActiveTab?.('myteam')}>Open roster &amp; live scores</button>}
+                {pro && canOptimize && !isOptimal ? <button type="button" className="gd-primary" onClick={() => { applyOptimalWithSummary(); }}>Use optimal in my plan</button> : <a className="gd-primary" href="#gameday-starting-lineup" onClick={event => { event.preventDefault(); document.getElementById('gameday-starting-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View starting lineup</a>}
             </section>
         );
 
@@ -1281,11 +1297,13 @@ function LineupTab({
                 <div className="roster-lineup-form" aria-label="Optimizer form window">{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>
                 <p className="gd-muted">{formHelp}</p>
                 {matchupPanel}
-                <section className="gd-working-lineup" aria-label="Local lineup plan">
-                    <div className="gd-list-heading"><h2>My lineup plan</h2><span>{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
+                <section id="gameday-starting-lineup" className="gd-working-lineup" aria-label="Local lineup plan">
+                    <div className="gd-list-heading"><h2>Starting lineup</h2><span>{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
                     <p className="gd-muted">{isMfl ? 'Review changes here, then submit to MFL.' : 'Plan here. Set your final starters on your league platform.'}</p>
                     {!optimizerAvailable ? <p className="gd-muted">Only players with verified upcoming games can be moved.</p> : null}
+                    {trackingLineup ? mobileScoreboard : null}
                     <div className="gd-player-list">{dispSlots.map(slotRow)}</div>
+                    {trackingLineup ? mobileScoreHelp : null}
                     {dirty || isMfl ? <button type="button" className="gd-secondary" onClick={() => setApplyOpen(true)}>Review planned changes</button> : null}
                 </section>
                 </React.Fragment>) : (<React.Fragment>
@@ -1489,7 +1507,7 @@ function LineupTab({
             {matchupPanel}
 
             {/* Unified interactive lineup table */}
-            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
+            <div id="gameday-starting-lineup" style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
                 <div style={{ padding: '10px 14px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.7rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>STARTING LINEUP · tap a slot to set it</span>
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -1499,6 +1517,7 @@ function LineupTab({
                         ))}
                     </div>
                 </div>
+                {trackingLineup ? mobileScoreboard : null}
                 {headerRow}
                 {[...startingSlots].sort((a, b) => (SLOT_DISPLAY_ORDER[a.slotName] ?? 50) - (SLOT_DISPLAY_ORDER[b.slotName] ?? 50)).map(sl => {
                     const pid = workingAssign[sl.idx] || null;

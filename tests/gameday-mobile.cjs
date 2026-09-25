@@ -92,10 +92,13 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
 
 (async () => {
     const active = await fixture();
-    assert.equal(select(active.out, n => n.props.className === 'gd-scoreboard'), undefined, 'Game Day no longer duplicates live scores');
+    assert.equal(all(active.out).filter(n => n.props.className === 'gd-scoreboard').length, 1, 'one scoreboard in the existing lineup');
     assert.doesNotMatch(textOf(active.out), /FOLLOW YOUR LINEUP|Submitted starters/);
     const plan = select(active.out, n => n.props.className === 'gd-working-lineup');
     assert(plan); assert.match(textOf(plan), /partial/);
+    assert(select(plan, n => n.props.className === 'gd-scoreboard'), 'live scores stay inside starting lineup');
+    assert.match(textOf(plan), /Final · 0.00 pts · Locked/);
+    assert.match(textOf(plan), /Final · -2.50 pts · Locked/);
     const missingRow = select(plan, n => n.type === 'button' && textOf(n).includes('Missing Starter'));
     assert.match(textOf(missingRow), /—Proj—L5 PPG/);
     const starter = select(plan, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
@@ -148,7 +151,10 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     const bye = await fixture({ matchupId: null, rosterView: true });
     assert.doesNotMatch(textOf(select(bye.out, n => n.props.className === 'gd-scoreboard')), /Opponent Name/);
     const desktop = await fixture({ width: 1280 });
-    assert.doesNotMatch(textOf(desktop.out), /FOLLOW YOUR LINEUP|Actual points/);
+    assert.doesNotMatch(textOf(desktop.out), /FOLLOW YOUR LINEUP/);
+    assert(select(select(desktop.out, n => n.props.id === 'gameday-starting-lineup'), n => n.props.className === 'gd-scoreboard'));
+    const beforeKickoff = await fixture({ upcoming: true });
+    assert(!select(beforeKickoff.out, n => n.props.className === 'gd-scoreboard'), 'no pregame score panel');
     const tablet = await fixture({ width: 768, rosterView: true });
     assert.match(textOf(tablet.out), /Starting lineup/);
     assert.equal(select(tablet.out, n => n.props.className === 'gd-mobile'), undefined);

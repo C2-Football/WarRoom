@@ -3433,9 +3433,7 @@
                         initialSubTab={tradeSubTab}
                         onSubTabConsumed={() => setTradeSubTab(null)}
                     />
-                ) : viewTab === 'myteam' ? <React.Fragment>
-                    {workspaceOptions.showGameDay && <LineupTabLazy rosterView myRoster={myRoster} currentLeague={currentLeague} leagueSkin={leagueSkin} playersData={playersData} statsData={statsData} stats2025Data={stats2025Data} sleeperUserId={sleeperUserId} gmStrategy={gmStrategy} setActiveTab={setActiveTab} timeRecomputeTs={timeRecomputeTs} />}
-                    <MyTeamTabLazy
+                ) : viewTab === 'myteam' ? <MyTeamTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3466,8 +3464,7 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
-                />
-                </React.Fragment> : viewTab === 'lineup' ? <LineupTabLazy
+                /> : viewTab === 'lineup' ? <LineupTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}

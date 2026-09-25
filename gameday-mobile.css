@@ -82,7 +82,7 @@
 .roster-lineup h2 { font-size: 20px; margin: 4px 0; }
 .roster-lineup .gd-eyebrow { color: var(--gold, #d4af37); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; }
 .roster-lineup-form { display: flex; gap: 4px; }
-.roster-lineup-form button, .roster-lineup .gd-score-update button { min-height: 36px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--ov-4, rgba(255,255,255,.08)); background: transparent; color: var(--silver, #9aa0a6); cursor: pointer; }
+.roster-lineup-form button, :is(.roster-lineup, #gameday-starting-lineup) .gd-score-update button { min-height: 36px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--ov-4, rgba(255,255,255,.08)); background: transparent; color: var(--silver, #9aa0a6); cursor: pointer; }
 .roster-lineup-form button[aria-pressed="true"] { color: var(--gold, #d4af37); border-color: var(--gold, #d4af37); background: rgba(212,175,55,.1); }
 .roster-lineup-hint { font-size: 13px; line-height: 1.5; color: var(--silver, #9aa0a6); margin: 10px 0 16px; }
 .roster-lineup-row { display: flex; align-items: center; width: 100%; gap: 14px; padding: 16px 4px; border: 0; border-top: 1px solid var(--ov-4, rgba(255,255,255,.08)); background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -101,15 +101,15 @@
 .roster-lineup-picker { padding: 12px; background: var(--ov-2, rgba(255,255,255,.03)); border-radius: 8px; }
 .roster-lineup-picker p { margin: 4px 0 12px; font-size: 13px; color: var(--silver, #9aa0a6); }
 .roster-lineup-clear { min-height: 44px; color: var(--k-e74c3c, #e74c3c); background: transparent; border: 0; cursor: pointer; }
-.roster-lineup .gd-scoreboard { padding: 14px 16px; margin-bottom: 12px; border-radius: 8px; background: var(--ov-2, rgba(255,255,255,.03)); }
-.roster-lineup .gd-scoreboard-sides { display: flex; align-items: center; gap: 24px; margin: 10px 0; }
-.roster-lineup .gd-scoreboard-sides > div { flex: 1; min-width: 0; }
-.roster-lineup .gd-scoreboard-sides > div:last-child:not(:first-child) { text-align: right; }
-.roster-lineup .gd-team-name { font-size: 13px; color: var(--silver, #9aa0a6); }
-.roster-lineup .gd-scoreboard-sides strong { display: block; font-size: 30px; font-variant-numeric: tabular-nums; }
-.roster-lineup .gd-score-update { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--silver, #9aa0a6); }
-.roster-lineup .gd-disclosure { margin-top: 14px; color: var(--silver, #9aa0a6); font-size: 12px; line-height: 1.6; }
-.roster-lineup .gd-disclosure summary { padding: 8px 0; cursor: pointer; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-scoreboard { padding: 14px 16px; margin-bottom: 12px; border-radius: 8px; background: var(--ov-2, rgba(255,255,255,.03)); }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-scoreboard-sides { display: flex; align-items: center; gap: 24px; margin: 10px 0; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-scoreboard-sides > div { flex: 1; min-width: 0; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-scoreboard-sides > div:last-child:not(:first-child) { text-align: right; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-team-name { font-size: 13px; color: var(--silver, #9aa0a6); }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-scoreboard-sides strong { display: block; font-size: 30px; font-variant-numeric: tabular-nums; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-score-update { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--silver, #9aa0a6); }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-disclosure { margin-top: 14px; color: var(--silver, #9aa0a6); font-size: 12px; line-height: 1.6; }
+:is(.roster-lineup, #gameday-starting-lineup) .gd-disclosure summary { padding: 8px 0; cursor: pointer; }
 @media (max-width: 767px) {
   .roster-lineup { margin: 12px 0; padding: 12px; }
   .roster-lineup-row { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
@@ -230,3 +230,6 @@
 .roster-lineup button:disabled, .gd-mobile button:disabled { cursor: default; opacity: .55; }
 
 .lineup-apply:disabled { opacity: .45; cursor: default !important; }
+
+.gd-planning-focus a.gd-primary { display: block; box-sizing: border-box; text-align: center; text-decoration: none; }
+#gameday-starting-lineup { scroll-margin-top: 80px; }
