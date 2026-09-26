@@ -233,3 +233,110 @@
   .duat-game .duat-lineup-research-panel { padding:12px; }
   .duat-game .duat-lineup-research-panel :is(td,th,dt,dd) { font-size:14px; }
 }
+
+/* Browser layouts keep the current decision and its action in the same view. */
+@media (min-width:1024px) {
+  .duat-game .duat-main { max-width:1360px; padding:24px 32px 48px; }
+  .duat-game .duat-topbar { max-width:1360px; min-height:64px; padding:10px 32px; }
+  .duat-game .duat-wordmark { font-size:24px; }
+  .duat-game .duat-status { font-size:12px; }
+  .duat-game .duat-intro { min-height:252px; padding:34px 38px; margin-bottom:24px; border-radius:14px; }
+  .duat-game .duat-intro h1 { max-width:760px; font-size:clamp(44px,4.4vw,62px); }
+  .duat-game .duat-intro p { max-width:550px; margin-top:16px; font-size:15px; }
+  .duat-game .duat-setup-grid { grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr); gap:24px; }
+  .duat-game .duat-creation-panel { padding:24px; }
+  .duat-game .duat-faction-banner { padding:24px; }
+  .duat-game .duat-faction-banner > .duat-sigil { margin-bottom:10px; }
+  .duat-game .duat-panel { box-shadow:none; background:var(--duat-panel); border-color:var(--duat-line); }
+  .duat-game .duat-campaign-heading { padding:14px 20px; margin-bottom:16px; }
+  .duat-game .duat-campaign-identity { gap:16px; min-width:0; }
+  .duat-game .duat-campaign-identity > .duat-sigil { width:56px; min-width:56px; height:56px; }
+  .duat-game .duat-campaign-identity .duat-eyebrow { margin-bottom:2px; font-size:11px; }
+  .duat-game .duat-campaign-identity h1 { font-size:30px; margin:4px 0; }
+  .duat-game .duat-campaign-identity p { font-size:12px; margin:0; }
+  .duat-game .duat-campaign-facts { gap:24px; }
+  .duat-game .duat-campaign-facts strong { font-size:22px; }
+  .duat-game .duat-campaign-facts > span:first-child strong { display:block; }
+  .duat-game .duat-season-navigation { display:inline-flex; vertical-align:top; padding:4px; margin-bottom:16px; width:fit-content; max-width:100%; }
+  .duat-game .duat-season-navigation button { min-height:40px; padding:8px 18px; }
+  .duat-game .duat-weekly-explore { display:inline-block; vertical-align:top; margin:4px 0 16px 20px; }
+  .duat-game .duat-weekly-explore[open] { display:block; margin:0 0 16px; }
+  .duat-game .duat-weekly-explore > summary { width:fit-content; padding:8px 0; }
+  .duat-game .duat-weekly-explore .duat-tabs { padding:10px; border:1px solid var(--duat-line); border-radius:10px; background:#102224; }
+
+  .duat-game .duat-season-home { grid-template-columns:minmax(0,1.1fr) minmax(360px,1fr); gap:20px; align-items:start; }
+  .duat-game .duat-season-home > * { grid-column:1/-1; }
+  .duat-game .duat-home-heading { padding:0 0 4px; }
+  .duat-game .duat-home-heading h1 { font-size:36px; }
+  .duat-game .duat-home-heading > .duat-sigil { width:60px; height:60px; min-width:60px; }
+  .duat-game .duat-season-home > .duat-home-resume { grid-column:1; grid-row:2; display:grid; gap:18px; padding:24px; align-self:stretch; }
+  .duat-game .duat-home-resume h2 { font-size:29px; }
+  .duat-game .duat-home-resume .primary { justify-self:start; min-height:46px; }
+  .duat-game .duat-season-home > .duat-home-schedule { grid-column:2; grid-row:2; align-self:stretch; padding:18px; }
+  .duat-game .duat-home-week { flex-basis:68px; min-height:96px; padding:9px 5px; border-radius:7px; }
+  .duat-game .duat-home-week > strong { font-size:27px; }
+  .duat-game .duat-home-week > small { font-size:10px; }
+  .duat-game .duat-home-schedule-detail { min-height:0; }
+  .duat-game .duat-home-columns { grid-template-columns:minmax(0,1.1fr) minmax(360px,1fr); gap:20px; }
+  .duat-game .duat-home-hunt { padding:18px 24px; }
+  .duat-game .duat-home-hunt h2 { font-size:25px; }
+  .duat-game .duat-home-hunt-facts { margin-top:12px; padding-top:12px; }
+  .duat-game .duat-home-pace { margin-top:12px; padding-top:12px; }
+  .duat-game .duat-home-section-heading h2 { font-size:26px; }
+  .duat-game .duat-home-standings { padding:22px; }
+  .duat-game .duat-home-standings table { font-size:14px; }
+  .duat-game .duat-home-standings .duat-home-mobile-record { display:none; }
+  .duat-game .duat-home-standings thead th { font-size:12px; }
+  .duat-game .duat-home-help,.duat-game .duat-home-table-note { font-size:12px; }
+  .duat-game .duat-home-arena-art { min-height:240px; padding:22px; }
+  .duat-game .duat-home-arena-title h2 { font-size:29px; }
+  .duat-game .duat-home-alliance-emblem { margin:14px auto; }
+  .duat-game .duat-home-banner { flex-basis:64px; height:72px; }
+  .duat-game .duat-home-banner .duat-sigil { width:44px; min-width:44px; height:44px; }
+
+  .duat-game .duat-weekly-flow { border-radius:14px; margin:0 0 24px; }
+  .duat-game .duat-weekly-heading { padding:18px 24px 12px; }
+  .duat-game .duat-weekly-heading .duat-eyebrow { margin:0; font-size:11px; }
+  .duat-game .duat-weekly-heading h2 { font-size:28px; margin-top:6px; }
+  .duat-game .duat-weekly-path { padding:0 24px 14px; }
+  .duat-game .duat-weekly-path span { font-size:12px; }
+  .duat-game .duat-weekly-content { padding:24px; }
+  .duat-game .duat-weekly-next { padding:18px 24px; }
+  .duat-game .duat-weekly-next .primary { min-height:46px; }
+  .duat-game .duat-weekly-action-heading { margin:0 0 12px; color:var(--duat-gold); font-size:11px; letter-spacing:.1em; }
+
+  .duat-game .duat-weekly-flow.is-lineup { display:grid; grid-template-columns:minmax(0,1fr) 288px; grid-template-rows:auto auto auto 1fr; overflow:visible; }
+  .duat-game .is-lineup > .duat-weekly-heading { grid-column:1/-1; grid-row:1; }
+  .duat-game .is-lineup > .duat-weekly-path { grid-column:1/-1; grid-row:2; }
+  .duat-game .is-lineup > .duat-weekly-content { grid-column:1; grid-row:3/5; border-right:1px solid var(--duat-line); padding-top:20px; }
+  .duat-game .is-lineup > .duat-weekly-guide { grid-column:2; grid-row:3; padding:20px 20px 12px; }
+  .duat-game .is-lineup > .duat-weekly-guide summary { color:var(--duat-gold); }
+  .duat-game .is-lineup > .duat-weekly-guide details p { font-size:13px; }
+  .duat-game .is-lineup > .duat-weekly-next { grid-column:2; grid-row:4; align-self:start; position:sticky; top:24px; padding:20px; margin:0 16px 20px; border:1px solid var(--duat-line); border-radius:10px; background:#16302e; }
+  .duat-game .is-lineup .duat-weekly-action-buttons { flex-direction:column; gap:8px; align-items:stretch; }
+  .duat-game .is-lineup .duat-weekly-action-buttons .primary { min-width:0; width:100%; white-space:normal; }
+  .duat-game .is-lineup .duat-weekly-action-buttons .duat-link { font-size:13px; }
+  .duat-game .is-lineup .duat-weekly-feedback { display:block; }
+  .duat-game .is-lineup .duat-weekly-note { font-size:13px; }
+  .duat-game .duat-lineup-completion { padding-bottom:12px; }
+  .duat-game .duat-lineup-context { display:flex; align-items:start; justify-content:space-between; gap:12px; margin:6px 0; }
+  .duat-game .duat-lineup-context > p { padding-top:8px; max-width:46ch; }
+  .duat-game .duat-lineup-context .duat-lineup-positions { max-width:290px; flex:0 0 auto; }
+  .duat-game .duat-lineup-context .duat-lineup-positions[open] { flex-basis:42%; }
+  .duat-game .duat-lineup-entry { grid-template-columns:44px minmax(0,1fr) 142px; gap:0 14px; padding:9px 4px; }
+  .duat-game .duat-lineup-entry.is-starting { background:#8bdcc005; }
+  .duat-game .duat-lineup-entry .duat-player-name strong { font-size:16px; }
+  .duat-game .duat-lineup-entry .duat-player-name small { font-size:12px!important; }
+  .duat-game .duat-lineup-stats { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:center; gap:12px; }
+  .duat-game .duat-lineup-stats > :only-child { grid-column:2; }
+  .duat-game .duat-lineup-stats strong { font-size:18px; }
+  .duat-game .duat-lineup-stats small { font-size:11px!important; }
+  .duat-game .duat-lineup-last { flex-direction:column; align-items:flex-end; gap:1px; border-left:1px solid #36515288; }
+  .duat-game .duat-lineup-last strong { font-size:18px; }
+  .duat-game .duat-lineup-research-panel { margin-bottom:8px; padding:18px; }
+  .duat-game .duat-lineup-research-panel :is(th,td) { padding:8px 10px; font-size:13px; }
+}
+.duat-game .duat-weekly-action-heading { display:none; }
+@media (min-width:1024px) {
+  .duat-game .is-lineup .duat-weekly-action-heading { display:block; }
+}

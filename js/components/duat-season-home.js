@@ -77,7 +77,7 @@
         const [selectedWeek,setSelectedWeek]=useState(model.currentWeek),headingRef=useRef(null);
         const phone=root.WR?.useViewport?root.WR.useViewport().isPhone:false;
         useEffect(()=>{setSelectedWeek(model.currentWeek);},[model.currentWeek,cycle]);
-        useEffect(()=>{headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:'start',behavior:'instant'});},[view]);
+        useEffect(()=>{headingRef.current?.focus({preventScroll:true});const target=root.matchMedia?.('(min-width:1024px)').matches?headingRef.current?.closest('.duat-game'):headingRef.current;target?.scrollIntoView({block:'start',behavior:'instant'});},[view]);
         const own=model.standings.find(row=>row.isMine||row.factionId===factionId),Sigil=App.DuatPresentation.Sigil;
         if(phone&&view!=='realm'){
             const move=phoneMove(model.resume,startingPlaces,modeLabel),gated='Finish your current step to explore';

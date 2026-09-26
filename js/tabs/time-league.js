@@ -1601,13 +1601,13 @@
 
         return h('div', { className: `tl-root tl-play${showWeekActions ? ' tl-has-week-actions' : ''}`, 'data-vault-phase': league.phase, 'data-vault-tab': activeTab },
             h(TimeLeagueStyles, null),
-            h('nav', { className: 'tl-sidenav' },
+            h('nav', { className: 'tl-sidenav', 'aria-label': 'Vault navigation' },
                 h('div', { className: 'tl-sidenav-brand' },
                     h('div', { className: 'tl-sidenav-lockup' },
                         h('span', { className: 'tl-sidenav-crest' }, 'V'),
                         h('span', null, h('strong', null, 'THE VAULT'), h('small', null, 'Fantasy through time')))),
                 tabs.map((item) => h('button', {
-                    key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => navigateTab(item),
+                    key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, 'aria-current': item === activeTab ? 'page' : undefined, onClick: () => navigateTab(item),
                 }, h('span', { className: 'tl-tab-icon', 'aria-hidden': 'true' }, TAB_ICONS[item]),
                 h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item]), item === 'messages' && unreadMail.length > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unreadMail.length} unread messages` }, unreadMail.length) : null))),
             h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab, unread: unreadMail.length, onReportBug: reportBug }),

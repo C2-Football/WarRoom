@@ -177,3 +177,44 @@
 @media (max-width: 900px) {
     .tl-roster-dossier .tl-dossier-title { position: sticky; top: calc(68px + env(safe-area-inset-top, 0px)); z-index: 2; padding: 8px 0; background: var(--tl-surface, #1b2b36); }
 }
+
+/* A desktop roster reads across: player, evidence, points and action. The
+   same evidence stays below the player when the scouting dossier is open. */
+@media (min-width:1024px) {
+    .tl-root.tl-play .tl-roster-toolbar { margin-bottom:12px; }
+    .tl-root.tl-play .tl-roster-toolbar h2 { font-size:21px; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-table-title { padding:11px 16px; font-size:11px; letter-spacing:.07em; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) :is(.tl-lineup-row,.tl-lineup-head) { grid-template-columns:36px minmax(150px,1.15fr) minmax(220px,1fr) 54px 54px 62px!important; gap:10px; padding-inline:16px; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-head > :nth-child(3) { grid-column:4; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-head > :nth-child(4) { grid-column:5; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-head > :nth-child(5) { grid-column:6; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row { min-height:88px; padding-block:12px; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row > .tl-lineup-slot { grid-column:1; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row > .tl-lineup-player { grid-column:2; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-roster-signals { grid-column:3; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row > .tl-lineup-pts { grid-column:4; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row > .tl-lineup-ytd { grid-column:5; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row > .tl-roster-move { grid-column:6; grid-row:1; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-player { white-space:normal; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-player .name { font-size:14px; line-height:1.4; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-player .meta { margin:5px 0 0; font-size:10px; line-height:1.5; }
+    .tl-root.tl-play .tl-roster-signals { width:100%; max-width:none; grid-template-columns:minmax(85px,.8fr) minmax(110px,1.2fr); gap:10px; padding:0; margin:0; }
+    .tl-root.tl-play .tl-roster-signals .tl-player-average > strong { font-size:20px; }
+    .tl-root.tl-play .tl-roster-signals .tl-week-stars { letter-spacing:0; font-size:14px; line-height:1.4; }
+    .tl-root.tl-play .tl-roster-signals small { font-size:10px; }
+    .tl-root.tl-play .tl-roster-signals .tl-player-signal-context { font-size:10px; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-pts { font-size:18px; }
+    .tl-root.tl-play .tl-roster-layout .tl-lineup-pts small { margin-top:3px; font-size:8px; }
+    .tl-root.tl-play .tl-roster-layout .tl-roster-move { min-height:40px; font-size:11px; }
+    .tl-root.tl-play .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1.3fr) minmax(340px,.9fr); gap:18px; }
+    .tl-root.tl-play .tl-roster-layout.has-selection :is(.tl-lineup-row,.tl-lineup-head) { grid-template-columns:30px minmax(0,1fr) 48px 48px 56px!important; gap:8px; padding-inline:12px; }
+    .tl-root.tl-play .tl-roster-layout.has-selection .tl-roster-signals { max-width:400px; padding-bottom:6px; }
+    .tl-root.tl-play .tl-roster-layout.has-selection .tl-roster-toolbar { flex-wrap:wrap; }
+    .tl-root.tl-play .tl-roster-layout.has-selection .tl-roster-toolbar-actions { gap:8px; }
+    .tl-root.tl-play .tl-roster-dossier { top:20px; max-height:calc(100dvh - 120px); overflow:auto; overscroll-behavior:contain; background:linear-gradient(145deg,#27372a,#19261c 55%); border-color:#617652; padding:18px; }
+    .tl-root.tl-play .tl-roster-dossier .tl-dossier-title { position:sticky; top:-18px; margin:0 -18px; padding:12px 18px; background:#233225; z-index:2; }
+}
+@media (min-width:1024px) and (max-width:1199px) {
+    .tl-root.tl-play .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1fr); }
+    .tl-root.tl-play .tl-roster-dossier { position:relative; top:0; max-height:none; overflow:visible; }
+}

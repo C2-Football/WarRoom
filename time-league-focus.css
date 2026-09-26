@@ -253,3 +253,33 @@
     .tl-waiver-market .tl-waiver-table th:nth-child(4),.tl-waiver-market .tl-waiver-table td:nth-child(4) { display:table-cell; }
     .tl-waiver-market .tl-waiver-table th:first-child,.tl-waiver-market .tl-waiver-table td:first-child { display:none; }
 }
+
+/* Desktop navigation and weekly actions share the same content alignment. */
+@media (min-width:768px) {
+    html:has(.tl-root.tl-has-week-actions) { scroll-padding-bottom:120px; }
+}
+@media (min-width:768px) {
+    .tl-root.tl-play .tl-league-menu-body { max-height:calc(100dvh - 125px); overflow-y:auto; overscroll-behavior:contain; }
+}
+@media (min-width:768px) and (max-width:900px) {
+    .tl-root.tl-play .tl-week-action-row { bottom:0; }
+    .tl-root.tl-play .tl-week-action-menu { bottom:106px; max-height:calc(100dvh - 146px); }
+    .tl-root.tl-play.tl-has-week-actions .tl-main { padding-bottom:120px; }
+}
+@media (min-width:1024px) {
+    .tl-root.tl-play .tl-league-bar { margin-bottom:16px; padding:0 0 14px; }
+    .tl-root.tl-play .tl-league-heading { flex-direction:row; align-items:baseline; flex-wrap:wrap; gap:8px 14px; }
+    .tl-root.tl-play .tl-league-name { max-width:420px; font-size:13px; }
+    .tl-root.tl-play .tl-league-heading > strong { font-size:22px; }
+    .tl-root.tl-play .tl-league-context { gap:8px; }
+    .tl-root.tl-play.tl-has-week-actions .tl-main { padding-bottom:100px; }
+    .tl-root.tl-play .tl-week-action-row { left:var(--tl-desktop-nav,196px); padding:10px 24px; }
+    .tl-root.tl-play .tl-week-action-inner { max-width:var(--tl-desktop-content,1320px); }
+    .tl-root.tl-play .tl-week-action-status { grid-template-columns:auto minmax(0,1fr); align-items:baseline; gap:4px 12px; }
+    .tl-root.tl-play .tl-week-action-status > span { grid-column:1 / -1; }
+    .tl-root.tl-play .tl-week-action-status small { font-size:10px; }
+    .tl-root.tl-play .tl-week-action-status strong { font-size:13px; }
+    .tl-root.tl-play .tl-home-action-grid { gap:14px; }
+    .tl-root.tl-play .tl-live-player { padding:12px 16px; }
+    .tl-root.tl-play .tl-live-lineups { border-radius:14px; }
+}
