@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { handleOptions, json, requireActiveAppSession } from '../_shared/security.ts';
+import { getGameGuestSession, guestCanAccess, handleGameGuestEntry, loadGameMemberLabels } from '../_shared/game-guest.ts';
 import { App, loadData, loadGamePools } from './runtime.js';
 import { handleCommunity } from './community.ts';
 import { loadPrivateMessages, sendPrivateMessage, withoutPrivateMessages } from './messages.ts';
@@ -25,10 +26,15 @@ Deno.serve(async (req: Request) => {
     if (req.method !== 'POST') return json(req, { ok: false, error: 'POST required' }, 405);
     try {
         const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-        const session = await requireActiveAppSession(admin, req);
-        if (!session) return json(req, { ok: false, error: 'Sign in to play with friends.' }, 401);
+        const account = await requireActiveAppSession(admin, req);
         const body = await req.json();
-        const community = await handleCommunity(admin, session.userId, body, App.TimeLeagueHelmet.normalizeHelmet);
+        const guestEntry = await handleGameGuestEntry(admin, req, body, 'vault');
+        if (guestEntry) return guestEntry;
+        const guest = account ? null : await getGameGuestSession(admin, req, 'vault');
+        const session = account || guest;
+        if (!session) return json(req, { ok: false, error: 'Sign in or reopen your guest pass to play with friends.' }, 401);
+        if (guest && !guestCanAccess(guest, body)) return json(req, { ok: false, error: 'Your guest pass only opens its invited seat. Sign in with an account to host a league.' }, 403);
+        const community = guest ? null : await handleCommunity(admin, session.userId, body, App.TimeLeagueHelmet.normalizeHelmet);
         if (community) return json(req, community);
         const fail = (message: string, status = 400) => json(req, { ok: false, error: message }, status);
         if (body.op === 'create') {
@@ -67,7 +73,9 @@ Deno.serve(async (req: Request) => {
             return json(req, { ok: true, rowId: id });
         }
         if (body.op === 'list') {
-            const { data, error } = await admin.from('time_league_members').select('seat_team_id, role, time_leagues(id, league_id, name, phase, current_week, team_count)').eq('user_id', session.userId);
+            let query = admin.from('time_league_members').select('seat_team_id, role, time_leagues(id, league_id, name, phase, current_week, team_count)').eq('user_id', session.userId);
+            if (guest) query = query.eq('league_id', guest.roomId);
+            const { data, error } = await query;
             if (error) throw error;
             return json(req, { ok: true, leagues: data });
         }
@@ -78,12 +86,13 @@ Deno.serve(async (req: Request) => {
         const { data: members, error: seatsError } = await admin.from('time_league_members').select('*').eq('league_id', row.id).order('seat_team_id');
         if (seatsError) throw seatsError;
         if (body.op === 'load') {
+            const memberLabels = await loadGameMemberLabels(admin, 'vault', row.id, members!);
             const rivalMessages = await loadPrivateMessages(admin, session.userId, row.id);
             const needsCards = (row.state.phase !== 'draft' && row.state.seasonsRevealed) || row.state.settings.draftFormat === 'auction';
             let data = needsCards ? await loadData(0, row.state.settings.gameDeckVersion || 0) : { cards: new Map() };
             const prepared = row.state.phase !== 'draft' && row.state.seasonsRevealed ? await prepareSealedDraws(row.state, data.cards, row.sealed_draw_secret) : row.state;
             data = await loadGamePools(data, prepared);
-            return json(req, { ok: true, row: { id: row.id, state: App.TimeLeaguePublicState.projectPublicState(prepared, member.seat_team_id, rivalMessages, data.cards, new Date().toISOString(), data), version: row.version, draft_started: row.draft_started, seatTeamId: member.seat_team_id, role: member.role, members: members!.map(m => ({ id: m.id, seat_team_id: m.seat_team_id, role: m.role, joined: Boolean(m.user_id), ready_week: m.ready_week, ...(member.role === 'commissioner' && !m.user_id ? { invite_code: m.invite_code } : {}) })) } });
+            return json(req, { ok: true, row: { id: row.id, state: App.TimeLeaguePublicState.projectPublicState(prepared, member.seat_team_id, rivalMessages, data.cards, new Date().toISOString(), data), version: row.version, draft_started: row.draft_started, seatTeamId: member.seat_team_id, role: member.role, members: members!.map(m => ({ id: m.id, seat_team_id: m.seat_team_id, role: m.role, joined: Boolean(m.user_id), ready_week: m.ready_week, ...(m.user_id ? memberLabels.get(m.user_id) : {}), ...(member.role === 'commissioner' && !m.user_id ? { invite_code: m.invite_code } : {}) })) } });
         }
         if (body.op === 'ready') {
             if (body.ready === true && row.state.phase === 'draft' && !App.TimeLeaguePublicState.allErasRevealed(row.state, member.seat_team_id)) return fail('Reveal every position archive before entering the draft.');

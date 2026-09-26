@@ -161,7 +161,7 @@ d20; ties hold for the defender. The preview explains strength and the result
 records both rolls, the outcome and ownership change. Result recording is
 idempotent, so retries cannot award the same week's resources twice.
 
-## Saves and authenticated friends
+## Saves and friends
 
 Solo saves retain the namespaces `dhq-duat-campaigns-v1` and
 `dhq-duat-campaign-v1:<id>`, with versioned campaign payloads. JSON backups under
@@ -169,13 +169,22 @@ Solo saves retain the namespaces `dhq-duat-campaigns-v1` and
 writes attempt to restore the previous save and index. Validation checks
 structure, not authenticity. Local backups cannot replace authoritative rooms.
 
-Friends require a Dynasty HQ email-account session. The Duat endpoint validates
-the app token internally, creates private seeds and accepts action intents,
-not client replacement state. Projections hide pending opponent lineups/favors
-and unrevealed armies. Friends claim reserved factions with invitation codes
-before the draft starts. Human seats must join and ready at gated transitions;
-only the current faction drafts its pick. The host starts the draft, reveals
-factions and advances weeks.
+The host signs in with a Dynasty HQ email account. Invited friends can sign in
+or enter a player name and choose **Join as guest** without an email or password.
+Guest access uses a private pass scoped to one invited seat, never an app login.
+Guests should save **Copy guest pass** to restore that seat on another browser;
+they cannot host campaigns. Account and guest sessions are checked by the Duat
+endpoint, which creates private seeds and accepts action intents, not client
+replacement state. Projections hide pending opponent lineups/favors and
+unrevealed armies.
+
+Choose **Play with Friends**, set **Human factions** to include the host, and
+create the campaign. Under **Friends & invites**, copy a distinct faction link
+for each friend. Verify each human seat shows the expected player name and
+**Joined**, then have everyone mark ready. The host can then open the draft.
+Friends claim their reserved faction before the draft starts. Human seats must
+join and ready at gated transitions; only the current faction drafts its pick.
+The host starts the draft, reveals factions and advances weeks.
 
 `20260908160000_duat_campaigns.sql` creates private campaign, membership and
 receipt tables; `20260908180000_duat_draft_campaigns.sql` extends the transactional
@@ -185,7 +194,8 @@ and seasons from replacement. Service-role transactions recheck membership,
 readiness, ownership and expected revision, then deduplicate by actor and intent.
 Browser roles cannot read private rows or call mutation functions.
 `verify_jwt = false` permits custom app-token validation; it does not make the
-endpoint anonymous. There is no background season scheduler.
+endpoint anonymous. Scoped guest passes use the separate game-guest session
+contract and cannot open another room. There is no background season scheduler.
 
 ## Build, test and release
 

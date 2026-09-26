@@ -79,7 +79,10 @@ async function restore({ search = '', appSession, legacySession, legacyAuth, oau
   const gameEntries = [
     { label: 'Duat', search: '?duat=1', destination: 'index.html?duat=1' },
     { label: 'Vault', search: '?vault=1', destination: 'index.html?vault=1' },
-    { label: 'pending Vault invitation', search: '', pendingInvite: true, destination: 'index.html?vault=1' },
+    { label: 'pending Vault invitation', search: '', pendingInvite: true, destination: 'index.html?vault=1&tl_invite=pending-invite' },
+    { label: 'explicit Vault invitation', search: '?vault=1&tl_invite=exact-seat', destination: 'index.html?vault=1&tl_invite=exact-seat' },
+    { label: 'explicit Duat invitation', search: '?duat=1&duat_invite=exact-faction', destination: 'index.html?duat=1&duat_invite=exact-faction' },
+    { label: 'Duat shared-room reconnect', search: '?duat=1&duat_friends=1', destination: 'index.html?duat=1&duat_friends=1' },
   ];
   for (const entry of gameEntries) {
     const restored = await restore({ ...entry, appSession, oauthSession });

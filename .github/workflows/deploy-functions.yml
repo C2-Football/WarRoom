@@ -6,6 +6,7 @@ on:
     paths:
       - "supabase/**"
       - "js/shared/time-league-*.js"
+      - "js/shared/game-guest.js"
       - "js/shared/woeppel-cup.js"
       - "data/time-league/**"
       - "js/duat/**"
@@ -16,6 +17,7 @@ on:
       - "scripts/c2-edge-release.py"
       - "tests/c2-edge-release*"
       - "tests/duat-*"
+      - "tests/game-guest*"
       - ".github/c2-releases/**"
       - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
@@ -59,6 +61,8 @@ jobs:
         run: npm run test:cup && npm run test:security && npm run test:billing && npm run test:timeleague
       - name: Verify Duat contracts
         run: npm run test:duat
+      - name: Verify invitation and guest access contracts
+        run: npm run test:game-guests
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
       - name: Build Duat server runtime

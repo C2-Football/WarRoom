@@ -140,6 +140,7 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
         const sandbox = { Request,Response,URL,crypto:webcrypto,console,createClient:()=>admin,
             handleOptions:()=>null,json:(_req,body,status=200)=>new Response(JSON.stringify(body),{status}),
             requireActiveAppSession:async(_db,req)=>req.headers.get('x-test-user')?{userId:req.headers.get('x-test-user')}:null,
+            handleGameGuestEntry:async()=>null,getGameGuestSession:async()=>null,loadGameMemberLabels:async()=>new Map(),
             availableSeasons:[2021,2022,2023,2024],loadData:async()=>({}),
             App:{DuatRules:{FACTIONS:factionIds.map(id=>({id}))},DuatWorld:{FACTIONS:factionIds.map(id=>({id}))},DuatCampaign:{
                 normalizeSettings:require('../js/duat/campaign.js').normalizeSettings,

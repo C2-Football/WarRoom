@@ -137,6 +137,7 @@ async function loadTs(file) {
         crypto: { randomUUID: () => webcrypto.randomUUID(), getRandomValues: array => array.fill(0) }, App,
         createClient: () => admin, handleOptions: () => null, json: (_req, body, status = 200) => ({ body: JSON.parse(JSON.stringify(body)), status }),
         requireActiveAppSession: async () => loggedIn ? { userId } : null, handleCommunity: async () => null,
+        handleGameGuestEntry: async () => null, getGameGuestSession: async () => null, loadGameMemberLabels: async () => new Map(),
         loadData: async () => data, loadGamePools: async value => value, loadPrivateMessages: async () => privateMessages,
         sendPrivateMessage: async () => ({ ok: true }), withoutPrivateMessages: messages.withoutPrivateMessages,
         prepareSealedDraws: sealed.prepareSealedDraws, applySealedOnlineAction: sealed.applySealedOnlineAction,

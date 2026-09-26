@@ -325,12 +325,16 @@
     const SESSION_KEY = 'fw_session_v1';
     const LEGACY_SESSION_KEY = 'od_session_v1';
     const LEGACY_AUTH_KEY = 'od_auth_v1';
-    const DUAT_LOGIN = new URLSearchParams(window.location.search).get('duat') === '1';
-    let VAULT_LOGIN = new URLSearchParams(window.location.search).get('vault') === '1';
-    try { VAULT_LOGIN = VAULT_LOGIN || Boolean(sessionStorage.getItem('tl-pending-invite-v1')); } catch {}
+    const loginParams = new URLSearchParams(window.location.search);
+    const pendingInvite = key => { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } };
+    const duatInvite = loginParams.get('duat_invite') || pendingInvite('duat-pending-invite');
+    const vaultInvite = loginParams.get('tl_invite') || pendingInvite('tl-pending-invite-v1');
+    const DUAT_LOGIN = loginParams.get('duat') === '1' || Boolean(loginParams.get('duat_invite')) || (!loginParams.has('vault') && !loginParams.has('tl_invite') && Boolean(duatInvite));
+    const VAULT_LOGIN = !DUAT_LOGIN && (loginParams.get('vault') === '1' || Boolean(vaultInvite));
     const GAME_LOGIN = DUAT_LOGIN || VAULT_LOGIN;
     const GAME_NAME = DUAT_LOGIN ? 'The Duat' : 'The Vault';
-    const WARROOM_URL = DUAT_LOGIN ? 'index.html?duat=1' : VAULT_LOGIN ? 'index.html?vault=1' : 'index.html';
+    const WARROOM_URL = DUAT_LOGIN ? 'index.html?duat=1' + (loginParams.get('duat_friends') === '1' ? '&duat_friends=1' : '') + (duatInvite ? '&duat_invite=' + encodeURIComponent(duatInvite) : '')
+      : VAULT_LOGIN ? 'index.html?vault=1' + (vaultInvite ? '&tl_invite=' + encodeURIComponent(vaultInvite) : '') : 'index.html';
     const messageEl = document.getElementById('message');
     const signinForm = document.getElementById('panelSignin');
     const signupForm = document.getElementById('panelSignup');

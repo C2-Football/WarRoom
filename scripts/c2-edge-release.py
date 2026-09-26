@@ -30,9 +30,9 @@ COMMON_MIGRATIONS = ('20260317000000', '20260502020000', '20260909000000', '2026
 MIGRATIONS = {
     'league-cup': ('20260907000000', '20260907010000'),
     'time-league': ('20260907193000', '20260908010000', '20260908020000',
-                    '20260908030000', '20260908040000', '20260908050000'),
+                    '20260908030000', '20260908040000', '20260908050000', '20260926010000'),
     'duat': ('20260908160000', '20260908180000', '20260908210000',
-             '20260908230000', '20260916010000'),
+             '20260908230000', '20260916010000', '20260926010000'),
 }
 
 # Fixed catalog-only query: never execute manifest SQL or invoke application
@@ -50,7 +50,7 @@ select jsonb_build_object(
   'triggers',(select jsonb_agg(pg_get_triggerdef(t.oid) order by t.tgname) from pg_trigger t where t.tgrelid=c.oid and not t.tgisinternal),
   'view',case when c.relkind in ('v','m') then pg_get_viewdef(c.oid) else null end
  ) order by c.relname) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p','v','m')
- and (c.relname in ('app_users','app_user_roles','league_cups','cup_honours') or c.relname like 'time_league%' or c.relname like 'duat_%')), '[]'::jsonb),
+ and (c.relname in ('app_users','app_user_roles','league_cups','cup_honours','game_guest_sessions') or c.relname like 'time_league%' or c.relname like 'duat_%')), '[]'::jsonb),
  'routines',coalesce((select jsonb_agg(jsonb_build_object('signature',p.oid::regprocedure::text,'owner',pg_get_userbyid(p.proowner),'definition',pg_get_functiondef(p.oid),'acl',p.proacl::text) order by p.oid::regprocedure::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prokind in ('f','p')), '[]'::jsonb)
 ) as schema;
 """
@@ -256,6 +256,14 @@ def database_snapshot(versions):
     rows = management('database/query', {'query': SCHEMA_QUERY})
     if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0].get('schema'), dict) or not rows[0]['schema'].get('relations') or not rows[0]['schema'].get('routines'):
         raise Rejected('Database schema snapshot is unavailable')
+    if '20260926010000' in versions:
+        schema = rows[0]['schema']
+        guest_table = any(isinstance(value, dict) and value.get('name') == 'game_guest_sessions' for value in schema['relations'])
+        guest_claim = any(isinstance(value, dict) and value.get('signature') in (
+            'claim_game_guest_invite(text,text,text,text)', 'public.claim_game_guest_invite(text,text,text,text)',
+        ) for value in schema['routines'])
+        if not guest_table or not guest_claim:
+            raise Rejected('Recorded guest migration is missing its table or claim routine; review the separate migration release')
     return digest(canonical(rows[0]['schema']))
 
 

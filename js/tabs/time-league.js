@@ -23,6 +23,9 @@
     const Remote = window.App.TimeLeagueRemote;
     const Storage = window.App.TimeLeagueStorage;
     const signInHref = (window.location?.pathname?.includes('/dist-preview/') ? '../' : '') + 'login.html?vault=1&reauth=1';
+    const gameActor = () => window.App.GameGuest?.getActor('vault') || (window.App.OD?.getCurrentUserId?.() ? {
+        userId: window.App.OD.getCurrentUserId(), token: window.App.OD.getSessionToken?.(), kind: 'account',
+    } : null);
 
     const UI_PREFS_KEY = 'wr-time-league-ui-v1';
     const REGULAR_SEASON_WEEKS = 14;
@@ -944,7 +947,7 @@
                 meta.draftStarted && onClose && h('button', { type: 'button', className: 'tl-btn icon', onClick: onClose, 'aria-label': 'Close league managers' }, '×')),
             h('p', { className: 'tl-invite-intro' }, !invitesOpen ? 'The draft has started and this league’s seats are locked.'
                 : allJoined ? 'Everyone is here. Your league is ready to open the draft room.'
-                    : host ? 'Send a different seat link to each friend. They’ll sign in and join your league.' : 'Your commissioner can share invitations for the open seats below.'),
+                    : host ? 'Send a different seat link to each friend. They can sign in, create a free account, or join as a guest. Wait until every friend appears below before opening the draft.' : 'Your commissioner can share invitations for the open seats below.'),
             openSeats.length > 0 && h('div', { className: 'tl-open-seats' }, openSeats.map(member => {
                 const team = league.teams.find(item => item.teamId === member.seat_team_id);
                 return h('article', { key: member.id, className: 'tl-open-seat', 'aria-label': `Open seat: ${seatName(member)}` },
@@ -962,7 +965,8 @@
             notice && h('p', { className: 'tl-invite-notice', role: 'status' }, notice),
             joined.length > 0 && h('details', { className: 'tl-joined-managers' },
                 h('summary', null, `${joined.length} ${joined.length === 1 ? 'manager has' : 'managers have'} joined`),
-                joined.map(member => h('div', { key: member.id, className: 'tl-joined-manager' }, h('strong', null, seatName(member)), h('small', null, member.role === 'commissioner' ? 'Commissioner' : 'Joined')))),
+                joined.map(member => h('div', { key: member.id, className: 'tl-joined-manager' }, h('strong', null, seatName(member)),
+                    h('small', null, [member.displayName, member.role === 'commissioner' ? 'Commissioner' : member.guest ? 'Guest · Joined' : 'Joined'].filter(Boolean).join(' · '))))),
             invitesOpen && host && h('button', { type: 'button', className: 'tl-btn primary tl-open-draft', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'Open draft room'),
             invitesOpen && !host && h('p', { className: 'tl-hint' }, 'The commissioner will open the draft once everyone has joined.'),
             h('details', { className: 'tl-friends-team-editor' },
@@ -1036,6 +1040,13 @@
         const [mailThread, setMailThread] = useState(null);
         const [, refreshMail] = useState(0);
         const [authRequired, setAuthRequired] = useState(false);
+        const [, refreshGuest] = useState(0);
+        const [inviteAttempt, setInviteAttempt] = useState(0);
+        const actor = gameActor();
+        const actorKey = `${actor?.kind || ''}:${actor?.userId || ''}:${actor?.token || ''}`;
+        const GuestPanel = window.App.GameGuestPanel;
+        const inviteSignInHref = signInHref + (pendingInvite ? '&tl_invite=' + encodeURIComponent(pendingInvite) : '');
+        useEffect(() => window.App.GameGuest?.subscribe(() => refreshGuest(value => value + 1)), []);
         const reportRemoteError = useCallback(error => {
             if (error.authRequired) setAuthRequired(true);
             if (onlineRef.current) setConnectionError(error.message || error.error);
@@ -1094,7 +1105,7 @@
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && leagueRef.current.phase === 'draft' && safe.phase !== 'draft') {
                 setTab(current => current === 'draft' ? 'home' : current);
             }
-            const meta = { rowId: row.id, userId: window.App.OD?.getCurrentUserId?.(), version: row.version, role: row.role || onlineRef.current?.role,
+            const meta = { rowId: row.id, userId: gameActor()?.userId, version: row.version, role: row.role || onlineRef.current?.role,
                 seatTeamId: row.seatTeamId || onlineRef.current?.seatTeamId,
                 members: row.members || onlineRef.current?.members || [], draftStarted: row.draft_started };
             onlineRef.current = meta;
@@ -1109,20 +1120,24 @@
 
         const refreshOnlineIndex = useCallback(() => {
             if (!Remote) return;
-            if (!(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId())) {
+            if (!gameActor()?.userId) {
                 setOnlineIndex([]); setOnlineIndexState('signed-out'); return;
             }
             Remote.listMyOnlineLeagues().then((rows) => { setOnlineIndex(rows); setOnlineIndexState('ready'); }).catch(error => { setOnlineIndexState('error'); setInviteError(error.message); reportRemoteError(error); });
-        }, []);
+        }, [actorKey]);
 
         useEffect(() => {
             const prefs = readUiPrefs();
             setIndex(readIndexEntries());
             refreshOnlineIndex();
             const generation = ++openGeneration.current;
+            if (onlineRef.current && onlineRef.current.userId !== actor?.userId) {
+                onlineRef.current = null; setOnlineMeta(null); setLeague(null); setAuthRequired(false);
+            }
             if (pendingInvite) { setBooted(true); return; }
-            if (prefs.onlineRowId && Remote) {
-                Remote.loadOnlineLeague(prefs.onlineRowId).then((row) => {
+            const rowId = actor?.kind === 'guest' ? actor.roomId : prefs.onlineRowId;
+            if (rowId && Remote) {
+                Remote.loadOnlineLeague(rowId).then((row) => {
                     if (generation !== openGeneration.current) return;
                     acceptRow(row, true);
                     setTab(row.state.phase !== 'draft' && prefs.tab === 'draft' ? 'home' : prefs.tab);
@@ -1140,25 +1155,35 @@
             setBooted(true);
         }, [refreshOnlineIndex]);
 
-        // Consumes a ?tl_invite link once — app.js only opens the Vault this way once a
-        // real account session already exists, but this checks again in case someone
-        // mounts this component directly with a code and no session (defensive, not load-bearing).
+        // Account sessions claim their invite here. Guest joining already claims
+        // the seat on the server and must never replay an account claim.
         useEffect(() => {
-            if (!pendingInvite || !Remote) return;
-            if (!(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId())) return;
+            if (!pendingInvite || !Remote || actor?.kind !== 'account') { setClaimingInvite(false); return; }
             const generation = ++openGeneration.current;
             setClaimingInvite(true);
+            setInviteError(null);
+            let cancelled = false;
             Remote.claimInvite(pendingInvite).then(async (result) => {
                 if (!result.ok) throw Object.assign(new Error(result.error || 'This invite could not be claimed.'), { authRequired: result.authRequired });
                 const row = await Remote.loadOnlineLeague(result.rowId);
-                if (generation !== openGeneration.current) return;
+                if (cancelled || generation !== openGeneration.current) return;
                 acceptRow(row, true);
                 setTab(row.state.phase === 'draft' ? 'draft' : 'home');
                 if (onInviteConsumed) onInviteConsumed();
                 refreshOnlineIndex();
-            }).catch(error => { setInviteError(error.message); reportRemoteError(error); if (onInviteConsumed && !error.authRequired) onInviteConsumed(); })
-                .finally(() => setClaimingInvite(false));
-        }, [pendingInvite]);
+            }).catch(error => { if (!cancelled && generation === openGeneration.current) { setInviteError(error.message); reportRemoteError(error); } })
+                .finally(() => { if (!cancelled) setClaimingInvite(false); });
+            return () => { cancelled = true; };
+        }, [pendingInvite, actorKey, inviteAttempt]);
+
+        const joinedAsGuest = () => {
+            Remote?.resetAuth?.();
+            setInviteError(null); setAuthRequired(false);
+            onInviteConsumed?.();
+            refreshGuest(value => value + 1);
+            const session = window.App.GameGuest?.getSession('vault');
+            if (session?.roomId) openOnlineLeague(session.roomId);
+        };
 
         useEffect(() => {
             let cancelled = false;
@@ -1190,7 +1215,7 @@
             if (!onlineMeta?.rowId || !Remote) return undefined;
             const unsubscribe = Remote.subscribeToLeague(onlineMeta.rowId, row => acceptRow(row), reportRemoteError);
             return unsubscribe;
-        }, [onlineMeta?.rowId]);
+        }, [onlineMeta?.rowId, actorKey]);
 
         const persistLeague = useCallback((state) => {
             const previous = readIndexEntries();
@@ -1525,8 +1550,19 @@
             h('p', null, `Couldn’t load ${failedData.join(' and ')}. Check your connection and try again.`),
             h('button', { type: 'button', className: 'tl-btn', disabled: dataLoading, onClick: () => setDataAttempt(attempt => attempt + 1) }, dataLoading ? 'Retrying…' : 'Retry loading'));
         const signInNotice = authRequired && (!league || onlineMeta) && h('div', { className: 'tl-card', role: 'alert' },
-            h('p', null, 'Your sign-in is no longer accepted. Sign in again to reconnect to your saved league.'),
-            h('a', { className: 'tl-btn primary', href: signInHref }, 'Sign in again'));
+            h('p', null, actor?.kind === 'guest' ? 'Your guest session needs to reconnect. Restore your guest pass below to return to this team.' : 'Your sign-in is no longer accepted. Sign in again to reconnect to your saved league.'),
+            actor?.kind !== 'guest' && h('a', { className: 'tl-btn primary', href: inviteSignInHref }, 'Sign in again'));
+        const guestSessionPanel = GuestPanel && actor?.kind !== 'account' && h(GuestPanel, {
+            game: 'vault', code: pendingInvite || null, onJoined: joinedAsGuest, onError: message => setInviteError(typeof message === 'string' ? message : message?.message),
+        });
+        const guestAccess = guestSessionPanel && league && actor?.kind === 'guest' && !pendingInvite && !authRequired
+            ? h('details', { className: 'tl-card tl-guest-access' }, h('summary', null, `Playing as ${actor.displayName || 'Guest'} · Save your guest pass`), guestSessionPanel)
+            : guestSessionPanel;
+        const pendingInviteNotice = pendingInvite && actor?.kind !== 'account' && h('section', { className: 'tl-card tl-pending-invite', 'aria-label': 'Join your friends in The Vault' },
+            h('h2', null, 'You’re invited to The Vault'),
+            h('p', null, 'Take the team your friend reserved for you. Sign in or create a free account to keep your team across devices, or join as a guest below.'),
+            h('a', { className: 'tl-btn primary', href: inviteSignInHref }, 'Sign in or create account'),
+            actor?.kind === 'guest' && h('button', { type: 'button', className: 'tl-btn', onClick: () => { onInviteConsumed?.(); openOnlineLeague(actor.roomId); } }, 'Return to my current guest team'));
 
         if (!league) {
             const lobbyExtras = h(LobbyExtras, null,
@@ -1546,11 +1582,14 @@
                         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
                             h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK'))),
                     claimingInvite && h('div', { className: 'tl-card', style: { marginBottom: 14 } }, h('p', { className: 'tl-empty' }, 'Claiming your invite…')),
+                    pendingInviteNotice,
+                    guestSessionPanel,
                     dataNotice,
                     signInNotice,
                     inviteError && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                             h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
+                            pendingInvite && actor?.kind === 'account' && !authRequired && h('button', { type: 'button', className: 'tl-btn', disabled: claimingInvite, onClick: () => setInviteAttempt(value => value + 1) }, 'Retry joining'),
                             h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setInviteError(null) }, '✕'))),
                     !phone && lobbyExtras,
                     SetupPanel ? h(SetupPanel, {
@@ -1636,6 +1675,7 @@
                         h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
                         h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setConflictNotice(null) }, '✕'))),
                 signInNotice,
+                guestAccess,
                 connectionError && !authRequired && h('p', { className: 'tl-card', role: 'status' }, 'Connection interrupted. Reconnecting automatically; your last saved game is shown.'),
                 storageError && h('div', { className: 'tl-card', role: 'alert' },
                     h('p', null, storageError),

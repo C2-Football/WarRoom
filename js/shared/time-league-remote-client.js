@@ -1,27 +1,37 @@
-// Account-authenticated Vault I/O. The server computes every shared game move.
+// Authenticated Vault I/O. Guest credentials remain scoped to their own room.
 (function () {
     'use strict';
     window.App = window.App || {};
     let rejectedSession = null;
+    const actor = () => window.App.GameGuest?.getActor('vault') || (window.App.OD?.getCurrentUserId?.() ? {
+        userId: window.App.OD.getCurrentUserId(), token: window.App.OD.getSessionToken?.(), kind: 'account',
+    } : null);
     const signInRequired = () => ({ ok: false, authRequired: true, error: 'Sign in again to reconnect to your saved league.' });
     const requestError = result => Object.assign(new Error(result.error), { authRequired: result.authRequired === true });
     async function request(body) {
         const od = window.App.OD;
         const db = od?.getClient?.();
-        const token = od?.getSessionToken?.();
-        const requestUserId = od?.getCurrentUserId?.();
+        const requestActor = actor();
+        const token = requestActor?.token;
+        const requestUserId = requestActor?.userId;
         if (!requestUserId || !token) return signInRequired();
+        if (requestActor.kind === 'guest' && !['list', 'load', 'action', 'ready'].includes(body.op)) {
+            return { ok: false, error: 'Guest access is for your invited league. Sign in to host a league or use the community.' };
+        }
+        if (requestActor.kind === 'guest' && body.rowId && body.rowId !== requestActor.roomId) {
+            return { ok: false, error: 'This guest pass belongs to a different league.' };
+        }
         if (rejectedSession?.token === token && rejectedSession.userId === requestUserId) return signInRequired();
         if (!db) return { ok: false, error: 'The league service is still loading. Try again.' };
         try {
             const { data, error } = await db.functions.invoke('time-league', { body, headers: { Authorization: `Bearer ${token}` } });
-            if (od?.getCurrentUserId?.() !== requestUserId) return { ok: false, error: 'Your account changed. Reopen the league to continue.' };
-            if (od?.getSessionToken?.() !== token) return { ok: false, error: 'Your session changed. Reopen the league to continue.' };
+            if (actor()?.userId !== requestUserId || actor()?.kind !== requestActor.kind) return { ok: false, error: 'Your account changed. Reopen the league to continue.' };
+            if (actor()?.token !== token) return { ok: false, error: 'Your session changed. Reopen the league to continue.' };
             if (error) {
                 if (error.context?.status === 401) {
                     // A rejected session cannot recover through polling. Cache
                     // only this exact credential; a fresh sign-in can try again.
-                    if (od?.getSessionToken?.() === token) rejectedSession = { token, userId: requestUserId };
+                    if (actor()?.token === token) rejectedSession = { token, userId: requestUserId };
                     return signInRequired();
                 }
                 const details = await error.context?.json?.().catch(() => null);
@@ -71,6 +81,9 @@
         return stop;
     }
     window.App.TimeLeagueRemote = {
+        // Only the successful guest restore/join path uses this. An explicit
+        // server-confirmed restore can renew the same opaque guest credential.
+        resetAuth: () => { rejectedSession = null; },
         createOnlineLeague, loadOnlineLeague, listMyOnlineLeagues, subscribeToLeague,
         claimInvite: (code) => request({ op: 'claim', code }),
         writeOnlineLeague: async (rowId, action, version) => {

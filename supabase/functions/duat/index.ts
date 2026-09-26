@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { handleOptions, json, requireActiveAppSession } from '../_shared/security.ts';
+import { getGameGuestSession, guestCanAccess, handleGameGuestEntry, loadGameMemberLabels } from '../_shared/game-guest.ts';
 import { App, loadData, availableSeasons } from './runtime.js';
 
 const ACTION_FIELDS: Record<string, string[]> = {
@@ -59,9 +60,10 @@ async function authorizedRoom(admin: any, roomId: string, userId: string): Promi
     if (error) throw error;
     const { data: members, error: seatsError } = await admin.from('duat_campaign_members').select('faction_id,role,user_id,joined_at,ready,invite_code').eq('room_id', roomId);
     if (seatsError) throw seatsError;
-    return { row, members, member };
+    const memberLabels = await loadGameMemberLabels(admin, 'duat', roomId, members);
+    return { row, members, member, memberLabels };
 }
-async function projectRoom({ row, members, member }: any): Promise<any> {
+async function projectRoom({ row, members, member, memberLabels }: any): Promise<any> {
     const allReady = members.every((seat: any) => seat.user_id && seat.joined_at && seat.ready);
     const needsDraftPool = row.state.phase === 'draft' && row.state.draft?.status === 'active'
         && App.DuatCampaign.draftTurn(row.state)?.factionId === member.faction_id;
@@ -76,6 +78,7 @@ async function projectRoom({ row, members, member }: any): Promise<any> {
             const seat = members.find((item: any) => item.faction_id === faction.id);
             return { factionId: faction.id, controller: seat ? 'human' : 'ai', role: seat?.role || 'ai',
                 joined: seat ? Boolean(seat.user_id && seat.joined_at) : true, ready: seat ? seat.ready : true,
+                ...(seat?.user_id ? memberLabels.get(seat.user_id) : {}),
                 ...(member.role === 'host' && seat && !seat.user_id && (row.state.phase === 'preseason' || (row.state.phase === 'draft' && row.state.draft?.status === 'waiting')) ? { inviteCode: seat.invite_code } : {}) };
         }),
         self: { factionId: member.faction_id, role: member.role, ready: member.ready }, ready: member.ready,
@@ -91,11 +94,16 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
     if (req.method !== 'POST') return json(req, { ok: false, error: 'POST required' }, 405);
     try {
         const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-        const session = await requireActiveAppSession(admin, req);
-        if (!session) return json(req, { ok: false, error: 'Sign in to play The Duat with friends.' }, 401);
+        const account = await requireActiveAppSession(admin, req);
         const text = await req.text();
         if (text.length > 16384) reject('Campaign request is too large.', 413);
         const body = JSON.parse(text);
+        const guestEntry = await handleGameGuestEntry(admin, req, body, 'duat');
+        if (guestEntry) return guestEntry;
+        const guest = account ? null : await getGameGuestSession(admin, req, 'duat');
+        const session = account || guest;
+        if (!session) return json(req, { ok: false, error: 'Sign in or reopen your guest pass to play The Duat with friends.' }, 401);
+        if (guest && !guestCanAccess(guest, body)) reject('Your guest pass only opens its invited seat. Sign in with an account to host a campaign.', 403);
         if (body.op === 'create') {
             const input = body.input;
             if (!input || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 80) reject('Choose a campaign name of up to 80 characters.');
@@ -132,7 +140,9 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
             return json(req, { ok: true, roomId });
         }
         if (body.op === 'list') {
-            const { data, error } = await admin.from('duat_campaign_members').select('room_id,faction_id,role,duat_campaigns(id,state,revision,updated_at)').eq('user_id', session.userId).not('joined_at', 'is', null);
+            let query = admin.from('duat_campaign_members').select('room_id,faction_id,role,duat_campaigns(id,state,revision,updated_at)').eq('user_id', session.userId).not('joined_at', 'is', null);
+            if (guest) query = query.eq('room_id', guest.roomId);
+            const { data, error } = await query;
             if (error) throw error;
             // Never return the raw joined campaign row: it contains future armies.
             const rooms = (data || []).flatMap((item: any) => {

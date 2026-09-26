@@ -393,3 +393,11 @@
 @media (min-width:1024px) {
   .duat-game .is-lineup .duat-weekly-action-heading { display:block; }
 }
+
+/* Keep invitation and session recovery before campaign setup. */
+.duat-game .duat-friends-entry { margin-bottom:24px; }
+.duat-game .duat-friends-entry > .game-guest-panel { margin-top:18px; }
+.duat-game .duat-guest-access { margin-bottom:18px; padding:14px 18px; }
+.duat-game .duat-guest-access > summary { color:var(--duat-gold); cursor:pointer; font-size:14px; }
+.duat-game .duat-auth-recovery .game-guest-panel button { float:none; }
+.duat-game .duat-friend small { display:block; color:var(--duat-muted); margin:3px 0; overflow-wrap:anywhere; }

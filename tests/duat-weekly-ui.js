@@ -21,9 +21,10 @@ function nodes(tree){if(Array.isArray(tree))return tree.flatMap(nodes);if(!tree|
 function text(tree){if(Array.isArray(tree))return tree.map(text).join(' ');if(tree==null||typeof tree==='boolean')return '';return typeof tree==='object'?text(tree.children):String(tree);}
 function button(tree,label){const found=nodes(tree).find(node=>node.type==='button'&&text(node).includes(label));assert(found,'Missing button: '+label);return found;}
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function harness({initial=ready(),online=false,host=true,storage=new Map(),storageFails=false,phone=false}={}){
+async function harness({initial=ready(),online=false,host=true,storage=new Map(),storageFails=false,phone=false,signedOut=false,guest=false}={}){
     let saved=clone(initial),changed=false,cursor=0,effectCursor=0,effects=[],tree;
-    const states=[],deps=[],intervals=[],actions=[],closed=[];
+    const states=[],deps=[],intervals=[],actions=[],closed=[],requests=[],subscribers=[];let failure=null;
+    let actor=online&&!signedOut?{userId:guest?'guest-viewer':'viewer',token:'session',kind:guest?'guest':'account',...(guest?{roomId:'guided-room',displayName:'Guest Friend'}:{})}:null;
     if(online&&saved.phase==='complete')saved.nextSeasonYears=Engine.nextSeasonYears(saved,data);
     const room={id:'guided-room',revision:0,self:{factionId:'egypt',role:host?'host':'member'},campaign:saved,seats:[{factionId:'egypt',controller:'human',joined:true,ready:false},{factionId:'rome',controller:'human',joined:true,ready:false}],canAdvance:false};
     const React={Fragment:'fragment',createElement:(type,props,...children)=>{assert(type,'The mounted tab must not contain an unloaded component');return {type,props:props||{},children};},useMemo:fn=>fn(),useRef(initial){const i=cursor++;if(!(i in states))states[i]={current:initial};return states[i];},useState(initial){const i=cursor++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return [states[i],value=>{const next=typeof value==='function'?value(states[i]):value;if(next!==states[i]){states[i]=next;changed=true;}}];},useEffect(callback,dependencies){const i=effectCursor++;if(!deps[i]||dependencies.some((v,n)=>v!==deps[i][n]))effects.push(callback);deps[i]=dependencies;}};
@@ -34,9 +35,12 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
         DuatStorage:{list:()=>[{id:saved.id,name:saved.name,factionId:'egypt',week:saved.week,phase:saved.phase}],read:()=>clone(saved),write:value=>{saved=clone(value);}},
         DuatPresentation:{nameOf:id=>World.factionById(id)?.name||id,identity:id=>World.factionById(id),art:id=>id+'.webp',Sigil(){},World(){},Tournaments(){},Land(){},Pantheon(){},Draft(){},Archaeology(){}},
         DuatHeptadUI:{RulesControls:Empty,AllianceIntro:Empty,WeeklyRecap:Empty,Games:Empty},DuatRitualsView(){},DuatLibrary(){},DuatCouncil(){},
-        OD:{getCurrentUserId:()=>online?'viewer':null,getSessionToken:()=>online?'session':null},
+        OD:{getCurrentUserId:()=>actor?.kind==='account'?actor.userId:null,getSessionToken:()=>actor?.kind==='account'?actor.token:null},
+        GameGuest:{getActor:()=>actor,getSession:()=>actor?.kind==='guest'?actor:null,subscribe(fn){subscribers.push(fn);return()=>{};}},GameGuestPanel:function GuestPanel(){},
         TimeLeaguePlayerCards:{buildPlayerCardIndex:value=>value},
         DuatRemote:{async request(request){
+            requests.push(clone(request));if(failure&&failure.op===request.op)return clone(failure.result);
+            if(request.op==='claim')return {ok:true,roomId:room.id};
             if(request.op==='list')return {ok:true,rooms:[{id:room.id,name:'Online Fixture',phase:saved.phase,week:saved.week}]};
             if(request.op==='load')return {ok:true,room:clone(room)};
             if(request.op==='action'){
@@ -51,7 +55,7 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
     };
     const WR={useViewport:()=>({isPhone:phone}),Sheet:function Sheet(){}};
     const browser={App,WR,location,localStorage:store,sessionStorage:store,addEventListener(){},removeEventListener(){}};
-    const sandbox={window:browser,location,sessionStorage:store,React,URLSearchParams,URL,history:{replaceState(){}},crypto:{randomUUID:()=>String(Math.random())},console,
+    const sandbox={window:browser,location,sessionStorage:store,React,URLSearchParams,URL,history:{replaceState(state,unused,url){location.href=String(url);}},crypto:{randomUUID:()=>String(Math.random())},console,
         fetch:async url=>({ok:true,json:async()=>url.includes('manifest')?manifest:cards,text:async()=>csv}),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){},setTimeout:()=>0,clearTimeout(){}};
     vm.runInNewContext(uiSource,sandbox);vm.runInNewContext(source,sandbox);
     function draw(){for(let pass=0;pass<10;pass++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.DuatGame({onClose(){closed.push('close');}});effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('The tab did not settle');}
@@ -59,7 +63,7 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
     async function open(resume=true){await button(draw(),online?'Online Fixture':'Guided Fixture').props.onClick();draw();if(resume){const home=nodes(draw()).find(node=>node.type===App.DuatSeasonHomeView);assert(home,'A campaign opens its Season Home first');home.props.onResume();draw();}}
     function frame(){return nodes(draw()).find(node=>node.type===App.DuatWeeklyUI.Frame)?.props;}
     async function primary(){const control=frame().primary;assert(!control.disabled,control.label+' is disabled');await control.onClick();return draw();}
-    return {App,WR,draw,open,frame,primary,actions,storage,room,closed,saved:()=>saved,setPhone(value){phone=value;return draw();},async poll(){for(const fn of intervals)await fn();return draw();},component(type){return nodes(draw()).find(node=>node.type===type)?.props;}};
+    return {App,WR,draw,open,frame,primary,actions,storage,room,closed,requests,location,async settle(){await settle();await settle();return draw();},setFailure(op,result){failure={op,result};},setActor(value){actor=value;subscribers.forEach(fn=>fn());},saved:()=>saved,setPhone(value){phone=value;return draw();},async poll(){for(const fn of intervals)await fn();return draw();},component(type){return nodes(draw()).find(node=>node.type===type)?.props;}};
 }
 
 test('the mounted solo tab guides alliance, valid lineup, games, recap and next preparation with one engine advance',async()=>{
@@ -321,4 +325,59 @@ test('phone Army cannot edit a week whose revealed result is still being reviewe
     phoneDestination(page,'This week').props.onClick();page.component(page.App.DuatSeasonHomeView).onResume();assert.equal(page.frame().stage,'recap');await page.primary();
     phoneDestination(page,'Army').props.onClick();assert(!button(page.draw(),'Edit army').props.disabled);
     assert.equal(page.actions.filter(action=>action.type==='advance-week').length,1);
+});
+
+test('friends entry preserves a pasted invite through sign-in and offers guest access',async()=>{
+    for(const storageFails of [false,true]){
+        const page=await harness({online:true,signedOut:true,storageFails});
+        let tree=page.draw();const input=nodes(tree).find(node=>node.type==='input'&&node.props.placeholder==='Paste your invitation code');
+        input.props.onChange({target:{value:'a'.repeat(48)}});tree=page.draw();
+        const link=nodes(tree).find(node=>node.type==='a'&&text(node)==='Sign in or create account');
+        const target=new URL(link.props.href,page.location);assert.equal(target.searchParams.get('duat_invite'),'a'.repeat(48));assert.equal(target.searchParams.get('duat'),'1');
+        if(!storageFails)assert.equal(page.storage.get('duat-pending-invite'),'a'.repeat(48));
+        const guest=nodes(tree).find(node=>node.type===page.App.GameGuestPanel);assert.equal(guest.props.code,'a'.repeat(48));
+        assert(button(tree,'Create friends’ campaign').props.disabled);assert(button(tree,'Join campaign').props.disabled);
+    }
+});
+
+test('guest join opens its scoped room without claiming twice or creating a full account',async()=>{
+    const page=await harness({online:true,signedOut:true});
+    const panel=nodes(page.draw()).find(node=>node.type===page.App.GameGuestPanel);
+    const guest={userId:'guest-viewer',token:'guest-token',kind:'guest',roomId:page.room.id,displayName:'My Friend'};
+    page.setActor(guest);await panel.props.onJoined(guest);await page.settle();
+    assert(nodes(page.draw()).some(node=>node.type===page.App.DuatSeasonHomeView),'Guest reaches campaign home');
+    assert(page.requests.some(request=>request.op==='load'&&request.roomId===page.room.id));
+    assert(!page.requests.some(request=>['claim','create'].includes(request.op)));
+    assert.equal(page.storage.has('duat-pending-invite'),false);assert.equal(page.location.searchParams.has('duat_invite'),false);
+    button(page.draw(),'Campaign shelf').props.onClick();let tree=page.draw();
+    assert(button(tree,'Create friends’ campaign').props.disabled,'Guests cannot host');
+    await nodes(tree).find(node=>node.type==='form'&&node.props.className.includes('duat-creation-panel')).props.onSubmit({preventDefault(){}});
+    assert(!page.requests.some(request=>request.op==='create'),'Stale/programmatic submit cannot bypass the host account requirement');
+});
+
+test('401 keeps a shared campaign visible, stops polling and blocks stale action callbacks',async()=>{
+    const page=await harness({online:true});await page.open();await page.primary();await page.primary();
+    const callback=page.frame().primary.onClick;page.setFailure('load',{ok:false,authRequired:true,error:'Session expired'});
+    await page.poll();const calls=page.requests.length;await page.poll();assert.equal(page.requests.length,calls,'Rejected-session poll loop stops');
+    assert.match(text(page.draw()),/Reconnect to your campaign/);
+    const link=nodes(page.draw()).find(node=>node.type==='a'&&text(node)==='Sign in again');assert.equal(new URL(link.props.href,page.location).searchParams.get('reauth'),'1');
+    await callback();assert.equal(page.requests.length,calls,'Old action callbacks cannot send requests after authentication fails');
+    assert(nodes(page.draw()).some(node=>node.type===page.App.DuatWeeklyUI.Frame),'Saved campaign stays visible');
+});
+
+test('guest resume on reload opens only the guest room and keeps full-account hosting disabled',async()=>{
+    const page=await harness({online:true,guest:true});await page.settle();
+    assert(page.requests.some(request=>request.op==='load'&&request.roomId===page.room.id));
+    assert(nodes(page.draw()).some(node=>node.type===page.App.DuatSeasonHomeView));
+    page.setFailure('load',{ok:false,authRequired:true,error:'Session expired'});await page.poll();
+    assert.match(text(page.draw()),/Reconnect to your campaign/);
+    assert(nodes(page.draw()).some(node=>node.type===page.App.GameGuestPanel),'Guest recovery remains available after rejection');
+});
+
+test('host sees the joined player name and guest marker beside the reserved faction',async()=>{
+    const initial=ready();initial.phase='draft';initial.draft.status='waiting';
+    const page=await harness({online:true,initial});page.room.seats[1].displayName='Friend Manager';page.room.seats[1].guest=true;
+    await page.open(false);button(page.draw(),'Friends & invites').props.onClick();
+    const label=text(page.draw());assert.match(label,/Friend Manager/);assert.match(label,/Guest/);assert.match(label,/Joined · preparing/);
+    assert.match(label,/Send a different faction link to each friend/);
 });

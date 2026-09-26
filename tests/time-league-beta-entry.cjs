@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('login.html', 'utf8');
 const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(value => value.includes("const SESSION_KEY = 'fw_session_v1'"));
 
-async function login({ search = '', local = {}, pendingInvite = null, oauth = null } = {}) {
+async function login({ search = '', local = {}, pendingInvite = null, oauth = null, blockedStorage = false } = {}) {
     const elements = new Map(), disk = new Map(Object.entries(local)), temporary = new Map();
     if (pendingInvite) temporary.set('tl-pending-invite-v1', pendingInvite);
     const element = id => {
@@ -20,7 +20,7 @@ async function login({ search = '', local = {}, pendingInvite = null, oauth = nu
         window: { location, supabase: { createClient: () => ({ auth: { getSession: async () => { oauthReads++; return { data: { session: oauth } }; } } }) } },
         document: { title: '', getElementById: element, querySelector: element },
         localStorage: { get length() { return disk.size; }, key: index => [...disk.keys()][index] ?? null, getItem: key => disk.get(key) || null, setItem: (key, value) => disk.set(key, value), removeItem: key => disk.delete(key) },
-        sessionStorage: { get length() { return temporary.size; }, key: index => [...temporary.keys()][index] ?? null, getItem: key => temporary.get(key) || null, setItem: (key, value) => temporary.set(key, value), removeItem: key => temporary.delete(key) },
+        sessionStorage: { get length() { return temporary.size; }, key: index => [...temporary.keys()][index] ?? null, getItem: key => { if (blockedStorage) throw new Error('Blocked'); return temporary.get(key) || null; }, setItem: (key, value) => { if (blockedStorage) throw new Error('Blocked'); temporary.set(key, value); }, removeItem: key => temporary.delete(key) },
         setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id; },
         clearTimeout: id => timers.delete(id),
         fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({ token: 'app-token', user: { id: 'app-account', email: 'manager@example.test' } }) }; },
@@ -56,11 +56,11 @@ async function login({ search = '', local = {}, pendingInvite = null, oauth = nu
     page.element('identifier').value = 'manager@example.test'; page.element('password').value = 'test-password';
     await page.submit('panelSignin');
     assert(page.requests[0].url.endsWith('/fw-signin'));
-    assert.equal(page.location.href, 'index.html?vault=1');
+    assert.equal(page.location.href, 'index.html?vault=1&tl_invite=private-invitation');
     assert.equal(page.temporary.get('tl-pending-invite-v1'), 'private-invitation', 'The game, not login, consumes the invitation');
 
     page = await login({ pendingInvite: 'private-invitation', local: { fw_session_v1: JSON.stringify({ token: 'app-token', user: { id: 'app-account' } }) } });
-    assert.equal(page.location.href, 'index.html?vault=1', 'A pending invitation survives return to a login URL without the query');
+    assert.equal(page.location.href, 'index.html?vault=1&tl_invite=private-invitation', 'A pending invitation survives return to a login URL without the query');
     page = await login({ search: '?vault=1', oauth: { access_token: 'oauth-token', user: { email: 'oauth@example.test' } }, local: { fw_session_v1: JSON.stringify({ token: 'oauth-token', user: { email: 'oauth@example.test' } }) } });
     assert.equal(page.location.href, 'login.html?vault=1', 'An OAuth-only session cannot loop into an unsupported Vault account');
     assert.equal(page.oauthReads(), 0);
@@ -75,8 +75,13 @@ async function login({ search = '', local = {}, pendingInvite = null, oauth = nu
     assert.equal(page.oauthReads(), 0);
     page.element('identifier').value = 'manager@example.test'; page.element('password').value = 'test-password';
     await page.submit('panelSignin');
-    assert.equal(page.location.href, 'index.html?vault=1');
+    assert.equal(page.location.href, 'index.html?vault=1&tl_invite=still-pending-seat');
     assert.equal(JSON.parse(page.disk.get('fw_session_v1')).token, 'app-token', 'Explicit recovery saves the newly authenticated credential');
+
+    page = await login({ search: '?vault=1&tl_invite=stored%26only%2Fin%3Furl', blockedStorage: true });
+    page.element('identifier').value = 'manager@example.test'; page.element('password').value = 'test-password';
+    await page.submit('panelSignin');
+    assert.equal(page.location.href, 'index.html?vault=1&tl_invite=stored%26only%2Fin%3Furl', 'Explicit invite survives login even when session storage is unavailable');
 
     // Exercise the real root and mobile menu with a minimal rendering host.
     global.window = globalThis; window.App = {};

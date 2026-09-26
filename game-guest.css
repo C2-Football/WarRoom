@@ -1,0 +1,16 @@
+.game-guest-panel { margin-block:16px; padding:18px; border:1px solid #526152; border-radius:14px; background:#15271f; color:#e9eee7; text-align:left; font:400 14px/1.5 var(--font-body,system-ui,sans-serif); }
+.game-guest-panel h3 { margin:0 0 8px; color:#ffe189; font-size:19px; }
+.game-guest-panel p { margin:8px 0 14px; color:#c0cec4; }
+.game-guest-panel label { display:grid; gap:6px; margin:12px 0; }
+.game-guest-panel :is(input,textarea) { box-sizing:border-box; width:100%; min-width:0; padding:11px 12px; border:1px solid #63796b; border-radius:8px; background:#102019; color:#fff; font:inherit; }
+.game-guest-panel textarea { resize:vertical; overflow-wrap:anywhere; }
+.game-guest-panel button { min-height:44px; padding:10px 16px; border:1px solid #697e6b; border-radius:8px; background:#2a4433; color:#ffe189; font:600 14px/1.4 var(--font-body,system-ui,sans-serif); cursor:pointer; }
+.game-guest-panel button:disabled { cursor:wait; opacity:.6; }
+.game-guest-panel :is(button,input,textarea,summary):focus-visible { outline:2px solid #8af0cf; outline-offset:3px; }
+.game-guest-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.game-guest-panel details { border-top:1px solid #405747; margin-top:16px; padding-top:12px; }
+.game-guest-panel summary { cursor:pointer; padding-block:8px; }
+.game-guest-current + form { margin-top:18px; border-top:1px solid #405747; padding-top:18px; }
+.tl-root .tl-guest-access { margin-block:12px; padding:0 16px; }
+.tl-root .tl-guest-access > summary { min-height:44px; padding-block:12px; color:var(--gold,#ffe189); font-size:14px; cursor:pointer; }
+.tl-root .tl-guest-access > summary:focus-visible { outline:2px solid #8af0cf; outline-offset:3px; }

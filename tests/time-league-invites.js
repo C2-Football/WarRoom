@@ -55,6 +55,8 @@ const draw=()=>room.render(()=>Room(props));
     navigator.share=undefined;tree=draw();assert(!named(tree,'Share invite for Open Owls'));assert(named(tree,'Copy invite for Open Owls'),'Desktop copying does not depend on the share API');
     props={...props,meta:{...meta,role:'member',seatTeamId:'t2'}};tree=draw();assert(!named(tree,'Copy invite for Open Bears'));assert(!text(tree).includes('bear-code'));assert(!button(tree,'Open draft room'));
     props={...props,meta:{...meta,members:meta.members.map(member=>({...member,joined:true}))}};tree=draw();assert(!button(tree,'Open draft room').props.disabled);button(tree,'Open draft room').props.onClick();assert.equal(action.type,'start');assert(text(tree).includes('Everyone is here'));
+    props={...props,meta:{...props.meta,members:props.meta.members.map((member,index)=>({...member,displayName:index===1?'Jamie Friend':'Alex Host',guest:index===1}))}};
+    tree=draw();assert(text(tree).includes('Jamie Friend · Guest · Joined'), 'Hosts can verify the actual guest name that claimed a seat');
     props={...props,meta:{...meta,draftStarted:true}};tree=draw();assert(!named(tree,'Copy invite for Open Bears'));assert(text(tree).includes('seats are locked'));
     root.states[11]={...meta,draftStarted:true};tree=drawRoot();assert(!all(tree).some(node=>node.type===Room));button(all(tree).find(node=>node.type==='header'),'Invite').props.onClick();tree=drawRoot();assert(all(tree).some(node=>node.type===Room),'Header invitations remain accessible after returning to an existing league');
     root.states[11]={...meta,role:'member',draftStarted:true};tree=drawRoot();assert(button(all(tree).find(node=>node.type==='header'),'Managers'));assert(!button(all(tree).find(node=>node.type==='header'),'Invite'));
@@ -83,5 +85,15 @@ const draw=()=>room.render(()=>Room(props));
         context.useState = initial => initial();
         assert.equal(vm.runInContext('useState(' + initialMode[1] + ')', context), true, 'Consumed invitations reopen The Vault on reload');
     }
+    // Browser storage denial must not discard the only copy of a private seat link.
+    const deniedLocation = new URL('https://c2-football.github.io/WarRoom/index.html?vault=1&tl_invite=storage-blocked-seat');
+    let deniedPending;
+    vm.runInNewContext(appSource.slice(start, end), { URL, URLSearchParams,
+        window: { location: deniedLocation, history: { replaceState(state, title, url) { deniedLocation.href = String(url); } } },
+        sessionStorage: { setItem() { throw new Error('Storage blocked'); }, getItem() { throw new Error('Storage blocked'); } },
+        useState() { return [null, value => { deniedPending = value; }]; }, useEffect(fn) { fn(); },
+    });
+    assert.equal(deniedPending, 'storage-blocked-seat');
+    assert.equal(deniedLocation.searchParams.get('tl_invite'), 'storage-blocked-seat', 'The URL keeps the invitation when browser storage cannot');
     console.log('PASS: visible multiplayer invites, seat-specific share/copy, sandbox/public/native links, cancellation and clipboard fallback, joined/locked seat guards and commissioner access.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

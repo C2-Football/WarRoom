@@ -1041,10 +1041,12 @@
         const [pendingInvite, setPendingInvite] = useState(null);
         useEffect(() => {
             const code = new URLSearchParams(window.location.search).get('tl_invite');
+            let preserved = false;
             if (code) {
-                try { sessionStorage.setItem(PENDING_INVITE_KEY, code); } catch { /* best effort */ }
+                setPendingInvite(code);
+                try { sessionStorage.setItem(PENDING_INVITE_KEY, code); preserved = sessionStorage.getItem(PENDING_INVITE_KEY) === code; } catch { /* Keep the code in the URL when storage is unavailable. */ }
                 const url = new URL(window.location.href);
-                url.searchParams.delete('tl_invite');
+                if (preserved) url.searchParams.delete('tl_invite');
                 // Keep the game destination after consuming the private code.
                 // A reload must reopen the saved Vault room, not the hub.
                 url.searchParams.set('vault', '1');
@@ -1052,18 +1054,19 @@
             }
             let stored = null;
             try { stored = sessionStorage.getItem(PENDING_INVITE_KEY); } catch { /* best effort */ }
-            if (stored) setPendingInvite(stored);
+            if (!code && stored) setPendingInvite(stored);
         }, []);
         const clearPendingInvite = () => {
             try { sessionStorage.removeItem(PENDING_INVITE_KEY); } catch { /* best effort */ }
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('tl_invite')) { url.searchParams.delete('tl_invite'); window.history.replaceState(window.history.state, '', url); }
             setPendingInvite(null);
         };
-        // Already signed in when the link lands (or came back from login.html
-        // already carrying a session) — jump straight into the claim flow rather
-        // than making them find the hub card themselves.
+        // Open invitation entry for every visitor, including older links without
+        // vault=1. The game presents account and guest choices before claiming.
         useEffect(() => {
             if (!pendingInvite || timeLeagueMode) return;
-            if (window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) openTimeLeague();
+            openTimeLeague();
         }, [pendingInvite, timeLeagueMode]);
 
         // Bumped after background roster assessment so the Rolodex re-renders.

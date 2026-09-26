@@ -113,6 +113,31 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(output.read_text().splitlines(), ['league_cup=true', 'time_league=false', 'duat=false'])
 
+    def test_guest_schema_is_required_for_each_guest_game_but_not_cup(self):
+        version = '20260926010000'
+        for name in ['time-league', 'duat']:
+            with self.subTest(game=name):
+                prerequisites = release.migration_inputs(self.root, self.head, [name])
+                self.assertIn(version, prerequisites)
+                recorded_before_guests = [{'version': v} for v in prerequisites if v != version]
+                with patch.object(release, 'management', return_value=recorded_before_guests) as request:
+                    with self.assertRaisesRegex(release.Rejected, 'not all recorded'):
+                        release.database_snapshot(prerequisites)
+                    self.assertEqual(request.call_count, 1, 'missing guest schema must stop before compatibility inspection or deployment')
+        self.assertNotIn(version, release.migration_inputs(self.root, self.head, ['league-cup']))
+
+    def test_review_cannot_omit_or_change_guest_schema(self):
+        prerequisite = self.manifest['requiredMigrations'].pop('20260926010000')
+        self.commit_manifest()
+        with self.assertRaisesRegex(release.Rejected, 'migration prerequisites'):
+            self.validate()
+        self.manifest['requiredMigrations']['20260926010000'] = prerequisite
+        self.commit_manifest()
+        source = self.root / prerequisite['path']
+        source.write_bytes(source.read_bytes() + b'-- unreviewed guest authority change\n')
+        with self.assertRaisesRegex(release.Rejected, 'Working source differs'):
+            self.validate()
+
     def test_manual_missing_scope_wrong_repository_and_branch_stop(self):
         for extra in [[], ['--repository', 'C2-Football/WarRoom-sandbox', '--ref', 'refs/heads/main'], ['--repository', release.REPOSITORY, '--ref', 'refs/heads/other'], ['--repository', release.REPOSITORY, '--ref', 'refs/heads/main']]:
             result = subprocess.run(['python3', str(ROOT / 'scripts/c2-edge-release.py'), 'plan', '--head', self.head, *extra], cwd=self.root, capture_output=True)
@@ -176,7 +201,7 @@ class ReleaseTests(unittest.TestCase):
         calls = []
         def request(route, payload):
             calls.append((route, payload['query']))
-            return [{'version': v} for v in self.manifest['requiredMigrations']] if len(calls) == 1 else [{'schema': {'relations': ['controlled'], 'routines': ['controlled']}}]
+            return [{'version': v} for v in self.manifest['requiredMigrations']] if len(calls) == 1 else [{'schema': {'relations': [{'name': 'game_guest_sessions'}], 'routines': [{'signature': 'claim_game_guest_invite(text,text,text,text)'}]}}]
         with patch.object(release, 'management', side_effect=request):
             value = release.database_snapshot(self.manifest['requiredMigrations'])
         self.assertEqual(len(value), 64)
@@ -185,6 +210,16 @@ class ReleaseTests(unittest.TestCase):
         with patch.object(release, 'management', return_value=[]):
             with self.assertRaisesRegex(release.Rejected, 'not all recorded'):
                 release.database_snapshot(self.manifest['requiredMigrations'])
+
+    def test_guest_migration_record_alone_cannot_hide_missing_authority_schema(self):
+        recorded = [{'version': v} for v in self.manifest['requiredMigrations']]
+        complete = {'relations': [{'name': 'game_guest_sessions'}], 'routines': [{'signature': 'claim_game_guest_invite(text,text,text,text)'}]}
+        for field in ['relations', 'routines']:
+            schema = copy.deepcopy(complete)
+            schema[field] = [{'name': 'unrelated', 'signature': 'unrelated()'}]
+            with self.subTest(missing=field), patch.object(release, 'management', side_effect=[recorded, [{'schema': schema}]]):
+                with self.assertRaisesRegex(release.Rejected, 'missing its table or claim routine'):
+                    release.database_snapshot(self.manifest['requiredMigrations'])
 
     def test_download_inventory_does_not_lose_cup_engine_outside_functions(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -244,7 +279,7 @@ class ReleaseTests(unittest.TestCase):
         for name in release.FUNCTIONS:
             self.assertIn("if: steps.plan.outputs." + name.replace('-', '_') + " == 'true'", workflow)
             self.assertEqual(workflow.count('--function ' + name + '\n'), 2)
-        for suite in ['test:cup', 'test:security', 'test:billing', 'test:timeleague', 'test:duat']:
+        for suite in ['test:cup', 'test:security', 'test:billing', 'test:timeleague', 'test:duat', 'test:game-guests']:
             self.assertIn('npm run ' + suite, workflow)
 
 
