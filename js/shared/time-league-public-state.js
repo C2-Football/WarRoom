@@ -99,7 +99,9 @@
             if (!report || typeof report !== 'object') continue;
             if (hidden) {
                 if (!/^(e\d+|wire:\d+:.+|mystery:.+)$/.test(key)) continue;
-                result[key] = { ...pick(report, fields('week remaining average estimatedRemaining')), currentAvailable: null, currentStars: null, maxRemainingStars: null,
+                const fresh = report.week === currentWeek, available = fresh && typeof report.currentAvailable === 'boolean' ? report.currentAvailable : null;
+                const stars = available === true && Number.isInteger(report.currentStars) && report.currentStars >= 1 && report.currentStars <= 5 ? report.currentStars : null;
+                result[key] = { ...pick(report, fields('week remaining average estimatedRemaining')), currentAvailable: available, currentStars: stars, maxRemainingStars: null,
                     completed: list(report.completed).filter(row => Number.isInteger(row.week) && row.week < currentWeek).map(row => ({ ...pick(row, fields('week points')),
                         stats: row.stats ? { ...pick(row.stats, STATS), ...(row.stats.extra ? { extra: numbers(row.stats.extra) } : {}) } : null })) };
                 continue;
@@ -119,11 +121,23 @@
         if (hidden) {
             const H = App.TimeLeagueHiddenYears, remaining = Math.max(0, App.TimeLeagueEngine.seasonEndWeek(state) - state.currentWeek + 1);
             if (!H) return {};
-            return Object.fromEntries(state.teams.flatMap(team => team.roster).filter(entry => entry.editionId).map(entry => {
+            const entries = new Map(state.teams.flatMap(team => team.roster).filter(entry => entry.editionId).map(entry => [entry.editionId, entry]));
+            // Free-agent reports also use opaque identities. Their private year
+            // supplies only the current clue and is never serialized.
+            for (const card of App.TimeLeagueEngine.freeAgents(state, cards)) {
+                const drawnSeason = App.TimeLeagueEngine.waiverSeason(state, card);
+                if (drawnSeason == null) continue;
+                const editionId = `mystery:${card.identity}`;
+                entries.set(editionId, { identity: card.identity, position: card.position, drawnSeason, editionId });
+            }
+            return Object.fromEntries([...entries.values()].map(entry => {
                 const completed = H.observationRows(state, entry), games = completed.filter(row => row.available);
                 const average = games.length ? games.reduce((sum, row) => sum + row.points, 0) / games.length : null;
+                const rating = App.TimeLeagueSeason.weeklyStarOutlook(entry, state.currentWeek, App.TimeLeagueEngine.seasonEndWeek(state), logIndex,
+                    state.settings.scoring, state.settings.eraAdjusted ? factors : null, state);
+                const current = rating?.schedule?.find(row => row.week === state.currentWeek);
                 return [entry.editionId, { week: state.currentWeek, remaining, average, estimatedRemaining: average == null ? null : average * remaining,
-                    currentAvailable: null, currentStars: null, maxRemainingStars: null, completed }];
+                    currentAvailable: current?.available ?? null, currentStars: rating?.stars ?? null, maxRemainingStars: null, completed }];
             }));
         }
         if (!logIndex?.size) return {};

@@ -36,9 +36,12 @@ const hiddenGetter = { ...player }; Object.defineProperty(hiddenGetter, 'drawnSe
 const before = H.read(league, hiddenGetter, cards, index);
 assert.deepEqual(before.candidateYears, [1991, 1992, 1993]); assert.equal(before.average, null); assert.equal(before.games, 0);
 assert.equal(before.concealed, true); assert(Number.isFinite(before.estimatedAverage));
-assert.equal(Stats.signals(league, player, index).currentStars, null);
-assert.equal(Stats.signals(league, player, index).currentAvailable, null);
-assert.equal(S.weeklyStarOutlook(player, 1, 3, index, scoring, null, league), null, 'The actual current game can never provide a star clue in hidden-year mode');
+const initialClue = Stats.signals(league, player, index);
+assert(initialClue.currentStars >= 1 && initialClue.currentStars <= 5, 'Mystery players receive an authorized coarse current-week clue');
+assert.equal(initialClue.currentAvailable, true);
+const mysteryStars = S.weeklyStarOutlook(player, 1, 3, index, scoring, null, league);
+assert.equal(mysteryStars.maxRemainingStars, null, 'A current clue never opens the private future pool ceiling');
+assert(mysteryStars.schedule.slice(1).every(row => row.stars === null && row.available === null), 'No future source game clues leave the engine');
 const privateTrap = { ...league };
 for (const key of ['privateGameSeed', 'privateGameDecks', 'privateDraws', 'hiddenYearAssignments']) Object.defineProperty(privateTrap, key, { get() { throw new Error('Private data was consulted: ' + key); } });
 assert.deepEqual(H.read(privateTrap, hiddenGetter, cards, index), before, 'Candidate intelligence is independent of private draws and games');
@@ -81,7 +84,12 @@ const project = (state, seat = 't1') => Public.projectPublicState(state, seat, [
 const assertConcealed = state => {
     const json = JSON.stringify(state);
     for (const key of ['drawnSeason', 'sourceWeek', 'sourceGameId', 'privateDraws', 'privateGame', 'hiddenYearAssignments', '"factor"']) assert(!json.includes(key), `Concealed response cannot contain ${key}`);
-    for (const report of Object.values(state.playerReports || {})) { assert.equal(report.currentStars, null); assert.equal(report.currentAvailable, null); assert.equal(report.maxRemainingStars, null); }
+    for (const report of Object.values(state.playerReports || {})) {
+        assert.equal(report.maxRemainingStars, null);
+        assert(report.currentStars == null || report.currentStars >= 1 && report.currentStars <= 5);
+        assert(!report.completed.some(row => Object.hasOwn(row, 'stars')), 'Only the current clue is public');
+        if (state.phase === 'complete' || state.weekStage === 'postgame') { assert.equal(report.currentStars, null); assert.equal(report.currentAvailable, null); }
+    }
     assert.equal(state.waiverEditions, undefined, 'A hidden waiver allocation never leaves the server');
     assert.equal(state.yearsRevealed, false);
 };

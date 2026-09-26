@@ -3,7 +3,7 @@
 const assert = require('assert');
 global.window = globalThis;
 global.App = {};
-for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui', 'player-cards', 'player-stats']) require('../js/shared/time-league-' + module + '.js');
+for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui', 'player-cards', 'hidden-years', 'player-stats']) require('../js/shared/time-league-' + module + '.js');
 let state = [], refs = [], effects = [], cursor = 0, refCursor = 0;
 global.React = {
     Fragment: 'fragment',
@@ -156,11 +156,14 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
         removedLogs.push([key, logs.get(key)]); logs.delete(key);
     }
     tree = render();
-    const futureWeeks = byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed'));
-    assert.equal(futureWeeks.length, 11, 'Every future week stays sealed, including an eight-week missing stretch');
-    assert(futureWeeks.every(node => !node.props.className.includes('missing') && text(node).includes('Sealed') && !text(node).includes('★')));
+    const vaultTab = walk(tree).find(node => node.type === 'button' && node.children?.[0] === 'Vault games');
+    vaultTab.props.onClick(); tree = render();
+    const completedTable = byClass(tree, 'tl-season-game-table')[0];
+    const completedRows = walk(completedTable).filter(node => node.type === 'tbody')[0].children[0];
+    assert.equal(completedRows.length, 2, 'Only completed Vault weeks appear, including when future records are missing');
+    assert(text(byClass(tree, 'tl-roster-dossier')).includes('Future weeks stay sealed'));
     assert(text(byClass(tree, 'tl-roster-dossier')).includes('Vault weeks left'));
-    assert(!text(tree).includes('games left'), 'Roster rows must not disclose exact remaining participation');
+    assert(!text(completedTable).includes('W3'), 'Upcoming Vault scores are not reconstructed from archive rows');
     assert(text(byClass(tree, 'tl-archive-season-scope')).includes('Archive GP · W1–14'), 'Legacy counts are never presented as full-season NFL appearances');
     const youngCard = cards.get(entries[0].identity);
     cards.legacyCards = new Map(cards);
@@ -170,12 +173,13 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert(scope.includes('Recorded GP') && scope.includes('NFL schedule') && scope.includes('16 games') && scope.includes('14 weeks'), 'NFL schedule, logged appearances and Vault length remain distinct');
     assert(scope.includes('Full NFL season') && scope.includes('320.0 pts') && scope.includes('Legacy Vault · W1–14') && scope.includes('200.0 pts'), 'Old saves show full historical totals separately from preserved league pricing');
     const youngRow = byClass(tree, 'tl-lineup-row').find(row => text(row).includes('Steve Young'));
-    assert(text(byClass(youngRow, 'tl-lineup-pts')[0]).includes('200.0'), 'Old roster SZN points keep legacy league values');
+    const left = App.TimeLeaguePlayerStats.scouting(league, entries[0], E.cardsFor(league, cards), logs).remainingPoints;
+    assert(text(byClass(youngRow, 'tl-lineup-remaining')).includes(left.toFixed(1)), 'The roster now shows remaining points from the preserved legacy game pool');
     assert(!scope.includes('NFL GP'), 'Recorded games are not claimed to be verified official participation');
     const currentKey = S.gameLogKey(entries[0].identity, 1994, 3), currentLog = logs.get(currentKey);
     logs.delete(currentKey); tree = render();
     assert(text(byClass(tree, 'tl-roster-signals')).includes('No recorded game'));
-    assert(byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed')).every(node => !node.props.className.includes('missing')), 'A missing current game never reveals future absences');
+    assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'A missing current game never reveals future Vault results');
     logs.set(currentKey, currentLog);
     cards.set(entries[0].identity, youngCard);
     delete cards.legacyCards;
@@ -184,7 +188,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     league = { ...league, weekStage: 'postgame' };
     tree = render();
     assert(byClass(tree, 'tl-week-stars').every(node => text(node).includes('Awaiting next week') && !text(node).includes('No recorded game')));
-    assert.equal(byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed')).length, 12, 'Postgame keeps the upcoming currentWeek sealed until Advance week');
+    assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'Postgame keeps the upcoming currentWeek absent from the completed-game table');
 
     league = { ...league, weekStage: 'ready' };
     const before = applied.length;
@@ -290,5 +294,95 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     league = { ...league, trades: league.trades.map(trade => ({ ...trade, deferredUntilWeek: league.currentWeek + 1 })) };
     tree = render({ section: 'trades' });
     assert(!ping(tree) && text(tree).includes(`Delayed until Week ${league.currentWeek + 1}`), 'Deferred AI offers keep their actual review week and cannot be pinged early');
-    console.log('PASS: own-roster focus, named atomic full-bench swaps, all eligible open-slot choices, mobile sheet, stars, sealed archive, locks, hotseat/online seat ownership, filtered free agents and failed-save recovery');
+
+    // The player card must honor the same viewer boundary and public archive
+    // references as its compact roster metrics.
+    const visibleText = node => node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node)
+        : Array.isArray(node) ? node.map(visibleText).join(' ') : visibleText(node.children);
+    const scoutEntry = entry('scout', 'Scouting Quarterback', 'QB', 'QB');
+    const scoutSource = [1000, 900, 800, 300, 200, 100].map((passYd, i) => ({ identity: scoutEntry.identity, season: 1994, week: i + 1,
+        stats: { ...S.emptyStatLine(), passYd } }));
+    const scoutLogs = S.buildGameLogIndex(scoutSource);
+    const scoutCard = { identity: scoutEntry.identity, name: scoutEntry.name, position: 'QB', peak: 132,
+        seasons: [{ season: 1994, games: 6, recordedGames: 6, points: 132, sourceWeekKind: 'nfl-week' }] };
+    const scoutCards = new Map([[scoutEntry.identity, scoutCard]]);
+    const scoutLeague = { ...league, settings: { ...league.settings, gameDeckVersion: 1, regularSeasonWeeks: 6, playoffTeams: 0, hiddenYears: false },
+        currentWeek: 4, weekStage: 'lineup', teams: league.teams.map((team, i) => ({ ...team, roster: i ? [] : [scoutEntry] })),
+        privateGameDecks: { [S.editionKey(scoutEntry)]: [1, 2, 3, 4, 5, 6, ...Array(8).fill(null)] },
+        finalizedWeeks: [1, 2, 3].map(week => ({ week, results: [], matchups: [], playerProduction: [
+            { ...scoutEntry, points: [40, 36, 32][week - 1], stats: scoutSource[week - 1].stats },
+        ] })) };
+    const scoutRender = extra => render({ league: scoutLeague, cards: scoutCards, logIndex: scoutLogs, activeTeamId: scoutLeague.teams[0].teamId, ...extra });
+    reset(); tree = scoutRender({ throughWeek: 1 });
+    button(tree, "Explore Scouting Quarterback's history").props.onClick();
+    tree = scoutRender({ throughWeek: 1 });
+    assert(visibleText(byClass(tree, 'tl-dossier-signals')).includes('Awaiting next week'));
+    assert(!visibleText(byClass(tree, 'tl-roster-dossier')).includes('Archive ceiling:'), 'Player background cannot reveal a pool ceiling reduced by unwatched games');
+    tree = scoutRender({ throughWeek: 3 });
+    assert(visibleText(byClass(tree, 'tl-roster-dossier')).includes('Archive ceiling: 1 stars'), 'The same ceiling becomes visible after its completed games have been reached');
+    assert.equal(S.weeklyStarOutlook(scoutEntry, 2, 6, scoutLogs, scoutLeague.settings.scoring, null, { ...scoutLeague, currentWeek: 2 }).maxRemainingStars, 5,
+        'The replay fixture has five-star games before its two unseen draws, so the cap protects meaningful information');
+
+    const publicLeague = { ...scoutLeague, publicSnapshotVersion: 1,
+        finalizedWeeks: [1, 2, 3].map(week => ({ week, results: [], matchups: [] })),
+        playerReports: { [S.editionKey(scoutEntry)]: { week: 4, currentAvailable: true, currentStars: 1, maxRemainingStars: 1,
+            completed: [1, 2, 3].map(week => ({ week, sourceWeek: week, points: [39.5, 35.5, 31.5][week - 1] })) } } };
+    reset(); tree = scoutRender({ league: publicLeague });
+    button(tree, "Explore Scouting Quarterback's history").props.onClick();
+    tree = scoutRender({ league: publicLeague });
+    walk(tree).find(node => node.type === 'button' && visibleText(node) === 'Vault games').props.onClick();
+    tree = scoutRender({ league: publicLeague });
+    const publicGameTable = byClass(tree, 'tl-season-game-table')[0];
+    const publicGameRows = walk(publicGameTable).filter(node => node.type === 'tr' && walk(node).some(cell => cell.type === 'td'));
+    assert.equal(publicGameRows.length, 3);
+    assert.deepEqual(publicGameRows.map(row => walk(row).filter(cell => cell.type === 'td').slice(0, 2).map(visibleText)),
+        [['39.5', '1000'], ['35.5', '900'], ['31.5', '800']], 'Source-reference-only public reports resolve completed-game stats while preserving saved points');
+    assert(!visibleText(publicGameTable).includes('W4'), 'Resolving source references cannot add the current or future Vault result');
+
+    const publicHiddenEntry = { ...scoutEntry, editionId: 'e1' };
+    Object.defineProperty(publicHiddenEntry, 'drawnSeason', { get() { throw new Error('The player card read a private year'); } });
+    const fullLegacyCards = new Map(scoutCards);
+    fullLegacyCards.legacyCards = new Map([[scoutEntry.identity, { ...scoutCard, seasons: [{ season: 1994, games: 3, points: 108 }] }]]);
+    const fullLegacyLogs = new Map(scoutLogs);
+    fullLegacyLogs.legacyIndex = S.buildGameLogIndex(scoutSource.slice(0, 3));
+    const hiddenLegacyLeague = { ...scoutLeague, publicSnapshotVersion: 1, currentWeek: 2,
+        settings: { ...scoutLeague.settings, gameDeckVersion: 0, hiddenYears: true }, yearsRevealed: false,
+        hiddenYearCandidates: { [scoutEntry.identity]: [1994] }, hiddenYearDecades: { [scoutEntry.identity]: '1990s' }, finalizedWeeks: [],
+        teams: scoutLeague.teams.map((team, i) => ({ ...team, roster: i ? [] : [publicHiddenEntry] })),
+        playerReports: { e1: { week: 2, currentAvailable: true, currentStars: 3, completed: [] } } };
+    const hiddenLegacyRender = () => scoutRender({ league: hiddenLegacyLeague, cards: fullLegacyCards, logIndex: fullLegacyLogs });
+    reset(); tree = hiddenLegacyRender();
+    button(tree, "Explore Scouting Quarterback's history").props.onClick();
+    assert.doesNotThrow(() => { tree = hiddenLegacyRender(); }, 'An identified legacy card must use its public candidate year even in background totals');
+    const hiddenLegacyScope = visibleText(byClass(tree, 'tl-archive-season-scope'));
+    assert(hiddenLegacyScope.includes('Full NFL season 132.0 pts') && hiddenLegacyScope.includes('Legacy Vault · W1–14 108.0 pts'),
+        'A publicly identified legacy card keeps the full-season reference and original scoring archive separate');
+    assert.equal(visibleText(byClass(tree, 'tl-scouting-year')[0]), '1994', 'The public singleton supplies the bold year without reading the private edition');
+
+    for (const fixture of [
+        { position: 'K', extra: { fgm: 3, fgmiss: 1, xpm: 4, xpmiss: 2, fgm_50p: 3 },
+            headings: ['FG made', 'FG missed', 'XP made', 'XP missed'], values: ['3', '1', '4', '2'] },
+        { position: 'DEF', extra: { sack: 4, int: 2, fr: 3, def_td: 1, def_st_td: 2, safe: 1 },
+            headings: ['Sacks', 'INT', 'Fum rec', 'Def TD', 'ST TD', 'Safety'], values: ['4', '2', '3', '1', '2', '1'] },
+    ]) {
+        const specialist = entry('specialist', `Scouting ${fixture.position}`, fixture.position, fixture.position);
+        const specialistStats = { ...S.emptyStatLine(), extra: fixture.extra };
+        const specialistCards = new Map([[specialist.identity, { identity: specialist.identity, name: specialist.name, position: specialist.position,
+            seasons: [{ season: 1994, games: 1, points: S.scoreStatLine(specialistStats, scoutLeague.settings.scoring) }] }]]);
+        const specialistLogs = S.buildGameLogIndex([{ identity: specialist.identity, season: 1994, week: 1, stats: specialistStats }]);
+        const specialistLeague = { ...scoutLeague, publicSnapshotVersion: 1, currentWeek: 1, finalizedWeeks: [],
+            settings: { ...scoutLeague.settings, rosterSlots: { [fixture.position]: 1, BN: 1 } },
+            teams: scoutLeague.teams.map((team, i) => ({ ...team, roster: i ? [] : [specialist] })),
+            playerReports: { [S.editionKey(specialist)]: { week: 1, currentAvailable: true, currentStars: 5, completed: [] } } };
+        const specialistRender = () => scoutRender({ league: specialistLeague, cards: specialistCards, logIndex: specialistLogs });
+        reset(); tree = specialistRender();
+        button(tree, `Explore ${specialist.name}'s history`).props.onClick();
+        tree = specialistRender();
+        const table = byClass(tree, 'tl-season-game-table')[0];
+        const headings = walk(table).filter(node => node.type === 'th' && node.props.scope === 'col').map(visibleText);
+        assert.deepEqual(headings, ['NFL Wk', 'Points', ...fixture.headings], `${fixture.position} season games display scoring-specific columns instead of receiving statistics`);
+        assert.deepEqual(walk(table).filter(node => node.type === 'td').slice(1).map(visibleText), fixture.values,
+            `${fixture.position} season game values come from stats.extra`);
+    }
+    console.log('PASS: own-roster focus, named atomic full-bench swaps, all eligible open-slot choices, mobile sheet, stars, sealed archive, locks, hotseat/online seat ownership, filtered free agents, failed-save recovery and viewer-safe public scouting cards');
 })().catch(error => { console.error(error); process.exitCode = 1; });

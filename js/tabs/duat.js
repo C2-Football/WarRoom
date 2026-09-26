@@ -9,11 +9,12 @@
     const factionName=Presentation.nameOf;
     let dataPromise;
     async function loadData(){
-        if(!dataPromise)dataPromise=Promise.all(['player-cards.json','nflverse-game-logs.csv','manifest.json'].map(async file=>{
+        if(!dataPromise)dataPromise=Promise.all(['player-cards.json','nflverse-game-logs.csv','manifest.json','research-week18.json'].map(async file=>{
+            if(file==='research-week18.json')return fetch(asset('data/duat/'+file)).then(response=>response.ok?response.json():null).catch(()=>null);
             const response=await fetch(asset('data/duat/'+file));
             if(!response.ok)throw new Error('The historical archive could not load. Check your connection and try again.');
             return file.endsWith('.csv')?response.text():response.json();
-        })).then(([cards,csv,manifest])=>({cards:App.TimeLeaguePlayerCards.buildPlayerCardIndex(cards),logIndex:App.TimeLeagueSeason.buildGameLogIndex(App.TimeLeagueSeason.parseGameLogCsv(csv).logs),manifest})).catch(error=>{dataPromise=null;throw error;});
+        })).then(([cards,csv,manifest,researchWeek18])=>({cards:App.TimeLeaguePlayerCards.buildPlayerCardIndex(cards),logIndex:App.TimeLeagueSeason.buildGameLogIndex(App.TimeLeagueSeason.parseGameLogCsv(csv).logs),manifest,researchWeek18})).catch(error=>{dataPromise=null;throw error;});
         return dataPromise;
     }
     function exportSave(campaign){

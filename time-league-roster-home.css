@@ -218,3 +218,74 @@
     .tl-root.tl-play .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1fr); }
     .tl-root.tl-play .tl-roster-dossier { position:relative; top:0; max-height:none; overflow:visible; }
 }
+
+/* Scouting belongs on the lineup: the edition, weekly clue and points left. */
+.tl-root.tl-play .tl-scouting-year-inline { color:#ffe189; font-weight:800; }
+.tl-root.tl-play .tl-roster-edition.is-known,
+.tl-root.tl-play .tl-scouting-year.is-known { color:#ffe189!important; font-weight:800; font-size:14px!important; letter-spacing:.035em; }
+.tl-root.tl-play .tl-roster-clue-count { color:#afc0ac; font-size:11px; font-weight:400; }
+.tl-root.tl-play .tl-player-signals { grid-template-columns:minmax(75px,.8fr) minmax(108px,1.1fr) minmax(75px,.8fr); max-width:480px; }
+.tl-root.tl-play .tl-player-signals .tl-player-outlook { order:-1; }
+.tl-root.tl-play .tl-player-signals .tl-week-stars { white-space:nowrap; letter-spacing:1px; }
+.tl-root.tl-play .tl-roster-signals .tl-player-remaining { display:none; }
+.tl-root.tl-play .tl-lineup-remaining { color:#f1ead8; }
+.tl-root.tl-play .tl-lineup-remaining small { white-space:normal; text-transform:none; font-size:10px; letter-spacing:0; }
+.tl-root.tl-play .tl-roster-signals { grid-template-columns:minmax(114px,1.1fr) minmax(80px,.8fr); }
+.tl-root.tl-play .tl-roster-signals .tl-player-signal-context { display:none; }
+.tl-root.tl-play .tl-scouting-year { display:block; margin-top:5px; color:#afc0ac; font-size:13px; }
+.tl-root.tl-play .tl-scouting-card { min-width:0; }
+.tl-root.tl-play .tl-scouting-card .tl-dossier-title { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center; }
+.tl-root.tl-play .tl-scouting-card .tl-dossier-title h2 { margin:0; font-size:24px; line-height:1.2; }
+.tl-root.tl-play .tl-dossier-signals { max-width:none; padding:16px 0; margin:0; border-bottom:1px solid #465640; }
+.tl-root.tl-play .tl-dossier-signals .tl-player-signal-context { font-size:10px; }
+.tl-scouting-season-meta { display:flex; flex-wrap:wrap; gap:6px 14px; margin:12px 0 16px; color:#b7c8b4; font-size:12px; }
+.tl-player-card-tabs { display:flex; gap:4px; border-bottom:1px solid #465640; margin-bottom:16px; }
+.tl-player-card-tabs button { flex:1; padding:10px 6px; min-height:44px; border:0; border-bottom:2px solid transparent; background:none; color:#afc0ac; font:600 12px/1.3 var(--font-body,sans-serif); cursor:pointer; }
+.tl-player-card-tabs button[aria-pressed=true] { border-bottom-color:#ffe189; color:#ffe189; }
+.tl-player-card-tabs button:focus-visible,.tl-season-game-scroll:focus-visible,.tl-player-background summary:focus-visible { outline:2px solid #8af0cf; outline-offset:2px; }
+.tl-player-card-section { min-width:0; }
+.tl-player-card-section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.tl-player-card-section-heading h3,.tl-player-card-section > h3 { margin:0; font-size:18px; }
+.tl-player-card-section-heading > span { font-size:11px; color:#afc0ac; }
+.tl-root.tl-play .tl-scouting-card .tl-hint { font-size:12px; line-height:1.55; }
+.tl-season-game-scroll { max-width:100%; overflow:auto; overscroll-behavior-x:contain; border:1px solid #3d4f39; border-radius:9px; }
+.tl-season-game-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; font-size:12px; }
+.tl-season-game-table caption { text-align:left; padding:10px; font-size:11px; color:#b7c8b4; background:#1c2a1e; }
+.tl-season-game-table :is(th,td) { padding:9px 10px; text-align:right; border-bottom:1px solid #3d4f3977; white-space:nowrap; }
+.tl-season-game-table thead th { color:#afc0ac; font-size:10px; font-weight:600; background:#1c2a1e; }
+.tl-season-game-table tr > :first-child { position:sticky; left:0; z-index:1; text-align:left; background:#233225; }
+.tl-season-game-table tr:last-child > * { border-bottom:0; }
+.tl-season-game-table .tl-season-game-points { color:#8af0cf; font-weight:750; }
+.tl-season-game-table .is-observed > :first-child { box-shadow:inset 3px 0 #8af0cf; }
+.tl-season-game-table th > small { display:block; margin-top:3px; color:#8af0cf; font-size:9px; font-weight:400; }
+.tl-player-background { margin-top:18px; border-top:1px solid #465640; }
+.tl-player-background summary { cursor:pointer; padding:14px 0; color:#b7c8b4; font-size:12px; }
+.tl-player-bio-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 16px; }
+.tl-player-bio-list dt { color:#afc0ac; font-size:10px; margin-bottom:4px; }
+.tl-player-bio-list dd { margin:0; font-size:12px; }
+@media (min-width:1024px) {
+  .tl-root.tl-play .tl-roster-layout:not(.has-selection) :is(.tl-lineup-row,.tl-lineup-head) { grid-template-columns:32px minmax(150px,1fr) minmax(205px,.8fr) 72px 52px 58px!important; gap:12px; }
+  .tl-root.tl-play .tl-roster-layout:not(.has-selection) .tl-lineup-row { min-height:72px; padding-block:10px; }
+  .tl-root.tl-play .tl-roster-signals .tl-player-average > strong { font-size:18px; }
+  .tl-root.tl-play .tl-roster-signals .tl-week-stars { font-size:17px; line-height:1.25; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-player .meta { margin-top:3px; }
+  .tl-root.tl-play .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1fr) minmax(420px,1fr); gap:18px; }
+  .tl-root.tl-play .tl-roster-layout.has-selection .tl-roster-signals { grid-template-columns:minmax(110px,1fr) minmax(80px,.8fr); padding-bottom:0; }
+  .tl-root.tl-play .tl-roster-layout.has-selection .tl-lineup-row { padding-block:10px; }
+  .tl-root.tl-play .tl-roster-layout.has-selection .tl-lineup-remaining { font-size:15px; }
+}
+@media (min-width:1024px) and (max-width:1199px) {
+  .tl-root.tl-play .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:767px) {
+  .tl-root.tl-play .tl-roster-signals .tl-player-remaining { display:flex; }
+  .tl-root.tl-play .tl-roster-signals .tl-player-outlook { flex-basis:100%; gap:0 6px; }
+  .tl-root.tl-play .tl-roster-signals .tl-outlook-label { font-size:11px!important; }
+  .tl-root.tl-play .tl-roster-signals .tl-week-stars { font-size:16px; }
+  .tl-root.tl-play .tl-roster-signals .tl-player-signal-context { display:none; }
+  .tl-root.tl-play .tl-dossier-signals { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .tl-root.tl-play .tl-dossier-signals strong { font-size:17px; }
+  .tl-root.tl-play .tl-dossier-signals .tl-week-stars { font-size:14px; letter-spacing:0; white-space:normal; }
+  .tl-root.tl-play .tl-scouting-card .tl-dossier-title h2 { font-size:21px; }
+  .tl-player-card-tabs button { font-size:12px; }
+}

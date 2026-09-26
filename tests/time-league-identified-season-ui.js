@@ -33,7 +33,7 @@ function assertLabels(tree, identified) {
     const known = player(tree, 'e0'), ambiguous = player(tree, 'e1');
     assert(known && ambiguous);
     assert.equal(text(known).includes('1992'), identified);
-    assert.equal(text(known).includes('identified'), identified);
+    assert(!text(known).includes('identified'), 'Known years use a plain year without a repeated identified label');
     assert(!/\b199[239]\b/.test(text(ambiguous)), 'Multiple candidates do not reveal a year');
     assert(!text(known).includes('1999'), 'Private assignment never overrides public evidence');
 }
@@ -50,10 +50,10 @@ let tree = render(WrTimeLeagueGamecastPanel, {}, [null, 0, false, 300, true, nul
 const boxes = classes(tree, 'tl-box-scores');
 assert(text(boxes).includes('1992') && text(boxes).includes('1990s') && !text(boxes).includes('1999'));
 tree = render(WrTimeLeagueHomePanel);
-assert(text(tree).includes('1992 · identified'), 'Home leaders retain the known season');
+assert(text(tree).includes('1992') && !text(tree).includes('1992 · identified'), 'Home leaders retain the known season without a repeated identified label');
 const finale = { ...league, phase: 'complete', currentWeek: 14, championTeamId: 't1', finalizedWeeks: [{ ...week, week: 13 }] };
 tree = render(WrTimeLeagueHomePanel, { league: finale });
-assert(text(classes(tree, 'tl-ceremony')).includes('1992 · identified'), 'Home passes public evidence into championship honors');
+assert(text(classes(tree, 'tl-ceremony')).includes('1992'), 'Home passes public evidence into championship honors');
 tree = render(WrTimeLeagueCeremony, { league: finale, throughWeek: 0 });
 assert(!text(tree).includes('1992') && !text(tree).includes('1999'), 'Ceremony honors respect the same evidence horizon');
 console.log('PASS: identified-season consistency across live lineups, box scores, Home and championship; missing archive, ambiguity, pending/unfinished playback and replay boundaries.');

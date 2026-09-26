@@ -114,6 +114,32 @@
         });
         return {label:playerLabel(player),observed,candidates,remaining:candidates.filter(row=>row.compatible!==false).map(row=>row.year),archiveReady:Boolean(data?.logIndex?.size),revealedSeason:player.revealedSeason||(state.hiddenYears?.revealedByFaction?.[options.factionId]?.includes(player.id)?state.hiddenYears.assignments[player.id]?.season:null)||null};
     }
+    // Scouting reads eligible public archive rows and only the manager's viewed
+    // evidence. It never reads the fixed hidden assignment or simulated future results.
+    function scouting(state,player,data,options={}){
+        const throughWeek=Math.max(0,Math.min(17,Number.isInteger(options.throughWeek)?options.throughWeek:0,Math.max(0,state.week-1)));
+        const info=inspect({week:state.week,scoring:state.scoring,completedWeeks:state.completedWeeks},player,data,{throughWeek}),week=throughWeek+1;
+        const revealedYear=throughWeek>=17&&state.phase==='complete'&&player.candidateYears?.includes(player.revealedSeason)?player.revealedSeason:null;
+        const candidates=info.candidates.filter(candidate=>revealedYear?candidate.year===revealedYear:candidate.compatible!==false);
+        const knownYear=revealedYear||(info.remaining.length===1?info.remaining[0]:null);
+        const empty={week,throughWeek,knownYear,available:false,stars:null,points:null,pointsLeft:null,exact:false,candidateCount:candidates.length};
+        if(!info.archiveReady||!candidates.length)return empty;
+        const values=candidates.map(candidate=>({points:week<=17?candidate.games[week-1].points:0,left:round(candidate.games.filter(game=>game.week>=week).reduce((sum,game)=>sum+game.points,0))}));
+        const mean=key=>round(values.reduce((sum,value)=>sum+value[key],0)/values.length);
+        const points=mean('points'),distribution=candidates.flatMap(candidate=>candidate.games.map(game=>game.points));
+        const percentile=distribution.length?(distribution.filter(value=>value<points).length+distribution.filter(value=>value===points).length/2)/distribution.length:0;
+        const stars=week>17?null:points<=0?1:Math.min(5,1+Math.floor(percentile*5));
+        return {...empty,available:true,points,pointsLeft:mean('left'),range:[Math.min(...values.map(value=>value.points)),Math.max(...values.map(value=>value.points))],remainingRange:[Math.min(...values.map(value=>value.left)),Math.max(...values.map(value=>value.left))],stars,exact:Boolean(knownYear),outlook:week>17?'Season complete':stars>=4?'Strong week':stars===3?'Typical week':'Quiet week'};
+    }
+    function archiveGames(state,player,candidate,data){
+        const games=candidate.games.map(game=>({...game,inCampaign:true,available:true}));
+        if(candidate.year>=2021){
+            const key=Season.gameLogKey(player.identity,candidate.year,18),stats=data?.researchWeek18?.statsByGame?.[key];
+            const loaded=Boolean(data?.researchWeek18?.availableSeasons?.includes(candidate.year));
+            games.push({week:18,inCampaign:false,available:loaded,hasRecordedGame:Boolean(stats),stats:numericStats(stats),points:loaded?(stats?round(Season.scoreStatLine(stats,state.scoring,{})):0):null});
+        }
+        return games;
+    }
     function playerLabel(player){return isCard(player)?player.decade+'s · '+(player.revealedSeason?player.revealedSeason+' revealed':'year hidden'):(player?.season?String(player.season):'Historical player');}
     function reveal(state,factionId){
         if(!enabled(state)||state.phase!=='complete'||!state.factions.some(f=>f.id===factionId))fail('Scoring years can be revealed from the final season recap.');
@@ -138,5 +164,5 @@
         walk(projected);
         return projected;
     }
-    return {enabled,pool,snapshotCard,isCard,assign,assignRosters,scoringSeason,validate,observations,inspect,playerLabel,reveal,project,numericStats};
+    return {enabled,pool,snapshotCard,isCard,assign,assignRosters,scoringSeason,validate,observations,inspect,scouting,archiveGames,playerLabel,reveal,project,numericStats};
 });

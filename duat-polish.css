@@ -337,6 +337,59 @@
   .duat-game .duat-lineup-research-panel :is(th,td) { padding:8px 10px; font-size:13px; }
 }
 .duat-game .duat-weekly-action-heading { display:none; }
+/* Archive scouting stays next to the lineup decision on every screen. */
+.duat-game .duat-lineup-entry .duat-player-name .duat-player-season,
+.duat-game .duat-player-season { color:var(--duat-gold); font-weight:800; }
+.duat-game .duat-scouting { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; }
+.duat-game .duat-scouting-stars { color:var(--duat-gold); white-space:nowrap; letter-spacing:1px; font-size:14px; line-height:1.2; }
+.duat-game .duat-scouting-stars .is-empty { color:#83928b; }
+.duat-game .duat-scouting > small,.duat-game .duat-scouting-unavailable { color:var(--duat-muted); font-size:11px!important; }
+.duat-game .duat-lineup-remaining { display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+.duat-game .duat-lineup-remaining strong { color:var(--duat-gold); }
+.duat-game .duat-research-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.duat-game .duat-research-heading h3 { margin:0 0 5px; font-size:22px; }
+.duat-game .duat-research-scouting { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:var(--duat-muted); }
+.duat-game .duat-research-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.duat-game .duat-research-metrics > div { padding:10px; border:1px solid var(--duat-line); border-radius:8px; background:#193032; }
+.duat-game .duat-research-metrics dt { color:var(--duat-muted); font-size:12px; }
+.duat-game .duat-research-metrics dd { margin:5px 0 0; font-size:22px; font-weight:750; font-variant-numeric:tabular-nums; }
+.duat-game .duat-research-season-control { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 20px; }
+.duat-game .duat-research-season-control h4 { margin:8px 0; }
+.duat-game .duat-research-season-control label { font-size:12px; color:var(--duat-muted); }
+.duat-game .duat-season-game-log { border:1px solid var(--duat-line); border-radius:8px; }
+.duat-game .duat-season-game-log table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.duat-game .duat-season-game-log caption { padding:10px; text-align:left; color:var(--duat-muted); font-size:12px; }
+.duat-game .duat-season-game-log :is(th,td) { white-space:nowrap; text-align:right; border-bottom:1px solid #36515277; padding:9px 10px; }
+.duat-game .duat-season-game-log :is(th,td):first-child { position:sticky; left:0; background:#102123; text-align:left; }
+.duat-game .duat-season-game-log :is(th,td):last-child { text-align:left; color:var(--duat-muted); }
+.duat-game .duat-season-game-log .duat-log-points { font-weight:750; color:var(--duat-gold); }
+.duat-game .duat-season-game-log .is-current-week { background:#ad965126; }
+.duat-game .duat-season-game-log .is-outside-campaign { opacity:.7; }
+.duat-game .duat-research-evidence { margin-top:12px; }
+.duat-game .duat-research-evidence > summary { min-height:44px; align-content:center; cursor:pointer; color:var(--duat-gold); }
+@media(min-width:768px) {
+  .duat-game .duat-lineup-entry { grid-template-columns:44px minmax(0,1fr) 222px; }
+  .duat-game .duat-lineup-stats { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:10px; }
+  .duat-game .duat-lineup-stats .duat-lineup-last { flex-direction:column; gap:1px; align-items:flex-end; }
+}
+@media(max-width:767px) {
+  .duat-game .duat-lineup-entry { grid-template-columns:44px minmax(0,1fr) 74px; gap:0 8px; }
+  .duat-game .duat-lineup-position { width:44px; height:44px; }
+  .duat-game .duat-lineup-stats { gap:2px; }
+  .duat-game .duat-lineup-remaining { flex-direction:row; justify-content:flex-end; align-items:baseline; gap:4px; }
+  .duat-game .duat-lineup-remaining .duat-stat-prefix { display:none; }
+  .duat-game .duat-lineup-stats strong { font-size:16px; }
+  .duat-game .duat-lineup-stats small { font-size:10px!important; }
+  .duat-game .duat-lineup-last { gap:4px; }
+  .duat-game .duat-lineup-last strong { font-size:12px; }
+  .duat-game .duat-scouting { gap:3px; }
+  .duat-game .duat-scouting > small { font-size:10px!important; }
+  .duat-game .duat-research-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:360px) {
+  .duat-game .duat-lineup-entry .duat-player-name { gap:2px; }
+  .duat-game .duat-lineup-entry .duat-scouting > small { display:none; }
+}
 @media (min-width:1024px) {
   .duat-game .is-lineup .duat-weekly-action-heading { display:block; }
 }

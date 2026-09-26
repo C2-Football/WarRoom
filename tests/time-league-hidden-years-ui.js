@@ -31,7 +31,7 @@ assert(rows.every(row => text(row).includes('1990s · hidden year')));
 assert.equal(classes(tree, 'tl-player-signals').length, 2);
 assert(text(tree).includes('8.0') && text(tree).includes('3 possible years'));
 assert(text(rows).includes('Avg pts / game') && !text(rows).includes('Archive est. / game'), 'Observed game averages take priority over archive estimates');
-assert(!text(tree).includes('★★★'), 'No actual-game stars leak through the local roster');
+assert.equal(text(classes(tree, 'tl-week-stars')[0]).includes('★'), App.TimeLeaguePlayerStats.signals(league, entries[0], logs).currentStars != null, 'Only the authorized current-week clue appears');
 walk(tree).find(node => node.props['aria-label'] === "Explore Steve Young's history").props.onClick(); tree = render('roster');
 const dossier = classes(tree, 'tl-roster-dossier')[0];
 assert(text(dossier).includes('1992') && text(dossier).includes('1993') && text(dossier).includes('1994'), 'Every matching candidate is available to explore');
@@ -88,24 +88,24 @@ Object.defineProperty(privateEntry, 'drawnSeason', { get() { throw new Error('Pr
 for (const field of ['seed', 'hiddenYearAssignments', 'gameAssignments']) Object.defineProperty(privateLeague, field, { get() { throw new Error('Private assignment was read'); } });
 assert.equal(infer({ league: privateLeague, entry: privateEntry }), 1992, 'Inference never reads seed, selected season, or future assignments');
 state = []; tree = render('roster', { logIndex: distinctLogs });
-assert(classes(tree, 'tl-lineup-row').every(row => text(row).includes('1992 · identified') && text(row).includes('1992 identified')));
+assert(classes(tree, 'tl-lineup-row').every(row => classes(row, 'tl-roster-edition')[0]?.children[0] === 1992), 'The discovered year is shown once beneath the name without identified prose');
 assert(!text(classes(tree, 'tl-lineup-row')).includes('1993'), 'The private edition is still absent from identified roster rows');
 assert(!text(tree).includes('1 possible year'), 'The last candidate is named rather than left as a count');
-assert(classes(tree, 'tl-week-stars').every(node => node.props['aria-label'].includes('1992') && node.props['aria-label'].includes('Future games')), 'Accessible identification names the year without authorizing future clues');
-assert(!text(tree).includes('★'), 'Identification does not unlock a future-game star rating');
+assert(classes(tree, 'tl-week-stars').every(node => /this week|this Vault week|current game/i.test(node.props['aria-label'])), 'Accessible scouting describes the current clue, not the discovered year');
+assert.equal(text(classes(tree, 'tl-week-stars')[0]).includes('★'), App.TimeLeaguePlayerStats.signals(league, entries[0], distinctLogs).currentStars != null, 'Identification and the authorized current-week clue are separate');
 walk(tree).find(node => node.props['aria-label'] === "Explore Steve Young's history").props.onClick(); tree = render('roster', { logIndex: distinctLogs });
-assert(text(classes(tree, 'tl-roster-dossier')).includes('1992 · Year identified'));
+assert(text(classes(tree, 'tl-roster-dossier')).includes('1992'));
 assert(!text(classes(tree, 'tl-hidden-year-research')).includes('not your confirmed year'), 'Research no longer contradicts an identified year');
 walk(tree).find(node => node.props['aria-label'] === 'Move Steve Young').props.onClick(); tree = render('roster', { logIndex: distinctLogs });
-assert(text(classes(tree, 'tl-roster-move-sheet')).includes('1992 · identified'), 'Replacement comparisons retain the identified year');
+assert(text(classes(tree, 'tl-roster-move-sheet')).includes('1992'), 'Replacement comparisons retain the identified year');
 state = []; tree = render('trades', { logIndex: distinctLogs });
-assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993 season'), 'Trade comparisons use only the public identification');
+assert(text(tree).includes('1992') && !text(tree).includes('1993 season'), 'Trade comparisons use only the public identification');
 state = []; cursor = 0; tree = WrTimeLeagueStatsPanel({ league, cards, logIndex: distinctLogs });
-assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993'), 'Player stats retain the identified year without private edition totals');
+assert(text(tree).includes('1992') && !text(tree).includes('1993'), 'Player stats retain the identified year without private edition totals');
 state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, logIndex: distinctLogs, throughWeek: 1, onUpdate() {} });
-assert(text(tree).includes('1992 · identified') && !text(tree).includes('1993'), 'Draft recap labels use the same visible evidence');
+assert(text(tree).includes('1992') && !text(tree).includes('1993'), 'Draft recap labels use the same visible evidence');
 state = []; cursor = 0; tree = WrTimeLeagueDraftPanel({ league, cards, logIndex: distinctLogs, throughWeek: 0, onUpdate() {} });
-assert(!text(tree).includes('1992 · identified'), 'Draft recap respects the playback cap');
+assert(!text(tree).includes('1992'), 'Draft recap respects the playback cap');
 
 // The initially advertised public pool can itself contain only one year, even
 // without complete game logs. It does not need fake ambiguity until a game plays.
@@ -113,12 +113,12 @@ const initialSingle = { ...league, currentWeek: 1, finalizedWeeks: [], hiddenYea
 assert.equal(infer({ league: initialSingle, logIndex: null }), 1994);
 assert.equal(infer({ league: initialSingle, cards: new Map(), logIndex: null }), 1994, 'An explicit original public singleton remains known while archive records load');
 state = []; tree = render('waivers', { league: initialSingle, logIndex: null });
-assert(text(classes(tree, 'tl-waiver-edition')).includes('1994 · identified'));
+assert(text(classes(tree, 'tl-waiver-edition')).includes('1994'));
 assert(text(tree).includes('1994 archive'), 'Single-season estimates are labeled as that archive, not across possible years');
 walk(tree).find(node => node.props['aria-label'] === 'Claim Free Quarterback').props.onClick(); tree = render('waivers', { league: initialSingle, logIndex: null });
-assert(text(classes(tree, 'tl-hidden-year-research')).includes('1994 · Year identified'));
+assert(text(classes(tree, 'tl-hidden-year-research')).includes('1994'));
 assert(text(tree).includes('Complete game records are not available'), 'Identification does not hide missing scoring/archive evidence');
-assert(text(classes(tree, 'tl-waiver-drop-option')).includes('1994 · identified'), 'Drop comparisons agree with the public candidate pool');
+assert(text(classes(tree, 'tl-waiver-drop-option')).includes('1994'), 'Drop comparisons agree with the public candidate pool');
 
 // Complete loaded evidence can reject even the original single candidate.
 const inconsistent = { ...league, hiddenYearCandidates: { p1: [1994] } };
@@ -141,7 +141,7 @@ assert.equal(infer({ league: publicLeague, entry: publicLeague.teams[0].roster[0
 assert.equal(infer({ league: publicLeague, entry: publicLeague.teams[1].roster[0], throughWeek: 0 }), null, 'Another seat cannot use evidence beyond the viewer cap');
 for (const throughWeek of [0, 1]) {
     state = []; tree = render('roster', { league: publicLeague, logIndex: distinctLogs, throughWeek });
-    assert.equal(text(classes(tree, 'tl-lineup-row')).includes('1992 · identified'), throughWeek === 1, 'The same observer snapshot respects both historical and current views');
+    assert.equal(text(classes(tree, 'tl-lineup-row')).includes('1992'), throughWeek === 1, 'The same observer snapshot respects both historical and current views');
 }
 
 const shownWeek = { week: 13, results: league.teams.map(team => ({ teamId: team.teamId, total: team.teamId === 't1' ? 24 : 8, starters: team.roster.map(entry => ({ ...entry, points: 8, stats: { passYd: 100, passTd: 1 } })) })),

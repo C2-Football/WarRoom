@@ -418,28 +418,37 @@
     }
 
     function weeklyStarOutlook(entry, currentWeek, weeks, index, scoring, factors, league) {
-        if (league?.settings.hiddenYears && league.yearsRevealed !== true) return null;
-        if (usesGameDeck(league) && league.publicSnapshotVersion === 1) {
-            const report = league.playerReports?.[editionKey(entry)];
+        const hidden = league?.settings.hiddenYears && league.yearsRevealed !== true;
+        if (hidden && (!league.seasonsRevealed || league.phase === 'draft' || league.phase === 'complete'
+            || league.weekStage === 'postgame' || currentWeek > weeks || currentWeek !== league.currentWeek)) return null;
+        if (league?.publicSnapshotVersion === 1 && (usesGameDeck(league) || hidden)) {
+            const report = league.playerReports?.[hidden ? App.TimeLeagueHiddenYears.editionKey(entry) : editionKey(entry)];
             if (!report || report.week !== currentWeek) return null;
             const schedule = Array.from({ length: weeks }, (_, i) => {
                 const week = i + 1, saved = report.completed?.find(row => row.week === week);
-                return { week, played: week < currentWeek, available: saved ? Number.isInteger(saved.sourceWeek) : week === currentWeek ? report.currentAvailable : null,
-                    stars: saved ? saved.stars : week === currentWeek ? report.currentStars : null };
+                return { week, played: week < currentWeek,
+                    available: saved ? hidden ? saved.stats != null : Number.isInteger(saved.sourceWeek) : week === currentWeek ? report.currentAvailable : null,
+                    stars: !hidden && saved ? saved.stars : week === currentWeek ? report.currentStars : null };
             });
-            return { schedule, stars: report.currentStars, maxRemainingStars: report.maxRemainingStars, remainingGames: report.remaining };
+            return { schedule, stars: report.currentStars, maxRemainingStars: hidden ? null : report.maxRemainingStars, remainingGames: report.remaining };
         }
-        if (!index) return null;
+        if (!index || (hidden && (!Number.isInteger(entry.drawnSeason) || (league.settings.eraAdjusted && !factors?.size)))) return null;
+        index = dataIndexFor(league, index);
         const logs = usesGameDeck(league) ? sourceGames(entry, index) : Array.from({ length: weeks }, (_, i) => resolveGameLog(league, entry, i + 1, index, weeks)).filter(Boolean);
+        if (hidden && !logs.length) return null;
         const ranked = logs.map(log => ({ log, points: gamePoints(league, entry, log, scoring, factors) })).sort((a, b) => b.points - a.points || a.log.week - b.log.week);
         const edge = Math.min(3, Math.floor(ranked.length / 2)), middle = ranked.length - edge * 2;
         const starsByWeek = new Map(ranked.map((row, rank) => [row.log.week, ranked.length === 1 ? 5 : rank < edge ? 5 : rank >= ranked.length - edge ? 1 : 4 - Math.min(2, Math.floor((rank - edge) * 3 / Math.max(1, middle)))]));
         const schedule = Array.from({ length: weeks }, (_, i) => {
             const week = i + 1;
-            if (week > currentWeek || (week === currentWeek && league?.weekStage === "postgame")) return { week, played: false, available: null, stars: null };
+            if ((hidden && week !== currentWeek) || week > currentWeek || (week === currentWeek && league?.weekStage === "postgame")) return { week, played: false, available: null, stars: null };
             const log = resolveGameLog(league, entry, week, index, weeks);
             return { week, played: week < currentWeek, available: Boolean(log), stars: log ? starsByWeek.get(log.week) ?? null : null };
         });
+        // Mystery mode authorizes one coarse current-week clue only. Do not
+        // publish the selected year, old/future ratings, or a private pool ceiling.
+        if (hidden) return { stars: schedule.find(row => row.week === currentWeek)?.stars ?? null,
+            maxRemainingStars: null, remainingGames: Math.max(0, weeks - currentWeek + 1), schedule };
         // The remaining ceiling uses the entire unused source pool, not a
         // future calendar. It cannot disclose where a missing game was dealt.
         const used = new Set(Array.from({ length: Math.max(0, currentWeek - 1) }, (_, i) => resolveGameLog(league, entry, i + 1, index, weeks)?.week));

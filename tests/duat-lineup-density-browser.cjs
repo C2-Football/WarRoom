@@ -27,6 +27,7 @@ fs.mkdirSync(output, { recursive: true });
 const data = {
  cards: JSON.parse(fs.readFileSync(path.join(root, 'data/duat/player-cards.json'), 'utf8')),
  manifest: JSON.parse(fs.readFileSync(path.join(root, 'data/duat/manifest.json'), 'utf8')),
+ researchWeek18: JSON.parse(fs.readFileSync(path.join(root, 'data/duat/research-week18.json'), 'utf8')),
  logIndex: Season.buildGameLogIndex(Season.parseGameLogCsv(fs.readFileSync(path.join(root, 'data/duat/nflverse-game-logs.csv'), 'utf8')).logs),
 };
 let campaign = Engine.createCampaign({ version: 4, id: 'duat-lineup-density-local-only', seed: 'duat-lineup-density-local-only', name: 'The Veiled Nile', createdAt: '2026-09-25T19:00:00.000Z', hostFactionId: 'egypt', settings: { leagueSize: 8, mummyCount: 1, bench: 3, playoffTeams: 4, favors: false, conquest: false }, seasons: [2025], era: { mode: 'historical', hiddenYears: true } }, data);
@@ -53,7 +54,7 @@ assert.equal(progress.reviewedThrough, 7);
 const faction = campaign.factions.find(item => item.id === 'egypt');
 const players = Engine.activeArmy(faction).players;
 assert(players.some(player => player.name.length >= 18), 'The real archive roster includes a long player name.');
-const expected = players.map(player => ({ id: player.id, name: player.name, position: player.position, decade: player.decade, estimate: Engine.estimatePlayer(campaign, 'egypt', player.id), previous: campaign.completedWeeks.at(-1).factions.find(item => item.factionId === 'egypt').players.find(item => item.id === player.id), mystery: globalThis.App.DuatMystery.inspect(Engine.projectCampaign(campaign, 'egypt', data), player, data, { throughWeek: 7, factionId: 'egypt' }) }));
+const expected = players.map(player => ({ id: player.id, name: player.name, position: player.position, decade: player.decade, estimate: Engine.estimatePlayer(campaign, 'egypt', player.id), scouting:globalThis.App.DuatMystery.scouting(campaign,player,data,{throughWeek:7}), previous: campaign.completedWeeks.at(-1).factions.find(item => item.factionId === 'egypt').players.find(item => item.id === player.id), mystery: globalThis.App.DuatMystery.inspect(Engine.projectCampaign(campaign, 'egypt', data), player, data, { throughWeek: 7, factionId: 'egypt' }) }));
 const identifiedIndex = expected.findIndex(player => player.mystery.remaining.length === 1 && player.mystery.candidates.length > 1);
 assert(identifiedIndex >= 0, 'The real archive fixture must cover an inferred year and an alternative candidate for comparison.');
 let replacement;
@@ -100,7 +101,7 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
    if (!baseline) {
     const firstRow = roster.locator('.duat-player-entry').first(), research = firstRow.locator('.duat-lineup-research-toggle');
     const beforeSelection = await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked));
-    const initialClue = await firstRow.locator('.duat-player-name small').innerText();
+    const initialClue = await firstRow.locator('.duat-player-name > small').innerText();
     await research.click();
     const panel = firstRow.locator('.duat-lineup-research-panel'), initialText = await panel.innerText();
     const explicitLoadingObserved = /archive is loading|Load the archive/.test(initialText);
@@ -111,7 +112,7 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
     await panel.locator('.duat-table-wrap table').waitFor({ state: 'visible', timeout: 60000 });
     const archiveRows = await panel.locator('.duat-table-wrap tbody tr').count();
     assert.equal(archiveRows, 17, 'The candidate archive has its actual seventeen-week game log.');
-    archiveLoading = { initialClue, explicitLoadingObserved, loadingVerdictChecked: explicitLoadingObserved, archiveRows, settledClue: await firstRow.locator('.duat-player-name small').innerText() };
+    archiveLoading = { initialClue, explicitLoadingObserved, loadingVerdictChecked: explicitLoadingObserved, archiveRows, settledClue: await firstRow.locator('.duat-player-name > small').innerText() };
     await research.click();
     assert.equal(await research.getAttribute('aria-expanded'), 'false');
     assert.deepEqual(await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked)), beforeSelection, 'Reading archive readiness does not change the lineup.');
@@ -135,13 +136,15 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
      assert.equal(await row.locator('.duat-player-name strong').innerText(), player.name);
      assert.equal(await row.getByRole('checkbox', { name: new RegExp(player.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).count(), 1, 'Selection has a player-specific accessible name.');
      const estimate = row.locator('.duat-lineup-estimate'), last = row.locator('.duat-lineup-last');
-     assert.equal(await estimate.locator('strong').innerText(), Number(player.estimate.points).toFixed(1), `${player.name} keeps the actual engine estimate.`);
+     assert.equal(await estimate.locator('strong').innerText(), Number(player.scouting.points).toFixed(1), `${player.name} uses this week’s public archive outlook.`);
      assert.equal(await last.locator('strong').innerText(), Number(player.previous.effectivePoints).toFixed(1), `${player.name} keeps the actual prior-week score, including zero.`);
-     assert.match(await estimate.innerText(), /Est\.\s*PPG/i, 'Blended engine estimate is explicitly labeled.');
+     assert.match(await estimate.innerText(), /W8 (base|est\.)/, 'Current-week estimate is explicitly labeled.');
+     assert.equal(await row.locator('.duat-lineup-remaining strong').innerText(),Number(player.scouting.pointsLeft).toFixed(1));
+     assert.equal(await row.locator('.duat-scouting-stars').getAttribute('aria-label'),`${player.scouting.stars} of 5 stars · Week 8 archive outlook`);
      assert.match(await last.innerText(), /W7|Week 7/, 'Prior result names its actual completed week.');
      const knownYears = player.mystery.remaining;
-     const expectedClue = knownYears.length === 1 ? `${knownYears[0]} · identified season` : `${player.decade}s · ${knownYears.length} possible ${knownYears.length === 1 ? 'season' : 'seasons'}`;
-     assert.equal(await row.locator('.duat-player-name small').innerText(), expectedClue, 'The row names a publicly identified year or preserves the remaining uncertainty.');
+     const expectedClue = knownYears.length === 1 ? String(knownYears[0]) : `${player.decade}s · ${knownYears.length} possible ${knownYears.length === 1 ? 'season' : 'seasons'}`;
+     assert.equal(await row.locator('.duat-player-name > small').innerText(), expectedClue, 'The row names a publicly identified year or preserves the remaining uncertainty.');
      const accessibleResearch = await row.locator('.duat-lineup-research-toggle').evaluate(node => ({
       description: (node.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).map(id => document.getElementById(id)?.textContent || '').join(' '),
       targetExists: Boolean(document.getElementById(node.getAttribute('aria-controls'))),
@@ -159,7 +162,7 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
      assert(layout.nameSize >= 14, 'Player names remain readable.');
      assert(layout.research.right <= layout.estimate.x + 1, 'Long player names do not overlap statistics.');
      for (const value of [layout.estimate, layout.last]) assert(value.y >= layout.row.top && value.bottom <= layout.row.bottom, 'Both metrics remain contained in their compact player row.');
-     assert(Math.abs(layout.estimate.right - layout.last.right) <= 1, 'Estimate and latest-week result share a right-aligned metric column.');
+     if(width<768)assert(Math.abs(layout.estimate.right - layout.last.right) <= 1, 'Estimate and latest-week result share a right-aligned metric column.');
      columnPositions.push({ estimate: layout.estimate.right, last: layout.last.right });
     }
     for (const column of ['estimate', 'last']) assert(Math.max(...columnPositions.map(row => row[column])) - Math.min(...columnPositions.map(row => row[column])) <= 1, `${column} forms one aligned roster column.`);
@@ -180,25 +183,38 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
     assert.equal(await firstResearch.getAttribute('aria-expanded'), 'true');
     const researchPanel = rows.nth(identifiedIndex).locator('.duat-lineup-research-panel');
     await researchPanel.waitFor({ state: 'visible' });
-    assert.equal(await researchPanel.locator('h4').filter({ hasText: 'What your campaign has revealed' }).count(), 1);
+    assert.equal(await researchPanel.locator('h4').filter({ hasText: 'Season game log' }).count(), 1);
     assert.doesNotMatch(await researchPanel.innerText(), /Final reveal:/);
     {
      const identifiedYear = expected[identifiedIndex].mystery.remaining[0], candidateSelect = researchPanel.locator('select');
-     assert.match(await researchPanel.innerText(), new RegExp(`Identified season: ${identifiedYear}`));
+     assert.equal(await researchPanel.locator('.duat-research-heading .duat-player-season').innerText(),String(identifiedYear));
      assert.equal(await candidateSelect.inputValue(), String(identifiedYear), 'Opening research defaults to the publicly identified candidate.');
      const comparison = expected[identifiedIndex].mystery.candidates.find(candidate => candidate.year !== identifiedYear);
      await candidateSelect.selectOption(String(comparison.year));
      assert.equal(await candidateSelect.inputValue(), String(comparison.year), 'Another candidate remains available for deliberate comparison.');
-     assert.match(await researchPanel.innerText(), new RegExp(`Identified season: ${identifiedYear}`));
+     assert.equal(await researchPanel.locator('.duat-research-heading .duat-player-season').innerText(),String(identifiedYear));
     }
     const revealedSummaries = await researchPanel.locator('details > summary').allTextContents();
     const observedWeekNumbers = revealedSummaries.map(text => text.match(/^Week (\d+) ·/)).filter(Boolean).map(match => Number(match[1]));
     assert.deepEqual(observedWeekNumbers, [1, 2, 3, 4, 5, 6, 7], 'Observed evidence stops at completed Week 7; candidate archive is separately labeled.');
-    assert.equal(await researchPanel.getByText('Candidate-season archive', { exact: true }).count(), 1);
+    assert.equal(await researchPanel.getByText('Season game log', { exact: true }).count(), 1);
     assert.deepEqual(await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked)), selectionsBefore, 'Opening research does not change lineup selection.');
     await page.screenshot({ path: path.join(output, `${mode}-research-${width}.png`) });
+    await researchPanel.locator('select').selectOption(String(expected[identifiedIndex].scouting.knownYear));
+    await page.screenshot({ path: path.join(output, `${mode}-player-card-${width}.png`) });
     await firstResearch.focus(); await page.keyboard.press('Space');
     assert.equal(await firstResearch.getAttribute('aria-expanded'), 'false');
+    if(width===1440){
+     const modernIndex=expected.findIndex(player=>player.scouting.knownYear>=2021),modern=expected[modernIndex];
+     assert(modern,'A modern identified season covers complete Week 18 archive research.');
+     const modernRow=rows.nth(modernIndex),toggle=modernRow.locator('.duat-lineup-research-toggle');await toggle.click();
+     const logRows=modernRow.locator('.duat-season-game-log tbody tr');assert.equal(await logRows.count(),18);
+     const candidate=modern.mystery.candidates.find(row=>row.year===modern.scouting.knownYear);
+     const archive=globalThis.App.DuatMystery.archiveGames(campaign,players[modernIndex],candidate,data);
+     assert.equal(await logRows.last().locator('.duat-log-points').innerText(),archive.at(-1).points.toFixed(1));
+     assert.match(await logRows.last().innerText(),/Outside Duat season/);
+     await toggle.click();checks.push('complete modern season includes sourced Week18 outside Duat scoring');
+    }
     assert.deepEqual(await roster.getByRole('checkbox').evaluateAll(nodes => nodes.map(node => node.checked)), selectionsBefore, 'Closing research does not change lineup selection.');
     const keyboardSelection = rows.first().getByRole('checkbox');
     await keyboardSelection.focus(); await page.keyboard.press('Space');
@@ -261,14 +277,15 @@ if (process.argv.includes('--fixture-only')) process.exit(0);
      const openingRows = page.locator('.duat-lineup-list .duat-player-entry');
      assert.equal(await openingRows.locator('.duat-lineup-last').count(), 0, 'No prior-week result is fabricated before any game is played.');
      for (let index = 0; index < players.length; index++) {
-      const openingEstimate = Engine.estimatePlayer(openingCampaign, 'egypt', players[index].id), estimate = openingRows.nth(index).locator('.duat-lineup-estimate');
+      const openingEstimate = globalThis.App.DuatMystery.scouting(openingCampaign, players[index],data,{throughWeek:0}), estimate = openingRows.nth(index).locator('.duat-lineup-estimate');
       assert.equal(await estimate.locator('strong').innerText(), Number(openingEstimate.points).toFixed(1));
-      assert.match(await estimate.innerText(), /Est\.\s*PPG/i);
-      const knownYears = players[index].candidateYears, expectedClue = knownYears.length === 1 ? `${knownYears[0]} · identified season` : `${players[index].decade}s · ${knownYears.length} possible seasons`;
-      assert.equal(await openingRows.nth(index).locator('.duat-player-name small').innerText(), expectedClue, 'Before viewing a game, only the original public candidate set can identify a year.');
+      assert.match(await estimate.innerText(), /W1 (base|est\.)/);
+      const knownYears = players[index].candidateYears, expectedClue = knownYears.length === 1 ? String(knownYears[0]) : `${players[index].decade}s · ${knownYears.length} possible seasons`;
+      assert.equal(await openingRows.nth(index).locator('.duat-player-name > small').innerText(), expectedClue, 'Before viewing a game, only the original public candidate set can identify a year.');
       if (knownYears.length !== 1) for (const year of knownYears) assert(!new RegExp(`\\b${year}\\b`).test(await openingRows.nth(index).innerText()), 'Pregame ambiguous years remain sealed.');
      }
      await openingRows.first().locator('.duat-lineup-research-toggle').click();
+     await openingRows.first().locator('.duat-research-evidence > summary').click();
      assert.match(await openingRows.first().locator('.duat-lineup-research-panel').innerText(), /No completed games have been revealed/);
      assert.doesNotMatch(await openingRows.first().locator('.duat-lineup-research-panel').innerText(), /Final reveal:/);
      await page.screenshot({ path: path.join(output, `${mode}-pregame-390.png`) });
