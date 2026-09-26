@@ -1,0 +1,78 @@
+/* The draft keeps the same searchable board, queue and scouting rhythm as DHQ. */
+.duat-game .duat-draft-room { min-width:0; }
+.duat-game .duat-draft-overview { margin-bottom:14px; }
+.duat-game .duat-draft-overview summary { cursor:pointer; min-height:28px; font-weight:700; }
+.duat-game .duat-draft-overview .duat-chapter-banner { margin-top:14px; }
+.duat-game .duat-draft-command-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:18px 20px; margin-bottom:14px; background:linear-gradient(115deg,#203b40,#15272f); border:1px solid #b7985360; border-radius:var(--card-radius-lg,14px); }
+.duat-game .duat-draft-command-bar h2 { font-size:clamp(22px,2.2vw,32px); margin:4px 0 0; }
+.duat-game .duat-draft-command-bar > div:nth-child(2) { display:flex; flex-direction:column; gap:4px; text-align:right; }
+.duat-game .duat-draft-command-bar > div:nth-child(2) > strong { color:#f6d37c; font-size:24px; }
+.duat-game .duat-draft-command-bar > div:nth-child(2) small { color:#b8c7c6; font-size:15px; }
+.duat-game .duat-draft-command-bar > div:nth-child(2) span { color:#bac7c7; font-size:13px; }
+.duat-game .duat-draft-command-bar .duat-replay-track { flex-basis:100%; margin:2px 0 0; }
+.duat-game .duat-draft-room .duat-draft-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(250px,300px); gap:16px; align-items:start; }
+.duat-game .duat-draft-board { min-width:0; padding:16px; }
+.duat-game .duat-draft-roster-summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:7px 16px; border-bottom:1px solid #67848250; margin-bottom:14px; padding-bottom:12px; font-size:14px; }
+.duat-game .duat-draft-roster-summary > span { color:#c3ceca; }
+.duat-game .duat-draft-room h3 { margin:0 0 12px; font-size:18px; }
+.duat-game .duat-draft-queue .duat-panel-heading { margin-bottom:4px; }
+.duat-game .duat-draft-queue .duat-panel-heading h3 { margin:0; }
+.duat-game .duat-draft-queue ol { list-style:none; padding:0; margin:0; }
+.duat-game .duat-draft-queue li { display:flex; gap:6px; align-items:center; border-top:1px solid #6c80794d; padding:5px 0; }
+.duat-game .duat-draft-player-link { background:none; border:0; text-align:left; color:inherit; padding:8px 0; cursor:pointer; min-height:44px; min-width:0; }
+.duat-game .duat-draft-player-link:hover strong { color:#f6d37c; text-decoration:underline; }
+.duat-game .duat-draft-player-link:focus-visible { outline:2px solid #f6d37c; outline-offset:3px; }
+.duat-game .duat-draft-queue li > .duat-draft-player-link { flex:1; display:flex; flex-direction:column; gap:3px; }
+.duat-game .duat-draft-queue li strong { overflow-wrap:anywhere; }
+.duat-game .duat-draft-queue li small { color:#b8c7c6; }
+.duat-game .duat-draft-queue li > .duat-button { min-width:44px; min-height:44px; padding:4px; }
+.duat-game .duat-draft-position-counts { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px; }
+.duat-game .duat-draft-position-counts span { background:#28424980; border:1px solid #59736c70; padding:7px 5px; border-radius:var(--card-radius-sm,8px); font-size:12px; text-align:center; }
+.duat-game .duat-draft-position-counts strong { color:#f6d37c; font-size:17px; }
+.duat-game .duat-draft-room .duat-army-player { width:100%; display:grid; grid-template-columns:28px minmax(0,1fr); gap:4px 8px; }
+.duat-game .duat-draft-room .duat-army-player > small { grid-column:2; color:#b8c7c6; font-size:11px; }
+.duat-game .duat-draft-room .duat-army-player strong { font-size:14px; overflow-wrap:anywhere; }
+.duat-game .duat-draft-card-backdrop { position:fixed; inset:0; z-index:12000; background:#071016df; display:flex; justify-content:center; align-items:center; padding:24px; }
+.duat-game .duat-draft-player-card { color:#f1eee1; background:#172a32; border:1px solid #b79c5c90; border-radius:var(--card-radius-lg,14px); box-shadow:0 30px 100px #0009; width:min(780px,100%); max-height:calc(100dvh - 48px); overflow:auto; padding:24px; }
+.duat-game .duat-draft-player-card > header { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; }
+.duat-game .duat-draft-player-card h2 { font-size:clamp(24px,3vw,34px); margin:6px 0; }
+.duat-game .duat-draft-player-card > header > .duat-button { flex-shrink:0; }
+.duat-game .duat-draft-card-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:20px 0 12px; }
+.duat-game .duat-draft-card-metrics > div { background:#203d4599; padding:13px; border:1px solid #72877540; border-radius:var(--card-radius,10px); }
+.duat-game .duat-draft-card-metrics dt { color:#bec9c4; font-size:12px; }
+.duat-game .duat-draft-card-metrics dd { color:#f6d37c; font-size:23px; font-weight:700; margin:5px 0 0; }
+.duat-game .duat-draft-history { margin:22px 0; }
+.duat-game .duat-draft-history table { width:100%; white-space:normal; table-layout:fixed; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.duat-game .duat-draft-history th,.duat-game .duat-draft-history td { text-align:right; padding:8px 6px; white-space:normal; border-bottom:1px solid #72877540; }
+.duat-game .duat-draft-history th:first-child { text-align:left; }
+.duat-game .duat-draft-history caption { text-align:left; padding:0 0 12px; color:#bac7c7; font-size:13px; }
+.duat-game .duat-draft-history tr.is-reference { background:#f6d37c0b; color:#f6d37c; }
+.duat-game .duat-draft-history th small { display:block; font-size:11px; font-weight:400; }
+.duat-game .duat-draft-player-card > footer { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; margin-top:22px; border-top:1px solid #72877540; padding-top:16px; }
+@media (max-width:1100px) and (min-width:701px) {
+  .duat-game .duat-draft-room .duat-draft-layout { grid-template-columns:minmax(0,1fr); }
+  .duat-game .duat-draft-army-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:700px) {
+  .duat-game .duat-draft-room .duat-draft-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .duat-game .duat-draft-command-bar { padding:14px; gap:10px; }
+  .duat-game .duat-draft-command-bar .duat-eyebrow { font-size:10px; }
+  .duat-game .duat-draft-command-bar > div:nth-child(2) { text-align:left; }
+  .duat-game .duat-draft-roster-summary { font-size:13px; }
+  .duat-game .duat-draft-card-backdrop { padding:10px; }
+  .duat-game .duat-draft-player-card { padding:16px; border-radius:var(--card-radius,10px); max-height:calc(100dvh - 20px); }
+  .duat-game .duat-draft-player-card > header { gap:8px; }
+  .duat-game .duat-draft-player-card > header > .duat-button { padding:9px; }
+  .duat-game .duat-draft-card-metrics { gap:6px; }
+  .duat-game .duat-draft-card-metrics > div { padding:9px 7px; }
+  .duat-game .duat-draft-card-metrics dd { font-size:19px; }
+  .duat-game .duat-draft-player-card > footer > .duat-button { flex:1; }
+}
+.duat-game .duat-draft-history-board { margin-top:16px; }
+.duat-game .duat-draft-history-board > summary { cursor:pointer; font-weight:700; min-height:30px; }
+.duat-game .duat-draft-history-board table { width:100%; border-collapse:collapse; }
+.duat-game .duat-draft-history-board :is(th,td) { padding:7px 10px; text-align:left; border-bottom:1px solid #72877540; }
+.duat-game .duat-draft-history-board caption { text-align:left; color:#bac7c7; margin-bottom:8px; }
+.duat-game .duat-draft-history-board .is-mine { background:#f6d37c0b; }
+.duat-game .duat-draft-history-board .is-mine > th { color:#f6d37c; }
+.duat-game .duat-draft-history-board .duat-table-wrap { max-height:460px; }

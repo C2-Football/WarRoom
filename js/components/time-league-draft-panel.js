@@ -41,6 +41,13 @@
         return ranges.map(([first, last]) => first === last ? String(first) : `${first}–${last}`).join(', ') || 'None';
     };
     const peakOf = (seasons) => seasons.reduce((max, s) => Math.max(max, s.points), 0);
+    // Reference archive PPG is pooled over eligible recorded games. It is not a
+    // projection for the concealed season that the game will draw later.
+    const archivePpg = (seasons) => {
+        const recorded = seasons.filter(season => Number.isFinite(season.points) && Number.isFinite(season.games) && season.games > 0);
+        const games = recorded.reduce((sum, season) => sum + season.games, 0);
+        return games ? recorded.reduce((sum, season) => sum + season.points, 0) / games : null;
+    };
     const pickLabel = (order, overall, round) => {
         const inRound = order.filter((seat) => seat.round === round).findIndex((seat) => seat.overall === overall) + 1;
         return `R${round}.${String(inRound).padStart(2, '0')}`;
@@ -174,6 +181,17 @@
             return { card, peak: peakOf(seasons), draw: concealed && seasons.length ? `${EraRules.decadeOf(seasons[0].season)} · ${seasons.length} possible year${seasons.length === 1 ? '' : 's'}` : spanOf(seasons) };
         }).sort((left, right) => right.peak - left.peak || left.card.identity.localeCompare(right.card.identity))
             .map((entry, index) => ({ ...entry, rank: index + 1 })), [cards, eraRules, league]);
+        const GameDraftTable = window.App.GameDraftTable;
+        const draftPool = useMemo(() => {
+            // Clear only the taken list: era, playable positions and the server's
+            // revealed-position boundary still decide which identities exist.
+            const eligible = Engine.eraEligibleCards({ ...league, draftPicks: [] }, cards);
+            return eligible.map(card => {
+                const seasons = eligibleSeasons(card);
+                return { card, seasons, peak: peakOf(seasons), ppg: archivePpg(seasons) };
+            }).filter(row => row.seasons.length).sort((left, right) => right.peak - left.peak || left.card.identity.localeCompare(right.card.identity))
+                .map((row, index) => ({ ...row, rank: index + 1 }));
+        }, [cards, eraRules, league]);
         const positionFilters = useMemo(() => {
             const present = new Set(available.map(({ card }) => card.position));
             return DRAFT_FILTER_ORDER.filter((position) => position === 'FLEX' || position === 'SUPER_FLEX'
@@ -299,7 +317,8 @@
         const canScoutCard = (card) => Boolean(card && (eraRules.mode !== 'position-roulette' || revealedPositions.has(card.position)));
         function openScout(card, event) {
             if (!canScoutCard(card)) return;
-            scoutTriggerRef.current = event?.currentTarget || null;
+            const trigger = event?.currentTarget;
+            scoutTriggerRef.current = trigger?.querySelector?.('.game-draft-player-link') || trigger || window.document?.activeElement || null;
             setSelectedIdentity(card.identity);
             setScoutOpen(true);
         }
@@ -332,7 +351,7 @@
         }, [available, positionFilter, query, revealReady]);
         const visible = filtered.slice(0, boardLimit);
 
-        const requestedCard = selectedIdentity && !drafted.has(selectedIdentity) ? cards.get(selectedIdentity) : null;
+        const requestedCard = selectedIdentity ? cards.get(selectedIdentity) : null;
         const selectedCard = (canScoutCard(requestedCard) ? requestedCard : null) ?? visible[0]?.card ?? null;
         const queueCards = useMemo(() => (humanTeam && revealReady
             ? humanTeam.queue.map((id) => cards.get(id)).filter((c) => c && !drafted.has(c.identity))
@@ -454,7 +473,7 @@
         }
 
         function toggleQueueFor(identity) {
-            if (!humanTeam || !revealReady) return;
+            if (!humanTeam || !revealReady || drafted.has(identity)) return;
             onUpdate({ ...league, teams: league.teams.map((t) => (t.teamId === humanTeam.teamId ? { ...t, queue: DraftRoom.toggleDraftQueue(t.queue, identity) } : t)) }, { type: 'queue', teamId: humanTeam.teamId, identity });
         }
 
@@ -516,6 +535,25 @@
         const scoutBlock = selectedCard ? (onClockTeam && !humanOnClock ? `${onClockTeam.name} is on the clock — sim picks to advance.` : draftBlockReason(selectedCard)) : null;
         const canDraftSelected = Boolean(selectedCard && myTurn && !draftBlockReason(selectedCard));
         const selectedQueued = Boolean(selectedCard && humanTeam?.queue.includes(selectedCard.identity));
+        const draftRows = revealReady ? draftPool.map(({ card, seasons, rank, peak, ppg }) => {
+            const pick = league.draftPicks.find(item => item.identity === card.identity);
+            const block = !myTurn && !drafted.has(card.identity) ? `${onClockTeam?.name || 'Another manager'} is on the clock` : draftBlockReason(card);
+            return {
+                id: card.identity, name: card.name, position: card.position, card, rank,
+                detail: `${seasons.length} eligible season${seasons.length === 1 ? '' : 's'} · ${league.settings.hiddenYears ? 'Hidden year' : 'Season drawn after draft'}`,
+                years: availableYears(seasons), firstYear: Math.min(...seasons.map(season => season.season)),
+                peak, ppg, drafted: Boolean(pick), draftedBy: pick ? teamName(pick.teamId) : null,
+                canDraft: myTurn && !draftBlockReason(card), draftDisabledReason: block,
+            };
+        }) : [];
+        const draftColumns = [
+            { key: 'years', label: 'Eligible years', title: 'Seasons inside this league’s era and archive rules', getValue: row => row.firstYear, render: row => row.years, defaultDirection: 'asc' },
+            { key: 'ppg', label: 'Archive PPG', title: 'Reference scoring points per recorded game across eligible seasons; not a weekly projection', getValue: row => row.ppg, render: row => row.ppg == null ? '—' : row.ppg.toFixed(1), defaultDirection: 'desc' },
+            { key: 'peak', label: 'Peak pts', title: 'Best eligible archived season in reference scoring; the drawn season may differ', getValue: row => row.peak, render: row => row.peak.toFixed(1), defaultDirection: 'desc' },
+        ];
+        const draftPositionOptions = DRAFT_FILTER_ORDER.filter(position => position === 'FLEX' || position === 'SUPER_FLEX'
+            ? Number(league.settings.rosterSlots[position]) > 0 : draftPool.some(row => row.card.position === position))
+            .map(position => ({ value: position, label: position === 'SUPER_FLEX' ? 'SUPER FLEX' : position, positions: Roster.SLOT_ELIGIBILITY[position] || [position] }));
         const scoutCard = selectedCard ? archiveCards.get(selectedCard.identity) || selectedCard : null;
         const eligibleScoutSeasons = selectedCard ? eligibleSeasons(selectedCard) : [];
         const fullScoutByYear = new Map((scoutCard?.seasons || []).map(season => [season.season, season]));
@@ -548,17 +586,17 @@
                             scoutSeasons.length > 0 && h('p', { className: 'tl-hint' }, mixedSeasonScout ? 'NFL regular-season records where available. Rows marked Legacy W1–14 retain this saved league’s original archive.' : fullSeasonScout ? `NFL regular-season records · reference scoring · The Vault plays ${Engine.seasonEndWeek(league)} weeks` : 'Archive totals · Weeks 1–14 · reference scoring'),
                             (fullSeasonScout || mixedSeasonScout) && h('p', { className: 'tl-hint' }, 'Recorded GP counts games in the archive, not verified official appearances. Missing stats do not establish an injury or bye.'),
                             legacyScout && h('p', { className: 'tl-hint' }, `${mixedSeasonScout ? 'Available full NFL season stats are shown for scouting.' : 'Full NFL season stats are shown for scouting.'} This saved league keeps Legacy Vault W1–14 totals for draft values and scoring.`),
-                            scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', role: 'region', 'aria-label': 'Season statistics, newest first', tabIndex: 0, style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl tl-scout-season-table', style: { minWidth: `${126 + (statColumnsFor(selectedCard.position).length + 1 + Number(legacyScout)) * 64}px` } },
-                                h('colgroup', null, h('col', { style: { width: 66 } }), h('col', { style: { width: 60 } }), h('col'), legacyScout && h('col'), statColumnsFor(selectedCard.position).map(c => h('col', { key: c.key }))),
+                            scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', role: 'region', 'aria-label': 'Season statistics, newest first', tabIndex: 0, style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl tl-scout-season-table', style: { minWidth: `${162 + (statColumnsFor(selectedCard.position).length + 1 + Number(legacyScout)) * 64}px` } },
+                                h('colgroup', null, h('col', { style: { width: 66 } }), h('col', { style: { width: 60 } }), h('col', { style: { width: 100 } }), legacyScout && h('col'), statColumnsFor(selectedCard.position).map(c => h('col', { key: c.key }))),
                                 h('thead', null, h('tr', null, h('th', { scope: 'col', className: 'num', title: mixedSeasonScout ? 'Fantasy points for each row’s labelled archive scope' : fullSeasonScout ? 'Recorded NFL regular-season fantasy points' : 'Weeks 1–14 archive fantasy points' }, 'FPTS'), h('th', { scope: 'col' }, 'Year'), h('th', { scope: 'col', className: 'num', title: mixedSeasonScout ? 'Legacy rows count only archive weeks 1–14; other rows count recorded NFL regular-season games' : fullSeasonScout ? 'Distinct regular-season games with archived records' : 'Games in archive weeks 1–14' }, mixedSeasonScout ? 'GP' : scoutLegacyFallbackYears.size ? 'Vault GP' : 'Recorded GP'), legacyScout && h('th', { scope: 'col', className: 'num', title: 'Preserved Weeks 1–14 points used by this saved league' }, 'Vault W1–14'), statColumnsFor(selectedCard.position).map((c) => h('th', { scope: 'col', className: 'num', key: c.key }, c.label)))),
                                 h('tbody', null, [...scoutSeasons].sort((a, b) => b.season - a.season).map((season) => h('tr', { key: season.season },
                                     h('td', { className: 'num' }, season.points.toFixed(1), ...(scoutLegacyFallbackYears.has(season.season) ? [h('small', { style: { display: 'block' } }, 'Legacy W1–14')] : [])), h('td', null, season.season), h('td', { className: 'num' }, season.games, ...(mixedSeasonScout && scoutLegacyFallbackYears.has(season.season) ? [h('small', { style: { display: 'block' } }, 'Vault GP')] : [])),
                                     legacyScout && h('td', { className: 'num' }, selectedCard.seasons.find(row => row.season === season.season)?.points.toFixed(1) ?? '—'),
                                     statColumnsFor(selectedCard.position).map((c) => h('td', { className: 'num', key: c.key }, season[c.key]))))))),
                             scoutHidden > 0 && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, `${scoutHidden} season${scoutHidden === 1 ? '' : 's'} hidden — outside the league's era rule for ${selectedCard.position}, so they cannot be drawn.`),
-                            h('div', { style: { display: 'flex', gap: 8 } },
+                            h('div', { className: 'tl-draft-card-actions', style: { display: 'flex', gap: 8 } },
                                 h('button', { className: 'tl-btn primary', disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, `${isAuction ? 'NOMINATE' : 'DRAFT'} ${selectedCard.name.toUpperCase()}`),
-                                h('button', { className: 'tl-btn', disabled: !humanTeam || !revealReady, 'aria-pressed': selectedQueued, onClick: () => toggleQueueFor(selectedCard.identity) }, selectedQueued ? 'Unqueue' : 'Queue')),
+                                h('button', { className: 'tl-btn', disabled: !humanTeam || !revealReady || drafted.has(selectedCard.identity), 'aria-pressed': selectedQueued, onClick: () => toggleQueueFor(selectedCard.identity) }, selectedQueued ? 'Unqueue' : 'Queue')),
                             scoutBlock && h('p', { style: { fontSize: 11.5, color: 'var(--warn)', marginTop: 8 } }, scoutBlock))
                             : h('p', { className: 'tl-empty' }, 'Select a player on the big board to open the scout file.'));
         const scoutDialog = scoutOpen && selectedCard ? h('div', { className: 'tl-scout-overlay', onClick: (event) => { if (event.target === event.currentTarget) closeScout(); } },
@@ -783,6 +821,17 @@
                 h('button', { className: 'tl-btn primary', 'aria-label': `${isAuction ? 'Nominate' : 'Draft'} ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, isAuction ? 'Nominate' : 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
             h('div', { className: 'tl-grid-2 tl-draft-grid' },
                 h('div', { className: 'tl-draft-main-board' },
+                    GameDraftTable ? h(GameDraftTable, {
+                        key: league.leagueId, className: 'tl-vault-draft-table', title: 'Find your next legend',
+                        statusText: `${available.length} available · ${isAuction ? 'Auction' : league.settings.draftFormat === 'linear' ? 'Linear' : 'Snake'} draft`,
+                        rows: draftRows, columns: draftColumns, positionOptions: draftPositionOptions,
+                        selectedId: selectedCard?.identity, onSelect: (row, event) => openScout(row.card, event),
+                        queuedIds: humanTeam?.queue || [], onToggleQueue: humanTeam ? row => toggleQueueFor(row.id) : undefined,
+                        onDraft: row => { if (myTurn) draftCard(row.card, 'human'); }, draftLabel: isAuction ? 'Nominate' : 'Draft',
+                        query, onQueryChange: setQuery,
+                        emptyText: cards.size === 0 ? 'No player cards loaded.' : 'No eligible players match these filters.',
+                        filterControls: h('p', { className: 'tl-draft-metric-note' }, 'Archive PPG and peak use eligible seasons in reference scoring. Your drawn season may differ.'),
+                    }) : h(React.Fragment, null,
                     h('div', { className: 'tl-card tl-player-board' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Find your next legend'), h('small', null, `${visible.length} of ${filtered.length} ${query.trim() || positionFilter !== 'ALL' ? 'matching' : eraRestricted ? 'era-eligible' : 'available'}`)),
                         h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
@@ -811,18 +860,24 @@
                                             onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); },
                                         }, '★')));
                                 }))))),
-                    filtered.length > visible.length && h('button', { className: 'tl-btn tl-show-more', onClick: () => setBoardLimit(value => value + 24) }, `Show more legends · ${filtered.length - visible.length} more`),
+                    filtered.length > visible.length && h('button', { className: 'tl-btn tl-show-more', onClick: () => setBoardLimit(value => value + 24) }, `Show more legends · ${filtered.length - visible.length} more`)),
                     draftLog),
                 h('div', { className: 'tl-draft-sidebar' },
                     league.phase === 'draft' && humanTeam && DraftRoster && h('div', { ref: myDraftRef, className: 'tl-draft-my-roster' }, h(DraftRoster, { league, team: humanTeam })),
                     phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, 'Opponent intel'), h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId })) : h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
-                    phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, selectedCard ? `Scout file · ${selectedCard.name}` : 'Scout file'), scoutFile) : scoutFile,
+                    GameDraftTable && selectedCard ? h('div', { className: 'tl-card tl-draft-selection' },
+                        h('div', { className: 'tl-card-title' }, h('span', null, 'Player card'), h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position)),
+                        h('strong', null, selectedCard.name),
+                        h('p', null, `${availableYears(eligibleScoutSeasons)} · ${eligibleScoutSeasons.length} eligible seasons`),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: event => openScout(selectedCard, event) }, 'Open player card'),
+                        scoutBlock && h('p', { className: 'tl-hint' }, scoutBlock))
+                        : phone ? h('details', { className: 'tl-draft-phone-extra' }, h('summary', null, selectedCard ? `Scout file · ${selectedCard.name}` : 'Scout file'), scoutFile) : scoutFile,
                     h('div', { className: 'tl-card' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'My queue'), h('small', null, humanTeam ? `${humanTeam.name} · ${queueCards.length} queued` : 'no human seat')),
                         queueCards.length === 0 ? h('p', { className: 'tl-empty' }, 'Queue empty — star players on the big board.')
-                            : h('div', { className: 'tl-queue-strip' }, queueCards.map((card, i) => h('div', { key: card.identity, className: 'tl-queue-chip', onClick: (event) => openScout(card, event) },
+                            : h('div', { className: 'tl-queue-strip' }, queueCards.map((card, i) => h('div', { key: card.identity, className: 'tl-queue-chip' },
                                 h('span', { className: 'tl-qnum' }, i + 1),
-                                h('span', null, card.name),
+                                h('button', { type: 'button', className: 'tl-queue-player-card', onClick: event => openScout(card, event) }, card.name),
                                 h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
                                 h('button', { className: 'tl-btn icon', style: { padding: '2px 5px' }, 'aria-label': `Remove ${card.name} from queue`, onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); } }, '✕')))),
                         h('button', { className: 'tl-btn', disabled: !myTurn || !clockReady || (isAuction && Boolean(league.draftAuction?.nomination)) || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, isAuction ? 'Nominate from queue' : 'Auto from queue')))));

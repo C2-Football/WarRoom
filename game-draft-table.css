@@ -1,0 +1,62 @@
+.game-draft-board { --draft-accent:var(--gold,#e3bd70); --draft-muted:var(--text-muted,#b2bbb4); min-width:0; color:var(--text,#edf0e9); font:400 13px/1.45 var(--font-body,system-ui,sans-serif); }
+.game-draft-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.game-draft-heading h3 { margin:0; color:var(--draft-accent); font-size:17px; font-weight:700; }
+.game-draft-heading > span { color:var(--draft-muted); font-size:12px; text-align:right; }
+.game-draft-tools { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+.game-draft-tools label { display:grid; gap:5px; margin:0; min-width:0; flex:0 1 auto; }
+.game-draft-tools label > span { color:var(--draft-muted); font-size:11px; font-weight:700; }
+.game-draft-tools .game-draft-search { flex:1 1 160px; }
+.game-draft-board :is(input,select) { width:100%; min-width:0; min-height:40px; padding:8px 10px; border:1px solid rgba(184,200,182,.25); border-radius:var(--card-radius-sm,8px); background:var(--bg,#111c19); color:inherit; font:inherit; box-sizing:border-box; }
+.game-draft-board button { color:inherit; font:inherit; cursor:pointer; border:1px solid rgba(184,200,182,.24); border-radius:var(--card-radius-sm,8px); background:transparent; min-height:36px; padding:7px 10px; }
+.game-draft-board button:disabled { cursor:not-allowed; opacity:.45; }
+.game-draft-board :is(button,input,select,[tabindex]):focus-visible { outline:2px solid var(--draft-accent); outline-offset:3px; }
+.game-draft-board .game-draft-direction { flex:0 0 38px; min-height:40px; }
+.game-draft-visibility { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+.game-draft-visibility button { font-size:12px; min-height:34px; }
+.game-draft-visibility button[aria-pressed=true], .game-draft-queue[aria-pressed=true] { color:var(--draft-accent); background:rgba(227,189,112,.12); border-color:var(--draft-accent); }
+.game-draft-visibility > span { margin-left:auto; color:var(--draft-muted); font-size:11px; }
+.game-draft-context { margin:10px 0; font-size:12px; color:var(--draft-muted); }
+.game-draft-table-scroll { max-width:100%; max-height:650px; margin-top:12px; overflow:auto; scrollbar-gutter:stable; border:1px solid rgba(184,200,182,.17); border-radius:var(--card-radius-sm,8px); overscroll-behavior:contain; }
+.game-draft-table { border-collapse:separate; border-spacing:0; width:100%; min-width:620px; table-layout:auto; }
+.game-draft-table :is(th,td) { padding:10px 8px; text-align:left; border-bottom:1px solid rgba(184,200,182,.11); vertical-align:middle; font-size:12px; }
+.game-draft-table th { position:sticky; top:0; z-index:1; background:var(--draft-header,#172820); color:var(--draft-muted); white-space:nowrap; }
+.game-draft-table th button { min-height:32px; padding:4px 0; border:0; border-radius:0; color:inherit; font-size:10px; letter-spacing:.035em; text-transform:uppercase; font-weight:700; }
+.game-draft-table th[aria-sort=ascending], .game-draft-table th[aria-sort=descending] { color:var(--draft-accent); }
+.game-draft-table tbody tr { cursor:pointer; }
+.game-draft-table tbody tr:hover, .game-draft-table tbody tr:focus-within { background:rgba(184,200,182,.055); }
+.game-draft-table tbody tr.is-selected { background:rgba(227,189,112,.10); box-shadow:inset 3px 0 var(--draft-accent); }
+.game-draft-table .game-draft-col-rank { width:35px; color:var(--draft-muted); font-variant-numeric:tabular-nums; }
+.game-draft-table .game-draft-col-name { min-width:140px; }
+.game-draft-table .game-draft-player-link { display:block; text-align:left; padding:0; border:0; min-height:28px; font-size:13px; font-weight:700; line-height:1.3; }
+.game-draft-col-name small { display:block; color:var(--draft-muted); font-size:10px; margin-top:3px; max-width:240px; }
+.game-draft-col-name .game-draft-drafted-label { color:var(--draft-accent); }
+.game-draft-position { display:inline-block; padding:3px 5px; border-radius:var(--card-radius-xs,5px); background:rgba(184,200,182,.12); font-size:10px; font-weight:700; color:#c1ded4; }
+.game-draft-position-QB { color:#ffc2c2; }.game-draft-position-RB { color:#91e4c9; }.game-draft-position-WR { color:#a9d5ff; }.game-draft-position-TE { color:#f3db99; }
+.game-draft-metric { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.game-draft-row-actions { white-space:nowrap; }
+.game-draft-row-actions button + button { margin-left:5px; }
+.game-draft-row-actions .game-draft-pick { color:var(--draft-accent); font-size:11px; font-weight:700; }
+.game-draft-row-actions .game-draft-queue { min-width:34px; font-size:18px; line-height:1; padding:5px; }
+.game-draft-table .is-drafted .game-draft-player-link { color:var(--draft-muted); }
+.game-draft-board .game-draft-more { display:block; width:100%; margin-top:10px; font-size:12px; }
+.game-draft-empty { padding:25px 12px; text-align:center; color:var(--draft-muted); }
+.game-draft-empty button { display:block; margin:12px auto 0; }
+@media (max-width:600px) {
+ .game-draft-heading { margin-bottom:10px; }.game-draft-heading h3 { font-size:16px; }
+ .game-draft-tools { gap:7px; }.game-draft-tools .game-draft-search { flex-basis:100%; }
+ .game-draft-tools label { flex:1 1 95px; }.game-draft-tools .game-draft-direction { min-height:44px; }
+ .game-draft-board :is(input,select) { min-height:44px; font-size:14px; }
+ .game-draft-visibility > span { width:100%; margin:0; }.game-draft-visibility button { min-height:40px; }
+ .game-draft-table-scroll { max-height:none; overflow:visible; border:0; scrollbar-gutter:auto; }
+ .game-draft-table { display:block; min-width:0; }.game-draft-table thead { display:none; }.game-draft-table tbody { display:grid; gap:8px; }
+ .game-draft-table tbody tr { display:grid; grid-template-columns:26px minmax(0,1fr) auto; gap:5px 8px; padding:11px; border:1px solid rgba(184,200,182,.2); border-radius:var(--card-radius-sm,8px); }
+ .game-draft-table td { padding:0; border:0; min-width:0; }
+ .game-draft-table .game-draft-col-rank { grid-column:1; width:auto; padding-top:6px; font-size:11px; }
+ .game-draft-table .game-draft-col-name { grid-column:2; min-width:0; }.game-draft-table .game-draft-col-position { grid-column:3; padding-top:4px; }
+ .game-draft-table .game-draft-player-link { min-height:28px; font-size:14px; }
+ .game-draft-table .game-draft-metric { grid-column:2 / -1; display:flex; gap:12px; justify-content:space-between; font-size:12px; white-space:normal; }
+ .game-draft-metric::before { content:attr(data-label); color:var(--draft-muted); font-size:11px; }
+ .game-draft-table .game-draft-row-actions { grid-column:2 / -1; display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+ .game-draft-row-actions .game-draft-queue { min-height:44px; min-width:44px; }.game-draft-row-actions .game-draft-pick { min-height:44px; min-width:78px; font-size:12px; }
+ .game-draft-row-actions button + button { margin:0; }
+}

@@ -478,4 +478,81 @@ assert(rosterDetails.open && rosterScrolled && rosterFocused, 'Mobile shortcut o
 const rosterSpectatorPage = mount({ league: linearAfterRound, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: null, role: 'viewer' } })();
 assert.equal(find(rosterSpectatorPage, node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Spectators do not inherit another team');
 assert.equal(find(mount({ league: picking, cards: turnCards, onUpdate() {} })(), node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Completed recap does not retain the live draft roster');
-console.log('Vault draft experience: sealed reveals, mobile scouting, recap grids, filters, unified clock header and accurate snake/linear/auction turn countdowns passed');
+// The shared DHQ-style board receives a game-scoped adapter. The table owns
+// sort/filter behavior; this boundary proves its rows and actions remain legal.
+const GameDraftTable = () => {};
+App.GameDraftTable = GameDraftTable;
+const tableOf = page => find(page, node => node.type === GameDraftTable)[0];
+const tableCards = new Map([
+    ['archive-rb', makeCard('archive-rb', 'RB', [1982, 1984], 200)],
+    ['archive-qb', makeCard('archive-qb', 'QB', [1983, 2004], 180)],
+    ['taken-rb', makeCard('taken-rb', 'RB', [1985], 170)],
+    ['outside-wr', makeCard('outside-wr', 'WR', [2004], 9999)],
+]);
+tableCards.get('archive-qb').seasons[1].points = 9999;
+let tableLeague = Engine.createTimeLeague({ name: 'Shared board', seed: 'shared-board', createdAt: '2026-01-01',
+    settings: { hiddenYears: false, rosterSlots: { QB: 1, RB: 1, WR: 1, FLEX: 1, BN: 1 },
+        draftOrderMode: 'manual', draftTeamOrder: ['t1', 't2'], eraRules: { mode: 'selected-decades', decades: ['1980s'] } },
+    seats: [{ name: 'My desk', manager: 'human' }, { name: 'Other desk', manager: 'human' }] });
+tableLeague = Engine.startDraft(tableLeague, '2026-01-01T00:00:00.000Z');
+const tableActions = [], tableWrites = [];
+const tableRender = mount({ league: tableLeague, cards: tableCards, onlineMeta: { seatTeamId: 't1', role: 'member' },
+    onUpdate: (state, action) => tableWrites.push({ state, action }), onDraftAction: action => tableActions.push(action) });
+let tablePage = tableRender(), table = tableOf(tablePage).props;
+assert.deepEqual(table.rows.map(row => row.id), ['archive-rb', 'archive-qb', 'taken-rb'], 'Only era-eligible identities reach the shared table');
+assert.deepEqual(table.columns.map(column => column.key), ['years', 'ppg', 'peak'], 'Historical reference metrics do not borrow live ADP or trade values');
+assert.equal(table.rows[1].peak, 180, 'Out-of-era career peak never changes draft rank or value');
+assert.equal(table.rows[1].years, '1983');
+assert.equal(table.columns[1].getValue(table.rows[0]), (200 + 196) / 28, 'Archive PPG pools only eligible recorded games');
+assert.equal(table.columns[0].getValue(table.rows[1]), 1983, 'Eligible-year column provides a numeric chronological sort value');
+assert.deepEqual(table.positionOptions.find(option => option.value === 'FLEX').positions, ['RB', 'WR', 'TE']);
+const rbRow = table.rows[0];
+let returnedFocus = false;
+table.onSelect(rbRow, { currentTarget: { focus: () => { returnedFocus = true; } } });
+tablePage = tableRender();
+assert(text(find(tablePage, node => node.props.role === 'dialog')[0]).includes('RB Legend archive-rb'), 'Shared table click opens the actual career card');
+assert.equal(tableActions.length, 0, 'Opening a player card never drafts the player');
+button(tablePage, '← Back to draft').props.onClick();
+assert(returnedFocus, 'Closing the card restores focus to the originating player control');
+returnedFocus = false;
+table.onSelect(rbRow, { currentTarget: { querySelector: () => ({ focus: () => { returnedFocus = true; } }) } });
+button(tableRender(), '← Back to draft').props.onClick();
+assert(returnedFocus, 'Clicking a non-focusable table row returns focus to its player button');
+table.onToggleQueue(rbRow);
+assert.equal(tableWrites.at(-1).action.type, 'queue');
+assert.deepEqual(tableWrites.at(-1).state.teams.find(team => team.teamId === 't1').queue, ['archive-rb'], 'Queue changes use the existing owning-seat persistence path');
+table.onDraft(rbRow);
+assert.deepEqual(tableActions.at(-1), { type: 'draft', identity: 'archive-rb' }, 'Table picks use the clock-checked action dispatcher');
+tableActions.length = 0;
+table = tableOf(tableRender({ league: Engine.pauseDraft(tableLeague, '2026-01-01T00:00:01.000Z') })).props;
+assert(table.rows.every(row => !row.canDraft), 'A paused draft disables every row action');
+table.onDraft(table.rows[0]);
+assert.equal(tableActions.length, 0, 'Even a programmatic paused row action cannot issue a draft');
+table = tableOf(tableRender({ league: tableLeague, onlineMeta: { seatTeamId: 't2', role: 'member' } })).props;
+table.onDraft(table.rows[0]);
+assert.equal(tableActions.length, 0, 'Another human seat cannot use the table to draft out of turn');
+const tableAuction = { ...tableLeague, settings: { ...tableLeague.settings, draftFormat: 'auction' }, draftAuction: { nomination: null } };
+table = tableOf(tableRender({ league: tableAuction, onlineMeta: { seatTeamId: 't1', role: 'member' } })).props;
+assert.equal(table.draftLabel, 'Nominate');
+table.onDraft(table.rows[0]);
+assert.equal(tableActions.at(-1).type, 'auction-nominate', 'Auction row action nominates without applying a snake pick');
+tableActions.length = 0;
+table = tableOf(tableRender({ league: { ...tableAuction, draftAuction: { nomination: { identity: 'taken-rb' } } } })).props;
+assert(table.rows.every(row => !row.canDraft));
+table.onDraft(table.rows[0]);
+assert.equal(tableActions.length, 0, 'An open auction lot cannot be replaced from a row action');
+const withTaken = Engine.applyDraftPick(tableLeague, tableCards.get('taken-rb'), { madeBy: 'human', createdAt: '2026-01-01T00:00:01.000Z' });
+table = tableOf(tableRender({ league: withTaken })).props;
+const takenRow = table.rows.find(row => row.id === 'taken-rb');
+assert(takenRow.drafted && !takenRow.canDraft && takenRow.draftedBy === 'My desk', 'Show-drafted rows retain owner and cannot be selected again');
+const queuedWrites = tableWrites.length;
+table.onToggleQueue(takenRow);
+assert.equal(tableWrites.length, queuedWrites, 'Drafted players cannot re-enter the queue');
+table.onSelect(takenRow);
+assert(text(find(tableRender(), node => node.props.role === 'dialog')[0]).includes('RB Legend taken-rb'), 'Drafted identities still open their public career card');
+const sealedShared = { ...tableLeague, publicSnapshotVersion: 1,
+    settings: { ...tableLeague.settings, eraRules: { mode: 'position-roulette', decades: [], positionDecades: {} } },
+    draftVisibility: { allPositions: ['QB', 'RB', 'WR'], revealedPositions: [] } };
+assert.equal(tableOf(mount({ league: sealedShared, cards: tableCards, onUpdate() {} })()), undefined, 'Unrevealed public archives never mount a player table');
+delete App.GameDraftTable;
+console.log('Vault draft experience: sealed reveals, scouting, recap grids, filters, shared draft table authority, queues and snake/linear/auction turn countdowns passed');

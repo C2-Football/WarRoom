@@ -52,7 +52,7 @@ jobs:
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
 
       - name: Verify beta release contracts
-        run: npm run test:core && npm run test:login-auth && npm run test:timeleague && npm run test:duat
+        run: npm run test:core && npm run test:login-auth && npm run test:game-draft-table && npm run test:timeleague && npm run test:duat
 
       # Precompile every type="text/babel" entry (index + free-agency + draft-warroom
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of

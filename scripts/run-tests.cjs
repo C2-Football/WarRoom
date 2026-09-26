@@ -42,7 +42,7 @@ const pkg = require(path.join(ROOT, 'package.json'));
 // script name here; a typo fails loudly below rather than silently skipping.
 const SUITE_ORDER = [
   'test:design-tokens', 'test:landing-content', 'test:login-auth', 'test:sleeper-connect', 'test:sleeper-portfolio', 'test:regression',
-  'test:click-paths', 'test:intelligence-surfaces', 'test:draft-context',
+  'test:click-paths', 'test:intelligence-surfaces', 'test:draft-context', 'test:game-draft-table',
   'test:draft-analyst-mock', 'test:draft-trade-simulator', 'test:draft-live-sync',
   'test:draft-live-decision', 'test:draft-live-room', 'test:draft-recap', 'test:post-draft-craze',
   'test:draft-strategy-studio', 'test:ai', 'test:ai-scale', 'test:billing',

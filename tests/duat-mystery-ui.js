@@ -49,15 +49,17 @@ test('identified-year rendering does not read private assignments or seed and ke
  tree=h.render('Explorer',{...props,player:{...player,revealedSeason:2011}});assert.match(text(tree),/Final reveal: 2011/);assert.doesNotMatch(text(tree),/Identified season:/,'The completed official reveal keeps its existing explicit label');
 });
 test('a singleton draft card places identified-year research beside neutral decade metadata',()=>{
- const h=harness(),candidate={...player,candidateYears:[2011]},raw=fs.readFileSync('js/components/duat-presentation.js','utf8');
- const source=require('@babel/standalone').transform(raw.slice(raw.indexOf('    function Draft('),raw.indexOf('    function DynastyArchaeology('))+'\nwindow.Draft=Draft;',{presets:['react']}).code;
- const view={...campaign,phase:'draft',dynastySeason:1,seasons:[2025],factions:[{id:'egypt',armies:[{id:'army',season:2025,rulerName:'Djoser',players:[]}]}],draft:{status:'active',cursor:0,totalPicks:64,picks:[],queue:[{factionId:'egypt'}]}};
- const Engine={draftTurn:()=>({factionId:'egypt',round:1,season:2025}),draftCandidates:()=>[candidate],rosterSize:()=>8,settingsOf:()=>({conquest:false,bench:3}),slotsOf:()=>['QB','FLEX','FLEX','FLEX','FLEX']};
- const window={},React={Fragment:'fragment',createElement:(type,props,...children)=>({type,props:props||{},children})};
- vm.runInNewContext(source,{window,App:h.App,React,useState:initial=>[initial,()=>{}],useMemo:fn=>fn(),useEffect(){},Engine,art:()=>'',nameOf:id=>id,Sigil:()=>null,number:n=>String(n)});
- const tree=window.Draft({campaign:view,factionId:'egypt',data,online:false,host:true,canAdvance:true,busy:false,onAction(){}}),row=nodes(tree).find(node=>node.props.className==='duat-draft-player');
- assert.match(text(row),/2010s/);assert.doesNotMatch(text(row),/year hidden/);
- const explorer=nodes(row).find(node=>node.type===h.App.DuatMysteryUI.Explorer);assert(explorer);assert.equal(explorer.props.throughWeek,0);
+ const h=harness(),candidate={...player,candidateYears:[2011]},raw=fs.readFileSync('js/components/duat-draft-room.js','utf8');
+ const source=require('@babel/standalone').transform(raw,{presets:['react']}).code;
+ const view={...campaign,id:'singleton-draft',phase:'draft',dynastySeason:1,seasons:[2025],factions:[{id:'egypt',armies:[{id:'army',season:2025,rulerName:'Djoser',players:[]}]}],draft:{status:'active',cursor:0,totalPicks:64,picks:[],queue:[{factionId:'egypt'}]}};
+ h.App.DuatCampaign={draftTurn:()=>({factionId:'egypt',round:1,season:2025}),draftCandidates:()=>[candidate],rosterSize:()=>8,settingsOf:()=>({conquest:false,bench:3}),slotsOf:()=>['QB','FLEX','FLEX','FLEX','FLEX']};
+ h.App.DuatPresentation={art:()=>'',nameOf:id=>id,Sigil:()=>null};h.App.GameDraftTable='draft-table';
+ const window={App:h.App},React={Fragment:'fragment',createElement:(type,props,...children)=>({type,props:props||{},children}),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}],useMemo:fn=>fn(),useEffect(){},useLayoutEffect(){},useRef:value=>({current:value})};
+ vm.runInNewContext(source,{window,React});
+ const tree=h.App.DuatDraftRoom({campaign:view,factionId:'egypt',data,online:false,host:true,canAdvance:true,busy:false,onAction(){}}),board=nodes(tree).find(node=>node.type==='draft-table');
+ assert.match(board.props.rows[0].detail,/2010s/);assert.doesNotMatch(board.props.rows[0].detail,/year hidden/);
+ const card=h.App.DuatDraftBoard.PlayerCard({player:board.props.rows[0],campaign:view,factionId:'egypt',data,mystery:true});
+ const explorer=nodes(card).find(node=>node.type===h.App.DuatMysteryUI.Explorer);assert(explorer);assert.equal(explorer.props.throughWeek,0);
  assert.match(text(h.render('Explorer',explorer.props)),/\b2011\b/);
 });
 test('archive explorer compares only viewed game logs and discloses actual matching seasons without probabilities',()=>{

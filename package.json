@@ -7,6 +7,7 @@
     "test": "node scripts/run-tests.cjs",
     "test:core": "node tests/run.js",
     "test:game-guests": "node tests/game-guest-client.cjs && node tests/game-guest-backend.cjs",
+    "test:game-draft-table": "node tests/game-draft-table.cjs",
     "test:duat": "node scripts/build-duat-research.cjs --check && node --test tests/duat-*.js tests/duat-online.cjs tests/duat-dynasty-online.cjs",
     "test:landing-content": "node tests/landing-content-contract.js",
     "test:login-auth": "node tests/login-auth-contract.js && node tests/auth-request-recovery.cjs",
