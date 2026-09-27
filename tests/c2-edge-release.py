@@ -266,24 +266,31 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(release.Rejected, 'source download is incomplete'):
                 release.hosted_snapshot(['duat'])
 
-    def test_vault_local_unbundle_fallback_retains_complete_source_requirement(self):
+    def test_vault_api_failure_uses_strict_raw_recovery_without_docker_download(self):
         calls = []
         def download(command, **kwargs):
             calls.append(command)
-            if '--use-api' in command:
+            if command[0] == 'supabase':
+                self.assertEqual(command, ['supabase', 'functions', 'download', 'time-league', '--project-ref', release.PROJECT, '--use-api'])
+                Path(kwargs['cwd'], 'partial.ts').write_text('incomplete API response')
                 return subprocess.CompletedProcess(command, 1)
-            path = Path(kwargs['cwd'], 'supabase/functions/time-league/index.ts')
+            self.assertEqual(command[:4], ['npx', '--yes', 'deno@2.9.6', 'run'])
+            self.assertEqual(command[-1], 'time-league')
+            self.assertEqual(list(Path(command[-2]).iterdir()), [], 'failed API files must not survive into recovery')
+            self.assertEqual(Path(command[-3]).read_bytes(), b'ESZIP2.3-fixture')
+            self.assertNotIn('SUPABASE_ACCESS_TOKEN', kwargs['env'])
+            path = Path(command[-2], 'supabase/functions/time-league/index.ts')
             path.parent.mkdir(parents=True)
             path.write_text('export const complete = true;')
             return subprocess.CompletedProcess(command, 0)
-        with patch.object(release, 'management', return_value=[{'slug':'time-league','version':7,'verify_jwt':False}]), patch.object(release.subprocess, 'run', side_effect=download):
+        with patch.dict(os.environ, {'SUPABASE_ACCESS_TOKEN': 'fixture'}), patch.object(release.urllib.request, 'urlopen', return_value=io.BytesIO(b'ESZIP2.3-fixture')) as request, patch.object(release, 'management', return_value=[{'slug':'time-league','version':7,'verify_jwt':False}]), patch.object(release.subprocess, 'run', side_effect=download):
             value = release.hosted_snapshot(['time-league'])
             self.assertIn('supabase/functions/time-league/index.ts', value['time-league']['sources'])
         self.assertEqual(len(calls), 2)
-        self.assertNotIn('--use-api', calls[1])
-        self.assertTrue(all(command[1:3] == ['functions','download'] for command in calls))
+        self.assertEqual(request.call_args.args[0].full_url, 'https://api.supabase.com/v1/projects/' + release.PROJECT + '/functions/time-league/body')
+        self.assertFalse(any(command[0] == 'docker' or command[0] == 'supabase' and '--use-api' not in command for command in calls))
 
-    def test_raw_recovery_runs_only_after_both_vault_downloads_fail_in_clean_directories(self):
+    def test_raw_recovery_runs_only_after_vault_api_failure_in_a_clean_directory(self):
         calls = []
         def download(command, **kwargs):
             directory = Path(kwargs['cwd'])
@@ -293,7 +300,7 @@ class ReleaseTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 1)
         def recover(name, directory):
             self.assertEqual(name, 'time-league')
-            self.assertEqual(len(calls), 2)
+            self.assertEqual(len(calls), 1)
             self.assertEqual(list(Path(directory).iterdir()), [])
             entry = Path(directory, 'supabase/functions/time-league/index.ts')
             entry.parent.mkdir(parents=True)
@@ -307,7 +314,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(set(result['time-league']['sources']), {'supabase/functions/time-league/index.ts', 'supabase/functions/_shared/security.ts'})
         self.assertEqual(result['time-league']['version'], 7)
         self.assertIn('--use-api', calls[0])
-        self.assertNotIn('--use-api', calls[1])
+        self.assertEqual(len(calls), 1)
         self.assertEqual(recovery.call_count, 1)
         self.assertEqual(management.call_args_list[0].args, ('functions',))
         self.assertEqual(management.call_args_list[1].args, ('functions',))

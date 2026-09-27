@@ -330,14 +330,10 @@ def hosted_snapshot(selected):
             target.mkdir()
             download = subprocess.run(['supabase', 'functions', 'download', name, '--project-ref', PROJECT, '--use-api'], cwd=target, capture_output=True)
             if download.returncode and name == 'time-league':
-                # The Vault already requires Docker bundling. Its large source
-                # can also exceed server-side unbundling limits. Retry the
-                # documented local unbundler in a fresh temporary directory;
-                # the exact same complete-source checks still apply.
-                shutil.rmtree(target)
-                target.mkdir()
-                download = subprocess.run(['supabase', 'functions', 'download', name, '--project-ref', PROJECT], cwd=target, capture_output=True)
-            if download.returncode and name == 'time-league':
+                # Large Vault bundles can exceed API unbundling limits. Use
+                # the strict read-only original-source parser directly: Docker
+                # download creates root-owned files on Linux CI. Deployment
+                # still uses Docker and all source/closure checks remain below.
                 shutil.rmtree(target)
                 target.mkdir()
                 recover_large_bundle(name, target)

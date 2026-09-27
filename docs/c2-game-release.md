@@ -28,6 +28,12 @@ the new manifest, commit it without changing other source, and run `plan` at
 that final commit before dispatching the manual workflow. Keep the same pinned
 Node first in `PATH` for any intervening runtime builds.
 
+Hosted source inspection first uses Supabase's API download. If Vault's large
+bundle cannot be unbundled by the API, the strict read-only ESZIP parser recovers
+its original source in a fresh directory. Source inspection never uses Docker;
+the Vault deployment itself still uses Docker. Complete dependency closure and
+before/after hosted version checks apply to either download path.
+
 Run `npm run test:c2-release` with the pinned Node to check the release boundary
 and both actual builders' platform-neutral gzip outputs. The artifact test
 simulates the Linux and Darwin gzip headers in memory, compares the complete
