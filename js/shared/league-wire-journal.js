@@ -374,7 +374,8 @@
         }
         const result = { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
             archive: { historicalHigh, historicalRecords, allSeasons: [...new Set([...priorSeasons.map(s => String(s.league.season)), ...(completedThrough >= start ? [season] : [])])].sort(), high: archiveHigh, margin: archiveMargin, records: archiveRecords, margins: archiveMargins, complete: archiveComplete, rulesChanged, seasons: [...new Set([...comparableSeasons, ...(completedThrough >= start ? [season] : [])])].sort(), priorCount: priorSeasons.length } };
-        return root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor }) || result;
+        const enriched = root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor }) || result;
+        return root.WrWireGraphics?.enrich(enriched, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor }) || enriched;
     }
     root.WrWireStories = { build, loadArchive, signature, inspect, bounds, oldName, frontPage, weeklyLookback };
 })(typeof window !== 'undefined' ? window : globalThis);

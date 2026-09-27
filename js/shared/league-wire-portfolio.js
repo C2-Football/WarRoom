@@ -11,16 +11,18 @@
         return { start: range.start, end: Math.min(range.end, week - 1), week, live: !historical && !postseason && Number(league.season) === Number(nfl.season) };
     }
     async function load({ leagues, accountId = '', signal, force = false, onUpdate, fetcher = (...args) => root.fetch(...args), now = Date.now }) {
+        const ownerScope = root.App?.AccountStorage?.owner?.() || '';
+        const stillCurrent = () => (root.App?.AccountStorage?.owner?.() || '') === ownerScope;
         const eligible = [...new Map(leagues.filter(l => root.App.LeagueLiveScores.supported(l)).map(l => [keyFor(l), l])).values()];
         const json = async url => { if (signal?.aborted) throw Error('aborted'); const r = await fetcher(url, { signal, cache: 'no-store' }); if (!r.ok) throw Error('Scores unavailable'); return r.json(); };
         let nfl;
         try { nfl = await json('https://api.sleeper.app/v1/state/nfl'); if (!nfl?.season) throw Error('No season'); }
-        catch (_) { if (!signal?.aborted) eligible.forEach(league => onUpdate({ league, status: 'error', error: 'The league calendar could not load. Refresh to retry.', currentError: 'The league calendar could not load. Refresh to retry.', archiveError: '', currentReady: false, resultsReady: false, scheduleReady: false, currentUpdatedAt: null, stories: [] })); return; }
+        catch (_) { if (!signal?.aborted && stillCurrent()) eligible.forEach(league => onUpdate({ league, status: 'error', error: 'The league calendar could not load. Refresh to retry.', currentError: 'The league calendar could not load. Refresh to retry.', archiveError: '', currentReady: false, resultsReady: false, scheduleReady: false, currentUpdatedAt: null, stories: [] })); return; }
         let cursor = 0;
         const archiveJobs = [];
         async function worker() {
-            while (cursor < eligible.length && !signal?.aborted) {
-                const league = eligible[cursor++], span = period(league, nfl), cacheKey = `${accountId}|${keyFor(league)}|${span.week}`;
+            while (cursor < eligible.length && !signal?.aborted && stillCurrent()) {
+                const league = eligible[cursor++], span = period(league, nfl), cacheKey = `${ownerScope}|${accountId}|${keyFor(league)}|${span.week}`;
                 const cached = recent.get(cacheKey);
                 if (!force && cached && cached.selectionKey === JSON.stringify(root.WrWireRivalries?.list(league, cached.value.rivalryHistory) || []) && now() - cached.at < 60000) { onUpdate(cached.value); continue; }
                 const nameFor = rid => root.WrWireStories.oldName(league, rid);
@@ -30,7 +32,7 @@
                 let scoresLoaded = false, scheduleLoaded = !scheduleExpected, scoresError = '', scheduleError = '', archiveError = '';
                 let scoresUpdatedAt = null, scheduleUpdatedAt = null, publishedSelectionKey = '';
                 const publish = status => {
-                    if (signal?.aborted) return null;
+                    if (signal?.aborted || !stillCurrent()) return null;
                     const rivalries = root.WrWireRivalries?.list(league, past.seasons) || [];
                     publishedSelectionKey = JSON.stringify(rivalries);
                     const edition = root.WrWireStories.build({ rivalries, league, weeks, start: span.start, end: span.end, priorSeasons: past.seasons, archiveComplete: past.complete,
@@ -45,7 +47,7 @@
                     // When both sources are present, show the older successful snapshot.
                     const currentTimes = [scoresExpected && scoresReady ? scoresUpdatedAt : null, scheduleLoaded ? scheduleUpdatedAt : null].filter(t => t != null);
                     const currentUpdatedAt = currentTimes.length ? Math.min(...currentTimes) : null;
-                    const value = { league, historical: Number(league.season) < Number(nfl.season), status: status === 'ready' && (error || !currentReady) ? 'partial' : status, error, currentError, archiveError, currentUpdatedAt, resultsReady: scoresExpected && scoresReady, scheduleReady: scheduleExpected && scheduleLoaded, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
+                    const value = { rivalryProfiles: edition.rivals || [], race: root.WrWirePlayoffs?.race({ league, edition: { ...edition, expectedThrough: span.end } }) || null, league, historical: Number(league.season) < Number(nfl.season), status: status === 'ready' && (error || !currentReady) ? 'partial' : status, error, currentError, archiveError, currentUpdatedAt, resultsReady: scoresExpected && scoresReady, scheduleReady: scheduleExpected && scheduleLoaded, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
                     onUpdate(value); return value;
                 };
                 publish('loading');
@@ -80,7 +82,7 @@
         }
         await Promise.all(Array.from({ length: Math.min(2, eligible.length) }, worker));
         let archiveCursor = 0;
-        async function archiveWorker() { while (archiveCursor < archiveJobs.length && !signal?.aborted) await archiveJobs[archiveCursor++](); }
+        async function archiveWorker() { while (archiveCursor < archiveJobs.length && !signal?.aborted && stillCurrent()) await archiveJobs[archiveCursor++](); }
         await Promise.all(Array.from({ length: Math.min(2, archiveJobs.length) }, archiveWorker));
     }
     // Round-robin each league's best current story before any league's second.
