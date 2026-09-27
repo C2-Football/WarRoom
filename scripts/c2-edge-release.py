@@ -18,6 +18,7 @@ import urllib.request
 
 PROJECT = 'sxshiqyxhhifvtfqawbq'
 REPOSITORY = 'C2-Football/WarRoom'
+BUILD_TOOLCHAIN = {'node': 'v20.20.2', 'zlib': '1.3.1-e00f703'}
 PREFIX = '.github/c2-releases/'
 FUNCTIONS = ('league-cup', 'time-league', 'duat')
 CONTROLS = ('scripts/c2-edge-release.py', 'scripts/extract-edge-source.mjs', '.github/workflows/deploy-functions.yml',
@@ -377,7 +378,18 @@ def verify_hosted(root, head, manifest, name, after=False):
         raise Rejected('Hosted source/version changed since review: ' + name)
 
 
+def require_build_toolchain():
+    try:
+        actual = json.loads(subprocess.check_output(['node', '-p',
+            'JSON.stringify({node:process.version,zlib:process.versions.zlib})'], stderr=subprocess.DEVNULL))
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        raise Rejected('Cannot verify the release Node/zlib toolchain') from error
+    if actual != BUILD_TOOLCHAIN:
+        raise Rejected('Release preparation requires official Node 20.20.2 with zlib 1.3.1-e00f703, matching CI; put its bin directory first in PATH')
+
+
 def prepare(root, head, base, selected, manifest_path):
+    require_build_toolchain()
     commit(root, head)
     commit(root, base)
     selected = selected_functions(selected)

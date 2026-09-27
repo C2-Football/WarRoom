@@ -7,7 +7,13 @@ const zlib = require('node:zlib');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, 'data/duat', name), 'utf8');
-const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
+const pack = value => {
+    const packed = zlib.gzipSync(Buffer.from(JSON.stringify(value)));
+    // gzip records the build host OS (Darwin 19 / Linux 3). It has no effect
+    // on decoding; use the standard unknown value for identical release bytes.
+    packed[9] = 255;
+    return packed.toString('base64');
+};
 const modules = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',

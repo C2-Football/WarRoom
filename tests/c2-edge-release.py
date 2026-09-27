@@ -92,6 +92,22 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn('data/duat/history.csv', value['candidate'])
         self.assertIn('supabase/functions/_shared/security.ts', value['candidate'])
 
+    def test_preparation_requires_exact_node_and_zlib_before_any_build_or_hosted_read(self):
+        for actual in [{'node': 'v25.8.1', 'zlib': '1.2.12'}, {'node': 'v20.20.2', 'zlib': '1.2.12'}, {'node': 'v20.20.1', 'zlib': '1.3.1-e00f703'}]:
+            with self.subTest(actual=actual), patch.object(release.subprocess, 'check_output', return_value=json.dumps(actual).encode()), patch.object(release.subprocess, 'run') as build, patch.object(release, 'management') as hosted:
+                with self.assertRaisesRegex(release.Rejected, 'official Node 20.20.2 with zlib'):
+                    release.prepare(self.root, self.head, self.base, ['duat', 'time-league'], '.github/c2-releases/new.json')
+                build.assert_not_called()
+                hosted.assert_not_called()
+                self.assertFalse((self.root / '.github/c2-releases/new.json').exists())
+        with patch.object(release.subprocess, 'check_output', return_value=json.dumps(release.BUILD_TOOLCHAIN).encode()):
+            release.require_build_toolchain()
+        for failure in [b'not JSON', OSError('missing node')]:
+            options = {'side_effect': failure} if isinstance(failure, Exception) else {'return_value': failure}
+            with patch.object(release.subprocess, 'check_output', **options):
+                with self.assertRaisesRegex(release.Rejected, 'Cannot verify'):
+                    release.require_build_toolchain()
+
     def test_push_never_needs_a_manifest_or_token_and_selects_no_functions(self):
         output = self.root / 'output.txt'
         env = {**os.environ, 'GITHUB_OUTPUT': str(output)}

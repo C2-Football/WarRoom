@@ -6,7 +6,13 @@ const zlib = require('zlib');
 const root = path.resolve(__dirname, '..');
 const modules = ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'hidden-years', 'player-stats', 'strategy', 'rivals', 'ai', 'actions', 'public-state'];
 const source = modules.map(name => fs.readFileSync(path.join(root, `js/shared/time-league-${name}.js`), 'utf8')).join('\n');
-const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
+const pack = value => {
+ const packed = zlib.gzipSync(Buffer.from(JSON.stringify(value)));
+ // gzip's host OS byte varies between Darwin and Linux, not the game data.
+ // The standard unknown marker keeps reviewed artifacts portable across both.
+ packed[9] = 255;
+ return packed.toString('base64');
+};
 const read = file => fs.readFileSync(path.join(root, 'data/time-league', file), 'utf8');
 const [header, ...lines] = read('nflverse-game-logs.csv').trim().split(/\r?\n/);
 // This vendored export contains no quoted/multiline cells. Fail explicitly if
