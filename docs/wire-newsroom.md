@@ -2,6 +2,14 @@
 
 The Wire should answer three questions quickly: what happened, why it matters, and what to watch this week. Its advantage is verified league-specific context, including owner continuity, original scoring rules, and the rivalries the reader chooses. More output is not the objective.
 
+## Voice
+
+Write like a reporter who knows the league. Start with the result, the consequential detail or the opinion itself, then give the numbers that explain it. Two short paragraphs are usually enough. Vary the sentence structure when the evidence calls for it, rather than swapping synonyms into the same sentence.
+
+Let the facts supply the personality. A low-scoring win, a productive late pick or an overcrowded position can carry a little dry humor. Avoid invented motives, canned pep talks, generic lessons, repeated catchphrases and jokes that could sit underneath any headline. Opinions should make a defensible judgment rather than tell the reader to investigate it.
+
+Keep methodology and sources in supporting details unless the limit changes how the reader should understand the sentence. A scoring example still names the components it counts; a historical comparison still names its season; draft returns still distinguish observed lineup points from points retained by the selecting owner. Team names and owner names take natural singular or neutral constructions. These are reporting principles, not an imitation of a particular writer.
+
 ## Current news and historical context
 
 - Matchup coverage starts with current records and form. Every verified scheduled pair can receive a preview, including an opening-week introduction before results exist. Rivalry and championship context enrich that preview instead of producing duplicate stories.

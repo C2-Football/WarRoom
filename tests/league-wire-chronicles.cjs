@@ -58,7 +58,7 @@ console.log('PASS Wire chronicles: league identity, owner replacement, overlap, 
 const loneChampion = { ...one, rosters: [one.rosters[0], { ...one.rosters[1], owner_id: 'new-opponent' }] };
 const current = make(loneChampion, { end: 3, weeks: [1, 2, 3].map(week => ({ week, rows: [{ roster_id: 1, matchup_id: 1, points: 90 }, { roster_id: 2, matchup_id: 1, points: 100 }] })) });
 const titleWatch = current.stories.find(s => s.contextual);
-assert(titleWatch && !titleWatch.documentary && /three-game skid/.test(titleWatch.text));
+assert(titleWatch && !titleWatch.documentary && /three games without a win/.test(titleWatch.text));
 assert.match(titleWatch.body, /Through Week 3, Malcolm Wohler is 0–3/);
 assert.match(titleWatch.body, /2024.*2023/);
 assert.equal(titleWatch.week, 3);
@@ -83,7 +83,7 @@ const contextualRematch = make(one, {
 });
 assert.equal(contextualRematch.previews.length, 1, 'current rivalry and historical final produce one story, not two headlines for the same matchup');
 assert.match(contextualRematch.previews[0].text, /^The Finals Feud:/, 'championship enrichment preserves a personally named rivalry');
-assert.match(contextualRematch.previews[0].body.split('\n\n')[0], /Through Week 2, Current 1 are 0–2 and Current 2 are 2–0/);
+assert.match(contextualRematch.previews[0].body.split('\n\n')[0], /Through Week 2, the records are 0–2 for Current 1 and 2–0 for Current 2/);
 assert.equal(contextualRematch.previews[0].formThrough, 2);
 assert(contextualRematch.previews[0].related.some(r => r.label === 'Championship history' && /2024 final/.test(r.text)));
 assert.match(titleWatch.body.split('\n\n')[0], /Current 1 lost to Current 2, 90.00–100.00/);
@@ -115,7 +115,7 @@ assert.equal(multipleDevelopments.stories.filter(s => s.contextual).length, 1, '
 assert(!make(loneChampion, { end: 4, weeks: scoredWeeks(4) }).stories.some(s => s.contextual), 'continuing a losing run does not reprint last week’s third-loss milestone');
 const thirdWin = make(loneChampion, { end: 3, weeks: scoredWeeks(3, true) }).stories.find(s => s.contextual);
 assert.equal(thirdWin.development, 'third-win');
-assert.match(thirdWin.body, /Three straight head-to-head wins/);
+assert.match(thirdWin.body, /three straight head-to-head wins/);
 assert(!make(loneChampion, { end: 4, weeks: scoredWeeks(4, true) }).stories.some(s => s.contextual), 'four straight does not repeat the three-win title story');
 const stopped = make(loneChampion, { end: 4, weeks: scoredWeeks(3).concat({ week: 4, rows: [{ roster_id: 1, matchup_id: 1, points: 110 }, { roster_id: 2, matchup_id: 1, points: 90 }] }) }).stories.find(s => s.contextual);
 assert.equal(stopped.development, 'skid-ended');
@@ -128,8 +128,8 @@ const repeatFinal = book.stories.find(s => s.text.includes('Malcolm Wohler’s 2
 assert.match(repeatFinal.body, /2023: 128.73–114.20/);
 assert.match(repeatFinal.body, /2024: 164.02–107.07/);
 assert(!repeatFinal.body.includes('The same opponent reached both finals'), 'the second paragraph contributes score evidence instead of repeating the premise');
-const brady = book.stories.find(s => s.category === 'Player legacy' && s.text.startsWith('Tom Brady:'));
-assert.match(brady.body, /Ivan Hartung in 2020; Blake Hudson in 2021/);
+const brady = book.stories.find(s => s.category === 'Player legacy' && s.text.includes('Tom Brady'));
+assert.match(brady.body, /Ivan Hartung in 2020 and Blake Hudson in 2021/);
 assert(brady.related.some(r => /not current roster membership/.test(r.text)));
 assert(!/not a claim|not current|Hall of Fame lists/.test(brady.body), 'scope notes stay outside readable legacy copy');
 assert(brady.sources.some(s => s.url?.includes('510867015616401408')), 'newly connected title context carries its documentary evidence');

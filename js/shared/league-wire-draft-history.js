@@ -133,8 +133,8 @@
             const title = type === 'value' ? `${late.name} made the later pick look good` : `${early.name} or ${late.name}? A draft-room do-over`;
             const first = type === 'value'
                 ? `${owner(late)} selected ${late.name} in Round ${late.round} (No. ${late.pickNo}). Over ${scope}, the ${late.position} averaged ${fmt(late.average)} points per fantasy start, against ${fmt(early.average)} for ${early.name}, taken ${late.pickNo - early.pickNo} picks earlier by ${owner(early)}.`
-                : `${owner(early)} took ${early.name} at No. ${early.pickNo}; ${owner(late)} landed ${late.name} at No. ${late.pickNo}. Across ${scope}, the later ${late.position} pick averaged ${fmt(rateGap)} more points per fantasy start. Hindsight has pulled up a chair.`;
-            const second = `${late.name}: ${fmt(late.points)} points in ${late.starts} fantasy starts. ${early.name}: ${fmt(early.points)} in ${early.starts}. Similar lineup exposure, more scoring from the later pick${type === 'value' ? '—a receipt worth saving.' : '. Let the draft-room debate begin.'}`;
+                : `${owner(early)} took ${early.name} at No. ${early.pickNo}; ${owner(late)} landed ${late.name} at No. ${late.pickNo}. Across ${scope}, the later ${late.position} pick averaged ${fmt(rateGap)} more points per fantasy start.`;
+            const second = `${late.name}: ${fmt(late.points)} points in ${late.starts} fantasy starts. ${early.name}: ${fmt(early.points)} in ${early.starts}. With similar numbers of starts, the later pick led on both total points and average.`;
             stories.push(storyFor(league, draft, evidence, sources, historical, type, title, `${first}\n\n${second}`, [late, early], 'Same draft and position; at least a round apart. Both have four or more verified fantasy starts, counts differ by at most two and the smaller count is at least 75% of the larger. The later pick leads by at least 3 points per start and 10 total starting-lineup points. These are different NFL weeks, not a head-to-head player simulation.'));
             used.add(late.pid); used.add(early.pid);
         }
@@ -154,7 +154,7 @@
         if (lateCandidates.length) {
             const { player, median, count } = lateCandidates[0];
             stories.push(storyFor(league, draft, evidence, sources, historical, 'late', `${player.name} brought something back from Round ${player.round}`,
-                `${owner(player)} selected ${player.name} at No. ${player.pickNo}, in the second half of this ${rounds}-round draft. Across ${scope}, the ${player.position} supplied ${fmt(player.points)} lineup points in ${player.starts} fantasy starts. The late rounds had something to say.\n\nThat ${fmt(player.average)} average beat the ${fmt(median)} median for the ${count} drafted ${player.position}s with at least four verified fantasy starts. A useful contributor from a quieter part of the board.`,
+                `${owner(player)} selected ${player.name} at No. ${player.pickNo}, in the second half of this ${rounds}-round draft. Across ${scope}, the ${player.position} supplied ${fmt(player.points)} lineup points in ${player.starts} fantasy starts.\n\nThat ${fmt(player.average)} average beat the ${fmt(median)} median for the ${count} drafted ${player.position}s with at least four verified fantasy starts.`,
                 [player], 'A pick from the second half of this draft, used in at least half the checked weeks. Its average leads the median of at least four drafted same-position players with four verified fantasy starts by at least 2 points. This is a scoped contributor comparison, not an all-time steal ranking.'));
         }
         return stories;
@@ -185,20 +185,20 @@
         for (const record of records) {
             for (const receipt of record.stories) {
                 const [later, earlier] = receipt.evidence.players;
-                if (receipt.featureType === 'value') candidates.push(opinionFor(receipt, 'price', `${later.name} is a reason to keep working the draft board`, [
-                    `${later.name} was the better value here: same position, similar lineup opportunity, selected ${later.pick - earlier.pick} picks later. The expensive end of the board does not get to claim all the good decisions.`,
-                    `In Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}, ${later.name} averaged ${fmt(later.average)} points over ${later.starts} fantasy starts, against ${fmt(earlier.average)} over ${earlier.starts} for ${earlier.name}. Those scores follow the player wherever started, including after trades.`,
-                    'Keep a real shortlist after the early rounds. Hindsight gives this pick a deserved victory lap; carrying the same player up next year’s board requires a fresh argument.',
+                if (receipt.featureType === 'value') candidates.push(opinionFor(receipt, 'price', `The case for ${later.name} over ${earlier.name}`, [
+                    `${later.name} was the better value in this pair. Selected ${later.pick - earlier.pick} picks after ${earlier.name} at the same position, ${later.name} averaged ${fmt(later.average - earlier.average)} more points per fantasy start in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}.`,
+                    `The full split was ${fmt(later.average)} over ${later.starts} starts for ${later.name}, against ${fmt(earlier.average)} over ${earlier.starts} for ${earlier.name}. Similar usage makes the scoring advantage especially persuasive.`,
+                    'The figures follow the players wherever they were started, including after trades. This is a win for the later selection in hindsight; it says little about what was knowable on draft night.',
                 ]));
-                if (receipt.featureType === 'workload') candidates.push(opinionFor(receipt, 'workload', `Put the red pen down on ${earlier.name} for a moment`, [
-                    `${earlier.name}’s smaller total makes an easy target. It also leaves out the most important number in this comparison: opportunities to score in a fantasy lineup. Put the failing grade on hold.`,
-                    `${later.name} had ${later.starts} fantasy starts to ${earlier.name}’s ${earlier.starts} in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}. Their averages were ${fmt(later.average)} and ${fmt(earlier.average)} points per start, wherever they were started. These results do not explain why the usage differed.`,
-                    'Both production and opportunity belong in the verdict. Before declaring the earlier pick a disaster, explain that gap. A confident roast should survive a second look at the numbers.',
+                if (receipt.featureType === 'workload') candidates.push(opinionFor(receipt, 'workload', `${earlier.name}’s smaller total comes with a large qualifier`, [
+                    `${later.name} had ${later.starts} fantasy starts to ${earlier.name}’s ${earlier.starts} in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}. That is a substantial difference in chances to contribute, and it complicates any verdict on the earlier pick.`,
+                    `Their averages were ${fmt(later.average)} points per start for ${later.name} and ${fmt(earlier.average)} for ${earlier.name}, counting starts anywhere in the league. The totals tell us how much each contributed; the averages give the comparison some balance.`,
+                    `The missing part is why ${earlier.name} appeared less often. These results do not explain that, so a confident “bust” label would be getting ahead of the evidence.`,
                 ]));
-                if (receipt.featureType === 'late') candidates.push(opinionFor(receipt, 'late', `The second half of the draft deserves a plan`, [
-                    `The late rounds still deserve a plan. ${later.name} is a good reminder for anyone whose last few selections come with one eye on the dinner menu.`,
-                    `Taken at No. ${later.pick}, ${later.name} averaged ${fmt(later.average)} points across ${later.starts} fantasy starts in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}. That beat this draft’s same-position median by at least two points per start, wherever the player was used.`,
-                    'Give the back half of the board its own shortlist. Draft prep that stops at the marquee names leaves an awfully large part of the night to chance.',
+                if (receipt.featureType === 'late') candidates.push(opinionFor(receipt, 'late', `${later.name} made a late pick count`, [
+                    `${later.name} is one of this draft’s more interesting later selections. Taken at No. ${later.pick}, ${later.name} averaged ${fmt(later.average)} points across ${later.starts} fantasy starts in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}.`,
+                    `That was at least two points above the median for drafted players at the same position with verified results. The ${later.starts} starts matter, too: this pick saw regular lineup use from the second half of the draft.`,
+                    'The totals count starts anywhere in the league, including any made after a trade. The selection deserves credit for the player’s subsequent production; who kept or moved the player is a separate question.',
                 ]));
             }
             const rounds = positive(record.draft.settings?.rounds), end = Math.min(18, (positive(record.league.settings?.playoff_week_start) || 19) - 1);
@@ -222,10 +222,10 @@
             if (selected.length < 2) continue;
             const newest = selected[0], { record, player } = newest;
             const receipt = storyFor(record.league, record.draft, record.evidence, selected.flatMap(row => row.record.sources), true, 'late', '', '', [player], 'At least two fully checked completed regular seasons for one selecting account. In each season, a second-half pick made at least half of the checked lineups and beat its own season’s same-position median by at least 2 points per fantasy start. Each median includes at least four drafted players with four verified starts. Seasons are assessed separately under their original scoring; the examples do not describe every pick or prove a repeatable drafting edge.');
-            const opinion = opinionFor(receipt, 'notebook', `${player.participant.ownerName} has more than one late-round receipt`, [
-                `These ${selected.length} picks earn a place in ${player.participant.ownerName}’s draft notebook. Useful starters can emerge after the splashy names are gone, and the late rounds have delivered across multiple seasons here.`,
+            const opinion = opinionFor(receipt, 'notebook', `${player.participant.ownerName} found value late in more than one draft`, [
+                `Among ${player.participant.ownerName}’s later picks, these ${selected.length} went on to beat the median for drafted players at their positions. Each came in the second half of its draft.`,
                 selected.map(row => `${row.record.league.season}: ${row.player.name}, Round ${row.player.round} — ${fmt(row.player.average)} points per fantasy start in ${row.player.starts} starts, against the position median of ${fmt(row.median)}.`).join(' '),
-                'Keep digging late. These results follow the players wherever started; the overall draft grade still has to account for the misses.',
+                'That earns these selections some credit. The totals count starts anywhere in the league, including any made after a trade. The rest of the owner’s picks could tell a different story.',
             ]);
             opinion.eventSeasons = selected.map(row => string(row.record.league.season));
             opinion.timingLabel = `${opinion.eventSeasons.at(-1)}–${opinion.eventSeasons[0]} retrospective · Completed regular seasons`;

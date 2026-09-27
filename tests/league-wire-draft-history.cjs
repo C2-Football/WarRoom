@@ -60,9 +60,9 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.equal(opinion.opinion, true); assert.equal(opinion.desk, 'draft'); assert.equal(opinion.featureType, 'opinion');
     assert.equal(opinion.label, 'DRAFT DESK · OPINION'); assert.match(opinion.timingLabel, /2026 retrospective.*Weeks 1–4/);
     assert.match(opinion.body, /Later Receiver was the better value/);
-    assert.match(opinion.body, /Keep a real shortlist/); assert.match(opinion.body, /including after trades/);
-    assert.match(opinion.body, /next year’s board requires a fresh argument/);
-    assert.doesNotMatch(opinion.body, /My read:|The takeaway:/, 'the opinion voice should not repeat template markers');
+    assert.match(opinion.body, /Similar usage makes the scoring advantage/); assert.match(opinion.body, /including after trades/);
+    assert.match(opinion.body, /what was knowable on draft night/);
+    assert.doesNotMatch(opinion.body, /My read:|The takeaway:|Keep a real shortlist|victory lap/, 'the opinion voice interprets the specific comparison without template markers or generic reader homework');
     assert.notEqual(opinion.body, story.body, 'a column must add a judgment and takeaway rather than relabel a receipt');
     assert.deepEqual(plain(opinion.evidence), plain(story.evidence));
     assert.deepEqual(plain(opinion.sources), plain(story.sources));
@@ -179,8 +179,8 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.match(volume.stories[0].related[0].text, /No injury cause, owner skill/);
     assert(!volume.stories.some(story => ['value', 'doover'].includes(story.featureType)), '13 versus 4 starts cannot receive a comparable-workload value award');
     assert.deepEqual(plain(volume.opinions.map(story => story.opinionAngle)), ['workload']);
-    assert.match(volume.opinions[0].body, /Put the failing grade on hold/);
-    assert.match(volume.opinions[0].body, /do not explain why/);
+    assert.match(volume.opinions[0].body, /complicates any verdict on the earlier pick/);
+    assert.match(volume.opinions[0].body, /do not explain that/);
 
     const variety = fixture();
     const add = (pid, position, pickNo, rid, points) => {
@@ -215,11 +215,13 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     const notebookOptions = { priorSeasons: [{ league: olderDraft.league, weeks: olderDraft.weeks }], fetcher: async (url, options) => url.includes('610002') || url.includes('620002') ? olderDraft.fetcher(url, options) : recentDraft.fetcher(url, options) };
     const draftColumns = await load(api(), recentDraft, notebookOptions);
     const notebookColumn = draftColumns.opinions.find(story => story.opinionAngle === 'notebook');
-    assert(notebookColumn); assert.match(notebookColumn.text, /^Owner 2 has more than one/);
+    assert(notebookColumn); assert.match(notebookColumn.text, /^Owner 2 found value late in more than one draft$/);
     assert.equal(notebookColumn.timingLabel, '2025–2026 retrospective · Completed regular seasons');
     assert.deepEqual(plain(notebookColumn.eventSeasons), ['2026', '2025']);
     assert.deepEqual(plain(notebookColumn.evidence.seasons.map(row => [row.season, row.average, row.median])), [['2026', 20, 2.5], ['2025', 6, 2.5]], 'cross-season opinion compares original-season benchmarks rather than pooling scoring');
-    assert.match(notebookColumn.body, /account for the misses/);
+    assert.match(notebookColumn.body, /rest of the owner’s picks could tell a different story/i);
+    assert.match(notebookColumn.body, /including any made after a trade/);
+    assert.match(diverse.opinions.find(story => story.opinionAngle === 'late').body, /including any made after a trade/, 'scoring scope does not assert that a trade actually happened');
     assert(notebookColumn.body.split(/\s+/).length <= 115, 'owner notebook commentary keeps its central numbers without repeating the methodology');
     assert.equal(notebookColumn.sources.length, 12, 'every selected season carries its own draft and loaded-week receipts');
     assert.equal(api().matches(notebookColumn, { season: '2025', ownerFilter: { ownerId: 'owner-2', rosterId: 9 } }), true);

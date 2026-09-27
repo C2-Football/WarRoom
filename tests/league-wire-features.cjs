@@ -29,21 +29,21 @@ assert.equal(build().weeklyFeature.id, edition.weeklyFeature.id, 'weekly selecti
 assert.equal(build({ weeks: weeks.slice().reverse() }).weeklyFeature.id, edition.weeklyFeature.id, 'provider row order does not change the chosen feature');
 
 const cardiac = edition.features.find(f => f.featureType === 'cardiac-club');
-assert.match(cardiac.text, /^Alice and the Cardiac Club$/);
-assert.match(cardiac.body, /2 head-to-head games.*going 2–0/);
+assert.match(cardiac.text, /^Another close finish for Alice$/);
+assert.match(cardiac.body, /2 head-to-head games.*2–0 record/);
 assert.match(cardiac.body, /110\.00–108\.00.*2\.00-point margin/);
 assert.equal(cardiac.participants[0].ownerName, 'Alice');
 assert.equal(cardiac.participants[0].teamName, 'New Hat');
 const unlucky = edition.features.find(f => f.featureType === 'wrong-opponent');
-assert.match(unlucky.text, /^Bob vs\. the schedule$/);
+assert.match(unlucky.text, /^Bob had the points, but the wrong opponent$/);
 assert.match(unlucky.body, /108\.00.*better than 3 of the other 5 teams/);
-assert.match(unlucky.body, /median game did supply a win/);
+assert.match(unlucky.body, /win in the separate median game/);
 assert(!/1,000|1000\.00|Week 3/.test(JSON.stringify(edition.features)), 'later results cannot leak into an earlier feature edition');
 
 const makeover = edition.features.find(f => f.featureType === 'new-threads');
 assert.match(makeover.body, /2025, Alice ran “Old Hat”\./);
 assert.match(makeover.body, /team is “New Hat/);
-assert.match(makeover.body, /4–0 record, including median games/);
+assert.match(makeover.body, /record under the new name is 4–0, including median games/);
 assert.equal(makeover.participants[0].rosterId, 1, 'a name change follows the owner even when the roster slot changed');
 assert(makeover.sources.some(s => /\/25\/rosters$/.test(s.url)));
 const nameGame = edition.features.find(f => f.featureType === 'name-game');
@@ -54,7 +54,7 @@ assert(/“[^”]+”/.test(nameGame.text), 'the actual reviewed name belongs in
 const allCaps = build({ league: { ...league, users: league.users.map((user, i) => ({ ...user, metadata: { team_name: i === 0 ? 'HERE COME THE GRANNIES' : 'Plain Name ' + i } })) } }).features.find(f => f.featureType === 'name-game');
 assert.match(allCaps.body, /capitals.*stadium announcement/);
 const alphabet = build({ end: 1, league: { ...league, users: league.users.map((user, i) => ({ ...user, metadata: { team_name: i === 0 ? 'Jiggy Jaguar' : i === 1 ? 'Fantasy Team' : 'Plain Name ' + i } })) } }).features.find(f => f.featureType === 'name-game');
-assert.match(alphabet.body, /repeated J sound.*Jiggy Jaguar/); assert.match(alphabet.body, /friendly editing desk.*Fantasy Team/);
+assert.match(alphabet.body, /repeated J sound.*Jiggy Jaguar/); assert.match(alphabet.body, /could use an edit.*Fantasy Team/);
 assert(!/owner is|owner has no|idiot|stupid/i.test(alphabet.body), 'the playful edit concerns the name, not personal judgment');
 const linkedOlder = { league: { ...earlier.league, league_id: '24', season: '2024', users: earlier.league.users.map(user => user.user_id === 'alice' ? { ...user, metadata: { team_name: 'Ancient Hat' } } : user) }, weeks: [] };
 const namesOverTime = build({ priorSeasons: [{ ...earlier, league: { ...earlier.league, previous_league_id: '24' } }, linkedOlder] }).features.find(f => f.featureType === 'name-archive');
@@ -83,8 +83,9 @@ assert(!noNames.features.some(f => ['name-game', 'new-threads'].includes(f.featu
 for (const punctuation of ['?', '!', '.']) {
     const name = 'Is The Price Right' + punctuation;
     const punctuated = build({ league: { ...league, users: league.users.map(u => u.user_id === 'alice' ? { ...u, metadata: { team_name: name } } : u) } }).features.find(f => f.featureType === 'new-threads');
-    assert(punctuated.body.includes(`the team is “${name}” The jersey`), 'quoted team names keep their punctuation without an extra period');
+    assert(punctuated.body.includes(`the team is “${name}”\n\n`), 'quoted team names keep their punctuation without an extra period');
 }
+assert(edition.features.every(feature => !/Good news:|Bad news:|group chat|our editorial verdict|one edition|sympathy card/i.test(feature.body)), 'League Life reports the specific result without canned setup or imagined league reactions');
 const original = JSON.stringify({ league, weeks, earlier });
 build();
 assert.equal(JSON.stringify({ league, weeks, earlier }), original, 'feature generation leaves source data unchanged');

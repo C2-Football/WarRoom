@@ -69,10 +69,10 @@
             const earlier = finals.find(p => p.season === f.season - 1 && f.owners[0] && p.owners[0] === f.owners[0]);
             if (earlier) {
                 const repeatOpponent = earlier.owners[1] && earlier.owners[1] === f.owners[1];
-                const opening = repeatOpponent ? `Two seasons, the same finalist to beat. ${f.winner} won the ${earlier.season} and ${f.season} titles against ${f.loser}.`
+                const opening = repeatOpponent ? `${f.loser} reached the final in ${earlier.season} and again in ${f.season}. Both titles went to ${f.winner}.`
                     : earlier.loser && f.loser ? `${f.winner} beat ${earlier.loser} for the ${earlier.season} title, then ${f.loser} for the ${f.season} title.` : `${f.winner} won consecutive titles in ${earlier.season} and ${f.season}.`;
                 const scores = [earlier, f].filter(hasScore).map(final => `${final.season}: ${score(final.scores[0])}–${score(final.scores[1])}${final.loser ? ` over ${final.loser}` : ''}`).join('; ');
-                story([earlier, f], 'Dynasty watch', `Looking back: ${f.winner}’s ${earlier.season}–${f.season} back-to-back titles`, opening + (scores ? `\n\nThe two finals tell the story. ${scores}.` : ''), 58);
+                story([earlier, f], 'Dynasty watch', `Looking back: ${f.winner}’s ${earlier.season}–${f.season} back-to-back titles`, opening + (scores ? `\n\nThe winning scores: ${scores}.` : ''), 58);
             }
         });
         const players = new Map();
@@ -82,10 +82,10 @@
             if (years.length < 2) return;
             const linkedTitles = finals.filter(final => facts.some(f => Number(f.season) === Number(final.season) && final.owners[0] && f.owners.includes(final.owners[0]))).sort((a, b) => a.season - b.season);
             const managers = new Set(linkedTitles.map(f => f.owners[0]));
-            const context = managers.size >= 2 ? `The championship trail crosses managers: ${linkedTitles.map(f => `${f.winner} in ${f.season}`).join('; ')}.`
+            const context = managers.size >= 2 ? `That includes championship teams managed by ${linkedTitles.map(f => `${f.winner} in ${f.season}`).join(' and ')}.`
                 : linkedTitles.length >= 2 ? `Those appearances include ${linkedTitles[0].winner}’s ${linkedTitles.map(f => f.season).join(' and ')} championship teams.` : '';
-            const item = withEvidence(story(facts, 'Player legacy', `${player}: ${years.length} championship teams, one familiar name`,
-                `${player} appears on the league’s title-winning teams in ${years.join(', ')}.` + (context ? `\n\n${context}` : ''), 42), linkedTitles);
+            const item = withEvidence(story(facts, 'Player legacy', `Looking back: ${player} on ${years.length} championship teams`,
+                `${player} was part of the league’s championship teams in ${years.join(', ')}.` + (context ? `\n\n${context}` : ''), 42), linkedTitles);
             item.lookbackEligible = !!context;
             item.related.push({ label: 'About these appearances', text: 'The Hall of Fame documents championship-team appearances, not current roster membership, starting-lineup use or individual championship-game production.' });
         });
@@ -114,7 +114,7 @@
                 while (years.includes(year - 1 - streak)) streak++;
                 let headline, development, detail, weight;
                 if (end > start && team.rank === 1 && was?.rank > 1 && edition.table.filter(t => t.rank === 1).length === 1) {
-                    headline = `${name} takes the lead in a new title chase`; development = 'new-leader'; weight = 76;
+                    headline = `${name} moves into first place`; development = 'new-leader'; weight = 76;
                     detail = `The team moves from No. ${was.rank} to No. 1 in The Wire’s standings.`;
                 } else if (form.run === 1 && form.previousRun <= -3) {
                     headline = `${name} ends a ${Math.abs(form.previousRun)}-game slide`; development = 'skid-ended'; weight = 74;
@@ -123,10 +123,10 @@
                     headline = `${name}’s ${form.previousRun}-game winning run ends`; development = 'run-ended'; weight = 73;
                     detail = `The head-to-head winning streak ends at ${form.previousRun}.`;
                 } else if (form.run === 3) {
-                    headline = `${name} builds a three-game winning run`; development = 'third-win'; weight = 72;
-                    detail = 'Three straight head-to-head wins put a little momentum behind the title history.';
+                    headline = `Three straight wins for ${name}`; development = 'third-win'; weight = 72;
+                    detail = 'That makes three straight head-to-head wins.';
                 } else if (form.run === -3) {
-                    headline = `${name}’s title chase hits a three-game skid`; development = 'third-loss'; weight = 70;
+                    headline = `${name} goes three games without a win`; development = 'third-loss'; weight = 70;
                     detail = 'That makes three straight head-to-head losses.';
                 } else if (end === start && streak) {
                     const outcome = form.points > form.opponentPoints ? 'a win' : form.points < form.opponentPoints ? 'a loss' : 'a tie';
@@ -137,7 +137,7 @@
                     : form.points < form.opponentPoints ? `lost to ${nameFor(form.opponentId)}, ${score(form.points)}–${score(form.opponentPoints)}` : `tied ${nameFor(form.opponentId)} at ${score(form.points)}`;
                 const now = `${teamName} ${result}. ${detail} Through Week ${end}, ${name} is ${record(team)}${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}.`;
                 const history = streak ? `${name} won the ${latest.season} title${streak > 1 ? ` after winning ${years.slice(1, streak).join(' and ')}` : ''}.`
-                    : `${name}’s last documented title came in ${latest.season}${years.length > 1 ? `, following ${years.slice(1).join(' and ')}` : ''}.`;
+                    : `${name}’s last documented title came in ${latest.season}${years.length > 1 ? `, after titles in ${years.slice(1).join(' and ')}` : ''}.`;
                 candidates.push({ rid, titles, headline, body: `${now}\n\n${history}`, weight, development });
             });
             const lead = candidates.sort((a, b) => b.weight - a.weight || str(a.rid).localeCompare(str(b.rid)))[0];
@@ -187,7 +187,7 @@
             // has loaded; it never increments the existing rivalry win count.
             previews.push({ id: `title-rematch:${league.league_id}:${board.week}:${ids.join(':')}`, kind: 'story', category: 'Rivalry watch', label: 'CHAMPIONSHIP REMATCH',
                 text: `${person(ids[0]).ownerName || nameFor(ids[0])} vs. ${person(ids[1]).ownerName || nameFor(ids[1])}: a title-game rematch`,
-                body: `${context(facts.slice(0, 1))} The matchup returns in Week ${Number(board.week)}.`,
+                body: `The matchup returns in Week ${Number(board.week)}.\n\n${context(facts.slice(0, 1))}`,
                 related: [...(facts.length > 1 ? [{ label: 'Earlier title meetings', text: context(facts.slice(1)) }] : []), titleScope],
                 season: str(year), week: Number(board.week), rosterIds: ids, preview: true, weight: 79, sources: facts.flatMap(f => f.sources) });
         });

@@ -67,7 +67,7 @@ tree = app.render({ scope: 'account-b|two|2025|14', league: { ...league, league_
 assert.match(text(tree), /Other league opinion/); assert.doesNotMatch(text(tree), /Alice depth|League scoring|Open draft opinions/);
 assert(!nodes(tree).some(node => node.type === 'button' && text(node) === 'Drafts'), 'a missing draft integration does not advertise an empty subject');
 tree = app.render({ search: 'unmatched' }); assert.match(text(tree), /No columns match this view/);
-tree = app.render({ search: '', analysis: { stories: [], coverage: ['Only verified evidence.'] } }); assert.match(text(tree), /waits for enough evidence/);
+tree = app.render({ search: '', analysis: { stories: [], coverage: ['Only verified evidence.'] } }); assert.match(text(tree), /need a fuller picture/);
 
 const receipt = story('An opinion with evidence', 'scoring', {
     related: [{ label: 'The arithmetic', text: 'A six-point touchdown.\n\nA three-point penalty.' }],
@@ -76,7 +76,7 @@ const receipt = story('An opinion with evidence', 'scoring', {
 tree = app.card(receipt);
 assert.equal(nodes(tree).filter(node => node.type === 'p' && /^Our take|^The second/.test(text(node))).length, 2, 'readable body paragraphs remain separate');
 assert.match(text(tree), /THE ANALYST · OPINION.*Sample league/); assert.match(text(tree), /2026 settings/);
-const evidence = nodes(tree).find(node => node.type === 'details' && text(node).includes('What this take rests on'));
+const evidence = nodes(tree).find(node => node.type === 'details' && text(node).includes('The numbers and sources'));
 assert(evidence); assert.match(text(evidence), /The arithmetic.*six-point touchdown.*three-point penalty/);
 assert.equal(nodes(tree).filter(node => node.type === 'a').length, 1, 'receipts render only usable web source links');
 assert.equal(nodes(tree).find(node => node.type === 'a').props.rel, 'noreferrer');

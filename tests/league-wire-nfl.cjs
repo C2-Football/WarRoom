@@ -39,7 +39,7 @@ assert.throws(() => api.parseSleeper([...rows, { ...rows[0], game_id: 'other' }]
 assert.throws(() => api.parseSleeper([...rows, { ...rows[0], stats: { pass_yd: 900 } }], game), /Conflicting/);
 assert.equal(api.recap({ ...game, completed: false }).headline, '');
 assert.equal(api.recap({ ...game, homeScore: null }).headline, '');
-assert.match(api.recap({ ...game, homeScore: 20 }).headline, /finish level/);
+assert.match(api.recap({ ...game, homeScore: 20 }).headline, /20–20 tie/);
 assert.equal(api.recap({ ...game, homeScore: 20 }).body, '');
 const comeback = { ...game, homeScore: 24, awayScore: 17, homePeriods: [0, 0, 7, 17].map((value, i) => ({ value, period: i + 1 })), awayPeriods: [7, 3, 7, 0].map((value, i) => ({ value, period: i + 1 })) };
 assert.match(api.recap(comeback).body, /10-point deficit after three quarters/);

@@ -301,7 +301,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         if (!historicalEdition && edition.high !== null && Number(board.week) > historyEnd && Number(board.week) <= lastRegular && !board.error) {
             scoreRows.filter(r => r.points >= edition.high * .9 && r.points > 0).forEach(r => out.push({ kind: 'story', category: 'Record watch', rosterIds: [r.roster_id], weight: 60, label: 'RECORD WATCH · WK ' + board.week,
                 text: nameFor(r.roster_id) + (r.points > edition.high ? ' is above the season scoring mark' : ' is closing in on the season scoring mark'),
-                body: Number(r.points).toFixed(2) + ' points so far against the completed-week high of ' + Number(edition.high).toFixed(2) + '. Provisional: the current week is not yet part of the record book.' }));
+                body: Number(r.points).toFixed(2) + ' points so far, with the season high at ' + Number(edition.high).toFixed(2) + '. This week is still in progress; a new record needs a final score.' }));
         }
         const pairs = Object.values(scoreRows.reduce((acc, r) => {
             if (r.matchup_id == null) return acc;
@@ -353,7 +353,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
 
         if (bids.some(t => t.status === 'complete')) {
             const bid = bids.find(t => t.status === 'complete'), pid = Object.keys(bid.adds || {})[0];
-            if (pid) out.push({ kind: 'story', category: 'Waiver desk', rosterIds: [bid.adds[pid]], weight: 50, label: 'WAIVER DESK · LAST 7 DAYS', text: nameFor(bid.adds[pid]) + ' makes the biggest FAAB splash', body: '$' + bid.settings.waiver_bid + ' brings in ' + _getPlayerName(pid) + ' — the largest completed bid in the loaded transactions from the last seven days.', pid });
+            if (pid) out.push({ kind: 'story', category: 'Waiver desk', rosterIds: [bid.adds[pid]], weight: 50, label: 'WAIVER DESK · LAST 7 DAYS', text: nameFor(bid.adds[pid]) + ' spends $' + bid.settings.waiver_bid + ' on ' + _getPlayerName(pid), body: 'That was the largest completed FAAB bid in the past seven days of available transactions.', pid });
         }
 
 

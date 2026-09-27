@@ -128,13 +128,14 @@
         if (!valid(home) || !valid(away) || home.reduce((n, p) => n + Number(p.value), 0) !== num(game.homeScore) || away.reduce((n, p) => n + Number(p.value), 0) !== num(game.awayScore) || game.homeScore === game.awayScore) return '';
         const winnerHome = Number(game.homeScore) > Number(game.awayScore), w = winnerHome ? home : away, l = winnerHome ? away : home;
         const name = winnerHome ? game.homeName || game.home : game.awayName || game.away;
+        const opponent = winnerHome ? game.awayName || game.away : game.homeName || game.home;
         const sum = (rows, end) => rows.slice(0, end).reduce((n, p) => n + Number(p.value), 0);
         if (sum(w, 3) < sum(l, 3)) return `${name} erased a ${sum(l, 3) - sum(w, 3)}-point deficit after three quarters.`;
-        if (sum(w, 2) < sum(l, 2)) return `${name} trailed ${sum(l, 2)}–${sum(w, 2)} at halftime, then outscored the opposition ${sum(w, w.length) - sum(w, 2)}–${sum(l, l.length) - sum(l, 2)} the rest of the way.`;
+        if (sum(w, 2) < sum(l, 2)) return `${name} trailed ${sum(l, 2)}–${sum(w, 2)} at halftime, then outscored ${opponent} ${sum(w, w.length) - sum(w, 2)}–${sum(l, l.length) - sum(l, 2)} the rest of the way.`;
         const secondW = sum(w, w.length) - sum(w, 2), secondL = sum(l, l.length) - sum(l, 2);
-        if (secondW - secondL >= 10) return `${name} outscored the opposition ${secondW}–${secondL} after halftime.`;
+        if (secondW - secondL >= 10) return `${name} outscored ${opponent} ${secondW}–${secondL} after halftime.`;
         const decisive = w.map((p, i) => ({ period: i + 1, own: Number(p.value), opp: Number(l[i].value) })).filter(p => p.period <= 4 && p.own >= 14 && p.own - p.opp >= 10).sort((a, b) => (b.own - b.opp) - (a.own - a.opp))[0];
-        return decisive ? `A ${decisive.own}–${decisive.opp} ${['first', 'second', 'third', 'fourth'][decisive.period - 1]} quarter stands out on ${name}’s scoring line.` : '';
+        return decisive ? `${name} outscored ${opponent} ${decisive.own}–${decisive.opp} in the ${['first', 'second', 'third', 'fourth'][decisive.period - 1]} quarter.` : '';
     }
     function performances(box) {
         const out = [];
@@ -156,7 +157,7 @@
         const h = num(game.homeScore), a = num(game.awayScore), final = game.completed && h != null && a != null;
         if (!final) return { headline: game.state === 'in' ? 'In progress' : '', body: '', spotlight: [] };
         const winnerHome = h > a, winner = winnerHome ? game.homeName || game.home : game.awayName || game.away, loser = winnerHome ? game.awayName || game.away : game.homeName || game.home;
-        const headline = h === a ? `${game.away} and ${game.home} finish level at ${h}` : `${winner} ${Math.abs(h - a) <= 3 ? 'edge' : 'beat'} ${loser}, ${Math.max(h, a)}–${Math.min(h, a)}${/OT/i.test(game.shortDetail || '') ? ' in overtime' : ''}`;
+        const headline = h === a ? `${game.away} and ${game.home} finish in a ${h}–${a} tie` : `${winner} ${Math.abs(h - a) <= 3 ? 'edge' : 'beat'} ${loser}, ${Math.max(h, a)}–${Math.min(h, a)}${/OT/i.test(game.shortDetail || '') ? ' in overtime' : ''}`;
         const compatible = box?.game?.completed && box.game.homeScore === h && box.game.awayScore === a;
         const candidates = compatible ? performances(box) : [];
         const seen = new Set();

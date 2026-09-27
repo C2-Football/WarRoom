@@ -2,7 +2,7 @@
 
 The Opinion section gives The Wire a point of view on each league’s scoring, roster setup, team depth, results and drafts. A separate front-page column introduces the desk without mixing opinions into current-news headlines. The combined Wire uses the same text-only cards; no image or graphic is added to its feed.
 
-Each column has a visible opinion label, a short argument and a concrete receipt. Supporting arithmetic, source links and limits live under **What this take rests on**. The analyst can be playful about a rule or a draft result, but does not invent an owner’s motives, injury explanations, votes, grades or projections.
+Each column has a visible opinion label, a short argument and concrete evidence. Supporting arithmetic, source links and limits live under **The numbers and sources**. The analyst can be playful about a rule or a draft result, but does not invent an owner’s motives, injury explanations, votes, grades or projections.
 
 ## What the analyst can judge
 
