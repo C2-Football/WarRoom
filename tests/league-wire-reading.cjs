@@ -8,6 +8,9 @@ assert.equal(api.deck({ body: 'The result.\n\nWhy it matters.' }), 'The result.'
 assert(api.deck({ body: Array(60).fill('word').join(' ') }).endsWith('…'));
 assert(api.matches({ text:'Alpha wins', body:'Bravo falls to 0–2', league:{name:'The One'} }, 'alpha one'));
 assert(!api.matches({ text:'Alpha wins' }, 'alpha bravo'));
+assert(api.includesOwner({ documentary: true, rosterIds: [], participants: [{ ownerId: 'owner-a', rosterId: 8, season: '2025' }] }, { owner_id: 'owner-a', roster_id: 2 }, '2026'), 'historical filters follow owners across roster changes');
+assert(!api.includesOwner({ documentary: true, rosterIds: [2], participants: [{ ownerId: 'old-owner', rosterId: 2, season: '2025' }] }, { owner_id: 'new-owner', roster_id: 2 }, '2026'), 'a reused historical slot cannot attach a former owner story');
+assert(!api.includesOwner({ documentary: true, participants: [{ rosterId: 2, season: '2025' }] }, { roster_id: 2 }, '2026'), 'unknown owners do not inherit old history');
 assert.equal(api.checked(null), '');
 const league = { league_id:'a', season:'2026' };
 const prior = { league, currentReady:true, currentUpdatedAt:1000, completedThrough:2, week:3, stories:[{text:'Week 2 recap'}] };

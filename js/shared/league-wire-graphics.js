@@ -185,9 +185,22 @@
                 const match = typeof source.url === 'string' && source.url.match(/^https:\/\/api\.sleeper\.app\/v1\/league\/(\d+)\/(?:winners_bracket|matchups\/\d+)$/);
                 return match ? [{ league_id: match[1], season: meeting.season }] : [];
             }))).sort((a, b) => b.season - a.season);
+            const trajectory = form?.verified.length ? {
+                season: year, startWeek: start, throughWeek: cutoff,
+                recordScope: Number(league.settings?.league_average_match) === 1 ? 'Record includes head-to-head and median results' : 'Head-to-head record',
+                weeks: form.verified.map(entry => {
+                    const snapshot = statsThrough(entry.week);
+                    return { week: entry.week, teams: story.rosterIds.map(rid => {
+                        const team = snapshot.teams.get(str(rid));
+                        const row = entry.rows.find(row => str(row.roster_id) === str(rid));
+                        return { points: row ? points(row) : null, record: record(team), h2hRecord: record(team?.h2h) };
+                    }), sources: matchSource(league, entry.week) };
+                }),
+                notes: ['Weekly scores use this season’s scoring rules. Lines connect completed weeks only; they are not projections.'],
+            } : null;
             return { ...story, broadcast: { kind: 'comparison', headline: story.text, eyebrow: documentary ? 'From the championship archive' : profile ? 'Rivalry profile' : story.preview ? 'The matchup file' : 'Inside the result',
                 teams, ownerFirst, recordScope: documentary ? 'Historical championship results' : Number(league.settings?.league_average_match) === 1 ? 'Season record includes head-to-head and median results' : 'Season record is head-to-head',
-                season: documentary ? cutoff : year, throughWeek: documentary || cutoff < start ? null : cutoff, series, notes, sources, playoffSeasons } };
+                season: documentary ? cutoff : year, throughWeek: documentary || cutoff < start ? null : cutoff, series, trajectory, notes, sources, playoffSeasons } };
         };
         return { ...edition, stories: (edition.stories || []).map(story => attach(story)), previews: (edition.previews || []).map(story => attach(story)),
             rivals: (edition.rivals || []).map(rival => {

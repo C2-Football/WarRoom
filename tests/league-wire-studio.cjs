@@ -32,7 +32,7 @@ function harness(name, props, load = async () => ({ status: 'empty', rounds: [],
     const window = { AbortController, WrWirePlayoffs: { load }, requestAnimationFrame: fn => fn() };
     const context = { React, window, document: { activeElement: { isConnected: true, focus: () => focused++ } }, console,
         setTimeout: (fn, ms) => { const id = ++timerId; timers.set(id, { fn, ms }); return id; }, clearTimeout: id => timers.delete(id) };
-    vm.createContext(context); vm.runInContext(compiled, context);
+    vm.createContext(context); vm.runInContext(fs.readFileSync('js/shared/league-wire-playoffs.js', 'utf8'), context); window.WrWirePlayoffs.load = load; vm.runInContext(compiled, context);
     props = { onClose: () => closed++, ...props };
     return {
         render(update) { if (update) props = { ...props, ...update }; cursor = 0; tree = context[name](props); return tree; },
@@ -131,6 +131,28 @@ const model = { kind: 'comparison', headline: 'A rivalry with context', eyebrow:
     assert.match(text(tree), /Provisional matchup/); assert.doesNotMatch(text(tree), /134.98|102.57|Final/);
     const race = harness('WrWireStudioRace', { season: 2026, race: { supported: false, reason: 'Division rules need confirmation', throughWeek: 0, slots: 6, remainingWeeks: 14, rows: [{ id: 1, name: 'A', record: '0–0', status: 'Record range', minWins: 0, maxWins: 28, needed: 'Includes median wins; tiebreaks still apply.' }] } });
     tree = race.render(); assert.match(text(tree), /Division rules need confirmation/); assert.match(text(tree), /Possible final win total/); assert.match(text(tree), /Includes median wins/); assert.doesNotMatch(text(tree), /Week 0|Clinched/);
+    const timeline = harness('WrWireStudioComparison', { model });
+    let timelineTree = timeline.render();
+    const firstMeeting = nodes(timelineTree).find(n => n.props.className === 'wr-studio-meeting-timeline').children[0];
+    nodes(firstMeeting).find(n => n.type === 'button').props.onClick(); timelineTree = timeline.render();
+    assert.match(text(timelineTree), /128.73/); assert.match(text(timelineTree), /Original A/);
+    const trajectory = harness('WrWireStudioTrajectory', { model: { ...model, trajectory: { season: 2026, startWeek: 1, throughWeek: 2, recordScope: 'Includes median', weeks: [{ week: 1, teams: [{ points: 0, record: '0–2', h2hRecord: '0–1' }, { points: 100, record: '2–0', h2hRecord: '1–0' }] }, { week: 2, teams: [{ points: 90, record: '2–2', h2hRecord: '1–1' }, { points: 80, record: '2–2', h2hRecord: '1–1' }] }] } } });
+    let trajectoryTree = trajectory.render(); assert.match(text(trajectoryTree), /After Week 2/);
+    nodes(trajectoryTree).find(n => n.type === 'button' && text(n) === 'Week 1').props.onClick(); trajectoryTree = trajectory.render();
+    assert.match(text(trajectoryTree), /After Week 1/); assert.match(text(trajectoryTree), /0.00 pts/); assert.match(text(trajectoryTree), /0–2 · H2H 0–1/);
+    const scenarioRace = { supported: true, slots: 1, remainingWeeks: 1, futureDecisions: 1, decisionsPerWeek: 1, throughWeek: 3, rows: [{ id: '1', name: 'Alpha', record: '2–1', wins: 2, losses: 1, ties: 0 }, { id: '2', name: 'Bravo', record: '1–2', wins: 1, losses: 2, ties: 0 }] };
+    const scenarioView = harness('WrWireStudioRace', { race: scenarioRace, season: 2026 });
+    let scenarioTree = scenarioView.render(); assert.match(text(scenarioTree), /Still depends on the field/);
+    nodes(scenarioTree).find(n => n.props['aria-label'] === 'Additional wins').props.onChange({ target: { value: '1' } }); scenarioTree = scenarioView.render();
+    assert.match(text(scenarioTree), /3–1/); assert.match(text(scenarioTree), /Top record secured/);
+    nodes(scenarioTree).find(n => n.props['aria-label'] === 'Race scenario team').props.onChange({ target: { value: '2' } }); scenarioTree = scenarioView.render();
+    assert.match(text(scenarioTree), /1–3/); assert.match(text(scenarioTree), /Outside by record/);
+    scenarioTree = scenarioView.render({ race: { ...scenarioRace, supported: false, reason: 'Custom seeding' } });
+    assert.match(text(scenarioTree), /Record only/); assert.doesNotMatch(text(scenarioTree), /Record-based finish bounds|Top record secured/);
+    const connectedBracket = harness('WrWireStudioBracket', { data: { rounds: [{ label: 'Semifinal', games: [{ id: 's', teams: [], nextGames: [{ id: 'f', label: 'Championship' }] }] }, { label: 'Championship', games: [{ id: 'f', teams: [], fromGames: [{ id: 's', label: 'Semifinal' }] }] }] } });
+    let connectedTree = connectedBracket.render(); nodes(connectedTree).find(n => n.type === 'button' && text(n).includes('Winner →')).props.onClick(); connectedTree = connectedBracket.render();
+    assert(nodes(connectedTree).some(n => n.type === 'article' && n.props.className.includes('is-selected') && n.props.id.endsWith('-f')));
+    console.log('PASS Studio interactions: timeline replay, trajectory week inspection, bracket connections and conservative race slider');
     console.log('PASS Wire Studio: lazy requests, scoped seasons, cancellation, retry/timeout, keyboard tabs, focus/Escape, comparisons, byes, verified scores and conservative race ranges');
 })().catch(error => { console.error(error); process.exitCode = 1; });
 

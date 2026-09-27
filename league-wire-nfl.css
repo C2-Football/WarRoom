@@ -1,0 +1,23 @@
+/* Detailed NFL coverage stays readable on a phone; no artwork is required. */
+.wr-nfl-desk .wr-nfl-games{grid-template-columns:repeat(2,minmax(0,1fr))}
+.wr-nfl-game.is-expanded{grid-column:1/-1}
+.wr-nfl-story>p{font-size:.82rem;line-height:1.6;color:var(--muted);margin:10px 0}
+.wr-nfl-story .wr-nfl-recap>strong{color:var(--ink);font-weight:600}
+.wr-nfl-desk .wr-nfl-freshness,.wr-nfl-box-note{font-size:.72rem;line-height:1.6;color:var(--muted)}
+.wr-nfl-open-box{display:flex;justify-content:space-between;gap:16px;width:100%;min-height:44px;padding:12px 0;margin-top:14px;border:0;border-top:1px solid var(--rule);border-radius:0;background:transparent;color:var(--accent);font:650 .8rem var(--sans,system-ui);text-align:left;cursor:pointer}
+.wr-nfl-full-box{margin-top:0;border-top:0}
+.wr-nfl-box-status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 8px}
+.wr-nfl-box-status h5{margin:0}
+.wr-nfl-box-status button,.wr-nfl-notice button{min-height:44px;border:1px solid var(--rule);border-radius:3px;padding:8px 12px;background:var(--paper,#fff);color:var(--ink);font:600 .75rem var(--sans,system-ui);cursor:pointer}
+.wr-nfl-box-status button:disabled{opacity:.65;cursor:wait}
+.wr-nfl-box-filters{display:flex;gap:14px;margin:15px 0}
+.wr-nfl-box-filters label{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px;font-size:.75rem;color:var(--muted)}
+.wr-nfl-box-filters select{max-width:100%;min-height:44px;border:1px solid var(--rule);background:var(--paper,#fff);color:var(--ink);padding:8px;font:400 16px var(--sans,system-ui)}
+.wr-nfl-player-box .wr-nfl-table-scroll th:first-child{position:sticky;left:0;background:var(--paper,#fff);z-index:1;max-width:160px;white-space:normal;min-width:130px;text-align:left}
+.wr-nfl-player-box .wr-nfl-table-scroll{border:1px solid var(--rule)}
+.wr-nfl-player-box table caption{padding:10px}
+.wr-nfl-player-box table th,.wr-nfl-player-box table td{padding:10px 12px}
+.wr-nfl-team-stats{margin-top:16px}
+.wr-nfl-team-stats summary{min-height:44px;padding:12px 0;font-size:.78rem;font-weight:650;color:var(--accent);cursor:pointer}
+.wr-nfl-desk :is(button,select,a,summary,.wr-nfl-table-scroll):focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:650px){.wr-nfl-desk .wr-nfl-games{grid-template-columns:minmax(0,1fr)}.wr-nfl-box-filters{flex-direction:column;gap:10px}.wr-nfl-game{padding:14px}.wr-nfl-player-box .wr-nfl-table-scroll th:first-child{min-width:115px;max-width:140px}}

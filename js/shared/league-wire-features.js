@@ -8,6 +8,37 @@
     const unique = values => [...new Map(values.map(value => [JSON.stringify(value), value])).values()];
     const record = team => `${team.wins}–${team.losses}${team.ties ? `–${team.ties}` : ''}`;
     const source = (league, suffix, label) => league.league_id || league.id ? [{ label, url: `https://api.sleeper.app/v1/league/${encodeURIComponent(league.league_id || league.id)}/${suffix}` }] : [];
+    // Opinions describe visible wording, never the owner's motives or a vote.
+    function reviewName(name) {
+        const words = name.match(/[\p{L}\p{N}’']+/gu) || [], letters = name.replace(/[^a-z]/gi, '');
+        const content = words.filter(word => !/^(the|a|an|of|and|for|to|in)$/i.test(word));
+        const opening = content.find((word, index) => content.slice(index + 1).some(other => word[0].toLowerCase() === other[0].toLowerCase()));
+        if (/maxxing$/i.test(name) && name.length > 9) return { rank: 6, award: 'Best commitment to a suffix', line: `“${name}” turns “${name.slice(0, -7)}” into an entire project with that “maxxing” ending. Our verdict: gloriously overcommitted. The name has already done its offseason training.` };
+        if (/sundae/i.test(name) && /pop[- ]?tart/i.test(name)) return { rank: 6, award: 'Best breakfast-dessert crossover', line: `“${name}” puts a sundae inside a breakfast pastry before football has even entered the conversation. We approve of a name with this much commitment to the menu.` };
+        if (letters.length >= 8 && letters === letters.toUpperCase()) return { rank: 6, award: 'Best entrance', line: `“${name}” arrives at full volume. The capitals make it read like a stadium announcement; our editorial verdict is to keep the entrance music.` };
+        if (/\?$/.test(name)) return { rank: 5, award: 'Best cliffhanger', line: `“${name}” ends with a question mark. We like a team name that sounds as though the whole league has been invited to argue with it.` };
+        if (opening && content.length >= 2) {
+            const echoes = content.filter(word => word[0].toLowerCase() === opening[0].toLowerCase()).slice(0, 3);
+            return { rank: 5, award: 'Best ring to it', line: `The repeated ${opening[0].toUpperCase()} sound in “${echoes.join(' ')}” does the work for “${name}”. Our take: easy to say, easy to remember, ready for a scoreboard.` };
+        }
+        const office = words.find(word => /^(department|bureau|committee|inc|llc|corporation)$/i.test(word));
+        if (office) return { rank: 5, award: 'Best front office', line: `“${name}” brings “${office}” into a fantasy league. We enjoy the suggestion that someone has filed paperwork for all this. Excellent letterhead energy.` };
+        if (words.length >= 7) return { rank: 2, award: 'Most commitment to the bit', roast: true, line: `“${name}” takes ${words.length} words to introduce itself. Our affectionate edit: the concept has arrived; now it could use a shorter walk to the microphone.` };
+        if (/^(my\s+)?(fantasy\s+)?(football\s+)?team(?:\s+\d+)?$/i.test(name)) return { rank: 1, award: 'Still in preseason', roast: true, line: `“${name}” covers the administrative essentials. Our name-desk verdict: perfectly serviceable, but there is room for a punchline before the next kickoff.` };
+        if (/^[a-z]+\d{3,}$/i.test(name)) return { rank: 1, award: 'A name awaiting its jersey', roast: true, line: `The number trail in “${name}” gives it the feel of an account handle. Our suggestion: keep the owner, give the team a little more of its own identity.` };
+        if (words.length <= 3 && words.length > 0) return { rank: 3, award: 'Best economy of words', line: `“${name}” gets its introduction done in ${words.length === 1 ? 'one word' : `${words.length} words`}. We like the restraint: no tiny type needed to fit this one on the league marquee.` };
+        return { rank: 2, award: 'A name with room to talk', line: `“${name}” uses ${words.length} words to set the scene. Our preference would be to keep the most distinctive phrase and let the league supply the backstory.` };
+    }
+    function linkedHistory(league, priorSeasons) {
+        const linked = [], seen = new Set([str(league.league_id || league.id)]);
+        let cursor = league;
+        while (cursor?.previous_league_id && linked.length < 25) {
+            const matches = priorSeasons.filter(entry => str(entry.league?.league_id || entry.league?.id) === str(cursor.previous_league_id) && Number(entry.league.season) < Number(cursor.season));
+            if (matches.length !== 1 || seen.has(str(cursor.previous_league_id))) break;
+            cursor = matches[0].league; seen.add(str(cursor.league_id || cursor.id)); linked.push(cursor);
+        }
+        return linked;
+    }
     function enrich(edition, { league, weeks = [], start = 1, end = 0, priorSeasons = [], nameFor = rid => `Team ${rid}`, headToHead = true }) {
         const journal = root.WrWireStories, scorer = root.App?.LeagueLiveScores;
         const empty = { ...edition, features: [], weeklyFeature: null };
@@ -67,6 +98,23 @@
                 [loser.roster_id, winner.roster_id], source(league, `matchups/${end}`, `${season} Week ${end} results`),
                 [{ label: 'The comparison', text: 'This compares actual scores within this completed week. It is not a simulated result, a forecast, or a claim that another lineup would have won.' }]);
         }
+        if (verified.length >= 2) {
+            const previous = verified[verified.length - 2];
+            const rebounds = latest.pairs.flatMap(pair => {
+                const winner = scores(pair[0]) > scores(pair[1]) ? pair[0] : scores(pair[1]) > scores(pair[0]) ? pair[1] : null;
+                if (!winner) return [];
+                const old = previous.pairs.find(game => game.some(row => str(row.roster_id) === str(winner.roster_id)));
+                const own = old?.find(row => str(row.roster_id) === str(winner.roster_id)), rival = old?.find(row => str(row.roster_id) !== str(winner.roster_id));
+                if (!own || scores(own) >= scores(rival) || scores(winner) - scores(own) < 25) return [];
+                return [{ winner, own, gain: scores(winner) - scores(own) }];
+            }).sort((a, b) => b.gain - a.gain || str(a.winner.roster_id).localeCompare(str(b.winner.roster_id)));
+            if (rebounds.length) {
+                const entry = rebounds[0];
+                add('bounce-back', 'The bounce-back', `${subject(entry.winner.roster_id)} gets the last word this week`,
+                    `Last week: ${fmt(scores(entry.own))} points and a loss. This week: ${fmt(scores(entry.winner))} and a head-to-head win. ${nameFor(entry.winner.roster_id)} added ${fmt(entry.gain)} points in one edition.\n\nThe league can put the sympathy card away. One rebound does not settle the season, but it does change the tone of the next group chat.`,
+                    [entry.winner.roster_id], [previous, latest].flatMap(entry => source(league, `matchups/${entry.week}`, `${season} Week ${entry.week} results`)));
+            }
+        }
         const explicitName = (sourceLeague, rid) => {
             const roster = sourceLeague.rosters?.find(r => str(r.roster_id) === str(rid));
             const user = sourceLeague.users?.find(u => str(u.user_id) === str(roster?.owner_id));
@@ -90,16 +138,35 @@
                 [{ label: 'Same owner, two seasons', text: `The name comparison uses the same verified owner account in ${preceding.season} and ${season}. It does not claim a first-ever rebrand or explain why the owner changed the name.` }]);
         }
         const named = (league.rosters || []).map(roster => ({ rid: roster.roster_id, name: explicitName(league, roster.roster_id) })).filter(entry => entry.name).sort((a, b) => str(a.rid).localeCompare(str(b.rid)));
-        if (named.length >= 2) {
-            const first = hash(key + ':names') % named.length, other = named.filter((entry, index) => index !== first && entry.name.toLocaleLowerCase() !== named[first].name.toLocaleLowerCase());
-            if (other.length) {
-                const pair = [named[first], other[hash(key + ':opponent') % other.length]];
-                const describe = entry => person(entry.rid).ownerName ? `${person(entry.rid).ownerName}’s “${entry.name}”` : `“${entry.name}”`;
-                add('name-game', 'Name Game', 'Name Game: who wore it better?',
-                    `This week’s two names for the marquee: ${describe(pair[0])} and ${describe(pair[1])}. Neither earns a bonus point for the branding.\n\nWhich one gets your pick: the clever reference, the commitment to the bit, or just the one that makes you laugh? The group chat can take it from here.`,
-                    pair.map(entry => entry.rid), source(league, 'users', `${season} team names`),
-                    [{ label: 'A conversation starter', text: 'Two real team names selected on a weekly rotation. This feature makes no best-name ranking and does not report a vote or poll result.' }]);
-            }
+        const reviewed = named.map(entry => ({ ...entry, review: reviewName(entry.name) })).sort((a, b) => b.review.rank - a.review.rank || a.name.localeCompare(b.name));
+        if (new Set(named.map(entry => entry.name.toLocaleLowerCase())).size >= 2) {
+            const contenders = reviewed.filter(entry => entry.review.rank >= reviewed[0].review.rank - 1 && !entry.review.roast);
+            const pick = contenders.length ? contenders[(end - start) % contenders.length] : reviewed[0];
+            const roast = reviewed.filter(entry => entry.review.roast && entry.name !== pick.name)[0];
+            const runner = roast || reviewed.find(entry => entry.name.toLocaleLowerCase() !== pick.name.toLocaleLowerCase());
+            add('name-game', 'Name desk · opinion', `${pick.review.award}: “${pick.name}”`,
+                `${person(pick.rid).ownerName ? `${person(pick.rid).ownerName} gets this edition’s editorial nod. ` : 'This edition’s editorial pick: '}${pick.review.line}\n\n${roast ? 'On the friendly editing desk' : 'Also on our shortlist'}: ${runner.review.line}`,
+                [pick.rid, runner.rid], source(league, 'users', `${season} team names`),
+                [{ label: 'An editorial opinion', text: 'The Wire is reviewing the wording of real team names. These are playful opinions, not an official award, a league vote, or a judgment of the owners.' }]);
+        }
+        const nameHistories = (league.rosters || []).flatMap(roster => {
+            const who = person(roster.roster_id);
+            if (!who.ownerId || !who.ownerKnown) return [];
+            const names = [league, ...linkedHistory(league, priorSeasons)].flatMap(prior => {
+                const matches = (prior.rosters || []).filter(row => str(row.owner_id) === str(who.ownerId));
+                const name = matches.length === 1 ? explicitName(prior, matches[0].roster_id) : '';
+                return name ? [{ name, season: str(prior.season), league: prior, review: reviewName(name) }] : [];
+            });
+            const distinct = [...new Map(names.slice().reverse().map(entry => [entry.name.toLocaleLowerCase(), entry])).values()].sort((a, b) => Number(a.season) - Number(b.season));
+            return distinct.length >= 3 ? [{ rid: roster.roster_id, who, names: distinct }] : [];
+        }).sort((a, b) => str(a.who.ownerId).localeCompare(str(b.who.ownerId)));
+        if (nameHistories.length) {
+            const entry = nameHistories[(end - start) % nameHistories.length], names = entry.names.slice(-4);
+            const favorite = names.slice().sort((a, b) => b.review.rank - a.review.rank || Number(b.season) - Number(a.season))[0];
+            add('name-archive', 'Name archive · opinion', `${entry.who.ownerName}’s changing jerseys`,
+                `A small tour of ${entry.who.ownerName}’s name archive: ${names.map(item => `“${item.name}” (${item.season})`).join('; ')}. The account stays the same while the signs above the locker keep changing.\n\nOur pick from these names: ${favorite.review.line}`,
+                [entry.rid], names.flatMap(item => [...source(item.league, 'users', `${item.season} team names`), ...source(item.league, 'rosters', `${item.season} owner accounts`)]),
+                [{ label: 'The name archive', text: 'Names come from loaded linked seasons for the same owner account. The favorite is The Wire’s editorial opinion, not a vote or an all-time name ranking. Each year labels a recorded name, not the exact date it changed.' }]);
         }
         const ordered = features.slice().sort((a, b) => a.featureType.localeCompare(b.featureType));
         return { ...edition, features, weeklyFeature: ordered.length ? ordered[hash(key + ':feature') % ordered.length] : null };

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const babel = require('@babel/standalone');
+const nflSource = babel.transform(fs.readFileSync('js/components/league-wire-nfl.js', 'utf8'), { presets: ['react'] }).code;
 const journalSource = fs.readFileSync('js/shared/league-wire-journal.js', 'utf8');
 const source = babel.transform(fs.readFileSync('js/components/league-wire.js', 'utf8'), { presets: ['react'] }).code;
 function harness({ reduced = false, phone = false, week = 1 } = {}) {
@@ -14,12 +15,12 @@ function harness({ reduced = false, phone = false, week = 1 } = {}) {
         useMemo: fn => fn(), useCallback: fn => fn, useEffect: fn => effects.push(fn), useRef: () => ({ current: null }),
     };
     const context = { React, console, setInterval: () => { intervals++; return intervals; }, clearInterval() {}, window: { App: { LeagueLiveScores: { useScores: () => ({ week, rows: [{ roster_id: 1, matchup_id: 1, points: 20 }, { roster_id: 2, matchup_id: 1, points: 10 }] }), rosterPoints: r => typeof r.custom_points === 'number' ? r.custom_points : typeof r.points === 'number' ? r.points : null, supported: () => true } }, WR: { useViewport: () => ({ isPhone: phone }) }, matchMedia: () => ({ matches: reduced }) } };
-    vm.createContext(context); vm.runInContext(fs.readFileSync('js/shared/league-wire-reading.js', 'utf8'), context); vm.runInContext(journalSource, context); vm.runInContext(source, context);
+    vm.createContext(context); vm.runInContext(fs.readFileSync('js/shared/league-wire-reading.js', 'utf8'), context); vm.runInContext(journalSource, context); vm.runInContext(nflSource, context); vm.runInContext(source, context);
     const props = { currentLeague: { league_id: 'test', season: '2026', rosters: [] }, standings: [], transactions: [] };
     const render = () => { cursor = 0; effects = []; return context.window.WrLeagueWire(props); };
     render();
     states[10] = [{ state: 'pre', away: 'AAA', home: 'BBB', shortDetail: 'Sunday' }, { state: 'in', away: 'CCC', home: 'DDD', awayScore: 7, homeScore: 3 }];
-    return { context, props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[4] = value; } };
+    return { context, props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[4] = value; }, setPast: value => { states[3] = value; } };
 }
 function nodes(node) { return node && typeof node === 'object' ? [node, ...node.children.flatMap(nodes)] : []; }
 function text(node) { return node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : node.children.map(text).join(' '); }
@@ -117,21 +118,25 @@ assert.equal(playoffPrior.week, 18); assert.equal(playoffPrior.seasontype, 2);
 const emptyScore = structuredClone(event); emptyScore.competitions[0].competitors[0].score = '';
 assert.equal(NC.parseScores({ events: [emptyScore] })[0].homeScore, null, 'missing scores never become zero');
 const ui = { React: { createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) }) }, window: {} };
-vm.createContext(ui); vm.runInContext(source, ui);
+vm.createContext(ui); vm.runInContext(fs.readFileSync('js/shared/league-wire-nfl.js', 'utf8'), ui); vm.runInContext(nflSource, ui);
+let nflHook = 0;
+ui.React.useState = initial => [nflHook++ === 0 ? true : initial, () => {}]; ui.React.useEffect = () => {}; ui.React.useId = () => 'test';
+const renderNfl = node => { if (node == null || typeof node !== 'object') return node; if (typeof node.type === 'function') { nflHook = 0; return renderNfl(node.type(node.props)); } return { ...node, children: node.children.map(renderNfl) }; };
+const renderDesk = props => renderNfl(ui.WrNflDesk(props));
 const upcoming = { ...game, id: 'upcoming', completed: false, state: 'pre', statusName: 'STATUS_SCHEDULED', shortDetail: 'Sunday', homeScore: 0, awayScore: 0 };
 const nflDesk = { phase: { season: '2026', week: 3, seasontype: 2 }, previousPhase: { season: '2026', week: 2, seasontype: 2 }, current: { status: 'ready', games: [upcoming] }, previous: { status: 'ready', games: [game] } };
-const nflTree = ui.WrNflDesk({ desk: nflDesk });
+const nflTree = renderDesk({ desk: nflDesk });
 assert.match(text(nflTree), /This week/); assert.match(text(nflTree), /Last week’s results/);
-assert.match(text(nflTree), /Sample Quarterback/); assert.match(text(nflTree), /24–21 in overtime/);
+assert.match(text(nflTree), /Sample Quarterback/); assert.match(text(nflTree), /24–21/);
 assert(nodes(nflTree).some(n => n.type === 'th' && text(n) === 'OT'));
 const thisWeekTree = nodes(nflTree).find(n => n.props['aria-label'] === 'This week');
 assert(!nodes(thisWeekTree).some(n => n.type === 'details'), 'scheduled games have no fabricated box score');
 assert(nodes(thisWeekTree).filter(n => n.type === 'strong').every(n => text(n) === '—'));
-const cancelled = ui.WrNflDesk({ desk: { ...nflDesk, current: { status: 'ready', games: [{ ...upcoming, state: 'post', statusName: 'STATUS_CANCELED', shortDetail: 'Canceled' }] } } });
+const cancelled = renderDesk({ desk: { ...nflDesk, current: { status: 'ready', games: [{ ...upcoming, state: 'post', statusName: 'STATUS_CANCELED', shortDetail: 'Canceled' }] } } });
 assert.match(text(cancelled), /Canceled/);
 assert(!nodes(nodes(cancelled).find(n => n.props['aria-label'] === 'This week')).some(n => n.type === 'details'), 'canceled games are not finals');
-assert.match(text(ui.WrNflDesk({ desk: { ...nflDesk, previous: { status: 'error', games: [game] } } })), /last available scores/);
-assert.match(text(ui.WrNflDesk({ desk: { ...nflDesk, previousPhase: null, previous: { status: 'ready', games: [] } } })), /No earlier games in this phase/);
+assert.match(text(renderDesk({ desk: { ...nflDesk, previous: { status: 'error', games: [game] } } })), /last available scores/);
+assert.match(text(renderDesk({ desk: { ...nflDesk, previousPhase: null, previous: { status: 'ready', games: [] } } })), /No earlier games in this phase/);
 const nflTab = harness(); let tabTree = nflTab.render();
 nodes(tabTree).find(n => n.props.className === 'wr-wire-brand').props.onClick();
 tabTree = nflTab.render();
@@ -169,6 +174,10 @@ const sidebar = nodes(editorialTree).find(n => n.props.className === 'wr-journal
 assert(sidebar && !text(sidebar).includes('old champion'), 'current headline rail excludes documentary facts');
 const retrospective = nodes(editorialTree).find(n => n.props['aria-label'] === 'This week’s lookback');
 assert(retrospective && text(retrospective).includes('old champion'), 'documentary feature has a separate labeled slot');
+const historyTab = nodes(editorialTree).find(n => n.type === 'button' && text(n) === 'History');
+assert(historyTab, 'generic documentary stories expose History even without a curated chronicle');
+historyTab.props.onClick(); editorialTree = editorialApp.render();
+assert.match(text(editorialTree), /Looking back: old champion/, 'History navigation reaches generic documentary coverage');
 nodes(editorialTree).find(n => n.type === 'button' && text(n) === 'Stories').props.onClick();
 editorialTree = editorialApp.render();
 assert(!text(editorialTree).includes('Looking back: old champion'), 'stories section remains current');
@@ -192,6 +201,22 @@ cutoffTree = archiveCutoff.render();
 assert.match(text(cutoffTree),/No matching stories/);
 assert(!nodes(cutoffTree).some(n => n.props.className === 'wr-journal-story is-lead'));
 console.log('PASS archive chronology and searchable story reading');
+
+// Selecting an archived edition must not pass that same season back as its own
+// prior season; otherwise duplicate identity contexts hide the score receipts.
+const archiveRecords = harness({ week: 3 });
+vm.runInContext(fs.readFileSync('js/shared/league-wire-records.js', 'utf8'), archiveRecords.context);
+archiveRecords.context.window.WrWireRecordBook = function RecordBook() {};
+const recordLeague = { league_id: 'archive-2025', previous_league_id: 'archive-2024', season: '2025', settings: { playoff_week_start: 2 }, rosters: [{ roster_id: 1, owner_id: 'one' }, { roster_id: 2, owner_id: 'two' }], users: [{ user_id: 'one', display_name: 'Owner One' }, { user_id: 'two', display_name: 'Owner Two' }] };
+archiveRecords.setPast({ key: 'test|2026', status: 'ready', complete: true, seasons: [{ league: recordLeague, weeks: [{ week: 1, rows: [row(1, 101), row(2, 80)] }] }, { league: { ...recordLeague, league_id: 'archive-2024', previous_league_id: null, season: '2024' }, weeks: [{ week: 1, rows: [row(1, 90), row(2, 70)] }] }] });
+let recordTree = archiveRecords.render(); nodes(recordTree).find(n => n.props.className === 'wr-wire-brand').props.onClick(); recordTree = archiveRecords.render();
+nodes(recordTree).find(n => n.props['aria-label'] === 'Story season').props.onChange({ target: { value: '2025' } }); recordTree = archiveRecords.render();
+nodes(recordTree).find(n => n.type === 'button' && text(n) === 'Records').props.onClick(); recordTree = archiveRecords.render();
+const historicalBook = nodes(recordTree).find(n => n.type === archiveRecords.context.window.WrWireRecordBook)?.props.book;
+assert(historicalBook, 'selected historical edition mounts its record book');
+assert.equal(historicalBook.cards.find(card => card.id === 'season-high').holders[0].sourceUrl, 'https://api.sleeper.app/v1/league/archive-2025/matchups/1', 'archived record keeps its original-season score receipt');
+assert(historicalBook.cards.flatMap(card => card.holders).every(holder => Number(holder.season) <= 2025));
+console.log('PASS historical record integration: selected edition retains original score receipts and excludes later seasons');
 
 // Studio is opt-in and is invalidated synchronously when the reading scope changes.
 const graphicApp = harness({ week: 2 });

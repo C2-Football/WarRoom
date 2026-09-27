@@ -136,3 +136,15 @@ assert(!root.WrWireGraphics.enrich(empty, { league, weeks, start: 1, end: 2, nam
 assert.equal(JSON.stringify(empty), before, 'enrichment does not mutate its input edition');
 assert.equal(build({ headToHead: false }).previews.length, 0);
 console.log('PASS Wire graphics: verified comparison data, owner identity, cutoff-specific records, median scope, original names/scores, missing values, separate series, historical playoff sources and unscheduled rivalry profiles');
+
+assert.equal(preview.trajectory.season, 2026);
+assert.deepEqual(serial(preview.trajectory.weeks.map(w => w.teams.map(t => t.points))), [[90, 100], [100, 80]], 'trajectory preserves team order and original weekly points');
+assert.deepEqual(serial(preview.trajectory.weeks[0].teams.map(t => t.record)), ['1–1', '2–0']);
+assert.deepEqual(serial(preview.trajectory.weeks[1].teams.map(t => t.h2hRecord)), ['1–1', '1–1']);
+assert(preview.trajectory.weeks.every(w => w.sources.some(s => s.url.endsWith('/matchups/' + w.week))));
+assert.equal(recap.trajectory.weeks.length, 1, 'a past recap does not draw future weeks in its trajectory');
+assert.equal(gap.trajectory.weeks.length, 1, 'a missing completed week ends the trajectory');
+assert.equal(firstWeek.trajectory, null, 'unplayed weeks never become zero points on a chart');
+assert.equal(feature2023.trajectory, null, 'historical title graphics never borrow the current season trajectory');
+assert(zero.trajectory.weeks[0].teams.every(t => t.points === 0), 'verified zero points survive chart data');
+console.log('PASS Studio trajectory: per-week records, median versus H2H, source links, missing weeks, zero and story cutoffs');

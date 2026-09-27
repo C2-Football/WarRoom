@@ -24,7 +24,7 @@ const other = make({ ...one, league_id: 'unrelated', name: 'CTB The One - Year 1
 assert(!other.chronicle, 'name spoof does not select an archive');
 const board = { week: 1, rows: [{ roster_id: 1, points: 0, matchup_id: 1 }, { roster_id: 2, points: 0, matchup_id: 1 }] };
 const matchup = make(one, { board });
-const rematch = matchup.previews.find(s => s.id.startsWith('title-rematch:'));
+const rematch = matchup.previews.find(s => /CHAMPIONSHIP REMATCH/.test(s.label));
 assert(rematch && /2024 final/.test(rematch.body));
 assert(rematch.related.some(r => /2023 final/.test(r.text)), 'earlier finals remain available as context');
 assert(!/Source:|winners_bracket|separate from/.test(rematch.body), 'provenance stays out of the story prose');
@@ -55,18 +55,19 @@ assert.equal(JSON.stringify(root.WrWireChroniclesData), input, 'editions do not 
 assert(fs.readFileSync('index.html', 'utf8').indexOf('league-wire-chronicles.js') < fs.readFileSync('index.html', 'utf8').indexOf('league-wire-journal.js'));
 console.log('PASS Wire chronicles: league identity, owner replacement, overlap, original scores, title supplements, episode cutoffs, rematches and recap context');
 
-const current = make(one, { end: 2, weeks: [1, 2].map(week => ({ week, rows: [{ roster_id: 1, matchup_id: 1, points: 90 }, { roster_id: 2, matchup_id: 1, points: 100 }] })) });
+const loneChampion = { ...one, rosters: [one.rosters[0], { ...one.rosters[1], owner_id: 'new-opponent' }] };
+const current = make(loneChampion, { end: 3, weeks: [1, 2, 3].map(week => ({ week, rows: [{ roster_id: 1, matchup_id: 1, points: 90 }, { roster_id: 2, matchup_id: 1, points: 100 }] })) });
 const titleWatch = current.stories.find(s => s.contextual);
-assert(titleWatch && !titleWatch.documentary && /get back to championship form/.test(titleWatch.text));
-assert.match(titleWatch.body, /0–2 through Week 2/);
+assert(titleWatch && !titleWatch.documentary && /three-game skid/.test(titleWatch.text));
+assert.match(titleWatch.body, /Through Week 3, Malcolm Wohler is 0–3/);
 assert.match(titleWatch.body, /2024.*2023/);
-assert.equal(titleWatch.week, 2);
+assert.equal(titleWatch.week, 3);
 assert(titleWatch.sources.length > 0 && titleWatch.rosterIds.includes(1));
 assert(!make(one).stories.some(s => s.contextual), 'no current record means no form-based title story');
 const gap = make(one, { end: 2, weeks: [{ week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 100 }, { roster_id: 2, matchup_id: 1, points: 90 }] }] });
 assert(!gap.stories.some(s => s.contextual), 'missing weeks cannot be presented as current form');
 const defense = make({ ...one, season: '2025' }, { end: 1, weeks: [{ week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 100 }, { roster_id: 2, matchup_id: 1, points: 90 }] }] });
-assert(defense.stories.some(s => s.contextual && /3 titles in a row/.test(s.text)));
+assert(defense.stories.some(s => s.contextual && /opens the title defense with a win/.test(s.text) && /3 consecutive titles/.test(s.body)));
 assert(!defense.stories.some(s => s.contextual && /2025 title/.test(s.body)), 'the title defense does not know future honors');
 const replacementCurrent = make({ ...one, rosters: [{ roster_id: 1, owner_id: 'replacement' }, one.rosters[1]] }, { end: 1, weeks: [{ week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 100 }, { roster_id: 2, matchup_id: 1, points: 90 }] }] });
 assert(!replacementCurrent.stories.some(s => s.contextual && s.rosterIds.includes(1)), 'replacement owners do not inherit a title pedigree');
@@ -85,12 +86,12 @@ assert.match(contextualRematch.previews[0].text, /^The Finals Feud:/, 'champions
 assert.match(contextualRematch.previews[0].body.split('\n\n')[0], /Through Week 2, Current 1 are 0–2 and Current 2 are 2–0/);
 assert.equal(contextualRematch.previews[0].formThrough, 2);
 assert(contextualRematch.previews[0].related.some(r => r.label === 'Championship history' && /2024 final/.test(r.text)));
-assert.match(titleWatch.body.split('\n\n')[0], /Malcolm Wohler has Current 1 at 0–2/);
+assert.match(titleWatch.body.split('\n\n')[0], /Current 1 lost to Current 2, 90.00–100.00/);
 assert(!/2024|2023/.test(titleWatch.body.split('\n\n')[0]), 'current title-watch deck leads with this season, with championship history in a separate paragraph');
-const medianTitle = make({ ...one, settings: { ...one.settings, league_average_match: 1 } }, {
+const medianTitle = make({ ...one, season: '2025', settings: { ...one.settings, league_average_match: 1 } }, {
     end: 1, weeks: [{ week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 90 }, { roster_id: 2, matchup_id: 1, points: 100 }] }],
 }).stories.find(s => s.contextual && s.rosterIds.includes(1));
-assert.match(medianTitle.body, /0–2 through Week 1, including median results/);
+assert.match(medianTitle.body, /Through Week 1, Malcolm Wohler is 0–2, including median results/);
 console.log('PASS championship newsroom context: present-first paragraphs, median scope and one preview per matchup');
 
 assert.match(titleWatch.text, /Malcolm Wohler/);
@@ -104,3 +105,39 @@ const historicalNames = make(one, { priorSeasons: [{ league: archivedLeague, wee
 assert.equal(historicalNames.participants.find(p => p.ownerName === 'Malcolm Wohler').teamName, 'Original era team');
 assert.equal(historicalNames.participants.find(p => p.ownerName === 'Malcolm Wohler').season, '2024');
 console.log('PASS owner-first championship context with separate current and original-era team labels');
+
+// Pedigree alone never fills a current-news slot.
+const scoredWeeks = (count, firstWins = false) => Array.from({ length: count }, (_, i) => ({ week: i + 1, rows: [{ roster_id: 1, matchup_id: 1, points: firstWins ? 100 : 90 }, { roster_id: 2, matchup_id: 1, points: firstWins ? 90 : 100 }] }));
+const quiet = make(one, { end: 2, weeks: scoredWeeks(2) });
+assert(!quiet.stories.some(s => s.contextual), 'two ordinary weeks do not regenerate stories for every prior champion');
+const multipleDevelopments = make(one, { end: 3, weeks: scoredWeeks(3) });
+assert.equal(multipleDevelopments.stories.filter(s => s.contextual).length, 1, 'an edition chooses one substantive title development');
+assert(!make(loneChampion, { end: 4, weeks: scoredWeeks(4) }).stories.some(s => s.contextual), 'continuing a losing run does not reprint last week’s third-loss milestone');
+const thirdWin = make(loneChampion, { end: 3, weeks: scoredWeeks(3, true) }).stories.find(s => s.contextual);
+assert.equal(thirdWin.development, 'third-win');
+assert.match(thirdWin.body, /Three straight head-to-head wins/);
+assert(!make(loneChampion, { end: 4, weeks: scoredWeeks(4, true) }).stories.some(s => s.contextual), 'four straight does not repeat the three-win title story');
+const stopped = make(loneChampion, { end: 4, weeks: scoredWeeks(3).concat({ week: 4, rows: [{ roster_id: 1, matchup_id: 1, points: 110 }, { roster_id: 2, matchup_id: 1, points: 90 }] }) }).stories.find(s => s.contextual);
+assert.equal(stopped.development, 'skid-ended');
+assert.match(stopped.body, /ends 3 straight head-to-head losses/);
+assert(!make(loneChampion, { end: 3, weeks: scoredWeeks(2) }).stories.some(s => s.contextual), 'a missing current result cannot trigger a title development');
+const medianThird = make({ ...loneChampion, settings: { ...one.settings, league_average_match: 1 } }, { end: 3, weeks: scoredWeeks(3, true) }).stories.find(s => s.contextual);
+assert.match(medianThird.body, /head-to-head wins/);
+assert.match(medianThird.body, /6–0, including median results/);
+const repeatFinal = book.stories.find(s => s.text.includes('Malcolm Wohler’s 2023–2024 back-to-back'));
+assert.match(repeatFinal.body, /2023: 128.73–114.20/);
+assert.match(repeatFinal.body, /2024: 164.02–107.07/);
+assert(!repeatFinal.body.includes('The same opponent reached both finals'), 'the second paragraph contributes score evidence instead of repeating the premise');
+const brady = book.stories.find(s => s.category === 'Player legacy' && s.text.startsWith('Tom Brady:'));
+assert.match(brady.body, /Ivan Hartung in 2020; Blake Hudson in 2021/);
+assert(brady.related.some(r => /not current roster membership/.test(r.text)));
+assert(!/not a claim|not current|Hall of Fame lists/.test(brady.body), 'scope notes stay outside readable legacy copy');
+assert(brady.sources.some(s => s.url?.includes('510867015616401408')), 'newly connected title context carries its documentary evidence');
+const supplemented = pb.stories.find(s => s.id === 'chronicle:psycho-final-2025');
+assert(!/fills a gap|Sleeper|supplied chronicles/.test(supplemented.body));
+assert(supplemented.related.some(r => /fills a gap/.test(r.text)), 'technical provenance remains available beside the history');
+const old2020 = book.stories.find(s => s.id === 'chronicle:the-one-final-2020');
+assert(!/2021|2022|2023|2024|2025/.test(old2020.body), 'a historical feature only draws connections available by its own event season');
+console.log('PASS substantive title watch and history: event gates, one lead, no repeated milestones, median scope, new evidence and documentary cutoffs');
+
+assert(!make(one, { priorSeasons: [{ league: { ...one, season: '2025', settings: { playoff_week_start: 2 } }, weeks: scoredWeeks(1) }] }).stories.some(s => s.category === 'Season review'), 'curated leagues keep their documentary desk without redundant generic season cards');

@@ -148,6 +148,30 @@
                 const round = i + 1;
                 return { id: str(round), label: roundLabel(round, count, slots), weeks: weeksByRound.get(round), games: main.filter(node => Number(node.r) === round).sort((a, b) => Number(a.m) - Number(b.m)).map(node => games.get(str(node.m))), byes: [] };
             });
+            // Connect only explicit winner references or unique, recorded
+            // winners in the immediately preceding round. A roster ID is not a seed.
+            main.forEach(node => {
+                const game = games.get(str(node.m));
+                game.roundLabel = roundLabel(Number(node.r), count, slots);
+                game.fromGames = []; game.nextGames = [];
+            });
+            main.forEach(node => {
+                if (inconsistentNodes.has(str(node.m))) return;
+                const game = games.get(str(node.m));
+                ['t1', 't2'].forEach((side, sideIndex) => {
+                    const ref = reference(node, side);
+                    let previous = ref?.w != null ? main.find(other => str(other.m) === str(ref.w) && Number(other.r) < Number(node.r)) : null;
+                    if (!previous && !ref && !provisional) {
+                        const entrant = game.teams[sideIndex].id;
+                        const candidates = entrant ? main.filter(other => Number(other.r) === Number(node.r) - 1 && games.get(str(other.m))?.winnerId === entrant) : [];
+                        if (candidates.length === 1) previous = candidates[0];
+                    }
+                    if (!previous || inconsistentNodes.has(str(previous.m))) return;
+                    const source = games.get(str(previous.m));
+                    game.fromGames.push({ id: source.id, label: source.roundLabel, side: sideIndex });
+                    source.nextGames.push({ id: game.id, label: game.roundLabel });
+                });
+            });
             // A standard six-team bracket documents two direct semifinal entries.
             const firstIds = new Set(main.filter(node => Number(node.r) === 1).flatMap(node => ['t1', 't2'].map(side => resolve(node, side))).filter(Boolean));
             if (slots === 6 && firstIds.size === 4 && main.filter(node => Number(node.r) === 1).length === 2) {
@@ -166,10 +190,20 @@
                     round.games.filter(game => game.teams.some(t => t.id === id)).forEach(game => {
                         const own = game.teams.find(t => t.id === id), opponent = game.teams.find(t => t.id !== id);
                         const outcome = game.winnerId ? game.winnerId === id ? 'Advanced' : 'Eliminated' : 'Matchup ahead';
-                        path.push({ label: round.label, weeks: round.weeks, opponent: opponent?.id ? { id: opponent.id, name: opponent.name, ownerName: opponent.ownerName || null, ownerId: opponent.ownerId } : null, points: [own.points, opponent?.points ?? null], status: game.status, bye: false,
+                        path.push({ gameId: game.id, nextGames: game.nextGames, outcome: game.winnerId ? game.winnerId === id ? 'advanced' : 'eliminated' : 'pending', label: round.label, weeks: round.weeks, opponent: opponent?.id ? { id: opponent.id, name: opponent.name, ownerName: opponent.ownerName || null, ownerId: opponent.ownerId } : null, points: [own.points, opponent?.points ?? null], status: game.status, bye: false,
                             caption: game.status === 'final' ? game.note || `${game.winnerId === id ? 'Won' : 'Lost'} ${own.points.toFixed(2)}–${opponent.points.toFixed(2)}` : game.note || outcome });
                     });
                 });
+                // An unfinished game may have a documented route onward even
+                // before the advancing team is known. Keep every later stop conditional.
+                const last = path[path.length - 1], seenGames = new Set(path.map(step => step.gameId).filter(Boolean));
+                let onward = last && last.outcome !== 'eliminated' ? last.nextGames || [] : [];
+                while (onward.length === 1 && !seenGames.has(onward[0].id)) {
+                    const next = games.get(onward[0].id), round = rounds.find(r => r.games.some(game => game.id === next.id));
+                    seenGames.add(next.id);
+                    path.push({ gameId: next.id, label: round.label, weeks: round.weeks, opponent: null, points: [null, null], status: 'pending', conditional: true, bye: false, caption: 'If this team advances, the documented bracket route continues here. The opponent is not assumed.' });
+                    onward = next.nextGames;
+                }
                 return { team: { ...team }, champion: id === championId, rounds: path };
             }).sort((a, b) => Number(b.champion) - Number(a.champion) || a.team.name.localeCompare(b.team.name));
             return remember({ ...result, status: incomplete ? 'partial' : 'ready', message: provisionalMessage || (incomplete ? 'Official bracket available; some score details are not verified.' : ''), rounds, paths });
@@ -215,10 +249,25 @@
                     : status === 'Eliminated' ? `Even winning every remaining decision reaches only ${ceiling}; at least ${slots} other teams are already beyond that record.`
                         : sufficient <= futureDecisions ? `${sufficient} more ${winUnit} guarantee a top-${slots} record regardless of other results. Other routes may clinch with fewer.`
                             : futureDecisions ? `Winning out reaches ${ceiling}; results elsewhere or tiebreaks still decide the cutoff.` : 'No regular-season decisions remain. The cutoff depends on the official tiebreak rules.';
-            return { id, name: teamName(league, id), ownerName: root.WrWireIdentity?.resolve(league, id)?.ownerName || null, record: `${wins}–${Number(row.losses)}${ties ? '–' + ties : ''}`, status, minWins: wins, maxWins: wins + futureDecisions, needed };
+            return { id, name: teamName(league, id), ownerName: root.WrWireIdentity?.resolve(league, id)?.ownerName || null, record: `${wins}–${Number(row.losses)}${ties ? '–' + ties : ''}`, wins, losses: Number(row.losses), ties, status, minWins: wins, maxWins: wins + futureDecisions, needed };
         });
-        return { ...baseResult, supported, reason: supported ? '' : divisions > 0 ? 'Division qualification rules can change the playoff field. These are record ranges, not clinch or elimination calls.' : 'Custom or unverified seeding can change the playoff field. These are record ranges, not clinch or elimination calls.', remainingWeeks: left, rows,
+        return { ...baseResult, supported, reason: supported ? '' : divisions > 0 ? 'Division qualification rules can change the playoff field. These are record ranges, not clinch or elimination calls.' : 'Custom or unverified seeding can change the playoff field. These are record ranges, not clinch or elimination calls.', remainingWeeks: left, futureDecisions, decisionsPerWeek: median + 1, rows,
             notes: [`Based on complete results through Week ${throughWeek}. Win ranges include ${median ? 'a head-to-head and median decision' : 'one head-to-head decision'} per remaining week.`, 'Clinch calls survive a winless finish; elimination calls survive winning every remaining decision. Ties at the cutoff remain unresolved; official seeding and commissioner changes still apply.'] };
     }
-    root.WrWirePlayoffs = { load, race };
+    function scenario({ race, teamId, wins }) {
+        const future = Number(race?.futureDecisions), selected = race?.rows?.find(row => str(row.id) === str(teamId));
+        if (!selected || !integer(race?.futureDecisions) || !integer(future) || future < 0 || !integer(wins) || wins < 0 || wins > future || !race.rows.every(row => [row.wins, row.losses, row.ties].every(value => integer(value) && Number(value) >= 0))) return null;
+        const finalWins = Number(selected.wins) + Number(wins), finalLosses = Number(selected.losses) + future - Number(wins), ties = Number(selected.ties);
+        const total = finalWins + ties / 2, other = race.rows.filter(row => str(row.id) !== str(teamId));
+        const bestBound = 1 + other.filter(row => Number(row.wins) + Number(row.ties) / 2 > total).length;
+        const worstBound = 1 + other.filter(row => Number(row.wins) + Number(row.ties) / 2 + future >= total).length;
+        const standing = !race.supported ? 'Record only' : worstBound <= race.slots ? 'Top record secured' : bestBound > race.slots ? 'Outside by record' : 'Still depends on the field';
+        const explanation = !race.supported ? 'Division or custom seeding rules determine qualification; no finish or playoff claim is made.'
+            : worstBound <= race.slots ? `This finish guarantees a top-${race.slots} record under the verified seeding rules, whatever the other results.`
+                : bestBound > race.slots ? `At least ${race.slots} teams are already beyond this finish by record.`
+                    : 'Other results and unresolved tiebreaks still matter. These bounds do not assign an official seed.';
+        return { teamId: selected.id, addedWins: Number(wins), finalRecord: `${finalWins}–${finalLosses}${ties ? '–' + ties : ''}`, bestBound: race.supported ? bestBound : null, worstBound: race.supported ? worstBound : null, standing, explanation,
+            notes: [`Assumes ${wins} wins and ${future - Number(wins)} losses in the remaining ${future} ${race.decisionsPerWeek === 2 ? 'head-to-head and median decisions' : 'head-to-head games'}, with no additional ties.`, 'Finish bounds are conservative: opponents’ remaining outcomes are considered independently, so every position inside the bounds is not necessarily achievable.'] };
+    }
+    root.WrWirePlayoffs = { load, race, scenario };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -10,9 +10,10 @@ function harness() {
     const React = {
         createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) }),
         useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; },
+        useRef: initial => { const i = cursor++; if (!(i in slots)) slots[i] = { current: initial }; return slots[i]; },
         useEffect: (fn, deps) => { const i = cursor++, old = slots[i]; if (!old || deps.some((v, n) => v !== old.deps[n])) { slots[i] = { deps, cleanup: old?.cleanup }; effects.push(() => { slots[i].cleanup?.(); slots[i].cleanup = fn(); }); } },
     };
-    const window = { AbortController, App: { AccountStorage: { owner: () => owner } }, WrWireReading: { paragraphs: body => body.split('\n\n') }, WrWireDraftHistory: { load: args => new Promise((resolve, reject) => calls.push({ ...args, resolve, reject })) } };
+    const window = { AbortController, App: { AccountStorage: { owner: () => owner } }, WrWireReading: { paragraphs: body => body.split('\n\n') }, WrWireDraftHistory: { matches: () => true, load: args => new Promise((resolve, reject) => calls.push({ ...args, resolve, reject })) } };
     const ctx = { window, React, console, setTimeout: fn => { const id = {}; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id) };
     vm.createContext(ctx); vm.runInContext(source, ctx);
     let props = { league: { league_id: '1', season: '2026' }, throughWeek: 4 };

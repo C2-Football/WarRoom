@@ -2,14 +2,27 @@
 
 The Wire should answer three questions quickly: what happened, why it matters, and what to watch this week. Its advantage is verified league-specific context, including owner continuity, original scoring rules, and the rivalries the reader chooses. More output is not the objective.
 
-This release focuses on that reading loop:
+## Current news and historical context
 
-- Matchup coverage starts with current records and form. Historical meetings add context; leagues without an archive still get relevant matchup coverage.
+- Matchup coverage starts with current records and form. Every verified scheduled pair can receive a preview, including an opening-week introduction before results exist. Rivalry and championship context enrich that preview instead of producing duplicate stories.
 - Recaps separate the result from its significance in short paragraphs. Secondary stories expose a short summary before expansion.
 - A dedicated This week section separates matchup coverage from completed results. Full Stories and search make coverage beyond the edited front page reachable.
 - Edition periods and successful current-data check times stay visible. History loading is separate from current-news readiness. Partial refreshes preserve usable reporting with its original scope and time.
-- Same-season archived editions exclude current transactions and live record-watch stories. Documentary features remain separate from current headlines.
+- Same-season archived editions exclude current transactions and live record-watch stories. Historical titles and awards retain their event season and stay out of current headlines. History also includes regular-season reviews from complete verified Sleeper seasons when no curated sourcebook exists.
 
-The multi-league Wire remains text-only. Search works on loaded story text and context; it is not a remote full-history search. Current-form averages are observations, not projections or championship odds. Rivalry selections remain personal browser preferences. There are no new notifications, external posts, or shared league settings in this release.
+Title watch requires a new result with a meaningful development: a former champion taking the standings lead, ending a run of at least three wins or losses, reaching three straight wins or losses, or opening a title defense. At most one such story appears per edition. A past title alone does not create a fresh headline. The front-page lookback selects substantive historical context; thinner documented facts remain available in History.
 
-Validation combines deterministic evidence tests, account/scope and partial-refresh checks, and local browser review using public Sleeper data. Deployment verification checks both release revisions and actual served browser assets.
+Automatic rivalry discovery requires either at least four verified regular-season meetings, two wins apiece and a win-count gap no greater than two; or at least three meetings, a win apiece and two margins of five points or fewer. Personally selected rivalries remain available without meeting those thresholds. Their preferences are saved in the reader's browser. Championship meetings stay separate from the regular-season series.
+
+## Sections with distinct jobs
+
+- **Records** is a standing record book, not just record-breaking news. It includes the selected season's scoring high, comparable archived scoring highs and largest wins, every tied holder, and score receipts. When rules change, a separate cross-era high preserves original scoring. Coverage names the loaded seasons; playoffs and pre-Sleeper awards remain separate.
+- **Trends** compares equal adjacent windows of completed player games: one week against one early in the season, growing to three against three. It uses the selected league's scoring, shows games counted and weekly receipts, and requires at least a two-point change in average. A one-week comparison is labeled early evidence. Current editions cover rostered players; historical editions are limited to recorded starters available through the selected cutoff. Missing appearances are omitted, real zero and negative scores remain, and commissioner adjustments to team totals are not allocated to players. These are observations, not forecasts or explanations of injuries and roles.
+- **League feed** concentrates on recent transactions and compact live updates. The transaction window is the last seven days of loaded data; completed trades identify their actual assets, and waiver reporting identifies the largest verified bid in that window. It is not a transaction archive or a duplicate recap section. Live transactions do not leak into old editions.
+- **NFL** combines current-week fixtures and live scores with the previous week's results, accounting for preseason, regular-season and postseason boundaries. Completed games receive short result-led recaps and supported standout performances. Quarter-based narratives require quarter totals that reconcile with the final score. Box scores open on request, with player categories, actual source labels and retry controls.
+
+NFL scoreboards and game leaders come through the ESPN relay. The browser checks scores every minute while the view is active, but the relay's shared cache can delay changes for up to three hours; a check time is not proof of a fresh score. Box scores prefer Sleeper weekly statistics only when season, week, phase, teams and game identity match; otherwise they try the verified ESPN event summary. Missing statistics display as unavailable, not zero. Scores and statistics can be delayed or corrected. Failed refreshes retain a same-game snapshot with an explicit stale state.
+
+The multi-league newspaper remains text-only. Search and owner filters apply to loaded reporting and the relevant section data; they do not search remote, unloaded history. Owner continuity uses verified accounts rather than reused roster slots. Current-form averages and The Wire's record-then-points standings are neither projections nor official playoff seeds. League life and progressive draft retrospectives are described in [wire-league-life.md](wire-league-life.md).
+
+Validation combines deterministic evidence tests, account/scope and partial-refresh checks, and browser review with public Sleeper fixtures. These checks do not establish authenticated persistence or physical-device behavior. Deployment verification separately checks both release revisions and actual served browser assets.

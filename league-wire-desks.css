@@ -1,0 +1,24 @@
+.wr-wire-record-book,.wr-wire-trends{margin:0 0 28px;padding-bottom:24px;border-bottom:1px solid #d8d8d8;overflow-wrap:anywhere;scroll-margin-top:80px}
+.wr-wire-record-book h3,.wr-wire-trends h3{margin:8px 0;font-family:Georgia,serif;font-size:clamp(24px,4vw,34px);line-height:1.15}
+.wr-wire-record-book>header p,.wr-wire-trends>header p{color:#565656;line-height:1.6}
+.wr-wire-record-grid,.wr-wire-trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:20px 0}
+.wr-wire-record-grid .wr-journal-record{margin:0;padding:18px;border:1px solid #dedede;background:#fff}
+.wr-wire-record-grid ul{list-style:none;padding:0;margin:16px 0 0}
+.wr-wire-record-grid li{margin:12px 0;padding-top:10px;border-top:1px solid #eee;font-size:15px;line-height:1.5}
+.wr-wire-record-grid li>span,.wr-wire-record-grid li>small{display:block}
+.wr-wire-record-grid li>small{color:#666}
+.wr-wire-record-grid details{margin-top:6px}
+.wr-wire-record-grid summary,.wr-wire-trends summary{cursor:pointer;font-size:13px;color:#555;min-height:36px;align-content:center}
+.wr-wire-record-grid a{font-size:13px;color:#a41919}
+.wr-wire-trends>header button{padding:10px 14px;background:#fff;border:1px solid #aaa;border-radius:4px;color:#222;cursor:pointer}
+.wr-wire-trends h4{font-size:21px;margin:28px 0 8px}
+.wr-wire-trend-grid article{padding:18px;border:1px solid #ddd;background:#fff;min-width:0}
+.wr-wire-trend-grid article>span{font-size:12px;font-weight:700;color:#666}
+.wr-wire-trend-grid h5{font:700 23px/1.2 Georgia,serif;margin:8px 0 14px}
+.wr-wire-trend-grid article>strong{font:700 27px/1.2 var(--font-body,system-ui)}
+.wr-wire-trend-grid strong small{font-size:12px;font-weight:500;color:#555}
+.wr-wire-trend-grid p{font-size:15px;line-height:1.5;margin:8px 0}
+.wr-wire-trend-grid article>small{font-size:12px;color:#666}
+.wr-wire-trend-grid ul{font-size:14px;line-height:1.7;padding-left:20px}
+.wr-wire-record-book :focus-visible,.wr-wire-trends :focus-visible{outline:3px solid #b02626;outline-offset:3px}
+@media(max-width:600px){.wr-wire-record-grid,.wr-wire-trend-grid{grid-template-columns:1fr}}

@@ -112,7 +112,7 @@
         }).slice(0, limit);
     }
     function weeklyLookback(stories, editionKey) {
-        const archive = stories.filter(s => s.documentary).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        const archive = stories.filter(s => s.documentary && s.lookbackEligible !== false).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
         if (!archive.length) return null;
         let hash = 0;
         for (const char of String(editionKey)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
@@ -145,14 +145,16 @@
         };
         // Old names belong to their own season. Rivalries require actual owners.
         priorSeasons.slice().sort((a, b) => Number(a.league.season) - Number(b.league.season)).forEach(s => {
+            if (!(Number(s.league.season) < Number(season))) return;
+            const range = bounds(s.league), reviewWeeks = new Map();
             const comparable = signature(s.league) === seasonSignature;
             rulesChanged ||= !comparable;
             if (comparable) comparableSeasons.push(String(s.league.season));
             for (const w of s.weeks) {
-                const range = bounds(s.league);
                 if (w.week < range.start || w.week > range.end) continue;
                 const pairs = inspect(w.rows, s.league);
                 if (!pairs) continue;
+                reviewWeeks.set(Number(w.week), { rows: w.rows, pairs });
                 w.rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season: s.league.season, week: w.week, ...recordIdentity(s.league, r.roster_id, oldName(s.league, r.roster_id)), points: points(r) }, historicalHigh); });
                 if (comparable) w.rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season: s.league.season, week: w.week, ...recordIdentity(s.league, r.roster_id, oldName(s.league, r.roster_id)), points: points(r) }, archiveHigh); });
                 if (!isH2H(s.league)) continue;
@@ -165,10 +167,55 @@
                     if (winOwner) careerWins.set(winOwner, (careerWins.get(winOwner) || 0) + 1);
                 });
             }
+            // A plain linked league still deserves an archive feature. Require
+            // every regular-season week; never turn a regular-season leader into
+            // a champion or compare its raw points with another scoring era.
+            const count = range.end - range.start + 1;
+            if (!root.WrWireChronicles?.select(league) && isH2H(s.league) && count > 0 && reviewWeeks.size === count && [...reviewWeeks.values()].every(w => w.pairs.length * 2 === w.rows.length)) {
+                const pastStats = new Map(), closeGames = [], peaks = [];
+                for (let week = range.start; week <= range.end; week++) {
+                    const w = reviewWeeks.get(week);
+                    if (!w) break;
+                    w.rows.forEach(r => {
+                        const rid = id(r.roster_id);
+                        if (!pastStats.has(rid)) pastStats.set(rid, { rid: r.roster_id, wins: 0, losses: 0, ties: 0, pf: 0 });
+                        pastStats.get(rid).pf += points(r);
+                        peaks.push({ rid: r.roster_id, week, points: points(r) });
+                    });
+                    w.pairs.forEach(pair => {
+                        const [a, b] = pair.slice().sort((a, b) => points(b) - points(a)), gap = round(points(a) - points(b));
+                        pastStats.get(id(a.roster_id))[gap > 0 ? 'wins' : 'ties']++;
+                        pastStats.get(id(b.roster_id))[gap > 0 ? 'losses' : 'ties']++;
+                        closeGames.push({ a: a.roster_id, b: b.roster_id, pa: points(a), pb: points(b), week, gap });
+                    });
+                    if (Number(s.league.settings?.league_average_match) === 1) {
+                        const values = w.rows.map(points).sort((a, b) => a - b), mid = Math.floor(values.length / 2), median = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+                        w.rows.forEach(r => pastStats.get(id(r.roster_id))[points(r) > median ? 'wins' : points(r) < median ? 'losses' : 'ties']++);
+                    }
+                }
+                const table = ranked(pastStats), topValue = table[0].wins + table[0].ties / 2;
+                const leaders = table.filter(t => t.wins + t.ties / 2 === topValue);
+                const person = rid => recordIdentity(s.league, rid, oldName(s.league, rid));
+                const names = leaders.map(t => person(t.rid).name);
+                const peak = peaks.sort((a, b) => b.points - a.points || a.week - b.week || id(a.rid).localeCompare(id(b.rid)))[0];
+                const peakHolders = peaks.filter(p => p.points === peak.points);
+                const tightest = closeGames.sort((a, b) => a.gap - b.gap || a.week - b.week)[0];
+                const tiedClosest = closeGames.filter(g => g.gap === tightest.gap).length > 1;
+                const scope = Number(s.league.settings?.league_average_match) === 1 ? ', including median results' : '';
+                const sameRecord = leaders.every(t => recordText(t) === recordText(leaders[0]));
+                const lead = leaders.length === 1 ? `${names[0]} finished the ${s.league.season} regular season at ${recordText(leaders[0])}${scope}, the league’s best record.` : `The ${s.league.season} regular season finished level at the top${scope}: ${leaders.map(t => `${person(t.rid).name} at ${recordText(t)}`).join('; ')}.${sameRecord ? '' : ' Each win counts one and each tie a half in this comparison.'}`;
+                const scoring = `${person(peak.rid).name} supplied ${peakHolders.length > 1 ? 'a share of ' : ''}the weekly scoring high: ${fmt(peak.points)} in Week ${peak.week}.`;
+                const finish = tightest.gap === 0 ? `Week ${tightest.week} also brought a tie: ${person(tightest.a).name} and ${person(tightest.b).name} finished on ${fmt(tightest.pa)} apiece.` : `${tiedClosest ? 'One of the closest games' : 'The closest game'} came in Week ${tightest.week}, when ${person(tightest.a).name} ${tightest.gap <= 5 ? 'edged' : 'beat'} ${person(tightest.b).name} ${fmt(tightest.pa)}–${fmt(tightest.pb)}, a ${fmt(tightest.gap)}-point margin.`;
+                const participants = [...new Set([...leaders.map(t => t.rid), peak.rid, tightest.a, tightest.b])].map(rid => identity(s.league, rid, oldName(s.league, rid)));
+                stories.push({ id: `season-review:${s.league.league_id || s.league.id}:${s.league.season}`, kind: 'story', category: 'Season review', label: `${s.league.season} · SEASON REVIEW`, documentary: true, classification: 'derived', lookbackEligible: true, season, eventSeason: Number(s.league.season), week: end, rosterIds: [], participants,
+                    text: leaders.length === 1 ? `Looking back: ${names[0]}’s ${recordText(leaders[0])} regular season in ${s.league.season}` : `Looking back: ${s.league.season} finished level at the top`, body: `${lead}\n\n${scoring} ${finish}`, weight: 48,
+                    sources: [...reviewWeeks.keys()].sort((a, b) => a - b).map(week => ({ label: `Sleeper ${s.league.season} Week ${week}`, url: `https://api.sleeper.app/v1/league/${encodeURIComponent(s.league.league_id || s.league.id)}/matchups/${week}` })),
+                    related: [{ label: 'Season scope', text: `All ${count} regular-season weeks, ${range.start}–${range.end}, were checked. Records${scope} and points use that season’s rules. Regular-season leadership is not a championship or an official playoff seed.` }] });
+            }
         });
         const priorHigh = archiveHigh;
         const series = (a, b) => games.filter(g => (g.a === a && g.b === b) || (g.a === b && g.b === a));
-        let latestTable = [], previousTable = [];
+        let latestTable = [], previousTable = [], currentForm = [];
         const seats = Number(league.settings?.playoff_teams) || 0;
         const lastReg = bounds(league).end;
         const simpleRace = headToHead && seats > 0 && Number(league.settings?.divisions || 0) < 2 && !league.settings?.playoff_seed_type;
@@ -201,6 +248,7 @@
                 if (milestone >= 1000 && old < milestone) add('story', 'Milestone', `${nameFor(r.roster_id)} cross ${milestone.toLocaleString('en-US')} points`, `${fmt(total)} points scored through Week ${week}. This week's ${fmt(points(r))} pushed the season total over the line.`, [r.roster_id], { weight: 55, metric: milestone.toLocaleString('en-US'), metricLabel: 'season points passed' });
             });
             if (!headToHead) continue;
+            currentForm = [];
             const paired = new Set(), recaps = [];
             const margins = [];
             pairs.forEach(pair => {
@@ -231,6 +279,8 @@
                     const rid = id(r.roster_id), win = gap > 0 && r === a, currentRun = runs.get(rid) || 0, t = stats.get(rid);
                     if (gap === 0) { t.ties++; runs.set(rid, 0); }
                     else { t[win ? 'wins' : 'losses']++; runs.set(rid, win ? Math.max(0, currentRun) + 1 : Math.min(0, currentRun) - 1); }
+                    const opponent = r === a ? b : a;
+                    currentForm.push({ rid: r.roster_id, opponentId: opponent.roster_id, points: points(r), opponentPoints: points(opponent), run: runs.get(rid), previousRun: currentRun });
                     if (runs.get(rid) >= 3) add('story', 'On a roll', `${nameFor(r.roster_id)} make it ${runs.get(rid)} straight`, `${choose(['The run keeps growing.', 'Another week, another win.', 'Nobody has slowed this run yet.'], week, r.roster_id)} The latest head-to-head win came against ${nameFor(b.roster_id)}.`, [r.roster_id], { weight: 65, metric: String(runs.get(rid)), metricLabel: 'straight wins' });
                 });
                 if (gap > 0 && sorted.filter(r => points(r) > points(b)).length < Math.floor(rows.length / 2)) add('story', 'Hard luck', choose([`No justice for ${nameFor(b.roster_id)}`, `${nameFor(b.roster_id)} get the cruel draw`, `${nameFor(b.roster_id)} score big and still come up short`], week, b.roster_id), `${fmt(points(b))} points landed in the top half of the league, but ${nameFor(a.roster_id)} still handed them a loss. A strong week met the wrong opponent.`, [b.roster_id], { weight: 57 });
@@ -299,6 +349,11 @@
         // Current stakes do not depend on an archive or a shared owner history.
         // Records stop at the last completed week, even if this week's games are live.
         const currentMatchup = (a, b) => {
+            if (Number(board?.week) === start && end < start && completedThrough === start - 1 && id(a.roster_id) !== id(b.roster_id) && [a, b].every(row => league.rosters?.some(r => id(r.roster_id) === id(row.roster_id)))) return {
+                id: `matchup:${season}:${board.week}:${a.roster_id}:${b.roster_id}`, kind: 'story', category: 'Matchup preview', label: `WK ${board.week} · MATCHUP PREVIEW`, text: `Opening week: ${nameFor(a.roster_id)} vs. ${nameFor(b.roster_id)}`,
+                body: `${nameFor(a.roster_id)} and ${nameFor(b.roster_id)} are paired in Week ${board.week}.`, season, week: Number(board.week), rosterIds: [a.roster_id, b.roster_id], preview: true, weight: 32,
+                related: [{ label: 'Current form', text: 'Awaiting the first completed regular-season results. No record or scoring average is assumed.' }],
+            };
             if (id(a.roster_id) === id(b.roster_id) || completedThrough !== end || Number(board?.week) !== completedThrough + 1 || Number(board.week) > lastReg || completedThrough < start) return null;
             const ta = latestTable.find(t => id(t.rid) === id(a.roster_id)), tb = latestTable.find(t => id(t.rid) === id(b.roster_id));
             if (!ta || !tb) return null;
@@ -307,7 +362,10 @@
             const unbeaten = t => t.wins > 0 && t.losses === 0 && t.ties === 0;
             const highRank = Math.max(2, Math.ceil(latestTable.length / 4));
             let text = `${na} (${recordText(ta)}) meet ${nb} (${recordText(tb)})`, weight = 48, stakes = '';
-            if (unbeaten(ta) && unbeaten(tb)) {
+            if (simpleRace && seats < latestTable.length && completedThrough >= Math.max(start + 1, lastReg - 5) && Math.min(ta.rank, tb.rank) === seats && Math.max(ta.rank, tb.rank) === seats + 1) {
+                text = `${na} vs. ${nb}: the cutline matchup`; weight = 78;
+                stakes = `They sit at No. ${ta.rank} and No. ${tb.rank}, on either side of the top ${seats} in The Wire’s standings.`;
+            } else if (unbeaten(ta) && unbeaten(tb)) {
                 text = `Unbeaten starts meet: ${na} vs. ${nb}`; weight = 80;
                 stakes = 'Neither team has a loss on the board.';
             } else if (runA >= 3 && runB >= 3) {
@@ -316,10 +374,25 @@
             } else if (ta.rank <= highRank && tb.rank <= highRank) {
                 text = `${na} vs. ${nb}: a test near the top`; weight = 77;
                 stakes = ta.rank === tb.rank ? `They are tied at No. ${ta.rank} in The Wire’s standings.` : `They hold the No. ${ta.rank} and No. ${tb.rank} spots in The Wire’s standings.`;
+            } else if (count >= 2 && (unbeaten(ta) || unbeaten(tb))) {
+                const leader = unbeaten(ta) ? na : nb, challenger = unbeaten(ta) ? nb : na;
+                text = `An unbeaten test: ${challenger} vs. ${leader}`; weight = 66;
+                stakes = `${leader} have yet to take a loss this season.`;
+            } else if (count >= 2 && runA === -count && runB === -count) {
+                text = `A first head-to-head win is on the line: ${na} vs. ${nb}`; weight = 64;
+                stakes = `Both have lost their first ${count} head-to-head games.`;
             } else if (Math.min(runA, runB) <= -3) {
                 const struggler = runA <= runB ? na : nb, opponent = runA <= runB ? nb : na;
                 text = `${struggler} look for a reset against ${opponent}`; weight = 62;
                 stakes = `${struggler} have lost ${Math.abs(Math.min(runA, runB))} straight head-to-head games.`;
+            } else if (count >= 2 && (runA === -count || runB === -count)) {
+                const struggler = runA === -count ? na : nb, opponent = runA === -count ? nb : na;
+                text = `Chasing a first head-to-head win: ${struggler} vs. ${opponent}`; weight = 60;
+                stakes = `${struggler} have lost their first ${count} head-to-head games.`;
+            } else if (count >= 2 && Math.abs(ta.pf - tb.pf) / count >= 20) {
+                const scorer = ta.pf > tb.pf ? na : nb;
+                text = `Scoring edge: ${scorer} vs. ${ta.pf > tb.pf ? nb : na}`; weight = 56;
+                stakes = `${scorer} have scored ${fmt(Math.abs(ta.pf - tb.pf) / count)} more points per week than this week’s opponent.`;
             }
             const recordScope = Number(league.settings?.league_average_match) === 1 ? ', including median results' : '';
             return { id: `matchup:${season}:${board.week}:${a.roster_id}:${b.roster_id}`, kind: 'story', category: 'Matchup preview', label: `WK ${board.week} · MATCHUP PREVIEW`,
@@ -335,22 +408,30 @@
             const winsA = meetings.filter(g => g.a === oa ? g.pa > g.pb : g.pb > g.pa).length;
             const winsB = meetings.filter(g => g.a === ob ? g.pa > g.pb : g.pb > g.pa).length;
             const ties = meetings.length - winsA - winsB, last = meetings[meetings.length - 1];
+            const closeMeetings = meetings.filter(g => Math.abs(g.pa - g.pb) <= 5).length;
+            const competitive = meetings.length >= 4 && Math.min(winsA, winsB) >= 2 && Math.abs(winsA - winsB) <= 2;
+            const repeatedThrillers = meetings.length >= 3 && closeMeetings >= 2 && Math.min(winsA, winsB) >= 1;
+            const discovered = competitive || repeatedThrillers;
             const rival = { a: ownerName(a.roster_id), b: ownerName(b.roster_id), teamA: nameFor(a.roster_id), teamB: nameFor(b.roster_id), participants: [participant(a.roster_id), participant(b.roster_id)], winsA, winsB, ties, meetings: meetings.length, rosterIds: [a.roster_id, b.roster_id], followed: !!selection, name: selection?.name || '', scheduled };
-            rivals.push(rival);
+            if (selection || discovered) rivals.push(rival);
             if (!scheduled || !(Number(board.week) > completedThrough && Number(board.week) <= lastReg)) return;
             const lastMargin = last ? Math.abs(last.pa - last.pb) : null;
             const previewTitle = !last ? `${rival.a} vs. ${rival.b}: a rivalry to follow`
                 : winsA === winsB ? `${rival.a} and ${rival.b}: break the deadlock`
                 : lastMargin <= 3 ? `${rival.a} and ${rival.b} meet again after a thriller`
-                : meetings.length === 1 ? `Another shot for ${winsA < winsB ? rival.a : rival.b} against ${winsA < winsB ? rival.b : rival.a}`
-                : Math.abs(winsA - winsB) >= 3 ? `A score to settle for ${winsA < winsB ? rival.a : rival.b}`
-                : choose([`${rival.a} vs. ${rival.b}: the next chapter`, `${rival.a} and ${rival.b} renew their rivalry`, `Familiar opponents. Fresh stakes. ${rival.a} vs. ${rival.b}`], board.week, a.roster_id);
+                : repeatedThrillers ? `${rival.a} vs. ${rival.b}: ${closeMeetings} meetings decided by five or fewer`
+                : `${rival.a} vs. ${rival.b}: a ${winsA}–${winsB} series`;
             const history = last ? `The recorded series: ${rival.a} ${winsA}–${winsB}${ties ? '–' + ties : ''} ${rival.b}, across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.` : 'No completed regular-season meetings are available in the loaded history yet.';
             const current = currentMatchup(a, b);
+            if (!selection && !discovered) {
+                if (current) previews.push({ ...current, related: [...current.related, { label: 'Regular-season history', text: history }] });
+                else previews.push({ id: `matchup:${season}:${board.week}:${a.roster_id}:${b.roster_id}`, kind: 'story', category: 'Matchup preview', label: `WK ${board.week} · MATCHUP PREVIEW`, text: Number(board.week) === start ? `Opening week: ${rival.teamA} vs. ${rival.teamB}` : `${rival.teamA} vs. ${rival.teamB}: Week ${board.week}`, body: `${rival.a} and ${rival.b} meet in Week ${board.week}.`, week: Number(board.week), season, rosterIds: rival.rosterIds, weight: 48, preview: true, related: [{ label: 'Regular-season history', text: history }, { label: 'Current form', text: 'A complete current-season record is not available for this preview. The series includes verified meetings only.' }] });
+                return;
+            }
             previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: selection?.name ? `${selection.name}: ${rival.a} vs. ${rival.b}` : current && current.weight >= 77 ? current.text : previewTitle,
                 body: current ? `${current.body.split('\n\n')[0]}\n\n${history}` : `${selection ? `One of the rivalries you follow is on the Week ${board.week} schedule. ` : ''}${history}`,
                 week: Number(board.week), season, rosterIds: rival.rosterIds, weight: selection ? 84 : Math.max(70, current?.weight || 0), preview: true, followedRivalry: !!selection,
-                ...(current ? { formThrough: current.formThrough } : {}), related: [...(selection ? [context(selection)] : []), ...(current?.related || []), ...(current ? [{ label: 'Scoring form', text: current.body.split('\n\n')[1] }] : [])],
+                ...(current ? { formThrough: current.formThrough } : {}), related: [...(selection ? [context(selection)] : []), ...(current?.related || []), ...(current?.body.split('\n\n')[1] ? [{ label: 'Scoring form', text: current.body.split('\n\n')[1] }] : [])],
                 ...(last ? { metric: `${winsA}–${winsB}`, metricLabel: `recorded series · ${rival.a} / ${rival.b}` } : {}) });
         };
         if (headToHead) nowPairs.forEach(pair => {
@@ -383,7 +464,7 @@
         }
         const result = { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
             archive: { historicalHigh, historicalRecords, allSeasons: [...new Set([...priorSeasons.map(s => String(s.league.season)), ...(completedThrough >= start ? [season] : [])])].sort(), high: archiveHigh, margin: archiveMargin, records: archiveRecords, margins: archiveMargins, complete: archiveComplete, rulesChanged, seasons: [...new Set([...comparableSeasons, ...(completedThrough >= start ? [season] : [])])].sort(), priorCount: priorSeasons.length } };
-        const enriched = root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor, priorSeasons }) || result;
+        const enriched = root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, start, end, nameFor, priorSeasons, currentForm, previousTable }) || result;
         const features = root.WrWireFeatures?.enrich(enriched, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor, headToHead }) || enriched;
         const withPeople = { ...features, stories: features.stories.map(s => ({ ...s, participants: s.participants || (s.rosterIds || []).map(participant) })), previews: features.previews.map(s => ({ ...s, participants: s.participants || (s.rosterIds || []).map(participant) })) };
         return root.WrWireGraphics?.enrich(withPeople, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor }) || withPeople;

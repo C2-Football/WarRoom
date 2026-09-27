@@ -46,9 +46,9 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.equal(story.evidence.metric, 'starting-lineup points');
     assert.deepEqual(plain(story.evidence.players.map(player => [player.playerId, player.points, player.starts])), [['late', 40, 4], ['early', 4, 4]]);
     assert.equal(story.participants[0].rosterId, '2'); assert.equal(story.participants[0].ownerName, 'Owner 2', 'receiving roster, never draft slot, owns a traded pick');
-    assert(story.text.includes('starting-lineup points')); assert(story.related[0].text.includes('including after a trade'));
-    assert(story.body.includes('4 verified fantasy starts')); assert(story.body.includes('4 fantasy starts over the same weeks'));
-    assert(story.related[0].text.includes('not total player production')); assert(story.body.includes('Round 3 (No. 9)'));
+    assert(story.body.includes('points per fantasy start')); assert(story.related[0].text.includes('including after trades'));
+    assert(story.body.includes('4 fantasy starts')); assert.equal(story.featureType, 'value');
+    assert(story.related[0].text.includes('Bench production is unavailable')); assert(story.body.includes('Round 3 (No. 9)'));
     assert.equal(story.body.split('\n\n').length, 2, 'technical metric caveats belong in the receipts disclosure');
     assert(!story.body.includes('999'), 'bench production must never enter starter totals');
     assert(result.coverage.every(item => typeof item === 'string'));
@@ -129,16 +129,16 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     };
     const history = fixtures.slice(1).map(f => ({ league: f.league, weeks: f.weeks }));
     const archived = await load(api(), current, { priorSeasons: history, fetcher: combinedFetcher });
-    assert.deepEqual(plain(archived.stories.map(story => story.season)), ['2026', '2025', '2024']);
+    assert.deepEqual(plain(archived.stories.map(story => story.season)), ['2026', '2025', '2024', '2023']);
     assert(archived.stories.slice(1).every(story => story.documentary));
-    assert.equal(fixtures.reduce((sum, f) => sum + f.calls.length, 0), 6, 'at most current plus two loaded linked seasons, two endpoints each');
-    assert.equal(unrelated.calls.length, 0); assert.equal(oldest.calls.length, 0);
+    assert.equal(fixtures.reduce((sum, f) => sum + f.calls.length, 0), 8, 'the default archive reaches beyond the previous two seasons, two endpoints each');
+    assert.equal(unrelated.calls.length, 0); assert.equal(oldest.calls.length, 2);
     old.weeks.pop();
     const partialHistory = await load(api(), current, { throughWeek: 2, priorSeasons: history, fetcher: combinedFetcher });
-    assert.deepEqual(plain(partialHistory.stories.map(story => story.season)), ['2024'], 'historical verdict requires the complete regular season while other eligible seasons survive');
+    assert.deepEqual(plain(partialHistory.stories.map(story => story.season)), ['2024', '2023'], 'historical verdict requires the complete regular season while other eligible seasons survive');
     old.weeks.push(plain(older.weeks[3]));
     const partialFailure = await load(api(), current, { priorSeasons: history, fetcher: async (url, options) => url.includes('/league/345678/') ? { ok: false } : combinedFetcher(url, options) });
-    assert.equal(partialFailure.status, 'partial'); assert.equal(partialFailure.stories.length, 2);
+    assert.equal(partialFailure.status, 'partial'); assert.equal(partialFailure.stories.length, 3);
     const failed = await load(api(), fixture(), { fetcher: async () => ({ ok: false }) });
     assert.equal(failed.status, 'error'); assert.equal(failed.stories.length, 0);
 
@@ -149,5 +149,57 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     const midway = new AbortController(), interrupted = fixture();
     await assert.rejects(load(api(), interrupted, { signal: midway.signal, fetcher: async (...args) => { const response = await interrupted.fetcher(...args); midway.abort(); return response; } }), { name: 'AbortError' });
     assert.equal(interrupted.calls.length, 1, 'cancellation stops before the pick request');
+    const workload = fixture(); workload.league.settings.playoff_week_start = 15;
+    workload.weeks = Array.from({ length: 14 }, (_, index) => {
+        const week = plain(workload.weeks[index % 4]); week.week = index + 1;
+        if (index >= 4) week.rows[0].starters = [];
+        return week;
+    });
+    const volume = await load(api(), workload, { throughWeek: 14 });
+    assert.equal(volume.stories.length, 1); assert.equal(volume.stories[0].featureType, 'workload');
+    assert.match(volume.stories[0].body, /14 fantasy starts against 4/);
+    assert.match(volume.stories[0].body, /different numbers of lineup appearances as well as scoring/);
+    assert.match(volume.stories[0].related[0].text, /No injury cause, owner skill/);
+    assert(!volume.stories.some(story => ['value', 'doover'].includes(story.featureType)), '13 versus 4 starts cannot receive a comparable-workload value award');
+
+    const variety = fixture();
+    const add = (pid, position, pickNo, rid, points) => {
+        variety.picks.push({ draft_id: variety.draft.draft_id, player_id: pid, roster_id: rid, picked_by: `owner-${rid}`, pick_no: pickNo, round: Math.ceil(pickNo / 4), metadata: { first_name: pid, last_name: position, position } });
+        variety.weeks.forEach(week => { const row = week.rows[rid - 1]; row.starters.push(pid); row.players_points[pid] = points; });
+    };
+    add('EarlyBack', 'RB', 2, 3, 2); add('LaterBack', 'RB', 10, 4, 9);
+    add('FirstTightEnd', 'TE', 3, 1, 2); add('SecondTightEnd', 'TE', 4, 2, 3); add('ThirdTightEnd', 'TE', 7, 3, 4); add('LateTightEnd', 'TE', 29, 4, 8);
+    const diverse = await load(api(), variety);
+    assert.deepEqual(plain(diverse.stories.map(story => story.featureType)), ['value', 'doover', 'late']);
+    assert.equal(new Set(diverse.stories.flatMap(story => story.evidence.players.map(player => player.playerId))).size, 5, 'receipts do not repeat the same player across differently labelled articles');
+    assert(diverse.stories.every(story => story.body.split('\n\n').length === 2));
+    assert(diverse.stories.every(story => story.body.split(/\s+/).length < 135), 'richer story types remain short');
+    assert(diverse.stories.find(story => story.featureType === 'late').body.includes('median for the 4 drafted TEs'));
+
+    const olderRows = Array.from({ length: 10 }, (_, index) => fixture(String(2026 - index), String(100000 + index), String(200000 + index)));
+    olderRows.forEach((row, index) => { row.league.previous_league_id = olderRows[index + 1]?.league.league_id || null; if (index) row.league.status = 'complete'; });
+    // Roster 3 belonged to this same owner in 2025, not today's roster 2.
+    olderRows[1].league.rosters[1].owner_id = 'owner-3'; olderRows[1].league.rosters[2].owner_id = 'owner-2'; olderRows[1].picks[1].roster_id = 3;
+    const broadApi = api(), progress = []; let active = 0, peak = 0;
+    const broadFetcher = async (url, options) => {
+        const f = olderRows.find(f => url.includes('/league/' + f.league.league_id + '/') || url.includes('/draft/' + f.draft.draft_id + '/'));
+        active++; peak = Math.max(peak, active); await new Promise(resolve => setImmediate(resolve));
+        try { return await f.fetcher(url, options); } finally { active--; }
+    };
+    const broadOptions = { priorSeasons: olderRows.slice(1).map(f => ({ league: f.league, weeks: f.weeks })), fetcher: broadFetcher, onProgress: result => { progress.push(result.progress.checked); result.stories.length = 0; } };
+    const broad = await load(broadApi, olderRows[0], broadOptions);
+    assert.equal(broad.progress.checked, 8); assert.equal(broad.progress.remaining, 2); assert.equal(broad.stories.length, 8, 'mutating a progress snapshot cannot change the final edition');
+    assert(peak <= 2); assert(progress.length >= 9); assert(progress.every((value, i) => i === 0 || value >= progress[i - 1]), 'progress is incremental and bounded');
+    assert.equal(olderRows.reduce((sum, f) => sum + f.calls.length, 0), 16);
+    const expanded = await load(broadApi, olderRows[0], { ...broadOptions, maxSeasons: 16 });
+    assert.equal(expanded.progress.checked, 10); assert.equal(expanded.progress.remaining, 0); assert.equal(expanded.stories.length, 10);
+    assert.equal(olderRows.reduce((sum, f) => sum + f.calls.length, 0), 20, 'expanding the archive reuses checked draft metadata');
+    const book = expanded.ownerHistories.find(book => book.ownerId === 'owner-2');
+    assert.equal(book.seasons.length, 10); assert.equal(book.seasons.find(season => season.season === '2025').picks[0].name, 'Later Receiver');
+    const ownerFiltered = expanded.stories.filter(story => broadApi.matches(story, { league: olderRows[0].league, ownerFilter: { ownerId: 'owner-2', rosterId: 2 } }));
+    assert.equal(ownerFiltered.length, 10, 'owner filtering follows identity across historical roster slots');
+    assert.equal(expanded.stories.filter(story => broadApi.matches(story, { league: olderRows[0].league, ownerFilter: { ownerId: null, rosterId: 2 } })).length, 1, 'unknown owners can match only their current league roster');
+    assert.equal(expanded.stories.filter(story => broadApi.matches(story, { search: 'no such player' })).length, 0);
+    assert.equal(expanded.stories.filter(story => broadApi.matches(story, { season: '2025', category: 'value', search: 'Later Receiver' })).length, 1);
     console.log('league-wire-draft-history: evidence, ownership, cutoff, cache, bounds and cancellation passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

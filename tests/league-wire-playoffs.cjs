@@ -173,5 +173,51 @@ const fixture = (id = '123456789', season = '2025') => {
     assert.equal(api.race({ league: medianLeague, edition }).rows.length, 0, 'median records must include both weekly decisions');
     assert.equal(api.race({ league: raceLeague, edition, remainingWeeks: 1 }).rows.length, 0, 'remaining schedule cannot be shortened to invent a clinch');
     assert.equal(api.race({ league: { ...raceLeague, type: 'chopped' }, edition }).supported, false);
+    assert.deepEqual(plain(result.rounds[0].games[0].nextGames), [{ id: '4', label: 'Semifinals' }], 'a unique verified first-round winner connects to the next round');
+    assert.deepEqual(plain(result.rounds[2].games[0].fromGames.map(g => g.id)), ['3', '4'], 'explicit title-game references preserve bracket topology');
+    const pendingFixture = fixture('456789123', '2026'); pendingFixture.info.status = 'in_season'; pendingFixture.calendar.week = 15;
+    pendingFixture.bracket.forEach(node => { delete node.w; delete node.l; });
+    const semi3 = pendingFixture.bracket.find(node => node.m === 3), semi4 = pendingFixture.bracket.find(node => node.m === 4), final6 = pendingFixture.bracket.find(node => node.m === 6);
+    semi3.t2_from = { w: 2 }; delete semi3.t2; semi4.t2_from = { w: 1 }; delete semi4.t2; delete final6.t1; delete final6.t2;
+    const pendingBracket = await makeApi().load({ league: pendingFixture.league, fetcher: pendingFixture.fetcher });
+    const pendingPath = pendingBracket.paths.find(p => p.team.id === '3');
+    assert.equal(pendingPath.rounds.length, 3, 'a documented winner route can show the rounds beyond an unfinished game');
+    assert(pendingPath.rounds.slice(1).every(step => step.conditional && step.opponent === null && step.points.every(point => point === null)), 'future path steps never assign an opponent, score or victory');
+    assert.equal(pendingPath.champion, false);
+    assert(result.paths.find(p => p.team.id === '3').rounds.length === 1, 'an eliminated team gets no conditional route onward');
+
+    const secured = api.scenario({ race, teamId: '2', wins: 2 });
+    assert.equal(secured.finalRecord, '11–3'); assert.equal(secured.standing, 'Top record secured');
+    assert.equal(secured.bestBound, 2); assert.equal(secured.worstBound, 2);
+    const dependent = api.scenario({ race, teamId: '3', wins: 2 });
+    assert.equal(dependent.finalRecord, '10–4'); assert.equal(dependent.standing, 'Still depends on the field');
+    const tiedScenario = api.scenario({ race: tiedRace, teamId: '1', wins: 0 });
+    assert.equal(tiedScenario.finalRecord, '8–3–1'); assert.equal(tiedScenario.bestBound, 1); assert.equal(tiedScenario.worstBound, 3);
+    assert.equal(tiedScenario.standing, 'Still depends on the field', 'level cutoff records cannot become a scenario clinch');
+    const medianScenario = api.scenario({ race: median, teamId: '2', wins: 4 });
+    assert.equal(medianScenario.finalRecord, '22–6'); assert.match(medianScenario.notes[0], /4 head-to-head and median decisions/);
+    for (const unsupported of [divided, custom, manual]) {
+        const projected = api.scenario({ race: unsupported, teamId: '2', wins: 1 });
+        assert(projected.finalRecord); assert.equal(projected.bestBound, null); assert.equal(projected.worstBound, null); assert.equal(projected.standing, 'Record only');
+    }
+    for (const bad of [-1, 3, 1.5, null, '', false]) assert.equal(api.scenario({ race, teamId: '2', wins: bad }), null);
+    const stringRace = { ...race, futureDecisions: '2', rows: race.rows.map(row => ({ ...row, wins: String(row.wins), losses: String(row.losses), ties: String(row.ties) })) };
+    assert.equal(api.scenario({ race: stringRace, teamId: '2', wins: '2' }).finalRecord, '11–3', 'numeric strings are normalized before scenario arithmetic');
+    // Exercise an actual two-week schedule rather than assuming every rival can win out together.
+    const remainingSchedule = [[1,2],[3,4],[5,6],[1,3],[2,5],[4,6]];
+    for (let outcomes = 0; outcomes < 64; outcomes++) {
+        const added = new Map(table.map(row => [row.rid, 0]));
+        remainingSchedule.forEach((pair, i) => { const winner = pair[(outcomes >> i) & 1]; added.set(winner, added.get(winner) + 1); });
+        const finalWins = table.map(row => row.wins + added.get(row.rid));
+        table.forEach((row, i) => {
+            const envelope = api.scenario({ race, teamId: String(row.rid), wins: added.get(row.rid) });
+            const best = 1 + finalWins.filter((wins, j) => j !== i && wins > finalWins[i]).length;
+            const worst = 1 + finalWins.filter((wins, j) => j !== i && wins >= finalWins[i]).length;
+            assert(envelope.bestBound <= best && envelope.worstBound >= worst, 'scenario bounds contain every schedule-consistent finish including unresolved tiebreaks');
+            if (envelope.standing === 'Top record secured') assert(worst <= race.slots);
+            if (envelope.standing === 'Outside by record') assert(best > race.slots);
+        });
+    }
+    console.log('PASS Studio playoff models: documented bracket links, conditional paths, median decisions, custom rules and schedule-checked scenario bounds');
     console.log('PASS Wire playoffs: verified bracket, explicit byes, original scores, safe ties and multiweek fallback, abort-safe scoped cache, conservative race and scenarios');
 })().catch(error => { console.error(error); process.exitCode = 1; });

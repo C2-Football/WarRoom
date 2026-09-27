@@ -12,6 +12,12 @@
         const text = [story.text, story.body, story.category, story.league?.name, ...(story.participants || []).flatMap(p => [p.ownerName, p.teamName]), ...(story.related || []).map(r => r.text)].filter(Boolean).join(' ').toLocaleLowerCase();
         return terms.every(term => text.includes(term));
     }
+    function includesOwner(story, roster, season) {
+        if (!roster) return true;
+        if (!story.documentary) return (story.rosterIds || []).some(id => String(id) === String(roster.roster_id));
+        if (roster.owner_id) return (story.participants || []).some(person => person.ownerId && String(person.ownerId) === String(roster.owner_id));
+        return (story.participants || []).some(person => person.rosterId != null && String(person.season) === String(season) && String(person.rosterId) === String(roster.roster_id));
+    }
     function checked(at) {
         if (!at) return '';
         const date = new Date(at);
@@ -31,7 +37,7 @@
         const schedule = next.scheduleReady ? next : previous;
         const times = [results.currentUpdatedAt, schedule.currentUpdatedAt].filter(t => Number(t) > 0);
         return { ...next, stories: [...results.stories.filter(s => !s.preview), ...schedule.stories.filter(s => s.preview)],
-            features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
+            recordBook: results.recordBook || null, features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
             currentUpdatedAt: times.length ? Math.min(...times) : null, stale: !!next.currentError || next.status === 'error', refreshing: next.status === 'loading' };
     }
     function finish(entry, league) {
@@ -43,5 +49,5 @@
         const message = 'The refresh took too long. Refresh news to try again.';
         return { ...(entry || { league, stories: [] }), status: 'partial', refreshing: false, stale: !!entry?.currentReady, currentError: entry?.currentError || message, error: entry?.currentError || message };
     }
-    root.WrWireReading = { paragraphs, deck, matches, checked, period, retain, finish };
+    root.WrWireReading = { paragraphs, deck, matches, includesOwner, checked, period, retain, finish };
 })(typeof window !== 'undefined' ? window : globalThis);
