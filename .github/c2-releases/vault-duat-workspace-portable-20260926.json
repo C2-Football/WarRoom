@@ -1,0 +1,211 @@
+{
+  "base": "9f8e07f4e7ccfade5f47f55923119c54771060a9",
+  "candidate": {
+    ".github/workflows/deploy-functions.yml": "b3eeaa9c0466666af17d8785100d1f2e60285008d3635e84731d22d6ad95d4b9",
+    "data/duat/README.md": "d2fc40685cde543e5ffb3cc9e77fc63e95edcc5373a424a8d96f6a5643d86147",
+    "data/duat/identity-library.json": "ef25b83095613b4694e3ea4bef320c73f03999a932c9e71b24a64344f6a209fa",
+    "data/duat/land.svg": "252f56c283b1f0663e22f0c26e0c8a6c37737c11ba65edbaa8589f4ed0ef5fb8",
+    "data/duat/lore-catalog.json": "fc603128043633b88f55f2089e256788608199cc73623da429c9805237db44a6",
+    "data/duat/manifest.json": "9e46d54462e90a627b49bf4aa284034112c0c62cac82b4e7bf5966549eea66aa",
+    "data/duat/nflverse-game-logs.csv": "c3e2cf1ab4990fa7c73a00907113b1e496c34c5fa1b062fa4a8c64cc06583584",
+    "data/duat/player-cards.json": "c1654b444e385db8a9faac4c213cb5cf4ccf93b5e78a94bb72c38c209c43753c",
+    "data/duat/province-geography.md": "c333a5f487db0b1bca1c756b68d4525f79144d9c28090572ed58e9fc5a5138cf",
+    "data/duat/research-week18.json": "26507c5d444fa4ff4aede5a2bb7817dc8a0a203ad7b0e306368a226613ccc7b4",
+    "data/time-league/REGULAR-SEASON-DATA.md": "27cfd5e9340c453c3927488263396eb09ae5c975dee63997120dae9158c85bef",
+    "data/time-league/era-factors.json": "f970630eea9fe943f59a181309bff335e8361ca4290807ffac8b7e1ca3adb7c7",
+    "data/time-league/legacy-player-cards.json": "e085e014140cd98ad6ed89cef991b27f289bbeb205349cedb7a7ba956852c537",
+    "data/time-league/nflverse-game-logs.csv": "ef44cb85bde16f72a53f4d7c979b981048e912996bcc4c5c08511a95f8142be5",
+    "data/time-league/player-cards.json": "1308f90fb38c6dd237d64cf78b3d23a3d1f7e2351d2b87efb7bf16b0979da789",
+    "data/time-league/regular-season-era-factors.json": "52bfde5f4e96aaad2da9e78200a7a1afdbaae88e7ab5ac264e453021840f5d7a",
+    "data/time-league/regular-season-game-logs.csv": "ae01a348bb1d1cc696b83edd964368b4b9fec68b6c0b77a0882ba6bcda762cca",
+    "data/time-league/regular-season-manifest.json": "b72f398b60fc181cc8311f78819578724ac29b30a2eee77deddec051d9cb3a96",
+    "docs/c2-game-release.md": "0847dac16658b3421173b2c9352dfc56fca3f1aa4e460d2dc88b2380f20e9352",
+    "js/duat/army-generation.js": "4866c049960e76f395704646c63f6dbf46b17eae506129fafaef068681a3b1cb",
+    "js/duat/campaign.js": "f7fbd148846058b73f0bf81608a72363217de09a179d5970bda4a1fca51ddf80",
+    "js/duat/conquest.js": "faf9892805dd01cdab23db8e019f0db1fab1bc9ad9de4a9d96ccc71c0034075a",
+    "js/duat/council-state.js": "ddd79a73f8c068fc89d5a7fd279920711a6f3cf8fc0f51d20850ce91eda1a5d5",
+    "js/duat/dynasty.js": "17cf394a021502c2cc2364a426b74b28cff04eae50cef341a0c32c9514a3d1ac",
+    "js/duat/favor-availability.js": "47ec0af2dfa471b252a87d8e75b2ecfa57224c629ea9e616c7c78721aad8f64b",
+    "js/duat/favors.js": "35aa2fd44908a09de7508e036828829a0194ed8117527936c84ca5cc617cc5bd",
+    "js/duat/heptad.js": "c0b252fc0f21d41b2461113349ec12214376e1cd73e3f6bb64f026bc128345db",
+    "js/duat/identity-library.js": "fa1ac18d8a8a5219a90894c5da49c02895531ef368d3921ad94645a2e7c0d62a",
+    "js/duat/lore.js": "915eea56878842d8e0b4a8a294807dca6e4581c1cfb87b9a1c8b1bd4a8c84828",
+    "js/duat/map.js": "2513fc2333726f0c65287af5010bd45656ef9c25df8cd27597016485884c7ed8",
+    "js/duat/mystery.js": "3625e61bbe6600a25cd4d4e978276c97575d25f17dc8b2d63909f6207b1bfe63",
+    "js/duat/personalities.js": "765a483861c10400625857dbc90904b586d42d2950017b99f7f8ed7d75011f82",
+    "js/duat/provinces.js": "4b9ca071a413fa309012d7fbfa05b554521805c72748fb6f61a84eb985417fc4",
+    "js/duat/remote.js": "211e244674f1a13ee81e8418fb49ddf117611e5ebbfd88bb1af607993b2ed4fc",
+    "js/duat/rituals.js": "94a0140316934ae0ec1630d201ce57e629974a3a748fe8a10489ee7bcc9f7804",
+    "js/duat/rules.js": "3482c8a7b4a454b10a6470d20befae1cf13d27c600be6ba059dda03010be39b8",
+    "js/duat/season-home.js": "5eeb462b38563ae971d6f51d9040a3f3215a0f6f43cf3de515e87bd4e0f62a5d",
+    "js/duat/session.js": "df15532e95bb340f2f327fdaad318706ec63f3f882f87790d0c3286f659a2fad",
+    "js/duat/storage.js": "327efa58bbabde89da4a9c33089d07bc4681853949186959ac1e742c50012b82",
+    "js/duat/strategy.js": "53305357930320dab89cc17a0e1dbd29b703d4738016bf6d751e4a2231555125",
+    "js/duat/vendor/lz-string-1.5.0.js": "550034b821027008776cb9bcd1700bb5d31e8b3de224cb130fc966a75dab0e5e",
+    "js/duat/weekly-flow.js": "41131d69ba49d661c8d0320f3bb72f692b73c293028706bdfcde38a384f79629",
+    "js/duat/weekly-progress.js": "fef822e14abd69ba0528f2e00984c89fea823a73aa4e09f11af902cf1ef0256f",
+    "js/duat/world.js": "125964f54775c2cfc775f0c293e0f30aec6692d51bd402811e275ff50d460b56",
+    "js/shared/time-league-achievements.js": "87ef23438a51e151c1f666ebce9ddae013743a25f4006dc930726c8d64452ac5",
+    "js/shared/time-league-actions.js": "d2bb566147bacae384ad3016016788d240a6c343cf1cbfbb56892ea9c8b4cd93",
+    "js/shared/time-league-ai.js": "eedc2d9b7108dc02593c50b2b64f1e41b859c2af2d8fedcb0852c6674055b3ff",
+    "js/shared/time-league-career-store.js": "068a9c656c189b99b257870c3b3026ebce9ff1a569813233aeea5d0d9618bfa9",
+    "js/shared/time-league-career.js": "417481f4be1942a07b11011bba700e4c8836eb46363380ba7a7a19186221df71",
+    "js/shared/time-league-draft-clock.js": "0345678aa7badc672d9cccbf3499631d8d1e856ecfaa6c92f2e26571b2b82ebd",
+    "js/shared/time-league-draft-room.js": "a5de7246dae611ea3e8f3206170cc324fbbdccbde5cbf1582303ce0c726024cd",
+    "js/shared/time-league-engine.js": "61cc62ce241504b5647ddb59597d9865d7b0873cd957680fa2f77175d532c6e1",
+    "js/shared/time-league-era-rules.js": "098e5e5a8600433f10315623f22fecde504423081575a70fc39dba8bab1dbb38",
+    "js/shared/time-league-gamecast.js": "6fd47c4b4db09e181897a66c31b8d17ab7d581f60561f553e3aed165554f0e54",
+    "js/shared/time-league-helmet-artwork.js": "0e667a8f82428323863a7ebdb021afebf13a02dd10a13d88c97ca81f8ed383cc",
+    "js/shared/time-league-helmet-sources.js": "3235a3c025624845d031350f53152439a28408478c2ff22f5921847ff79fcbc2",
+    "js/shared/time-league-helmet.js": "86d451e2286c54027d3b53429dfc381894c0f08164704118655e41a4f94f87cb",
+    "js/shared/time-league-hidden-years.js": "72189164c33f681022ca4f0a85fa9c773baf32c7c232fe41bc61e94101b517c4",
+    "js/shared/time-league-player-cards.js": "b2c5555744420246113e0950954cf7e7ad78b4280a282c3c5020f2cd9d2255ce",
+    "js/shared/time-league-player-stats.js": "7ae5c1581b1c6c1c43c2379b60d80d1ec7fa4b50074a75f8abb127cedaf1fc37",
+    "js/shared/time-league-profile.js": "8ce0e1e7a43200d06795c3ad48a99cb4c359dc8e08f9ab759e49042c784eca63",
+    "js/shared/time-league-public-state.js": "b05d21b713b6c9be7ce79b12595f2f622daa10116f9d3cf98128008889cad003",
+    "js/shared/time-league-remote-client.js": "8eee946eab75d4f63051f2c939ac379f7c07ab5019323ff709b1969b20f479d8",
+    "js/shared/time-league-rivals.js": "b8da06d635da558d2381297abcae7e573af3802531d8e036edb81eef45591416",
+    "js/shared/time-league-roster.js": "1121ed58a381ddfe6f3c01f2f203feab679954800eec827e4a722fc377f2fc4b",
+    "js/shared/time-league-rules.js": "eddd919186568613171d2c33cdc9cda41a7cfccd51d217c0b506740416c5b2ec",
+    "js/shared/time-league-season.js": "3c5c6001c4aea1c9f8ff6c1f6fa1f24b22267d4668b4c3026279cdf6da7255a3",
+    "js/shared/time-league-storage.js": "be231487dfb6e6494b32190870022508aba41b724a8ca9d2c6a1f075663b6ef1",
+    "js/shared/time-league-strategy.js": "337fb720235ab2a3a4f9eebbe96ab655766d103d3966e04030a74d195c22ee67",
+    "js/shared/time-league-types.js": "f64b7f36ca87710539b95911a7eaeb0580aacf31f07f1ef63b393ff7eafcdefe",
+    "js/shared/time-league-ui.js": "5e77af2f8cda8a1a994dbd39eff54a3ee5f514da078db3cd3af46cb1afd33852",
+    "package-lock.json": "723e5b8ffb57d8b7ec856d1f378c0ab80d71ac9e879594f49f9056c0ddc51746",
+    "package.json": "03c3c7b4fdcc0b36ce227295da2291e2e5c2744a5592da9e905009966bd03137",
+    "scripts/build-duat-server.cjs": "0ece727bb93457a151a9ed2b6ffec1bb060a74d37dccaae259c559c62720bbdc",
+    "scripts/build-time-league-server.cjs": "e1e761b68b924a9c2ef0322bc7e43c02e2bea98c8c794df1c186a609887564f3",
+    "scripts/c2-edge-release.py": "dbbdc1a3aae8966dfa2bd02a033399fba994f26cd383f5124e251f7454e3e7eb",
+    "scripts/extract-edge-source.mjs": "0af89184e8947b14fa5f663b2f01d25466ecc0f3217b95d7cbc46322c065a15f",
+    "supabase/config.toml": "c6fe03b639dbf3c289a564c37fc018cb92b03bca312340fdd14a647d6b157de4",
+    "supabase/functions/_shared/game-guest.ts": "443f5a4a2dbde2d8d6a24024daea75bb62e8bb302a9e6c790f233e1f99d54b16",
+    "supabase/functions/_shared/security.ts": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+    "supabase/functions/duat/index.ts": "3d0f6f3cb5b5b43ac8b5cecb2cf8e8e55babb81a3c9bae51bb1df2f6e8985a1c",
+    "supabase/functions/time-league/community-model.mjs": "f3c537c261dfc2ed0bdbf655b52be95b6c929525046e3535bb9b7e194cc03682",
+    "supabase/functions/time-league/community.ts": "edbfd1204cb9f46dd0818ec426f5afe921dfce7de32e2b0a2b54a068dc6ccd26",
+    "supabase/functions/time-league/index.ts": "328dd07f60152810fab3b7919e83106695721e1495be3ab408e5b0155d60d265",
+    "supabase/functions/time-league/messages.ts": "d78fef8d8b95b657c7baeef2982ae6927f10166e6bbe2f000346caaa9feb884e",
+    "supabase/functions/time-league/sealed-draws.ts": "2ec3887f03abc27dbd2752f788f9ad7aa2fc83cbd48e20040977c8274f353c8a",
+    "supabase/migrations/20260317000000_app_users_and_subscriptions.sql": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789",
+    "supabase/migrations/20260502020000_security_baseline.sql": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb",
+    "supabase/migrations/20260907193000_time_league_multiplayer.sql": "cdf7da0f2f8ce529f3a03826c65b35b2d3b5c8c3ab70a8c9724fcaec1f344d9b",
+    "supabase/migrations/20260908010000_time_league_community.sql": "8ac391682d0b3fcec93d0f3de7a674b252750b795c0d0945e20ac0a158248abf",
+    "supabase/migrations/20260908020000_time_league_draft_readiness.sql": "0e6f38057b9c1660e7be20f7e8a38b3304247c4c2e34d09a555be47c7170fac4",
+    "supabase/migrations/20260908030000_time_league_messages.sql": "8ab8d9715a69373df7249d142191e0a2f908fe1c689614d77706356949e8e618",
+    "supabase/migrations/20260908040000_time_league_message_week.sql": "4ed4561fa62079d998ea3ed4a43e30f42598bab44a5da014010cbdd6e02cdd61",
+    "supabase/migrations/20260908050000_time_league_sealed_state.sql": "db24cecf43b6e0ba904e6aceeae5f0ef4c803910fc264cbb91b50e186745455a",
+    "supabase/migrations/20260908160000_duat_campaigns.sql": "0b220904bb591a5f67740ee466e69d5f5867c1dbca8adc9561cba8468f4af4f7",
+    "supabase/migrations/20260908180000_duat_draft_campaigns.sql": "b1041df7534cb03c93152243c1c84d4d1f2d47c8c615ad323cb65042554e1378",
+    "supabase/migrations/20260908210000_duat_campaign_settings.sql": "b2cc9154e7693df3cf1ee96d381444c8d499b1abbe2e8839fd2a9e3343faa941",
+    "supabase/migrations/20260908230000_duat_dynasties.sql": "d52e39d0ac6e7822c572336ebd4966a6b5fb25203766ca68a8125678f2583315",
+    "supabase/migrations/20260909000000_security_audit_fixes.sql": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0",
+    "supabase/migrations/20260916010000_duat_hidden_years.sql": "6824d8ea46b0a3303dee32a35065b4c1a4e8aef2e8e0ec81330ca9d7bc00077b",
+    "supabase/migrations/20260918020000_account_session_rls.sql": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a",
+    "supabase/migrations/20260926010000_game_guest_sessions.sql": "6b56acf561b9f6a0d4877b3be02b40d9c312bba19665f0204f17001042cfaa29",
+    "tests/c2-edge-release.py": "db3aa607068fcdbeb7b2b2581835946a3d2799e7ddfd8afc8f9daafe46c6a010",
+    "tests/game-runtime-artifacts.cjs": "9b3cbae9edab01b366e068784b20c91be6cb447a202e2c71b60e07c11987416d"
+  },
+  "databaseSchemaSha256": "8a90ac2cf5f0c1ac73ac15cf46f39ab0d203a3e9a59752af92f0186267e10596",
+  "functions": [
+    "duat",
+    "time-league"
+  ],
+  "generated": {
+    "supabase/functions/duat/runtime.js": "c30c1c0a223dd2ea46328439d4f6d9846aaff19657060abdb09ce4bff31cb45d",
+    "supabase/functions/time-league/runtime.js": "3579ccbcbe4f1604b9d45dbf5b49d4b595a1ee6c3989e0baf985bd2b2a79c318"
+  },
+  "hosted": {
+    "duat": {
+      "sources": {
+        "supabase/functions/_shared/security.ts": "8ca777a71a7456387c793cecfc97e4abeaf7b8cda792e24f4ae5fdf40719bf5c",
+        "supabase/functions/duat/index.ts": "929bdda351d8a3df9f61788aa94f30fb879ea4d3e92c1c63bf8b1eb300179af8",
+        "supabase/functions/duat/runtime.js": "c145bd99137372be33d5d8b6df0ffef16a4fb93878ffa0e3da1e3760c8a7d399"
+      },
+      "verify_jwt": false,
+      "version": 29
+    },
+    "time-league": {
+      "sources": {
+        "supabase/functions/_shared/security.ts": "8ca777a71a7456387c793cecfc97e4abeaf7b8cda792e24f4ae5fdf40719bf5c",
+        "supabase/functions/time-league/community-model.mjs": "f3c537c261dfc2ed0bdbf655b52be95b6c929525046e3535bb9b7e194cc03682",
+        "supabase/functions/time-league/community.ts": "edbfd1204cb9f46dd0818ec426f5afe921dfce7de32e2b0a2b54a068dc6ccd26",
+        "supabase/functions/time-league/index.ts": "801542b0b66a7e13b4a24deb463defae93bc8d6c813e3e8758e50f030000ca98",
+        "supabase/functions/time-league/messages.ts": "d78fef8d8b95b657c7baeef2982ae6927f10166e6bbe2f000346caaa9feb884e",
+        "supabase/functions/time-league/runtime.js": "eb6a4b8defdb38bd97b930b4cfa14729c47fc283b55738416cc68cbc04417aa3",
+        "supabase/functions/time-league/sealed-draws.ts": "2ec3887f03abc27dbd2752f788f9ad7aa2fc83cbd48e20040977c8274f353c8a"
+      },
+      "verify_jwt": false,
+      "version": 40
+    }
+  },
+  "project": "sxshiqyxhhifvtfqawbq",
+  "repository": "C2-Football/WarRoom",
+  "requiredMigrations": {
+    "20260317000000": {
+      "path": "supabase/migrations/20260317000000_app_users_and_subscriptions.sql",
+      "sha256": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789"
+    },
+    "20260502020000": {
+      "path": "supabase/migrations/20260502020000_security_baseline.sql",
+      "sha256": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb"
+    },
+    "20260907193000": {
+      "path": "supabase/migrations/20260907193000_time_league_multiplayer.sql",
+      "sha256": "cdf7da0f2f8ce529f3a03826c65b35b2d3b5c8c3ab70a8c9724fcaec1f344d9b"
+    },
+    "20260908010000": {
+      "path": "supabase/migrations/20260908010000_time_league_community.sql",
+      "sha256": "8ac391682d0b3fcec93d0f3de7a674b252750b795c0d0945e20ac0a158248abf"
+    },
+    "20260908020000": {
+      "path": "supabase/migrations/20260908020000_time_league_draft_readiness.sql",
+      "sha256": "0e6f38057b9c1660e7be20f7e8a38b3304247c4c2e34d09a555be47c7170fac4"
+    },
+    "20260908030000": {
+      "path": "supabase/migrations/20260908030000_time_league_messages.sql",
+      "sha256": "8ab8d9715a69373df7249d142191e0a2f908fe1c689614d77706356949e8e618"
+    },
+    "20260908040000": {
+      "path": "supabase/migrations/20260908040000_time_league_message_week.sql",
+      "sha256": "4ed4561fa62079d998ea3ed4a43e30f42598bab44a5da014010cbdd6e02cdd61"
+    },
+    "20260908050000": {
+      "path": "supabase/migrations/20260908050000_time_league_sealed_state.sql",
+      "sha256": "db24cecf43b6e0ba904e6aceeae5f0ef4c803910fc264cbb91b50e186745455a"
+    },
+    "20260908160000": {
+      "path": "supabase/migrations/20260908160000_duat_campaigns.sql",
+      "sha256": "0b220904bb591a5f67740ee466e69d5f5867c1dbca8adc9561cba8468f4af4f7"
+    },
+    "20260908180000": {
+      "path": "supabase/migrations/20260908180000_duat_draft_campaigns.sql",
+      "sha256": "b1041df7534cb03c93152243c1c84d4d1f2d47c8c615ad323cb65042554e1378"
+    },
+    "20260908210000": {
+      "path": "supabase/migrations/20260908210000_duat_campaign_settings.sql",
+      "sha256": "b2cc9154e7693df3cf1ee96d381444c8d499b1abbe2e8839fd2a9e3343faa941"
+    },
+    "20260908230000": {
+      "path": "supabase/migrations/20260908230000_duat_dynasties.sql",
+      "sha256": "d52e39d0ac6e7822c572336ebd4966a6b5fb25203766ca68a8125678f2583315"
+    },
+    "20260909000000": {
+      "path": "supabase/migrations/20260909000000_security_audit_fixes.sql",
+      "sha256": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0"
+    },
+    "20260916010000": {
+      "path": "supabase/migrations/20260916010000_duat_hidden_years.sql",
+      "sha256": "6824d8ea46b0a3303dee32a35065b4c1a4e8aef2e8e0ec81330ca9d7bc00077b"
+    },
+    "20260918020000": {
+      "path": "supabase/migrations/20260918020000_account_session_rls.sql",
+      "sha256": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a"
+    },
+    "20260926010000": {
+      "path": "supabase/migrations/20260926010000_game_guest_sessions.sql",
+      "sha256": "6b56acf561b9f6a0d4877b3be02b40d9c312bba19665f0204f17001042cfaa29"
+    }
+  },
+  "schema": 1
+}
