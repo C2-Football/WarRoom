@@ -100,7 +100,7 @@
     // Front-page slots belong to distinct current stories, never archive facts.
     function frontPage(stories, limit = 5) {
         const subjects = new Set(), categories = new Set(), matchups = new Set(), texts = new Set();
-        return stories.filter(s => !s.documentary).slice().sort((a, b) => (b.weight || 40) - (a.weight || 40)).filter(s => {
+        return stories.filter(s => !s.documentary && !s.feature).slice().sort((a, b) => (b.weight || 40) - (a.weight || 40)).filter(s => {
             const teamIds = (s.rosterIds || []).map(id);
             const pair = (s.preview || s.kind === 'recap') && s.rosterIds?.length === 2 ? s.rosterIds.map(id).sort().join(':') : null;
             const category = s.category || s.kind;
@@ -121,6 +121,15 @@
     function build({ weeks = [], start = 1, end = 0, nameFor = rid => `Team ${rid}`, playerName = pid => `Player ${pid}`, headToHead = true, league = {}, priorSeasons = [], archiveComplete = false, board = null, rivalries = [] }) {
         const stories = [], records = [], games = [], stats = new Map(), runs = new Map(), scoreTotals = new Map();
         const season = String(league.season || '');
+        const identities = new Map();
+        const identity = (source, rid, teamName) => {
+            const key = `${source.league_id || source.id}|${source.season}|${rid}`;
+            if (!identities.has(key)) identities.set(key, { ...(root.WrWireIdentity?.resolve(source, rid, { priorSeasons, teamName }) || { ownerId: owner(source, rid), ownerName: null, ownerKnown: false, teamName }), rosterId: rid, season: String(source.season || '') });
+            return identities.get(key);
+        };
+        const participant = rid => identity(league, rid, nameFor(rid));
+        const ownerName = rid => participant(rid).ownerName || nameFor(rid);
+        const recordIdentity = (source, rid, teamName) => { const who = identity(source, rid, teamName); return { name: who.ownerName || teamName, ownerName: who.ownerName, ownerId: who.ownerId, ownerKnown: who.ownerKnown, teamName }; };
         const seasonSignature = signature(league);
         const previous = new Map(weeks.map(w => [Number(w.week), w.rows]));
         let high = null, marginRecord = null, completedThrough = start - 1;
@@ -144,13 +153,13 @@
                 if (w.week < range.start || w.week > range.end) continue;
                 const pairs = inspect(w.rows, s.league);
                 if (!pairs) continue;
-                w.rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season: s.league.season, week: w.week, name: oldName(s.league, r.roster_id), points: points(r) }, historicalHigh); });
-                if (comparable) w.rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season: s.league.season, week: w.week, name: oldName(s.league, r.roster_id), points: points(r) }, archiveHigh); });
+                w.rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season: s.league.season, week: w.week, ...recordIdentity(s.league, r.roster_id, oldName(s.league, r.roster_id)), points: points(r) }, historicalHigh); });
+                if (comparable) w.rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season: s.league.season, week: w.week, ...recordIdentity(s.league, r.roster_id, oldName(s.league, r.roster_id)), points: points(r) }, archiveHigh); });
                 if (!isH2H(s.league)) continue;
                 pairs.forEach(([a, b]) => {
                     const oa = owner(s.league, a.roster_id), ob = owner(s.league, b.roster_id), gap = round(Math.abs(points(a) - points(b)));
                     const winner = points(a) > points(b) ? a : points(b) > points(a) ? b : null;
-                    if (comparable && gap > 0) archiveMargin = collectRecord(gap, archiveMargins, { season: s.league.season, week: w.week, name: oldName(s.league, winner.roster_id), points: gap }, archiveMargin);
+                    if (comparable && gap > 0) archiveMargin = collectRecord(gap, archiveMargins, { season: s.league.season, week: w.week, ...recordIdentity(s.league, winner.roster_id, oldName(s.league, winner.roster_id)), points: gap }, archiveMargin);
                     if (oa && ob && oa !== ob) games.push({ a: oa, b: ob, pa: points(a), pb: points(b), week: w.week, season: String(s.league.season) });
                     const winOwner = winner && owner(s.league, winner.roster_id);
                     if (winOwner) careerWins.set(winOwner, (careerWins.get(winOwner) || 0) + 1);
@@ -180,10 +189,10 @@
             if (priorSeasons.length > 0 && archiveHigh !== null && best > archiveHigh) add('record', 'History made', `An archive scoring high for ${winners}`, `A ${fmt(best)}-point week beats the previous archived high of ${fmt(archiveHigh)}. ${archiveComplete && !rulesChanged ? 'Every linked season has been checked.' : 'Compared with loaded seasons using the same scoring and starting positions.'}`, top.map(r => r.roster_id), { weight: 100, metric: fmt(best), metricLabel: 'new archive high' });
             if (high === null || best >= high) {
                 if (high === null || best > high) records.length = 0;
-                top.forEach(r => records.push({ week, rosterId: r.roster_id, points: best })); high = best;
+                top.forEach(r => records.push({ week, rosterId: r.roster_id, ...recordIdentity(league, r.roster_id, nameFor(r.roster_id)), points: best })); high = best;
             }
-            rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season, week, name: nameFor(r.roster_id), points: points(r) }, historicalHigh); });
-            rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season, week, name: nameFor(r.roster_id), points: points(r) }, archiveHigh); });
+            rows.forEach(r => { historicalHigh = collectRecord(points(r), historicalRecords, { season, week, ...recordIdentity(league, r.roster_id, nameFor(r.roster_id)), points: points(r) }, historicalHigh); });
+            rows.forEach(r => { archiveHigh = collectRecord(points(r), archiveRecords, { season, week, ...recordIdentity(league, r.roster_id, nameFor(r.roster_id)), points: points(r) }, archiveHigh); });
             add('story', 'Scoring crown', choose([`Top of the scoring pile: ${winners}`, `The weekly scoring crown goes to ${winners}`, `The week belongs to ${winners}`], week, top[0].roster_id), `${top.length > 1 ? 'A share of the weekly crown' : 'The highest score of the week'}: ${fmt(best)} points in a ${rows.length}-team field.${top.length === 1 && sorted[1] ? ` That’s ${fmt(best - points(sorted[1]))} more than the next-best total.` : ''}`, top.map(r => r.roster_id), { weight: 45, metric: fmt(best), metricLabel: 'weekly high' });
             rows.forEach(r => {
                 const rid = id(r.roster_id), old = scoreTotals.get(rid) || 0, total = round(old + points(r));
@@ -214,7 +223,7 @@
                     `${gap === 0 ? `Nothing between them: ${fmt(points(a))} points apiece.` : `${nameFor(a.roster_id)} beat ${nameFor(b.roster_id)}, ${fmt(points(a))}–${fmt(points(b))}, ${gap <= 3 ? 'with just' : 'finishing'} ${fmt(gap)} points ${gap <= 3 ? 'to spare' : 'clear'}.`}${star && gap > 0 ? ` ${playerName(star.pid)} led the way with ${fmt(star.value)} points from the starting lineup.` : ''}`,
                     [a.roster_id, b.roster_id], { featuredPid: gap > 0 ? star?.pid : null, weight: revenge ? 83 : gap > 0 && gap <= 3 ? 78 : 35, matchup: [{ name: nameFor(a.roster_id), score: points(a), rid: a.roster_id }, { name: nameFor(b.roster_id), score: points(b), rid: b.roster_id }], related: [] });
                 recaps.push({ recap, a, b, gap });
-                if (last) recap.related.push({ label: 'Last meeting', text: `${last.season} · Week ${last.week}: ${nameFor(a.roster_id)} ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} ${nameFor(b.roster_id)}.` });
+                if (last) recap.related.push({ label: 'Last meeting', text: `${last.season} · Week ${last.week}: ${ownerName(a.roster_id)} ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} ${ownerName(b.roster_id)}.` });
                 if (revenge) recap.related.push({ label: 'A reversal', text: `${nameFor(b.roster_id)} won the previous recorded meeting. This result reverses that outcome.` });
                 if (gap > 0 && runB >= 3) add('story', 'Streak snapped', `${nameFor(a.roster_id)} bring the streak to a halt`, `${nameFor(b.roster_id)} had won ${runB} straight head-to-head games. A ${fmt(gap)}-point defeat ends that run.`, [a.roster_id, b.roster_id], { weight: 88 });
                 if (gap > 0 && runA <= -3) add('story', 'Back in business', `${nameFor(a.roster_id)} stop the slide`, `After ${Math.abs(runA)} straight head-to-head losses, a ${fmt(points(a))}-point week brings a win over ${nameFor(b.roster_id)}.`, [a.roster_id], { weight: 72 });
@@ -228,7 +237,7 @@
                 if (oa && ob && oa !== ob) games.push({ a: oa, b: ob, pa: points(a), pb: points(b), week, season });
                 if (gap > 0 && oa) {
                     const wins = (careerWins.get(oa) || 0) + 1; careerWins.set(oa, wins);
-                    if ([10, 25, 50, 75, 100, 150, 200].includes(wins) && archiveComplete) add('story', 'Career milestone', `${nameFor(a.roster_id)} reach win No. ${wins}`, `${wins} regular-season head-to-head wins across this owner's linked league history. ${nameFor(b.roster_id)} were the opponent for the milestone.`, [a.roster_id], { weight: 90, metric: String(wins), metricLabel: 'career wins' });
+                    if ([10, 25, 50, 75, 100, 150, 200].includes(wins) && archiveComplete) add('story', 'Career milestone', `${ownerName(a.roster_id)}: win No. ${wins}`, `${nameFor(a.roster_id)} beat ${nameFor(b.roster_id)}, bringing ${ownerName(a.roster_id)} to ${wins} regular-season head-to-head wins across the linked league history. The team names can change; those wins belong to the same owner.`, [a.roster_id], { weight: 90, metric: String(wins), metricLabel: 'career wins' });
                 }
             });
             for (const rid of runs.keys()) if (!paired.has(rid)) runs.delete(rid);
@@ -261,7 +270,7 @@
             if (biggest && biggest.gap > 0) {
                 if (marginRecord !== null && biggest.gap > marginRecord) add('record', 'Record book', `${nameFor(biggest.a.roster_id)} set the season's biggest winning margin`, `A ${fmt(biggest.gap)}-point victory over ${nameFor(biggest.b.roster_id)} beats the previous mark of ${fmt(marginRecord)}.`, [biggest.a.roster_id], { weight: 80, metric: fmt(biggest.gap), metricLabel: 'point margin' });
                 marginRecord = Math.max(marginRecord || 0, biggest.gap);
-                margins.filter(m => m.gap > 0).forEach(m => { archiveMargin = collectRecord(m.gap, archiveMargins, { season, week, name: nameFor(m.a.roster_id), points: m.gap }, archiveMargin); });
+                margins.filter(m => m.gap > 0).forEach(m => { archiveMargin = collectRecord(m.gap, archiveMargins, { season, week, ...recordIdentity(league, m.a.roster_id, nameFor(m.a.roster_id)), points: m.gap }, archiveMargin); });
             }
             if (simpleRace && seats < latestTable.length && week >= Math.max(start + 1, lastReg - 5)) {
                 const inside = latestTable[seats - 1], outside = latestTable[seats], remaining = Math.max(0, lastReg - week), separation = round((inside.wins + inside.ties / 2) - (outside.wins + outside.ties / 2));
@@ -326,17 +335,17 @@
             const winsA = meetings.filter(g => g.a === oa ? g.pa > g.pb : g.pb > g.pa).length;
             const winsB = meetings.filter(g => g.a === ob ? g.pa > g.pb : g.pb > g.pa).length;
             const ties = meetings.length - winsA - winsB, last = meetings[meetings.length - 1];
-            const rival = { a: nameFor(a.roster_id), b: nameFor(b.roster_id), winsA, winsB, ties, meetings: meetings.length, rosterIds: [a.roster_id, b.roster_id], followed: !!selection, name: selection?.name || '', scheduled };
+            const rival = { a: ownerName(a.roster_id), b: ownerName(b.roster_id), teamA: nameFor(a.roster_id), teamB: nameFor(b.roster_id), participants: [participant(a.roster_id), participant(b.roster_id)], winsA, winsB, ties, meetings: meetings.length, rosterIds: [a.roster_id, b.roster_id], followed: !!selection, name: selection?.name || '', scheduled };
             rivals.push(rival);
             if (!scheduled || !(Number(board.week) > completedThrough && Number(board.week) <= lastReg)) return;
             const lastMargin = last ? Math.abs(last.pa - last.pb) : null;
             const previewTitle = !last ? `${rival.a} vs. ${rival.b}: a rivalry to follow`
                 : winsA === winsB ? `${rival.a} and ${rival.b}: break the deadlock`
                 : lastMargin <= 3 ? `${rival.a} and ${rival.b} meet again after a thriller`
-                : meetings.length === 1 ? `${winsA < winsB ? rival.a : rival.b} get another shot at ${winsA < winsB ? rival.b : rival.a}`
-                : Math.abs(winsA - winsB) >= 3 ? `${winsA < winsB ? rival.a : rival.b} have a score to settle`
+                : meetings.length === 1 ? `Another shot for ${winsA < winsB ? rival.a : rival.b} against ${winsA < winsB ? rival.b : rival.a}`
+                : Math.abs(winsA - winsB) >= 3 ? `A score to settle for ${winsA < winsB ? rival.a : rival.b}`
                 : choose([`${rival.a} vs. ${rival.b}: the next chapter`, `${rival.a} and ${rival.b} renew their rivalry`, `Familiar opponents. Fresh stakes. ${rival.a} vs. ${rival.b}`], board.week, a.roster_id);
-            const history = last ? `${rival.a} ${winsA === winsB ? 'are level at' : winsA > winsB ? 'lead the recorded series' : 'trail the recorded series'} ${winsA}–${winsB}${ties ? '–' + ties : ''} across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.` : 'No completed regular-season meetings are available in the loaded history yet.';
+            const history = last ? `The recorded series: ${rival.a} ${winsA}–${winsB}${ties ? '–' + ties : ''} ${rival.b}, across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.` : 'No completed regular-season meetings are available in the loaded history yet.';
             const current = currentMatchup(a, b);
             previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: selection?.name ? `${selection.name}: ${rival.a} vs. ${rival.b}` : current && current.weight >= 77 ? current.text : previewTitle,
                 body: current ? `${current.body.split('\n\n')[0]}\n\n${history}` : `${selection ? `One of the rivalries you follow is on the Week ${board.week} schedule. ` : ''}${history}`,
@@ -363,10 +372,10 @@
             const previousOwners = new Set(preceding.league.rosters.map(r => r.owner_id).filter(Boolean).map(id));
             const arrivals = latestTable.filter(t => owner(league, t.rid) && !previousOwners.has(id(owner(league, t.rid))));
             if (arrivals.length) {
-                const names = arrivals.map(t => nameFor(t.rid));
+                const names = arrivals.map(t => ownerName(t.rid));
                 stories.push({ id: `newcomers:${season}:${end}`, kind: 'story', category: 'New faces', label: `WK ${end} · NEW FACES`, season, week: end,
                     text: arrivals.length === 1 ? `Checking in on ${names[0]}` : 'New faces, first impressions',
-                    body: `${names.join(', ')} ${arrivals.length === 1 ? 'wasn’t' : 'weren’t'} on last season’s manager list. Through Week ${end}: ${arrivals.map(t => `${nameFor(t.rid)} at ${recordText(t)}`).join('; ')}. ${arrivals.length === 1 ? 'A new chapter in the league is underway.' : 'The new arrivals are starting to put their stamp on this season.'}`,
+                    body: `${names.join(', ')} ${arrivals.length === 1 ? 'wasn’t' : 'weren’t'} on last season’s manager list. Through Week ${end}: ${arrivals.map(t => `${ownerName(t.rid)}${ownerName(t.rid) === nameFor(t.rid) ? '' : ` (${nameFor(t.rid)})`} at ${recordText(t)}`).join('; ')}${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}. ${arrivals.length === 1 ? 'A new chapter in the league is underway.' : 'The new arrivals are starting to put their stamp on this season.'}`,
                     rosterIds: arrivals.map(t => t.rid), weight: 74,
                     related: [{ label: 'Manager continuity', text: `Compared verified owner accounts with the ${Number(season) - 1} league roster. A new team name alone does not count as a new manager. This does not claim these are first-ever appearances in the league.` }],
                 });
@@ -374,8 +383,10 @@
         }
         const result = { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
             archive: { historicalHigh, historicalRecords, allSeasons: [...new Set([...priorSeasons.map(s => String(s.league.season)), ...(completedThrough >= start ? [season] : [])])].sort(), high: archiveHigh, margin: archiveMargin, records: archiveRecords, margins: archiveMargins, complete: archiveComplete, rulesChanged, seasons: [...new Set([...comparableSeasons, ...(completedThrough >= start ? [season] : [])])].sort(), priorCount: priorSeasons.length } };
-        const enriched = root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor }) || result;
-        return root.WrWireGraphics?.enrich(enriched, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor }) || enriched;
+        const enriched = root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor, priorSeasons }) || result;
+        const features = root.WrWireFeatures?.enrich(enriched, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor, headToHead }) || enriched;
+        const withPeople = { ...features, stories: features.stories.map(s => ({ ...s, participants: s.participants || (s.rosterIds || []).map(participant) })), previews: features.previews.map(s => ({ ...s, participants: s.participants || (s.rosterIds || []).map(participant) })) };
+        return root.WrWireGraphics?.enrich(withPeople, { league, weeks, start, end, priorSeasons, archiveComplete, nameFor }) || withPeople;
     }
     root.WrWireStories = { build, loadArchive, signature, inspect, bounds, oldName, frontPage, weeklyLookback };
 })(typeof window !== 'undefined' ? window : globalThis);

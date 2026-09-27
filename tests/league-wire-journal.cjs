@@ -147,3 +147,24 @@ assert.match(rivalryWithForm.body.split('\n\n')[0], /Through Week 2, Alpha are 2
 assert.match(rivalryWithForm.body.split('\n\n')[1], /recorded series/);
 assert.equal(rivalryWithForm.weight, 84, 'current context preserves the priority of a rivalry the user follows');
 console.log('PASS matchup reporting: current stakes, visible result significance, median-aware averages, incomplete/stale cutoffs, new pairings and selected rivalries');
+
+vm.runInContext(fs.readFileSync('js/shared/league-wire-identity.js', 'utf8'), context);
+const namedLeague = league(2026, { users: [{ user_id: 'a', display_name: 'Alice', metadata: { team_name: 'Current Alpha' } }, { user_id: 'b', display_name: 'Bob', metadata: { team_name: 'Current Bravo' } }] });
+const namedPast = { ...earlier, league: { ...earlier.league, users: [{ user_id: 'a', display_name: 'Alice', metadata: { team_name: 'Old Alpha' } }, { user_id: 'b', display_name: 'Bob', metadata: { team_name: 'Old Bravo' } }] } };
+const ownersEdition = build([w(1, 100, 90)], { league: namedLeague, end: 1, priorSeasons: [namedPast], nameFor: rid => rid === 1 ? 'Current Alpha' : 'Current Bravo', board: { week: 2, rows: [row(1, 0), row(2, 0)] } });
+const namedRecap = ownersEdition.stories.find(s => s.kind === 'recap');
+assert.match(namedRecap.text, /Current Alpha/);
+assert.equal(namedRecap.participants[0].ownerName, 'Alice');
+assert.equal(namedRecap.participants[0].teamName, 'Current Alpha');
+assert.equal(ownersEdition.rivals[0].a, 'Alice');
+assert.equal(ownersEdition.rivals[0].teamA, 'Current Alpha');
+assert.match(ownersEdition.previews[0].body, /recorded series: Alice 2–0 Bob/);
+assert.equal(ownersEdition.archive.records[0].name, 'Alice');
+assert.equal(ownersEdition.archive.records[0].teamName, 'Old Alpha');
+assert.equal(ownersEdition.archive.records[0].ownerId, 'a');
+const namedMilestone = build([w(1, 130, 100)], { league: namedLeague, end: 1, priorSeasons: [{ ...pastNineWins, league: namedPast.league, weeks: pastNineWins.weeks }], archiveComplete: true });
+// Use the historical season's nine-week boundary for the career counter.
+const career = build([w(1, 130, 100)], { league: namedLeague, end: 1, priorSeasons: [{ ...pastNineWins, league: { ...namedPast.league, settings: { playoff_week_start: 10 } } }], archiveComplete: true });
+assert.match(career.stories.find(s => s.category === 'Career milestone').text, /^Alice: win No\. 10$/);
+assert(!namedMilestone.stories.some(s => s.category === 'Career milestone'), 'a season boundary still limits owner career totals');
+console.log('PASS owner-first journalism: current team headlines, person/team metadata, owner-based series, career milestones and original-season team names');

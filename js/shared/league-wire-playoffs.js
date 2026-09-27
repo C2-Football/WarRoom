@@ -60,7 +60,7 @@
             for (const roster of rosters) {
                 const id = rosterId(roster?.roster_id);
                 if (!id || teams.has(id)) throw Error('The playoff teams could not be verified.');
-                teams.set(id, { id, name: teamName(verified, id), ownerId: roster.owner_id == null ? null : str(roster.owner_id) });
+                teams.set(id, { id, name: teamName(verified, id), ownerName: root.WrWireIdentity?.resolve(verified, id)?.ownerName || null, ownerId: roster.owner_id == null ? null : str(roster.owner_id) });
             }
             const result = { ...initial, league: verified, sources, notes, provisional };
             const remember = value => {
@@ -166,7 +166,7 @@
                     round.games.filter(game => game.teams.some(t => t.id === id)).forEach(game => {
                         const own = game.teams.find(t => t.id === id), opponent = game.teams.find(t => t.id !== id);
                         const outcome = game.winnerId ? game.winnerId === id ? 'Advanced' : 'Eliminated' : 'Matchup ahead';
-                        path.push({ label: round.label, weeks: round.weeks, opponent: opponent?.id ? { id: opponent.id, name: opponent.name, ownerId: opponent.ownerId } : null, points: [own.points, opponent?.points ?? null], status: game.status, bye: false,
+                        path.push({ label: round.label, weeks: round.weeks, opponent: opponent?.id ? { id: opponent.id, name: opponent.name, ownerName: opponent.ownerName || null, ownerId: opponent.ownerId } : null, points: [own.points, opponent?.points ?? null], status: game.status, bye: false,
                             caption: game.status === 'final' ? game.note || `${game.winnerId === id ? 'Won' : 'Lost'} ${own.points.toFixed(2)}–${opponent.points.toFixed(2)}` : game.note || outcome });
                     });
                 });
@@ -215,7 +215,7 @@
                     : status === 'Eliminated' ? `Even winning every remaining decision reaches only ${ceiling}; at least ${slots} other teams are already beyond that record.`
                         : sufficient <= futureDecisions ? `${sufficient} more ${winUnit} guarantee a top-${slots} record regardless of other results. Other routes may clinch with fewer.`
                             : futureDecisions ? `Winning out reaches ${ceiling}; results elsewhere or tiebreaks still decide the cutoff.` : 'No regular-season decisions remain. The cutoff depends on the official tiebreak rules.';
-            return { id, name: teamName(league, id), record: `${wins}–${Number(row.losses)}${ties ? '–' + ties : ''}`, status, minWins: wins, maxWins: wins + futureDecisions, needed };
+            return { id, name: teamName(league, id), ownerName: root.WrWireIdentity?.resolve(league, id)?.ownerName || null, record: `${wins}–${Number(row.losses)}${ties ? '–' + ties : ''}`, status, minWins: wins, maxWins: wins + futureDecisions, needed };
         });
         return { ...baseResult, supported, reason: supported ? '' : divisions > 0 ? 'Division qualification rules can change the playoff field. These are record ranges, not clinch or elimination calls.' : 'Custom or unverified seeding can change the playoff field. These are record ranges, not clinch or elimination calls.', remainingWeeks: left, rows,
             notes: [`Based on complete results through Week ${throughWeek}. Win ranges include ${median ? 'a head-to-head and median decision' : 'one head-to-head decision'} per remaining week.`, 'Clinch calls survive a winless finish; elimination calls survive winning every remaining decision. Ties at the cutoff remain unresolved; official seeding and commissioner changes still apply.'] };

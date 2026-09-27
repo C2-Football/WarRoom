@@ -222,3 +222,16 @@ assert(nodes(graphicApp.render()).some(n => n.type === graphicWindow.WrWireStudi
 graphicWindow.App.AccountStorage = { owner: () => 'account:another' };
 assert(!nodes(graphicApp.render()).some(n => n.type === graphicWindow.WrWireStudio));
 console.log('PASS single-league Studio authentication-owner isolation');
+
+const life = harness({ week: 4 });
+life.setArchive({ key: 'test|2026|1|3', status: 'ready', weeks });
+const baseLifeBuild = life.engine.build;
+life.engine.build = args => { const value = baseLifeBuild(args), feature = { id: 'fun', kind: 'story', text: 'The Cardiac Club', body: 'Close games require comfortable seating.', feature: true, rosterIds: [], label: 'LEAGUE LIFE' }; return { ...value, features: [feature], weeklyFeature: feature }; };
+life.context.window.WrWireDraftReceipts = function DraftReceipts() {};
+let lifeTree = life.render(); nodes(lifeTree).find(n => n.props.className === 'wr-wire-brand').props.onClick(); lifeTree = life.render();
+assert(nodes(lifeTree).some(n => n.props['aria-label'] === 'The lighter side'));
+assert.doesNotMatch(text(nodes(lifeTree).find(n => n.props.className === 'wr-journal-headlines')), /Cardiac Club/, 'feature is separate from current headlines');
+nodes(lifeTree).find(n => n.type === 'button' && text(n) === 'League life').props.onClick(); lifeTree = life.render();
+assert.match(text(lifeTree), /The Cardiac Club/);
+assert(nodes(lifeTree).some(n => n.type === life.context.window.WrWireDraftReceipts && n.props.throughWeek === 3));
+console.log('PASS single-league life: editorial separation, feature browsing and draft scope');

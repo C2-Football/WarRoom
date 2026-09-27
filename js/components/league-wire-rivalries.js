@@ -14,8 +14,8 @@ function WrWireRivalryEditor({ league, priorSeasons = [], onChange }) {
         return () => { window.removeEventListener('wr:wire-rivalries-changed', refresh); window.removeEventListener('storage', refresh); };
     }, []);
     const pairs = React.useMemo(() => api.list(league, priorSeasons), [league, priorSeasons, version]);
-    const teams = (league.rosters || []).filter(r => r.owner_id).map(r => ({ owner: String(r.owner_id), name: window.WrWireStories.oldName(league, r.roster_id) }));
-    const teamName = owner => teams.find(t => t.owner === owner)?.name || 'Former manager';
+    const teams = (league.rosters || []).filter(r => r.owner_id).map(r => ({ owner: String(r.owner_id), name: (() => { const p = window.WrWireIdentity?.resolve(league, r.roster_id, { priorSeasons }); return p?.ownerName && p.ownerName !== p.teamName ? `${p.ownerName} · ${p.teamName}` : window.WrWireStories.oldName(league, r.roster_id); })() }));
+    const teamName = owner => teams.find(t => t.owner === owner)?.name || (() => { const person = window.WrWireIdentity?.forOwner(league, owner, { priorSeasons }); return person?.ownerName ? `${person.ownerName} (former manager)` : 'Former manager'; })();
     const clear = () => { setFirst(''); setSecond(''); setName(''); setEditing(false); };
     const save = event => {
         event.preventDefault(); setError(''); setMessage('');

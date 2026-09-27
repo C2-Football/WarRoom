@@ -9,7 +9,7 @@
         return matches.length === 1 ? matches[0] : null;
     }
     const citation = source => source.workbook ? `${source.workbook} · ${source.sheet}!${source.range}` : source.label;
-    function enrich(edition, { league, board = null, end = 0, nameFor = rid => `Team ${rid}` }) {
+    function enrich(edition, { league, board = null, end = 0, nameFor = rid => `Team ${rid}`, priorSeasons = [] }) {
         const book = select(league);
         if (!book) return edition;
         const year = Number(league.season);
@@ -19,13 +19,31 @@
         const owners = new Map((league.rosters || []).filter(r => r.owner_id).map(r => [str(r.owner_id), r.roster_id]));
         const rosterIds = facts => [...new Set(facts.flatMap(f => f.owners || []).filter(Boolean).map(str).filter(id => owners.has(id)).map(id => owners.get(id)))];
         const finals = eligible.filter(f => f.type === 'final').sort((a, b) => b.season - a.season);
+        const person = rid => {
+            const known = root.WrWireIdentity?.resolve(league, rid, { priorSeasons, teamName: nameFor(rid) });
+            const account = league.rosters?.find(r => str(r.roster_id) === str(rid))?.owner_id;
+            const fact = finals.find(f => f.owners?.some(owner => owner && str(owner) === str(account)));
+            const documented = fact && (str(fact.owners[0]) === str(account) ? fact.winner : fact.loser);
+            return { ownerId: account || null, ownerName: known?.ownerName || documented || null, ownerKnown: !!(known?.ownerName || documented), teamName: nameFor(rid), rosterId: rid, season: str(league.season) };
+        };
+        const historicalPeople = (facts, eventSeason) => {
+            const historical = priorSeasons.find(s => Number(s.league.season) === eventSeason && select(s.league) === book)?.league;
+            return [...new Set(facts.flatMap(f => f.owners || []).filter(Boolean).map(str))].map(account => {
+                const roster = historical?.rosters?.find(r => str(r.owner_id) === account);
+                const known = roster ? root.WrWireIdentity?.resolve(historical, roster.roster_id, { priorSeasons: priorSeasons.filter(s => Number(s.league.season) < eventSeason) }) : root.WrWireIdentity?.forOwner(league, account, { priorSeasons });
+                const fact = facts.find(f => f.type === 'final' && f.owners?.some(owner => owner && str(owner) === account));
+                const documented = fact && (str(fact.owners[0]) === account ? fact.winner : fact.loser);
+                const ownerName = known?.ownerName || documented || null;
+                return { ownerId: account, ownerName, ownerKnown: !!ownerName, teamName: roster ? known?.teamName || root.WrWireStories?.oldName(historical, roster.roster_id) || null : null, rosterId: roster?.roster_id || null, season: str(eventSeason) };
+            });
+        };
         const stories = [];
         const story = (facts, category, text, body, weight = 45) => {
             const eventSeason = Math.max(...facts.map(f => f.season));
             const sources = [...new Map(facts.flatMap(f => f.sources).map(s => [JSON.stringify(s), s])).values()];
             const item = { id: 'chronicle:' + facts.map(f => f.id).join(':'), kind: 'story', category,
                 text, body, season: str(league.season), eventSeason, week: end, documentary: true, classification: facts.length > 1 ? 'derived' : facts[0].classification,
-                label: `${eventSeason} · ${category.toUpperCase()}`, rosterIds: rosterIds(facts), weight, sources,
+                label: `${eventSeason} · ${category.toUpperCase()}`, rosterIds: rosterIds(facts), participants: historicalPeople(facts, eventSeason), weight, sources,
                 related: facts.filter(f => f.reconciliation === 'score-correction').map(f => ({ label: `${f.season} source reconciliation`, text: `The workbook recorded ${f.original}. The score shown here uses Sleeper's checked title-game result. Original-era scoring; these playoff results are separate from regular-season records.` })) };
             facts.filter(f => f.reconciliation === 'award-snapshot-differs').forEach(f => item.related.push({ label: 'Scoring comparison', text: `The award entry is preserved as written. Sleeper's checked ${f.season} ${f.observed.week ? `Week ${f.observed.week} high` : `regular-season total through Week ${f.observed.throughWeek}`} is ${score(f.observed.value)} for ${f.observed.holder}. These are original-era points; the snapshot difference does not establish a new record.` }));
             stories.push(item);
@@ -57,6 +75,7 @@
                 item.id = `title-watch:${year}:${end}:${teamIds.join(':')}`;
                 item.documentary = false; item.contextual = true;
                 item.label = `WK ${end} · TITLE WATCH`; item.rosterIds = teamIds;
+                item.participants = teamIds.map(person);
                 item.related.push({ label: 'History & current form', text: `Historical titles are documented results from the listed seasons. The ${year} record is through Week ${end}${Number(league.settings?.league_average_match) === 1 ? ', including median games' : ''}. The Wire’s standings use record, then points scored; they are not official playoff seeds or a championship forecast.` });
                 return item;
             };
@@ -64,25 +83,25 @@
                 const team = edition.table.find(t => str(t.rid) === str(rid));
                 const titles = finals.filter(f => f.owners?.[0] && str(f.owners[0]) === account);
                 if (!team || !titles.length) return;
-                const latest = titles[0], name = String(nameFor(rid)).trim();
+                const latest = titles[0], who = person(rid), name = who.ownerName || latest.winner, teamName = String(nameFor(rid)).trim();
                 const years = [...new Set(titles.map(f => Number(f.season)))].sort((a, b) => b - a);
                 let streak = 0;
                 while (years.includes(year - 1 - streak)) streak++;
                 const headline = streak >= 2 ? `Can ${name} make it ${streak + 1} titles in a row?`
                     : streak === 1 ? `Can ${name} make it back-to-back?`
                     : team.wins < team.losses ? `Can ${name} get back to championship form?` : `Another title run for ${name}?`;
-                const now = `${name} are ${record(team)} through Week ${end}${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}, with ${score(team.pf)} points scored. That puts them at No. ${team.rank} in The Wire’s standings.`;
+                const now = `${name === teamName ? `${name} is` : `${name} has ${teamName}`} at ${record(team)} through Week ${end}${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}, with ${score(team.pf)} points scored. That puts the team at No. ${team.rank} in The Wire’s standings.`;
                 const history = streak ? `${latest.winner} won the ${latest.season} title${streak > 1 ? ` after winning ${years.slice(1, streak).join(' and ')}` : ''}.`
                     : `${latest.winner}’s last documented title came in ${latest.season}${years.length > 1 ? `, following ${years.slice(1).join(' and ')}` : ''}.`;
                 const outlook = streak ? `The ${year} campaign is a bid for ${streak === 1 ? 'back-to-back championships' : `${streak + 1} consecutive titles`}.`
                     : team.wins < team.losses ? 'A return to that level starts with turning this season’s record around.' : 'Another title would add to that history; the current results are the next chapter.';
                 currentStory(titles, [rid], headline, `${now}\n\n${history} ${outlook}`, streak >= 2 ? 81 : 76);
-                if (years.length === 2) contenders.push({ rid, name, team, titles });
+                if (years.length === 2) contenders.push({ rid, name, teamName, team, titles });
             });
             if (contenders.length >= 2) {
                 const group = contenders.slice().sort((a, b) => a.team.rank - b.team.rank).slice(0, 3);
                 currentStory(group.flatMap(c => c.titles), group.map(c => c.rid), 'The chase for title No. 3',
-                    `${group.map(c => c.name).join(', ')} each have two titles in the documented championship archive. Through Week ${end}: ${group.map(c => `${c.name} at ${record(c.team)}`).join('; ')}. Who adds the next chapter?`, 78);
+                    `${group.map(c => c.name).join(', ')} each have two titles in the documented championship archive.\n\nThrough Week ${end}: ${group.map(c => `${c.name}${c.name === c.teamName ? '' : ` (${c.teamName})`} at ${record(c.team)}`).join('; ')}. Who adds the next chapter?`, 78);
             }
         }
         const rematchFacts = ids => {
@@ -118,7 +137,7 @@
             // A title rematch is meaningful even before regular-season history
             // has loaded; it never increments the existing rivalry win count.
             previews.push({ id: `title-rematch:${league.league_id}:${board.week}:${ids.join(':')}`, kind: 'story', category: 'Rivalry watch', label: 'CHAMPIONSHIP REMATCH',
-                text: `${nameFor(ids[0])} vs. ${nameFor(ids[1])}: a title-game rematch`,
+                text: `${person(ids[0]).ownerName || nameFor(ids[0])} vs. ${person(ids[1]).ownerName || nameFor(ids[1])}: a title-game rematch`,
                 body: `${context(facts.slice(0, 1))} The matchup returns in Week ${Number(board.week)}.`,
                 related: [...(facts.length > 1 ? [{ label: 'Earlier title meetings', text: context(facts.slice(1)) }] : []), titleScope],
                 season: str(year), week: Number(board.week), rosterIds: ids, preview: true, weight: 79, sources: facts.flatMap(f => f.sources) });

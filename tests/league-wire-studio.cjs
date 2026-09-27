@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const babel = require('@babel/standalone');
 const compiled = babel.transform(fs.readFileSync('js/components/league-wire-studio.js', 'utf8'), { presets: ['react'] }).code;
 const nodes = node => node && typeof node === 'object' ? [node, ...(node.children || []).flatMap(nodes)] : [];
-const text = node => node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : (node.children || []).map(text).join(' ').replace(/\s+/g, ' ');
+const text = node => node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : node.type?.name === 'WrWireStudioTeamName' ? text(node.type(node.props)) : (node.children || []).map(text).join(' ').replace(/\s+/g, ' ');
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 function harness(name, props, load = async () => ({ status: 'empty', rounds: [], paths: [] })) {
@@ -133,3 +133,7 @@ const model = { kind: 'comparison', headline: 'A rivalry with context', eyebrow:
     tree = race.render(); assert.match(text(tree), /Division rules need confirmation/); assert.match(text(tree), /Possible final win total/); assert.match(text(tree), /Includes median wins/); assert.doesNotMatch(text(tree), /Week 0|Clinched/);
     console.log('PASS Wire Studio: lazy requests, scoped seasons, cancellation, retry/timeout, keyboard tabs, focus/Escape, comparisons, byes, verified scores and conservative race ranges');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+const ownerLabels = harness('WrWireStudioTeamName', { team: { name: 'A rotating team name', ownerName: 'Malcolm Wohler' }, ownerFirst: true });
+assert.equal(text(ownerLabels.render()), 'Malcolm Wohler A rotating team name');
+assert.equal(text(ownerLabels.render({ ownerFirst: false })), 'A rotating team name Malcolm Wohler');

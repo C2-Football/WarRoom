@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const root = { console }; root.window = root;
 vm.createContext(root);
-for (const file of ['league-live-scores', 'league-live-table', 'league-wire-chronicles-data', 'league-wire-chronicles', 'league-wire-journal']) vm.runInContext(fs.readFileSync(`js/shared/${file}.js`, 'utf8'), root);
+for (const file of ['league-live-scores', 'league-live-table', 'league-wire-chronicles-data', 'league-wire-chronicles', 'league-wire-identity', 'league-wire-journal']) vm.runInContext(fs.readFileSync(`js/shared/${file}.js`, 'utf8'), root);
 const one = { league_id: '1356311207652360192', season: '2026', settings: { playoff_week_start: 15 }, rosters: [{ roster_id: 1, owner_id: '510866780064288768' }, { roster_id: 2, owner_id: '511343705642745856' }] };
 const make = (league = one, extra = {}) => root.WrWireStories.build({ league, weeks: [], end: 0, nameFor: rid => `Current ${rid}`, ...extra });
 const book = make();
@@ -85,10 +85,22 @@ assert.match(contextualRematch.previews[0].text, /^The Finals Feud:/, 'champions
 assert.match(contextualRematch.previews[0].body.split('\n\n')[0], /Through Week 2, Current 1 are 0–2 and Current 2 are 2–0/);
 assert.equal(contextualRematch.previews[0].formThrough, 2);
 assert(contextualRematch.previews[0].related.some(r => r.label === 'Championship history' && /2024 final/.test(r.text)));
-assert.match(titleWatch.body.split('\n\n')[0], /Current 1 are 0–2/);
+assert.match(titleWatch.body.split('\n\n')[0], /Malcolm Wohler has Current 1 at 0–2/);
 assert(!/2024|2023/.test(titleWatch.body.split('\n\n')[0]), 'current title-watch deck leads with this season, with championship history in a separate paragraph');
 const medianTitle = make({ ...one, settings: { ...one.settings, league_average_match: 1 } }, {
     end: 1, weeks: [{ week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 90 }, { roster_id: 2, matchup_id: 1, points: 100 }] }],
 }).stories.find(s => s.contextual && s.rosterIds.includes(1));
 assert.match(medianTitle.body, /0–2 through Week 1, including median results/);
 console.log('PASS championship newsroom context: present-first paragraphs, median scope and one preview per matchup');
+
+assert.match(titleWatch.text, /Malcolm Wohler/);
+assert(!titleWatch.text.includes('Current 1'), 'the manager, rather than a current rebrand, anchors title history');
+assert.equal(titleWatch.participants[0].ownerName, 'Malcolm Wohler');
+assert.equal(titleWatch.participants[0].teamName, 'Current 1');
+const oldFinal = book.stories.find(s => s.id === 'chronicle:the-one-final-2024');
+assert(oldFinal.participants.some(p => p.ownerName === 'Malcolm Wohler' && p.teamName === null), 'unloaded historical team names do not borrow a current label');
+const archivedLeague = { ...one, league_id: '1125885418701967360', season: '2024', users: [{ user_id: one.rosters[0].owner_id, display_name: 'MWohler', metadata: { team_name: 'Original era team' } }] };
+const historicalNames = make(one, { priorSeasons: [{ league: archivedLeague, weeks: [] }] }).stories.find(s => s.id === 'chronicle:the-one-final-2024');
+assert.equal(historicalNames.participants.find(p => p.ownerName === 'Malcolm Wohler').teamName, 'Original era team');
+assert.equal(historicalNames.participants.find(p => p.ownerName === 'Malcolm Wohler').season, '2024');
+console.log('PASS owner-first championship context with separate current and original-era team labels');

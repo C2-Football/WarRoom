@@ -72,3 +72,18 @@ root.App.AccountStorage = { owner: () => 'account:other' };
 assert.doesNotMatch(treeText(render()), /Rivalry report/);
 assert(!allNodes(render()).some(n => n.type === root.WrWireStudio), 'different app owner with same provider cannot inherit studio');
 console.log('PASS Wire authenticated-owner scope with an unchanged Sleeper account');
+
+assert(api.matches({ text: 'A close game', participants: [{ ownerName: 'Malcolm Wohler', teamName: 'Agamemnonmaxxing' }] }, 'malcolm agamemnon'), 'search includes both names');
+const keptFeatures = api.retain({ ...prior, features: [{ text: 'Saved lighter side' }], weeklyFeature: { id: 'weekly' }, draftContext: { throughWeek: 2 } }, { ...failure, week: 3, features: [], draftContext: { throughWeek: 0 } });
+assert.equal(keptFeatures.features[0].text, 'Saved lighter side'); assert.equal(keptFeatures.draftContext.throughWeek, 2);
+root.App.AccountStorage = undefined; props.accountId = 'first';
+const funStory = { id: 'name-game', text: 'The name debate', body: 'Two names. No imaginary voters.', feature: true, label: 'NAME GAME' };
+state[0] = { a: { ...prior, features: [funStory], weeklyFeature: funStory, draftContext: { throughWeek: 2 }, stories: [] } };
+root.WrWireDraftReceipts = function DraftReceipts() {};
+portfolioTree = render();
+assert(allNodes(portfolioTree).some(n => n.props['aria-label'] === 'The lighter side'));
+assert(!allNodes(portfolioTree).some(n => ['img','svg','canvas'].includes(n.type)), 'features keep portfolio text-only');
+allNodes(portfolioTree).find(n => n.type === 'button' && treeText(n) === 'League life').props.onClick();
+portfolioTree = render(); assert.match(treeText(portfolioTree), /The name debate/);
+assert(allNodes(portfolioTree).some(n => n.type === root.WrWireDraftReceipts && n.props.throughWeek === 2), 'draft desk receives the retained scoring scope');
+console.log('PASS League life: separate feature slot, text-only portfolio, owner search and retained scoring scope');

@@ -19,6 +19,25 @@
         const journal = root.WrWireStories, scores = root.App?.LeagueLiveScores;
         if (!journal?.inspect || !scores?.rosterPoints) return edition;
         const year = Number(league.season), lastRegular = journal.bounds(league).end;
+        const identityFor = (context, rid, teamName) => root.WrWireIdentity?.resolve(context, rid, { teamName }) || { ownerId: ownerOf(context, rid), ownerName: null, teamName, ownerKnown: false };
+        const book = root.WrWireChronicles?.select(league), allowedHistory = new Set();
+        let cursor = league;
+        const visited = new Set([str(league.league_id || league.id)]);
+        while (cursor?.previous_league_id && visited.size <= 25) {
+            const id = str(cursor.previous_league_id), matches = priorSeasons.filter(entry => str(entry.league?.league_id || entry.league?.id) === id && Number(entry.league?.season) < Number(cursor.season));
+            if (visited.has(id) || matches.length !== 1 || !(Number(matches[0].league.season) < Number(cursor.season))) break;
+            visited.add(id); allowedHistory.add(id); cursor = matches[0].league;
+        }
+        const scopedHistory = priorSeasons.filter(entry => Number(entry.league?.season) < year
+            && priorSeasons.filter(other => str(other.league?.league_id || other.league?.id) === str(entry.league.league_id || entry.league.id) && Number(other.league?.season) < year).length === 1 && (allowedHistory.has(str(entry.league.league_id || entry.league.id))
+            || (book && root.WrWireChronicles?.select(entry.league) === book && book.leagueIds?.map(str).includes(str(entry.league.league_id || entry.league.id)))));
+        const historicalIdentity = (ownerId, season) => {
+            const contexts = scopedHistory.filter(entry => Number(entry.league.season) === Number(season) && (entry.league.rosters || []).some(roster => str(roster.owner_id) === str(ownerId)));
+            if (contexts.length === 1) return root.WrWireIdentity?.forOwner(contexts[0].league, ownerId) || { ownerId, ownerName: null, teamName: null, ownerKnown: false };
+            // Stable documented owners remain useful before the original team
+            // roster loads; present-day team or account names must not leak back.
+            return root.WrWireIdentity?.forOwner({ ...league, users: [], rosters: [] }, ownerId) || { ownerId, ownerName: null, teamName: null, ownerKnown: false };
+        };
         const points = row => number(scores.rosterPoints(row));
         const currentWeeks = new Map(weeks.map(w => [Number(w.week), w.rows]));
         const currentOwners = (league.rosters || []).map(r => r.owner_id && str(r.owner_id)).filter(Boolean);
@@ -28,7 +47,7 @@
         // Archive loading publishes repeatedly. Validate and index old games
         // once per edition rather than scanning every season for every card.
         const historicalByPair = new Map();
-        priorSeasons.filter(entry => Number(entry.league?.season) < year && isH2H(entry.league)).forEach(entry => {
+        scopedHistory.filter(entry => isH2H(entry.league)).forEach(entry => {
             const range = journal.bounds(entry.league), counts = new Map();
             (entry.league.rosters || []).forEach(r => { if (r.owner_id) { const owner = str(r.owner_id); counts.set(owner, (counts.get(owner) || 0) + 1); } });
             (entry.weeks || []).filter(w => Number(w.week) >= range.start && Number(w.week) <= range.end).forEach(w => {
@@ -74,10 +93,11 @@
             const ordered = owners ? owners.map(owner => pair.find(row => ownerOf(entry.league, row.roster_id) === owner)) : ids.map(id => pair.find(row => str(row.roster_id) === str(id)));
             if (ordered.some(row => !row)) return null;
             const names = ordered.map(row => str(entry.league.season) === str(league.season) ? nameFor(row.roster_id) : journal.oldName(entry.league, row.roster_id));
+            const identities = ordered.map((row, index) => identityFor(entry.league, row.roster_id, names[index]));
             const values = ordered.map(points);
             if (values.some(value => value === null)) return null;
             return { id: `regular:${entry.league.league_id || entry.league.id || entry.league.season}:${entry.week}:${ordered.map(r => r.roster_id).join(':')}`,
-                label: `${entry.league.season} · Week ${entry.week}`, season: Number(entry.league.season), week: entry.week, points: values, names,
+                label: `${entry.league.season} · Week ${entry.week}`, season: Number(entry.league.season), week: entry.week, points: values, names, identities, ownerIds: identities.map(t => t.ownerId), ownerNames: identities.map(t => t.ownerName), teamNames: identities.map(t => t.teamName),
                 winnerIndex: values[0] === values[1] ? null : values[0] > values[1] ? 0 : 1,
                 caption: 'Regular-season head-to-head result. Scores use that season’s rules.', sources: matchSource(entry.league, entry.week) };
         };
@@ -91,8 +111,10 @@
             const meetings = usable.slice().sort((a, b) => Number(a.season) - Number(b.season)).map(f => {
                 const reverse = owners?.[0] && str(f.owners?.[1]) === owners[0];
                 const values = [number(f.scores?.[0]), number(f.scores?.[1])], names = [f.winner, f.loser];
+                const identities = [f.owners?.[0], f.owners?.[1]].map(ownerId => historicalIdentity(ownerId ? str(ownerId) : null, f.season));
+                if (reverse) identities.reverse();
                 return { id: f.id, label: `${f.season} championship`, season: Number(f.season), week: null,
-                    points: reverse ? values.reverse() : values, names: reverse ? names.reverse() : names, winnerIndex: reverse ? 1 : 0,
+                    points: reverse ? values.reverse() : values, names: reverse ? names.reverse() : names, identities, ownerIds: identities.map(t => t.ownerId), ownerNames: identities.map(t => t.ownerName), teamNames: identities.map(t => t.teamName), winnerIndex: reverse ? 1 : 0,
                     caption: `${f.winner} won the ${f.season} championship. Original-season scoring.`, sources: (f.sources || []).slice() };
             });
             return meetings.length ? makeSeries('championships', 'Championship meetings', 'Documented finals only · separate from the regular season', meetings) : null;
@@ -113,7 +135,7 @@
                 if (selectedFacts.length > 1 && (!owners.every(Boolean) || owners[0] === owners[1] || selectedFacts.some(f => f.owners?.length !== 2 || !owners.every(owner => f.owners.map(str).includes(owner))))) return story;
                 cutoff = Math.min(Number(story.eventSeason), Number(latest.season));
                 if (!Number.isFinite(cutoff) || cutoff >= year) return story;
-                teams = [latest.winner, latest.loser].map((name, index) => ({ name, ownerId: owners[index], record: null, h2hRecord: null, average: null }));
+                teams = [latest.winner, latest.loser].map((name, index) => ({ name, ...historicalIdentity(owners[index], latest.season), record: null, h2hRecord: null, average: null }));
                 championship = championshipSeries(owners, cutoff, owners.every(Boolean) && owners[0] !== owners[1] ? null : selectedFacts.filter(f => Number(f.season) <= cutoff));
                 notes.push('Historical feature: names and scores belong to the seasons shown. These finals do not change regular-season records.');
             } else {
@@ -128,7 +150,7 @@
                 const linked = owners.every(knownOwner) && owners[0] !== owners[1];
                 teams = ids.map((id, index) => {
                     const team = form.teams.get(str(id));
-                    return { name: nameFor(id), ownerId: owners[index], record: record(team), h2hRecord: team && team.h2h.wins + team.h2h.losses + team.h2h.ties > 0 ? record(team.h2h) : null, average: team?.weeks ? round(team.pf / team.weeks) : null };
+                    return { name: nameFor(id), ...identityFor(league, id, nameFor(id)), record: record(team), h2hRecord: team && team.h2h.wins + team.h2h.losses + team.h2h.ties > 0 ? record(team.h2h) : null, average: team?.weeks ? round(team.pf / team.weeks) : null };
                 });
                 const meetings = [];
                 const addMeetings = entry => entry.pairs.forEach(pair => {
@@ -156,13 +178,15 @@
             }
             if (championship) series.push(championship);
             if (documentary && !series.length) return story;
+            const ownerFirst = documentary || profile || !!story.followedRivalry || ['Rivalry watch', 'Revenge game'].includes(story.category) || series.some(item => item.meetings.some(meeting => meeting.season < year));
+            if (ownerFirst) teams = teams.map(team => ({ ...team, name: team.ownerName || team.name }));
             const sources = unique([...series.flatMap(item => item.meetings.flatMap(meeting => meeting.sources)), ...(form?.verified || []).flatMap(entry => matchSource(entry.league, entry.week))]);
             const playoffSeasons = unique((championship?.meetings || []).flatMap(meeting => meeting.sources.flatMap(source => {
                 const match = typeof source.url === 'string' && source.url.match(/^https:\/\/api\.sleeper\.app\/v1\/league\/(\d+)\/(?:winners_bracket|matchups\/\d+)$/);
                 return match ? [{ league_id: match[1], season: meeting.season }] : [];
             }))).sort((a, b) => b.season - a.season);
             return { ...story, broadcast: { kind: 'comparison', headline: story.text, eyebrow: documentary ? 'From the championship archive' : profile ? 'Rivalry profile' : story.preview ? 'The matchup file' : 'Inside the result',
-                teams, recordScope: documentary ? 'Historical championship results' : Number(league.settings?.league_average_match) === 1 ? 'Season record includes head-to-head and median results' : 'Season record is head-to-head',
+                teams, ownerFirst, recordScope: documentary ? 'Historical championship results' : Number(league.settings?.league_average_match) === 1 ? 'Season record includes head-to-head and median results' : 'Season record is head-to-head',
                 season: documentary ? cutoff : year, throughWeek: documentary || cutoff < start ? null : cutoff, series, notes, sources, playoffSeasons } };
         };
         return { ...edition, stories: (edition.stories || []).map(story => attach(story)), previews: (edition.previews || []).map(story => attach(story)),

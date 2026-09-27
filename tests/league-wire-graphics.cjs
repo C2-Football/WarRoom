@@ -4,10 +4,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const root = { console }; root.window = root;
 vm.createContext(root);
-for (const file of ['league-live-scores', 'league-wire-chronicles-data', 'league-wire-chronicles', 'league-wire-graphics', 'league-wire-journal']) vm.runInContext(fs.readFileSync(`js/shared/${file}.js`, 'utf8'), root);
+for (const file of ['league-live-scores', 'league-wire-chronicles-data', 'league-wire-chronicles', 'league-wire-identity', 'league-wire-graphics', 'league-wire-journal']) vm.runInContext(fs.readFileSync(`js/shared/${file}.js`, 'utf8'), root);
 const row = (roster_id, points, matchup_id = 1, extra = {}) => ({ roster_id, points, matchup_id, ...extra });
 const names = rid => ['Alpha', 'Bravo', 'Charlie', 'Delta'][rid - 1];
-const league = { league_id: '202600', season: '2026', settings: { playoff_week_start: 5, league_average_match: 1 }, scoring_settings: { rec: 1 }, roster_positions: ['QB'],
+const league = { league_id: '202600', previous_league_id: '202500', season: '2026', settings: { playoff_week_start: 5, league_average_match: 1 }, scoring_settings: { rec: 1 }, roster_positions: ['QB'],
     rosters: ['a', 'b', 'c', 'd'].map((owner_id, i) => ({ roster_id: i + 1, owner_id })) };
 const weeks = [
     { week: 1, rows: [row(1, 100), row(2, 90), row(3, 80, 2), row(4, 70, 2)] },
@@ -60,6 +60,24 @@ assert.equal(followed.broadcast.eyebrow, 'Rivalry profile');
 assert.equal(followed.broadcast.throughWeek, 2);
 assert(!series(followed.broadcast, 'result'), 'a watched rivalry not on the schedule never gains an invented result');
 
+const namedLeague = { ...league, users: [{ user_id: 'a', display_name: 'AliceAccount', metadata: { team_name: 'Alpha' } }, { user_id: 'b', display_name: 'BlakeAccount', metadata: { team_name: 'Bravo' } }] };
+const namedPrior = { ...prior, league: { ...oldLeague, users: [{ user_id: 'a', display_name: 'AliceOldHandle', metadata: { team_name: 'Old Rockets' } }, { user_id: 'b', display_name: 'BlakeOldHandle', metadata: { team_name: 'Old Comets' } }] } };
+const ownerComparison = build({ league: namedLeague, priorSeasons: [namedPrior] }).previews.find(s => s.rosterIds.includes(1)).broadcast;
+assert.equal(ownerComparison.ownerFirst, true, 'cross-season comparisons default to owner labels');
+assert.deepEqual(serial(ownerComparison.teams.map(t => [t.name, t.ownerName, t.teamName, t.ownerId])), [['BlakeAccount', 'BlakeAccount', 'Bravo', 'b'], ['AliceAccount', 'AliceAccount', 'Alpha', 'a']]);
+const oldMeeting = series(ownerComparison, 'regular-season').meetings[0];
+assert.deepEqual(serial(oldMeeting.names), ['Old Comets', 'Old Rockets'], 'past team names survive new branding');
+assert.deepEqual(serial(oldMeeting.teamNames), ['Old Comets', 'Old Rockets']);
+assert.deepEqual(serial(oldMeeting.ownerNames), ['BlakeOldHandle', 'AliceOldHandle']);
+assert.deepEqual(serial(oldMeeting.ownerIds), ['b', 'a'], 'meeting identities follow accounts even after roster slots change');
+assert(oldMeeting.identities.every(identity => identity.ownerKnown));
+const currentResult = build({ league: namedLeague, priorSeasons: [] }).stories.find(s => s.kind === 'recap' && s.week === 1 && s.rosterIds.includes(1)).broadcast;
+assert.equal(currentResult.ownerFirst, false, 'a current-only result can retain its team-first treatment');
+assert.deepEqual(serial(currentResult.teams.map(t => t.name)), ['Alpha', 'Bravo']);
+assert.deepEqual(serial(currentResult.teams.map(t => t.ownerName)), ['AliceAccount', 'BlakeAccount']);
+assert(followed.broadcast.ownerFirst, 'a rivalry profile defaults to owners even before meetings exist');
+const unrelatedHistory = build({ league: namedLeague, priorSeasons: [{ ...namedPrior, league: { ...namedPrior.league, league_id: 'unrelated-old', previous_league_id: null } }] }).previews.find(s => s.rosterIds.includes(1)).broadcast;
+assert.equal(series(unrelatedHistory, 'regular-season').meetings.length, 2, 'the same accounts playing another league do not add meetings to this rivalry');
 const replacementLeague = { ...league, rosters: league.rosters.map(r => r.roster_id === 1 ? { ...r, owner_id: 'replacement' } : r) };
 const replacement = build({ league: replacementLeague }).previews.find(s => s.rosterIds.includes(1)).broadcast;
 assert.equal(series(replacement, 'regular-season').meetings.length, 2, 'a new owner does not inherit the old roster slot’s history');
@@ -84,7 +102,7 @@ assert(gap.teams.every(t => t.average !== null));
 assert(!series(gap, 'regular-season').meetings.some(m => m.season === 2026 && m.week === 2));
 
 const sources2024 = [{ label: 'Checked 2024 final', url: 'https://api.sleeper.app/v1/league/202400/winners_bracket' }, { label: '2024 score', url: 'https://api.sleeper.app/v1/league/202400/matchups/17' }, { label: 'Untrusted host lookalike', url: 'https://api.sleeper.app.invalid/v1/league/123/winners_bracket' }];
-root.WrWireChroniclesData = { fixture: { name: 'Fixture', leagueIds: [league.league_id], facts: [
+root.WrWireChroniclesData = { fixture: { name: 'Fixture', leagueIds: [league.league_id, oldLeague.league_id], ownerBindings: [{ ownerId: 'a', documentedName: 'Alice Adams', evidence: [{ season: 2024, sources: sources2024 }] }, { ownerId: 'b', documentedName: 'Blake Brown', evidence: [{ season: 2024, sources: sources2024 }] }], facts: [
     { id: 'fixture-final-2024', type: 'final', season: 2024, classification: 'documented', owners: ['a', 'b'], winner: 'Historical Alpha', loser: 'Historical Bravo', scores: [123.5, 100], originalScores: [123.4, 100], sources: sources2024 },
     { id: 'fixture-final-2023', type: 'final', season: 2023, classification: 'documented', owners: ['b', 'a'], winner: 'Older Bravo', loser: 'Older Alpha', scores: [null, 0], sources: [{ workbook: 'History.xlsx', sheet: 'Finals', range: 'A1:F1' }] },
     { id: 'fixture-final-2022', type: 'final', season: 2022, classification: 'unresolved', owners: ['a', 'b'], winner: 'Unresolved', loser: 'Unknown', sources: [] },
@@ -104,10 +122,13 @@ assert.equal(feature2023.season, 2023);
 assert.equal(feature2023.throughWeek, null);
 assert.equal(series(feature2023, 'championships').meetings.length, 1, 'a 2023 lookback cannot show a 2024 final');
 assert(feature2023.teams.every(t => t.record === null && t.average === null), 'historical features do not mix in present records');
-assert.deepEqual(serial(feature2023.teams.map(t => t.name)), ['Older Bravo', 'Older Alpha']);
+assert.deepEqual(serial(feature2023.teams.map(t => t.name)), ['Blake Brown', 'Alice Adams'], 'documented owner identity is primary across historical eras');
+assert(feature2023.teams.every(t => t.teamName === null), 'a historical feature does not borrow present-day branding when its original team roster is unavailable');
+assert.deepEqual(serial(series(feature2023, 'championships').meetings[0].names), ['Older Bravo', 'Older Alpha'], 'original documentary labels remain available alongside stable owner names');
+assert.deepEqual(serial(series(feature2023, 'championships').meetings[0].ownerNames), ['Blake Brown', 'Alice Adams']);
 assert.equal(feature2023.playoffSeasons.length, 0, 'later documentary sources cannot leak into an older episode');
 assert(!series(build({ league: replacementLeague }).previews.find(s => s.rosterIds.includes(1)).broadcast, 'championships'));
-assert(!build({ league: { ...league, league_id: 'unrelated' } }).previews.some(s => series(s.broadcast, 'championships')), 'same names in another league do not select a sourcebook');
+assert(!build({ league: { ...league, league_id: 'unrelated', previous_league_id: null } }).previews.some(s => series(s.broadcast, 'championships')), 'same names in another league do not select a sourcebook');
 
 const empty = { stories: [{ id: 'prose-only', kind: 'story', text: 'Alpha beat Bravo 900–800', body: '2024 final', rosterIds: [1, 2], season: '2026' }], previews: [], rivals: [], completedThrough: 2 };
 const before = JSON.stringify(empty);

@@ -9,7 +9,7 @@
     }
     function matches(story, query) {
         const terms = String(query || '').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-        const text = [story.text, story.body, story.category, story.league?.name, ...(story.related || []).map(r => r.text)].filter(Boolean).join(' ').toLocaleLowerCase();
+        const text = [story.text, story.body, story.category, story.league?.name, ...(story.participants || []).flatMap(p => [p.ownerName, p.teamName]), ...(story.related || []).map(r => r.text)].filter(Boolean).join(' ').toLocaleLowerCase();
         return terms.every(term => text.includes(term));
     }
     function checked(at) {
@@ -31,7 +31,7 @@
         const schedule = next.scheduleReady ? next : previous;
         const times = [results.currentUpdatedAt, schedule.currentUpdatedAt].filter(t => Number(t) > 0);
         return { ...next, stories: [...results.stories.filter(s => !s.preview), ...schedule.stories.filter(s => s.preview)],
-            race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
+            features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
             currentUpdatedAt: times.length ? Math.min(...times) : null, stale: !!next.currentError || next.status === 'error', refreshing: next.status === 'loading' };
     }
     function finish(entry, league) {
