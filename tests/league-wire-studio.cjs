@@ -136,6 +136,25 @@ const model = { kind: 'comparison', headline: 'A rivalry with context', eyebrow:
     const firstMeeting = nodes(timelineTree).find(n => n.props.className === 'wr-studio-meeting-timeline').children[0];
     nodes(firstMeeting).find(n => n.type === 'button').props.onClick(); timelineTree = timeline.render();
     assert.match(text(timelineTree), /128.73/); assert.match(text(timelineTree), /Original A/);
+    const timelineModel = { ...model, teams: [{ name: 'First owner' }, { name: 'Ivan Hartung' }], series: [{ id: 'timeline-order', meetings: [
+        { id: 'second-team-win', label: '2025 · Week 1', points: [88.50, 117.85], winnerIndex: 1, ownerNames: ['First owner', 'Ivan Hartung'] },
+        { id: 'tied-result', label: '2025 · Week 2', points: [100, 100] },
+        { id: 'recorded-winner', label: '2025 final', points: [90, 90], winnerIndex: 1 },
+        { id: 'missing-score', label: '2024 final', points: [0, null], winnerIndex: 1 },
+    ] }] };
+    const originalTimelineData = JSON.stringify(timelineModel);
+    const orderedTimeline = harness('WrWireStudioComparison', { model: timelineModel });
+    let orderedTree = orderedTimeline.render();
+    const timelineItems = nodes(orderedTree).find(n => n.props.className === 'wr-studio-meeting-timeline').children;
+    assert.match(text(timelineItems[0]), /Ivan Hartung won 117.85–88.50/, 'the winner caption and first timeline score describe the same team');
+    assert.match(text(timelineItems[1]), /Tied 100.00–100.00/);
+    assert.match(text(timelineItems[2]), /Ivan Hartung · recorded winner Tied · 90.00–90.00/, 'a recorded winner on level points does not invent a scoring win or tiebreak rule');
+    assert.match(text(timelineItems[3]), /Ivan Hartung won Score unavailable/, 'known advancement does not turn a missing score into zero');
+    nodes(timelineItems[0]).find(n => n.type === 'button').props.onClick(); orderedTree = orderedTimeline.render();
+    const mainResultTeams = nodes(orderedTree).find(n => n.props.className === 'wr-studio-result-teams').children;
+    assert.match(text(mainResultTeams[0]), /First owner 88.50/);
+    assert.match(text(mainResultTeams[1]), /Ivan Hartung 117.85/, 'the main comparison retains its established team order');
+    assert.equal(JSON.stringify(timelineModel), originalTimelineData, 'timeline ordering never mutates source scores');
     const trajectory = harness('WrWireStudioTrajectory', { model: { ...model, trajectory: { season: 2026, startWeek: 1, throughWeek: 2, recordScope: 'Includes median', weeks: [{ week: 1, teams: [{ points: 0, record: '0–2', h2hRecord: '0–1' }, { points: 100, record: '2–0', h2hRecord: '1–0' }] }, { week: 2, teams: [{ points: 90, record: '2–2', h2hRecord: '1–1' }, { points: 80, record: '2–2', h2hRecord: '1–1' }] }] } } });
     let trajectoryTree = trajectory.render(); assert.match(text(trajectoryTree), /After Week 2/);
     nodes(trajectoryTree).find(n => n.type === 'button' && text(n) === 'Week 1').props.onClick(); trajectoryTree = trajectory.render();
