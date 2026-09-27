@@ -128,6 +128,40 @@ const fetcher = async url => { calls.push(url); if (url.includes('/state/')) ret
     await api.load({ leagues, signal: ended.signal, fetcher, onUpdate: () => updates++ }); assert.equal(updates, 0);
     assert.equal(api.period({ ...leagues[0], season: '2025' }, { season: '2026', week: 2 }).end, 14);
     assert.equal(api.period(leagues[0], { season: '2026', season_type: 'pre', week: 4 }).end, 0);
+    const analystCalls = [];
+    root.WrWireAnalyst = {
+        sourceKey: (league, players) => `${league.scoring_settings?.pass_td || 0}:${players.sample?.position || 'unknown'}`,
+        build: args => { analystCalls.push(args); const story = { id: 'opinion', text: 'A rules opinion', opinion: true }; return { stories: [story], weeklyOpinion: story, coverage: [] }; },
+    };
+    let opinionEdition;
+    const opinionLeague = { ...leagues[0], scoring_settings: { pass_td: 6 } };
+    await api.load({ leagues: [opinionLeague], accountId: 'analyst-cache', fetcher, onUpdate: entry => { opinionEdition = entry; } });
+    assert.equal(opinionEdition.analysis.weeklyOpinion.id, 'opinion');
+    assert(!opinionEdition.stories.some(story => story.opinion), 'analyst output is published outside news stories');
+    assert(!api.headlines([opinionEdition]).some(story => story.opinion), 'an opinion cannot become a news headline');
+    assert.equal(analystCalls.at(-1).rosterScope, 'current'); assert.equal(analystCalls.at(-1).throughWeek, 1);
+    const warmAnalyst = calls.length;
+    await api.load({ leagues: [opinionLeague], accountId: 'analyst-cache', fetcher, onUpdate() {} });
+    assert.equal(calls.length - warmAnalyst, 1, 'unchanged analyst source data reuses the warm edition');
+    const changedRules = calls.length;
+    await api.load({ leagues: [{ ...opinionLeague, scoring_settings: { pass_td: 4 } }], accountId: 'analyst-cache', fetcher, onUpdate() {} });
+    assert(calls.length - changedRules > 1, 'same-week scoring changes invalidate the opinion edition');
+    const catalogReady = calls.length; root.S.players = { sample: { position: 'QB' } };
+    await api.load({ leagues: [{ ...opinionLeague, scoring_settings: { pass_td: 4 } }], accountId: 'analyst-cache', fetcher, onUpdate() {} });
+    assert(calls.length - catalogReady > 1, 'player-position readiness invalidates a previously incomplete roster opinion');
+    await api.load({ leagues: [{ ...opinionLeague, season: '2025' }], accountId: 'analyst-archive', fetcher, onUpdate() {} });
+    assert.equal(analystCalls.at(-1).rosterScope, 'archive'); assert.equal(analystCalls.at(-1).league.season, '2025');
+    const movingLeague = { ...opinionLeague, scoring_settings: { pass_td: 6 } };
+    root.WrWireAnalyst.build = args => ({ stories: [], weeklyOpinion: { text: `Passing touchdowns: ${args.league.scoring_settings.pass_td}` }, coverage: [] });
+    let changedDuringLoad = false;
+    await api.load({ leagues: [movingLeague], accountId: 'analyst-source-race', fetcher, onUpdate: entry => {
+        if (!changedDuringLoad && entry.status === 'loading') { movingLeague.scoring_settings.pass_td = 4; changedDuringLoad = true; }
+    } });
+    movingLeague.scoring_settings.pass_td = 6;
+    let restoredRules;
+    await api.load({ leagues: [movingLeague], accountId: 'analyst-source-race', fetcher, onUpdate: entry => { restoredRules = entry; } });
+    assert.equal(restoredRules.analysis.weeklyOpinion.text, 'Passing touchdowns: 6', 'a mid-load source change cannot cache the new opinion under the old rule fingerprint');
+    delete root.WrWireAnalyst;
     const ui = fs.readFileSync('js/components/league-wire-portfolio.js', 'utf8');
     assert(ui.includes('showModal()') && ui.includes('onCancel={onClose}') && ui.includes('opener.current?.isConnected'));
     assert(fs.readFileSync('js/app.js', 'utf8').includes('onOpenAllWire={() => setAllWireOpen(true)}'));

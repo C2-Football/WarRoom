@@ -22,7 +22,9 @@
         const archiveJobs = [];
         async function worker() {
             while (cursor < eligible.length && !signal?.aborted && stillCurrent()) {
-                const league = eligible[cursor++], span = period(league, nfl), cacheKey = `${ownerScope}|${accountId}|${keyFor(league)}|${span.week}`;
+                const league = eligible[cursor++], span = period(league, nfl);
+                const analystSourceKey = root.WrWireAnalyst?.sourceKey?.(league, root.S?.players || {}) || '';
+                const cacheKey = `${ownerScope}|${accountId}|${keyFor(league)}|${span.week}|${analystSourceKey}`;
                 const cached = recent.get(cacheKey);
                 if (!force && cached && cached.selectionKey === JSON.stringify(root.WrWireRivalries?.list(league, cached.value.rivalryHistory) || []) && now() - cached.at < 60000) { onUpdate(cached.value); continue; }
                 const nameFor = rid => root.WrWireStories.oldName(league, rid);
@@ -30,7 +32,7 @@
                 const scoresExpected = span.end >= span.start;
                 let weeks = [], past = { seasons: [], complete: false }, board = null;
                 let scoresLoaded = false, scheduleLoaded = !scheduleExpected, scoresError = '', scheduleError = '', archiveError = '';
-                let scoresUpdatedAt = null, scheduleUpdatedAt = null, publishedSelectionKey = '';
+                let scoresUpdatedAt = null, scheduleUpdatedAt = null, publishedSelectionKey = '', publishedAnalystKey = '';
                 const publish = status => {
                     if (signal?.aborted || !stillCurrent()) return null;
                     const rivalries = root.WrWireRivalries?.list(league, past.seasons) || [];
@@ -47,7 +49,9 @@
                     // When both sources are present, show the older successful snapshot.
                     const currentTimes = [scoresExpected && scoresReady ? scoresUpdatedAt : null, scheduleLoaded ? scheduleUpdatedAt : null].filter(t => t != null);
                     const currentUpdatedAt = currentTimes.length ? Math.min(...currentTimes) : null;
-                    const value = { recordBook: root.WrWireRecords?.build({ edition, league, priorSeasons: past.seasons, complete: past.complete && scoresReady }) || null, features: edition.features || [], weeklyFeature: edition.weeklyFeature || null, draftContext: { weeks, priorSeasons: past.seasons, throughWeek: span.end }, rivalryProfiles: edition.rivals || [], race: root.WrWirePlayoffs?.race({ league, edition: { ...edition, expectedThrough: span.end } }) || null, league, historical: Number(league.season) < Number(nfl.season), status: status === 'ready' && (error || !currentReady) ? 'partial' : status, error, currentError, archiveError, currentUpdatedAt, resultsReady: scoresExpected && scoresReady, scheduleReady: scheduleExpected && scheduleLoaded, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
+                    publishedAnalystKey = root.WrWireAnalyst?.sourceKey?.(league, root.S?.players || {}) || '';
+                    const analysis = root.WrWireAnalyst?.build({ league, weeks, edition, throughWeek: span.end, players: root.S?.players || {}, nameFor, priorSeasons: past.seasons, rosterScope: span.live ? 'current' : 'archive' }) || { stories: [], weeklyOpinion: null, coverage: [] };
+                    const value = { analysis, recordBook: root.WrWireRecords?.build({ edition, league, priorSeasons: past.seasons, complete: past.complete && scoresReady }) || null, features: edition.features || [], weeklyFeature: edition.weeklyFeature || null, draftContext: { weeks, priorSeasons: past.seasons, throughWeek: span.end }, rivalryProfiles: edition.rivals || [], race: root.WrWirePlayoffs?.race({ league, edition: { ...edition, expectedThrough: span.end } }) || null, league, historical: Number(league.season) < Number(nfl.season), status: status === 'ready' && (error || !currentReady) ? 'partial' : status, error, currentError, archiveError, currentUpdatedAt, resultsReady: scoresExpected && scoresReady, scheduleReady: scheduleExpected && scheduleLoaded, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
                     onUpdate(value); return value;
                 };
                 publish('loading');
@@ -76,7 +80,9 @@
                     catch (_) { archiveError = 'Earlier history is incomplete. Refresh to retry.'; }
                     if (!past.complete && !archiveError) archiveError = past.reason || 'Earlier history is incomplete.';
                     const value = publish('ready');
-                    if (value?.status === 'ready') { recent.set(cacheKey, { at: now(), value, selectionKey: publishedSelectionKey }); while (recent.size > 40) recent.delete(recent.keys().next().value); }
+                    // Rules or player eligibility can change while history is
+                    // loading. Never store new analysis under the old inputs.
+                    if (value?.status === 'ready' && publishedAnalystKey === analystSourceKey) { recent.set(cacheKey, { at: now(), value, selectionKey: publishedSelectionKey }); while (recent.size > 40) recent.delete(recent.keys().next().value); }
                 });
             }
         }

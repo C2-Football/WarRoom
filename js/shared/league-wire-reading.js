@@ -37,7 +37,7 @@
         const schedule = next.scheduleReady ? next : previous;
         const times = [results.currentUpdatedAt, schedule.currentUpdatedAt].filter(t => Number(t) > 0);
         return { ...next, stories: [...results.stories.filter(s => !s.preview), ...schedule.stories.filter(s => s.preview)],
-            recordBook: results.recordBook || null, features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
+            analysis: results.analysis || null, recordBook: results.recordBook || null, features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
             currentUpdatedAt: times.length ? Math.min(...times) : null, stale: !!next.currentError || next.status === 'error', refreshing: next.status === 'loading' };
     }
     function finish(entry, league) {

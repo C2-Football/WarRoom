@@ -55,6 +55,19 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.equal(f.calls.length, 2); assert(f.calls.every(call => !call.url.includes('/matchups/')));
     assert(f.calls.every(call => call.options.cache === 'no-store'));
     assert.equal(story.sources.filter(source => source.url.includes('/matchups/')).length, 4, 'loaded matchups are cited without being fetched');
+    assert.equal(result.opinions.length, 1);
+    const opinion = result.opinions[0];
+    assert.equal(opinion.opinion, true); assert.equal(opinion.desk, 'draft'); assert.equal(opinion.featureType, 'opinion');
+    assert.equal(opinion.label, 'DRAFT DESK · OPINION'); assert.match(opinion.timingLabel, /2026 retrospective.*Weeks 1–4/);
+    assert.match(opinion.body, /Later Receiver was the better value/);
+    assert.match(opinion.body, /Keep a real shortlist/); assert.match(opinion.body, /including after trades/);
+    assert.match(opinion.body, /next year’s board requires a fresh argument/);
+    assert.doesNotMatch(opinion.body, /My read:|The takeaway:/, 'the opinion voice should not repeat template markers');
+    assert.notEqual(opinion.body, story.body, 'a column must add a judgment and takeaway rather than relabel a receipt');
+    assert.deepEqual(plain(opinion.evidence), plain(story.evidence));
+    assert.deepEqual(plain(opinion.sources), plain(story.sources));
+    assert.equal(service.matches(opinion, { category: 'opinion', search: 'Later Receiver' }), true);
+    assert.equal(service.matches(opinion, { category: 'value' }), false, 'opinions have an independent filter alongside factual receipts');
 
     // Only metadata is cached: refreshed scores and identities build a new story.
     f.weeks[0].rows[1].players_points.late = 30;
@@ -68,6 +81,7 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     const tooEarly = fixture();
     const earlyResult = await load(api(), tooEarly, { throughWeek: 3 });
     assert.equal(earlyResult.status, 'unavailable'); assert.equal(tooEarly.calls.length, 0, 'no draft requests before minimum current-season evidence');
+    assert.equal(earlyResult.opinions.length, 0, 'opinion does not lower the completed-week evidence threshold');
     const noRegularSeason = fixture(); noRegularSeason.league.settings.playoff_week_start = 1;
     assert.equal((await load(api(), noRegularSeason)).status, 'unavailable');
     assert.equal(noRegularSeason.calls.length, 0, 'a Week 1 playoff start leaves no regular-season window to compare');
@@ -79,6 +93,7 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     const bounded = await load(api(), future);
     assert.equal(bounded.stories[0].evidence.players[1].points, 4, 'an already-loaded later week cannot enter the selected completed cutoff');
     assert.equal(bounded.stories[0].week, 4);
+    assert(!bounded.opinions[0].body.includes('9999')); assert.equal(bounded.opinions[0].week, 4, 'opinion uses the selected cutoff, never later loaded results');
     future.league.status = 'complete'; future.league.season = '2025'; future.draft.season = '2025';
     const oldEdition = await load(api(), future);
     assert.equal(oldEdition.stories[0].week, 4, 'a completed selected season still obeys the requested edition cutoff');
@@ -90,6 +105,7 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.deepEqual(plain(zeros.stories[0].evidence.players.map(player => player.points)), [0, -20], 'zero and negative player scores are valid');
     const absent = fixture(); delete absent.weeks[0].rows[1].players_points.late;
     assert.equal((await load(api(), absent)).stories.length, 0, 'one unverified start excludes the player rather than inventing a zero');
+    assert.equal((await load(api(), absent)).opinions.length, 0, 'missing production cannot become an opinion-piece bust');
     const duplicateStarter = fixture(); duplicateStarter.weeks[0].rows[2].starters = ['late']; duplicateStarter.weeks[0].rows[2].players_points.late = 10;
     assert.equal((await load(api(), duplicateStarter)).stories.length, 0, 'a duplicated starter across teams is ambiguous');
     const threeStarts = fixture(); threeStarts.weeks[0].rows[1].starters = [];
@@ -111,6 +127,7 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     const unknownOwner = await load(api(), unassigned);
     assert.equal(unknownOwner.stories[0].participants[0].ownerKnown, false); assert.equal(unknownOwner.stories[0].participants[0].ownerName, null);
     assert(!unknownOwner.stories[0].body.includes('Owner 2'), 'receiving roster alone cannot name its draft-day owner');
+    assert(!unknownOwner.opinions[0].body.includes('Owner 2')); assert.equal(unknownOwner.opinions[0].participants[0].ownerId, null);
     const corrupt = fixture(); corrupt.picks.push(plain(corrupt.picks[0]));
     assert.equal((await load(api(), corrupt)).stories.length, 0, 'duplicate picks cannot produce an arbitrary comparison');
     const wrongDraft = fixture(); wrongDraft.picks[1].draft_id = '999';
@@ -161,6 +178,9 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert.match(volume.stories[0].body, /different numbers of lineup appearances as well as scoring/);
     assert.match(volume.stories[0].related[0].text, /No injury cause, owner skill/);
     assert(!volume.stories.some(story => ['value', 'doover'].includes(story.featureType)), '13 versus 4 starts cannot receive a comparable-workload value award');
+    assert.deepEqual(plain(volume.opinions.map(story => story.opinionAngle)), ['workload']);
+    assert.match(volume.opinions[0].body, /Put the failing grade on hold/);
+    assert.match(volume.opinions[0].body, /do not explain why/);
 
     const variety = fixture();
     const add = (pid, position, pickNo, rid, points) => {
@@ -175,6 +195,45 @@ const load = (service, f, options = {}) => service.load({ league: f.league, week
     assert(diverse.stories.every(story => story.body.split('\n\n').length === 2));
     assert(diverse.stories.every(story => story.body.split(/\s+/).length < 135), 'richer story types remain short');
     assert(diverse.stories.find(story => story.featureType === 'late').body.includes('median for the 4 drafted TEs'));
+    assert.deepEqual(plain(diverse.opinions.map(story => story.opinionAngle)), ['price', 'late']);
+    assert(diverse.opinions.every(story => story.body.split('\n\n').length === 3 && story.body.split(/\s+/).length <= 115), 'columns remain compact and separate judgment, evidence and takeaway');
+
+    // Repeated success must come from the same selecting account in separate,
+    // fully checked completed seasons, each measured against its own peers.
+    const dense = (season, lid, did, latePoints) => {
+        const value = fixture(season, lid, did); value.league.status = 'complete';
+        value.picks[1].pick_no = 25; value.picks[1].round = 7;
+        value.weeks.forEach(week => { week.rows[1].players_points.late = latePoints; });
+        for (const [rid, pid, pick, points] of [[3, 'third', 2, 2], [4, 'fourth', 3, 3]]) {
+            value.picks.push({ draft_id: did, player_id: pid, roster_id: rid, picked_by: `owner-${rid}`, pick_no: pick, round: 1, metadata: { first_name: pid, last_name: 'Receiver', position: 'WR' } });
+            value.weeks.forEach(week => { week.rows[rid - 1].starters = [pid]; week.rows[rid - 1].players_points[pid] = points; });
+        }
+        return value;
+    };
+    const recentDraft = dense('2026', '610001', '620001', 20), olderDraft = dense('2025', '610002', '620002', 6);
+    recentDraft.league.previous_league_id = olderDraft.league.league_id;
+    const notebookOptions = { priorSeasons: [{ league: olderDraft.league, weeks: olderDraft.weeks }], fetcher: async (url, options) => url.includes('610002') || url.includes('620002') ? olderDraft.fetcher(url, options) : recentDraft.fetcher(url, options) };
+    const draftColumns = await load(api(), recentDraft, notebookOptions);
+    const notebookColumn = draftColumns.opinions.find(story => story.opinionAngle === 'notebook');
+    assert(notebookColumn); assert.match(notebookColumn.text, /^Owner 2 has more than one/);
+    assert.equal(notebookColumn.timingLabel, '2025–2026 retrospective · Completed regular seasons');
+    assert.deepEqual(plain(notebookColumn.eventSeasons), ['2026', '2025']);
+    assert.deepEqual(plain(notebookColumn.evidence.seasons.map(row => [row.season, row.average, row.median])), [['2026', 20, 2.5], ['2025', 6, 2.5]], 'cross-season opinion compares original-season benchmarks rather than pooling scoring');
+    assert.match(notebookColumn.body, /account for the misses/);
+    assert(notebookColumn.body.split(/\s+/).length <= 115, 'owner notebook commentary keeps its central numbers without repeating the methodology');
+    assert.equal(notebookColumn.sources.length, 12, 'every selected season carries its own draft and loaded-week receipts');
+    assert.equal(api().matches(notebookColumn, { season: '2025', ownerFilter: { ownerId: 'owner-2', rosterId: 9 } }), true);
+    assert.equal(api().matches(notebookColumn, { season: '2024' }), false);
+    assert(draftColumns.opinions.length <= 3);
+    assert.equal(new Set(draftColumns.opinions.map(story => story.opinionAngle)).size, draftColumns.opinions.length, 'a broad archive does not repeat the same take for each year');
+    assert.equal(recentDraft.calls.length + olderDraft.calls.length, 4, 'columns reuse existing bounded metadata fetches and loaded production');
+    olderDraft.picks[1].picked_by = '';
+    const anonymousHistory = await load(api(), recentDraft, notebookOptions);
+    assert(!anonymousHistory.opinions.some(story => story.opinionAngle === 'notebook'), 'anonymous receiving-roster selections cannot establish repeat owner success');
+    olderDraft.picks[1].picked_by = 'owner-2';
+    recentDraft.league.settings.playoff_week_start = 9;
+    const shortenedEdition = await load(api(), recentDraft, notebookOptions);
+    assert(!shortenedEdition.opinions.some(story => story.opinionAngle === 'notebook'), 'a complete season status does not turn an old Week 4 edition into a full-season notebook');
 
     const olderRows = Array.from({ length: 10 }, (_, index) => fixture(String(2026 - index), String(100000 + index), String(200000 + index)));
     olderRows.forEach((row, index) => { row.league.previous_league_id = olderRows[index + 1]?.league.league_id || null; if (index) row.league.status = 'complete'; });

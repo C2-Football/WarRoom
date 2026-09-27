@@ -29,6 +29,12 @@ assert.equal(api.retain(prior,{...freshResults,week:3}).stories[0].text, 'Fresh 
 const scheduleOnly=api.retain({...prior,stories:[{text:'Saved recap'},{text:'Old preview',preview:true}]},{...failure,week:3,scheduleReady:true,stories:[{text:'Fresh preview',preview:true}]});
 assert.equal(scheduleOnly.stories[0].text,'Saved recap');
 assert.equal(scheduleOnly.stories[1].text,'Fresh preview');
+const savedAnalysis = { stories: [{ text: 'Saved scoring opinion' }], weeklyOpinion: { text: 'Saved column' } };
+const freshAnalysis = { stories: [{ text: 'Fresh scoring opinion' }], weeklyOpinion: { text: 'Fresh column' } };
+assert.equal(api.retain({ ...prior, analysis: savedAnalysis }, { ...failure, week: 3, scheduleReady: true, analysis: freshAnalysis }).analysis, savedAnalysis, 'a schedule-only refresh preserves the analysis tied to retained completed results');
+assert.equal(api.retain({ ...prior, analysis: savedAnalysis }, { ...freshResults, week: 3, analysis: freshAnalysis }).analysis, freshAnalysis, 'fresh completed results replace analysis in the same edition');
+assert.equal(api.retain({ ...prior, analysis: savedAnalysis }, { ...failure, analysis: freshAnalysis }).analysis, savedAnalysis, 'a failed week rollover cannot relabel older opinions as a new edition');
+assert.equal(api.retain({ ...prior, analysis: savedAnalysis }, { ...failure, league: { ...league, league_id: 'other' }, analysis: freshAnalysis }).analysis, freshAnalysis, 'a different league never inherits the previous opinion');
 const historyTimeout=api.finish({...prior,status:'loading'},league);
 assert(historyTimeout.archiveError); assert(!historyTimeout.currentError); assert(!historyTimeout.stale);
 assert(api.finish({...prior,status:'loading',refreshing:true},league).currentError);

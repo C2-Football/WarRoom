@@ -171,6 +171,76 @@
         }
         return [...owners.values()].map(book => ({ ...book, seasons: [...book.seasons.values()].sort((a, b) => Number(b.season) - Number(a.season)).map(season => ({ ...season, picks: season.picks.sort((a, b) => a.pick - b.pick) })) })).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
     }
+    function opinionFor(receipt, angle, title, paragraphs) {
+        return { ...receipt, id: `${receipt.id}:opinion:${angle}`, opinion: true, desk: 'draft', category: 'Draft opinion', featureType: 'opinion', opinionAngle: angle,
+            label: 'DRAFT DESK · OPINION', timingLabel: `${receipt.season} retrospective · Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}`,
+            text: title, body: paragraphs.join('\n\n'),
+            related: [{ label: 'The evidence behind this opinion', text: receipt.body }, ...(receipt.related || [])],
+        };
+    }
+    function draftOpinions(records) {
+        // Opinion is a separate editorial layer. Every claim below is grounded
+        // in a qualified receipt; none broadens the underlying player sample.
+        const candidates = [], repeated = new Map();
+        for (const record of records) {
+            for (const receipt of record.stories) {
+                const [later, earlier] = receipt.evidence.players;
+                if (receipt.featureType === 'value') candidates.push(opinionFor(receipt, 'price', `${later.name} is a reason to keep working the draft board`, [
+                    `${later.name} was the better value here: same position, similar lineup opportunity, selected ${later.pick - earlier.pick} picks later. The expensive end of the board does not get to claim all the good decisions.`,
+                    `In Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}, ${later.name} averaged ${fmt(later.average)} points over ${later.starts} fantasy starts, against ${fmt(earlier.average)} over ${earlier.starts} for ${earlier.name}. Those scores follow the player wherever started, including after trades.`,
+                    'Keep a real shortlist after the early rounds. Hindsight gives this pick a deserved victory lap; carrying the same player up next year’s board requires a fresh argument.',
+                ]));
+                if (receipt.featureType === 'workload') candidates.push(opinionFor(receipt, 'workload', `Put the red pen down on ${earlier.name} for a moment`, [
+                    `${earlier.name}’s smaller total makes an easy target. It also leaves out the most important number in this comparison: opportunities to score in a fantasy lineup. Put the failing grade on hold.`,
+                    `${later.name} had ${later.starts} fantasy starts to ${earlier.name}’s ${earlier.starts} in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}. Their averages were ${fmt(later.average)} and ${fmt(earlier.average)} points per start, wherever they were started. These results do not explain why the usage differed.`,
+                    'Both production and opportunity belong in the verdict. Before declaring the earlier pick a disaster, explain that gap. A confident roast should survive a second look at the numbers.',
+                ]));
+                if (receipt.featureType === 'late') candidates.push(opinionFor(receipt, 'late', `The second half of the draft deserves a plan`, [
+                    `The late rounds still deserve a plan. ${later.name} is a good reminder for anyone whose last few selections come with one eye on the dinner menu.`,
+                    `Taken at No. ${later.pick}, ${later.name} averaged ${fmt(later.average)} points across ${later.starts} fantasy starts in Weeks ${receipt.evidence.startWeek}–${receipt.evidence.throughWeek}. That beat this draft’s same-position median by at least two points per start, wherever the player was used.`,
+                    'Give the back half of the board its own shortlist. Draft prep that stops at the marquee names leaves an awfully large part of the night to chance.',
+                ]));
+            }
+            const rounds = positive(record.draft.settings?.rounds), end = Math.min(18, (positive(record.league.settings?.playoff_week_start) || 19) - 1);
+            if (!rounds || !record.evidence.complete || record.evidence.cutoff !== end) continue;
+            for (const player of record.players) {
+                if (!player.participant.ownerId || !player.participant.ownerKnown || player.round <= Math.ceil(rounds / 2) || player.starts < Math.max(4, Math.ceil(record.evidence.weekCount / 2))) continue;
+                const peers = record.players.filter(peer => peer.position === player.position).map(peer => peer.average).sort((a, b) => a - b);
+                const middle = Math.floor(peers.length / 2), median = peers.length % 2 ? peers[middle] : (peers[middle - 1] + peers[middle]) / 2;
+                if (peers.length < 4 || player.average < median + 2) continue;
+                const rows = repeated.get(player.participant.ownerId) || [];
+                rows.push({ record, player, median, peers: peers.length }); repeated.set(player.participant.ownerId, rows);
+            }
+        }
+        for (const rows of repeated.values()) {
+            const bestBySeason = new Map();
+            for (const row of rows) {
+                const season = string(row.record.league.season), saved = bestBySeason.get(season);
+                if (!saved || row.player.average - row.median > saved.player.average - saved.median) bestBySeason.set(season, row);
+            }
+            const selected = [...bestBySeason.values()].sort((a, b) => Number(b.record.league.season) - Number(a.record.league.season)).slice(0, 3);
+            if (selected.length < 2) continue;
+            const newest = selected[0], { record, player } = newest;
+            const receipt = storyFor(record.league, record.draft, record.evidence, selected.flatMap(row => row.record.sources), true, 'late', '', '', [player], 'At least two fully checked completed regular seasons for one selecting account. In each season, a second-half pick made at least half of the checked lineups and beat its own season’s same-position median by at least 2 points per fantasy start. Each median includes at least four drafted players with four verified starts. Seasons are assessed separately under their original scoring; the examples do not describe every pick or prove a repeatable drafting edge.');
+            const opinion = opinionFor(receipt, 'notebook', `${player.participant.ownerName} has more than one late-round receipt`, [
+                `These ${selected.length} picks earn a place in ${player.participant.ownerName}’s draft notebook. Useful starters can emerge after the splashy names are gone, and the late rounds have delivered across multiple seasons here.`,
+                selected.map(row => `${row.record.league.season}: ${row.player.name}, Round ${row.player.round} — ${fmt(row.player.average)} points per fantasy start in ${row.player.starts} starts, against the position median of ${fmt(row.median)}.`).join(' '),
+                'Keep digging late. These results follow the players wherever started; the overall draft grade still has to account for the misses.',
+            ]);
+            opinion.eventSeasons = selected.map(row => string(row.record.league.season));
+            opinion.timingLabel = `${opinion.eventSeasons.at(-1)}–${opinion.eventSeasons[0]} retrospective · Completed regular seasons`;
+            opinion.related = receipt.related;
+            opinion.participants = selected.map(row => row.player.participant);
+            opinion.rosterIds = [...new Set(opinion.participants.map(person => person.rosterId))];
+            opinion.evidence = { ...opinion.evidence, metric: 'separate season position comparisons', seasons: selected.map(row => ({ season: string(row.record.league.season), leagueId: leagueId(row.record.league), playerId: row.player.pid, name: row.player.name, pick: row.player.pickNo, round: row.player.round, starts: row.player.starts, average: Math.round(row.player.average * 100) / 100, median: Math.round(row.median * 100) / 100, comparisonPlayers: row.peers, startWeek: row.record.evidence.start, throughWeek: row.record.evidence.cutoff })) };
+            candidates.push(opinion);
+        }
+        const priority = { notebook: 0, price: 1, workload: 2, late: 3 }, angles = new Set();
+        return candidates.sort((a, b) => priority[a.opinionAngle] - priority[b.opinionAngle] || Number(b.season) - Number(a.season) || a.id.localeCompare(b.id)).filter(story => {
+            if (angles.has(story.opinionAngle)) return false;
+            angles.add(story.opinionAngle); return true;
+        }).slice(0, 3);
+    }
     async function load({ league, weeks = [], priorSeasons = [], throughWeek, signal, force = false, maxSeasons = 8, onProgress = () => {}, fetcher = (...args) => root.fetch(...args), now = Date.now } = {}) {
         aborted(signal);
         const methods = [
@@ -178,8 +248,9 @@
             'Only documented starters’ player scores count. Both players need four verified fantasy starts. Zero and negative scores count; missing scores do not. Bench points and commissioner adjustments to roster totals are not allocated to players.',
             'These are observed season totals, not post-draft return, an ADP grade or a career ranking. Keepers and auction drafts are excluded. No injury, benching or trade cause is inferred.',
             'The selected edition keeps its completed-week cutoff; linked prior seasons require every regular-season week. Up to eight loaded seasons open first, with older checked history available on request. No additional matchup history is downloaded.',
+            'Draft Desk opinions are retrospective judgments tied to verified receipts. Cross-season notebooks compare each year within its own scoring and position group; selected successes are not a whole-draft grade or proof of owner skill.',
         ];
-        const empty = { status: 'unavailable', message: '', stories: [], ownerHistories: [], sources: [], coverage: methods, checkedSeasons: [], progress: { checked: 0, total: 0, available: 0, remaining: 0 } };
+        const empty = { status: 'unavailable', message: '', stories: [], opinions: [], ownerHistories: [], sources: [], coverage: methods, checkedSeasons: [], progress: { checked: 0, total: 0, available: 0, remaining: 0 } };
         if (!leagueId(league) || !/^\d{4}$/.test(string(league?.season)) || (league.sport && league.sport !== 'nfl')) return { ...empty, message: 'Choose a Sleeper football league with loaded season results to open draft receipts.' };
         const all = seasonsFor(league, weeks, Array.isArray(priorSeasons) ? priorSeasons : []);
         const selected = all.slice(0, Math.min(25, positive(maxSeasons) || 8));
@@ -187,11 +258,11 @@
         const snapshot = loading => {
             const checkedSeasons = selected.map(entry => outcomes.get(leagueId(entry.league))).filter(Boolean);
             const checked = [...records.values()].sort((a, b) => Number(b.league.season) - Number(a.league.season));
-            const stories = checked.flatMap(record => record.stories), ownerHistories = ownerNotebooks(checked), failed = checkedSeasons.some(entry => entry.status === 'error');
+            const stories = checked.flatMap(record => record.stories), opinions = draftOpinions(checked), ownerHistories = ownerNotebooks(checked), failed = checkedSeasons.some(entry => entry.status === 'error');
             const useful = stories.length || ownerHistories.length;
             return { status: loading ? 'loading' : useful ? failed ? 'partial' : 'ready' : failed ? 'error' : 'unavailable',
                 message: loading ? `Checking draft receipts: ${checkedSeasons.length} of ${selected.length} loaded seasons reviewed.` : useful ? failed ? 'Some draft records could not load. Verified receipts and owner notebooks remain available.' : '' : failed ? 'Some draft records could not be checked. Try again.' : 'No draft comparison has enough evidence yet. Four completed weeks and four verified fantasy starts are the minimum; loaded completed seasons can also supply receipts.',
-                stories, ownerHistories, sources: uniqueSources(checked.flatMap(record => record.sources)), checkedSeasons,
+                stories, opinions, ownerHistories, sources: uniqueSources(checked.flatMap(record => record.sources)), checkedSeasons,
                 coverage: methods.concat(checkedSeasons.map(entry => `${entry.season}: ${entry.message}`)),
                 progress: { checked: checkedSeasons.length, total: selected.length, available: all.length, remaining: all.length - selected.length },
             };
@@ -231,7 +302,7 @@
                     for (let week = evidence.start; week <= evidence.cutoff; week++) sources.push({ label: `${season} Week ${week} loaded lineup scores`, url: `${base}league/${leagueId(sourceLeague)}/matchups/${week}` });
                     const players = draftPlayers(sourceLeague, draft, picks, evidence);
                     const stories = articles(sourceLeague, draft, players, evidence, sources, historical);
-                    records.set(leagueId(sourceLeague), { league: sourceLeague, players, evidence, sources, stories });
+                    records.set(leagueId(sourceLeague), { league: sourceLeague, draft, players, evidence, sources, stories });
                     finish('checked', `Checked Weeks ${evidence.start}–${evidence.cutoff}; ${players.length} picks have at least four verified fantasy starts. ${stories.length ? `${stories.length} distinct receipts qualified.` : 'No comparison met the story threshold; eligible picks remain in owner notebooks.'}`);
                 } catch (error) {
                     aborted(signal); finish('error', error.message || 'Draft records could not load.');
@@ -244,7 +315,7 @@
         return snapshot(false);
     }
     function matches(story, { search = '', ownerFilter = null, league, season = 'all', category = 'all' } = {}) {
-        if (season !== 'all' && string(story.season) !== string(season)) return false;
+        if (season !== 'all' && string(story.season) !== string(season) && !(story.eventSeasons || []).some(year => string(year) === string(season))) return false;
         if (category !== 'all' && story.featureType !== category) return false;
         if (ownerFilter) {
             const ownerId = string(ownerFilter.ownerId), rosterId = string(ownerFilter.rosterId);
