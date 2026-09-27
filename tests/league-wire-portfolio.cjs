@@ -113,6 +113,17 @@ const fetcher = async url => { calls.push(url); if (url.includes('/state/')) ret
     assert(renamed.stories.some(s => s.text.startsWith('Renamed derby:')), 'cache selection key describes stories actually built, even if rivalries change during publication');
     delete root.WrWireRivalries;
     root.App.LeagueLiveTable.loadHistory = originalHistory; root.WrWireStories.loadArchive = originalArchive;
+    let authOwner = 'account:first';
+    root.App.AccountStorage = { owner: () => authOwner };
+    let authUpdates = 0;
+    await api.load({ leagues: [leagues[0]], accountId: 'same-provider', force: true, fetcher, onUpdate: () => { authUpdates++; authOwner = 'account:second'; } });
+    assert.equal(authUpdates, 1, 'an app-owner switch stops publication of in-flight private editions');
+    await api.load({ leagues: [leagues[0]], accountId: 'same-provider', fetcher, onUpdate() {} });
+    const beforeOwnerSwitch = calls.length;
+    authOwner = 'account:third';
+    await api.load({ leagues: [leagues[0]], accountId: 'same-provider', fetcher, onUpdate() {} });
+    assert(calls.length > beforeOwnerSwitch + 1, 'an unchanged provider identity cannot reuse another app owner cache');
+    delete root.App.AccountStorage;
     const ended = new AbortController(); ended.abort(); let updates = 0;
     await api.load({ leagues, signal: ended.signal, fetcher, onUpdate: () => updates++ }); assert.equal(updates, 0);
     assert.equal(api.period({ ...leagues[0], season: '2025' }, { season: '2026', week: 2 }).end, 14);

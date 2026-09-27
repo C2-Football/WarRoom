@@ -49,3 +49,26 @@ render();state[0]={a:{...prior,stories:[{text:'Private followed rivalry',body:'A
 assert.match(treeText(render()),/Private followed rivalry/);
 props.accountId='second';assert.doesNotMatch(treeText(render()),/Private followed rivalry/);
 console.log('PASS Wire account transition: previous private stories hidden before effects');
+
+// Portfolio keeps the newspaper text-only and opens graphics in a separate dialog.
+const allNodes = n => n && typeof n === 'object' ? [n, ...n.children.flatMap(allNodes)] : [];
+root.WrWireStudio = function Studio() {};
+props.accountId = 'first';
+state[0] = { a: { ...prior, race: { throughWeek: 2 }, stories: [{ text: 'Rivalry report', body: 'The current story.', broadcast: { kind: 'comparison' } }] } };
+let portfolioTree = render();
+assert(!allNodes(portfolioTree).some(n => ['img','svg','canvas'].includes(n.type) || n.type === root.WrWireStudio));
+allNodes(portfolioTree).find(n => n.props.className === 'wr-wire-studio-link').props.onClick();
+portfolioTree = render();
+assert(allNodes(portfolioTree).some(n => n.type === root.WrWireStudio && n.props.story.broadcast));
+props.accountId = 'second';
+assert(!allNodes(render()).some(n => n.type === root.WrWireStudio), 'previous account studio is hidden before effects');
+const keptRace = api.retain({ ...prior, race: { throughWeek: 2 } }, { ...failure, week: 3, race: { throughWeek: 0 } });
+assert.equal(keptRace.race.throughWeek, 2, 'failed score refresh keeps original race evidence');
+console.log('PASS all-league studio: text-only front page, separate dialog, account isolation and retained race scope');
+
+// App authentication, not only the linked provider identity, scopes private preferences.
+props.accountId = 'first';
+root.App.AccountStorage = { owner: () => 'account:other' };
+assert.doesNotMatch(treeText(render()), /Rivalry report/);
+assert(!allNodes(render()).some(n => n.type === root.WrWireStudio), 'different app owner with same provider cannot inherit studio');
+console.log('PASS Wire authenticated-owner scope with an unchanged Sleeper account');

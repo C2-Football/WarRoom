@@ -19,7 +19,7 @@ function harness({ reduced = false, phone = false, week = 1 } = {}) {
     const render = () => { cursor = 0; effects = []; return context.window.WrLeagueWire(props); };
     render();
     states[10] = [{ state: 'pre', away: 'AAA', home: 'BBB', shortDetail: 'Sunday' }, { state: 'in', away: 'CCC', home: 'DDD', awayScore: 7, homeScore: 3 }];
-    return { props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[4] = value; } };
+    return { context, props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[4] = value; } };
 }
 function nodes(node) { return node && typeof node === 'object' ? [node, ...node.children.flatMap(nodes)] : []; }
 function text(node) { return node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : node.children.map(text).join(' '); }
@@ -192,3 +192,33 @@ cutoffTree = archiveCutoff.render();
 assert.match(text(cutoffTree),/No matching stories/);
 assert(!nodes(cutoffTree).some(n => n.props.className === 'wr-journal-story is-lead'));
 console.log('PASS archive chronology and searchable story reading');
+
+// Studio is opt-in and is invalidated synchronously when the reading scope changes.
+const graphicApp = harness({ week: 2 });
+graphicApp.props.currentLeague = { league_id: 'graphic', season: '2026', settings: {}, rosters: [{ roster_id: 1, owner_id: 'one' }, { roster_id: 2, owner_id: 'two' }] };
+graphicApp.setArchive({ key: 'graphic|2026|1|1', status: 'ready', weeks: [{ week: 1, rows: [row(1, 100), row(2, 90)] }] });
+const graphicWindow = graphicApp.context.window;
+graphicWindow.WrWireStudio = function Studio() {};
+graphicWindow.WrWirePlayoffs = { race: () => ({ throughWeek: 1, rows: [] }) };
+const originalGraphicBuild = graphicWindow.WrWireStories.build;
+graphicWindow.WrWireStories.build = args => { const result = originalGraphicBuild(args); result.stories.filter(s => s.rosterIds?.length === 2).forEach(s => { s.broadcast = { kind: 'comparison', teams: [{ name: 'One' }, { name: 'Two' }] }; }); return result; };
+graphicWindow.WrWireStories.frontPage = stories => stories;
+let graphicTree = graphicApp.render();
+nodes(graphicTree).find(n => n.props.className === 'wr-wire-brand').props.onClick();
+graphicTree = graphicApp.render();
+assert(!nodes(graphicTree).some(n => n.type === graphicWindow.WrWireStudio), 'studio does not mount or fetch on opening the newspaper');
+const graphicLink = nodes(graphicTree).find(n => n.props.className === 'wr-wire-studio-link');
+assert(graphicLink, 'eligible stories expose a text breakdown link');
+graphicLink.props.onClick(); graphicTree = graphicApp.render();
+assert(nodes(graphicTree).some(n => n.type === graphicWindow.WrWireStudio && n.props.story.broadcast), 'clicked story opens its own comparison');
+nodes(graphicTree).find(n => n.props['aria-label'] === 'Story week').props.onChange({ target: { value: '1' } });
+assert(!nodes(graphicApp.render()).some(n => n.type === graphicWindow.WrWireStudio), 'changing edition hides the previous studio before effects');
+console.log('PASS Wire studio routing: explicit open, story data, edition isolation');
+
+// Auth owner changes invalidate the opened studio even with the same Sleeper league.
+graphicTree = graphicApp.render();
+nodes(graphicTree).find(n => n.props.className === 'wr-wire-studio-link').props.onClick();
+assert(nodes(graphicApp.render()).some(n => n.type === graphicWindow.WrWireStudio));
+graphicWindow.App.AccountStorage = { owner: () => 'account:another' };
+assert(!nodes(graphicApp.render()).some(n => n.type === graphicWindow.WrWireStudio));
+console.log('PASS single-league Studio authentication-owner isolation');
