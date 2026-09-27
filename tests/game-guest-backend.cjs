@@ -102,6 +102,20 @@ const quiet = { ...console, error() {}, warn() {} };
         }
         console.log('PASS actual atomic SQL: both games, retry identity, occupied seats, closed drafts, private hash, no subscriptions, forged identity');
 
+        for (const malformed of [{}, {phase:null}, {phase:'draft'}, {phase:'draft',draft:{status:null}}]) {
+            const room=await newRoom('duat');
+            await q('update duat_campaigns set state=$2 where id=$1',[room.roomId,malformed]);
+            const before=(await q('select count(*)::int n from app_users'))[0].n;
+            const result=await claim('duat',room,token());
+            assert.equal(result.status,400,'missing or null phase/status must fail closed');
+            assert.equal((await q('select count(*)::int n from app_users'))[0].n,before,'malformed room cannot create a guest identity');
+            assert.equal((await q('select user_id from duat_campaign_members where invite_code=$1',[room.code]))[0].user_id,null,'malformed room seat remains unclaimed');
+        }
+        const waitingRoom=await newRoom('duat');
+        await q('update duat_campaigns set state=$2 where id=$1',[waitingRoom.roomId,{phase:'draft',draft:{status:'waiting'}}]);
+        assert.equal((await claim('duat',waitingRoom,token())).status,200,'valid waiting draft still accepts its invited guest');
+        console.log('PASS missing/null Duat phase/status deny claims without orphan identities; waiting drafts remain joinable');
+
         const qargs=['vault',claimed[0].room.code,'Denied','b'.repeat(64)];
         for(const role of ['anon','authenticated']){
             await db.exec('set role '+role);

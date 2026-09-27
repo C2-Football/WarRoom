@@ -205,6 +205,26 @@
         }).map(player => ({ ...player }));
     }
 
+    // Between picks, research the public archive for the viewer's own next
+    // army. Never subtract rival selections: absence would reveal sealed picks.
+    function draftScoutingCard(player) {
+        return {id:player.id,identity:player.identity,name:player.name,position:player.position,
+            season:player.season,referenceSeason:player.referenceSeason ?? null,referencePoints:player.referencePoints===0?0:player.referencePoints,
+            ...(Number.isInteger(player.decade)?{decade:player.decade,candidateYears:[...player.candidateYears],mysteryCycle:player.mysteryCycle}:{}),
+            researchOnly:true,availability:'unconfirmed',canDraft:false};
+    }
+    function draftScouting(state, viewerFactionId, data) {
+        const faction=factionOf(state,viewerFactionId);
+        if(state.phase!=='draft'||state.draft?.status!=='active'||!data)return null;
+        let next=null;
+        for(let cursor=state.draft.cursor;cursor<pickCount(state);cursor++) {const turn=turnAt(state,cursor);if(turn.factionId===viewerFactionId){next=turn;break;}}
+        const army=next?faction.armies.find(item=>item.season===next.season):faction.armies.at(-1);
+        if(!army)return null;
+        return {version:1,armyId:army.id,armyNumber:next?.armyNumber||faction.armies.indexOf(army)+1,season:army.season,
+            nextPick:next?.number||null,availability:'unconfirmed',
+            rows:next?.number===state.draft.cursor+1?[]:draftPool(data,army.season,state.version>=3?state.scoring:undefined).map(draftScoutingCard)};
+    }
+
     function saveDraftPick(state, player, createdAt) {
         const turn = turnAt(state, state.draft.cursor), faction = factionOf(state, turn.factionId);
         const army = faction.armies.find(item => item.season === turn.season);
@@ -571,6 +591,7 @@
                     season: pick.season, sealed: true });
             projected.draft.turn = draftTurn(state);
             projected.draft.candidates = projected.draft.turn?.factionId === viewerFactionId && data ? draftCandidates(state, data) : [];
+            projected.draft.scouting = draftScouting(state, viewerFactionId, data);
             projected.archaeology.progress = revealProgress(state);
         }
         return projected;
@@ -733,5 +754,5 @@
     }
     return { SCORING, ROSTERS, normalizeSettings, normalizeScoring, settingsOf, regularSeasonWeeks, rosterSize, slotsOf, bestLineup, availableSeasons, createCampaign, applyAction, computeStandings, legalLineup,
         activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign, draftTurn, draftCandidates, revealProgress,
-        draftPool, shortages, rulerBands, historyFor, planningPlayers };
+        draftPool, draftScouting, draftScoutingCard, shortages, rulerBands, historyFor, planningPlayers };
 });

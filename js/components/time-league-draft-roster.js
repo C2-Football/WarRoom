@@ -7,7 +7,7 @@
     const SLOTS = new Set([...POSITIONS, 'FLEX', 'SUPER_FLEX', 'BN']);
     const label = slot => ({ DEF: 'D/ST', SUPER_FLEX: 'Super flex', FLEX: 'Flex', BN: 'Bench' }[slot] || slot);
 
-    function WrTimeLeagueDraftRoster({ league, team, onScout }) {
+    function WrTimeLeagueDraftRoster({ league, team, onScout, highlightIdentity }) {
         const [initiallyOpen] = React.useState(() => Boolean(window.matchMedia?.('(min-width: 900px)').matches));
         if (!league || !team) return null;
         const roster = team.roster || [];
@@ -28,6 +28,8 @@
         // Preserve visibility if a restored league contains an unassigned player.
         roster.filter(entry => !used.has(entry)).forEach(entry => rows.push({ slot: 'Unassigned', entry, key: entry.entryId || entry.identity }));
         const picks = new Map((league.draftPicks || []).filter(pick => pick.teamId === team.teamId).map(pick => [pick.entryId, pick.overall]));
+        const latest = (league.draftPicks || []).reduce((last, pick) => !last || pick.overall > last.overall ? pick : last, null);
+        const highlighted = highlightIdentity || (latest?.teamId === team.teamId ? latest.identity : null);
         return h('section', { className: 'tl-draft-roster', 'aria-label': `My draft: ${team.name}` },
             h('div', { className: 'tl-draft-roster-heading' },
                 h('div', null, h('h3', null, 'My draft'), h('span', { className: 'tl-draft-roster-team' }, team.name)),
@@ -40,12 +42,13 @@
                 h('summary', null, h('span', null, 'View my team'), h('span', { className: 'tl-draft-roster-chevron', 'aria-hidden': 'true' }, '⌄')),
                 h('ul', { className: 'tl-draft-roster-slots', 'aria-label': 'Your draft roster slots' }, rows.map(({ slot, entry, key }) => {
                     const pick = entry && picks.get(entry.entryId);
-                    return h('li', { key, 'data-slot': slot, 'data-position': entry?.position || '' },
+                    const justDrafted = Boolean(entry && entry.identity === highlighted);
+                    return h('li', { key, 'data-slot': slot, 'data-position': entry?.position || '', className: justDrafted ? 'is-latest-pick' : '' },
                         h('span', { className: 'tl-draft-roster-slot' }, label(slot)),
                         entry ? h(onScout ? 'button' : 'span', {
                             className: 'tl-draft-roster-player',
                             ...(onScout ? { type: 'button', 'aria-label': `Scout ${entry.name}`, onClick: event => onScout(entry.identity, event) } : {}),
-                        }, h('strong', null, entry.name), h('small', null, label(entry.position), Number.isInteger(pick) && pick > 0 ? ` · Pick ${pick}` : ''))
+                        }, h('strong', null, entry.name), h('small', null, label(entry.position), Number.isInteger(pick) && pick > 0 ? ` · Pick ${pick}` : '', justDrafted && h('span', { className: 'tl-draft-new-pick' }, 'New pick')))
                             : h('span', { className: 'tl-draft-roster-open' }, 'Open slot'));
                 }))));
     }

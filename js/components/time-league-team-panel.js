@@ -144,6 +144,15 @@
     function PlayerScoutingCard({ league, entry, cards, archiveCards, logIndex, eraFactors, throughWeek, onClose }) {
         const [chosenTab, setChosenTab] = useState(null);
         const read = scoutingRead(league, entry, cards, logIndex, eraFactors, throughWeek);
+        const weeklyAdvice = read.status === 'ready' && read.currentAvailable === false
+            ? { title: 'Bench this week', detail: `No recorded game in Vault W${league.currentWeek}: this player will score zero. Use an eligible alternative with a game.`, basis: 'Confirmed current-week availability' }
+            : read.status === 'ready' && read.currentAvailable === true
+                ? { title: read.currentStars >= 4 ? 'Strong game clue' : read.currentStars != null && read.currentStars <= 2 ? 'Check your alternatives' : read.currentStars === 3 ? 'Mid-range game clue' : 'Game available',
+                    detail: read.currentStars != null ? `${read.currentStars}/5 ranks this game within the player’s own historical season. Compare completed-game PPG with your other starters; stars do not compare player strength.` : 'A recorded game is available. Its rating is unavailable, so compare completed-game PPG and your legal lineup options.',
+                    basis: `Vault W${league.currentWeek} · current public game report` }
+                : { title: read.status === 'complete' ? 'Season complete' : read.status === 'sealed' ? 'Game clue sealed' : 'Awaiting a current game clue',
+                    detail: read.status === 'complete' ? 'There are no remaining lineup decisions in this Vault season.' : 'A start or bench recommendation needs this week’s public availability report. Completed-game averages remain historical evidence.',
+                    basis: 'No current-week recommendation' };
         const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const year = league.seasonsRevealed ? concealed ? read.identifiedYear ?? identifiedYear(league, entry, cards, logIndex, eraFactors, throughWeek) : entry.drawnSeason : null;
         const tab = chosenTab || (year == null ? 'research' : 'season');
@@ -168,6 +177,8 @@
                 h('div', null, h('h2', null, entry.name), h('strong', { className: `tl-scouting-year${year != null ? ' is-known' : ''}` }, year ?? (league.seasonsRevealed ? yearLabel(league, entry, cards, logIndex, eraFactors, throughWeek) : 'Sealed edition'))),
                 h('button', { type: 'button', className: 'tl-btn', onClick: onClose, 'aria-label': 'Close player history' }, 'Close')),
             h(PlayerSignals, { league, entry, cards, logIndex, eraFactors, throughWeek, className: 'tl-dossier-signals' }),
+            h('section', { className: 'tl-lineup-guidance', 'aria-label': 'Start or bench guidance' },
+                h('strong', null, weeklyAdvice.title), h('p', null, weeklyAdvice.detail), h('small', null, weeklyAdvice.basis)),
             h('div', { className: 'tl-scouting-season-meta' },
                 h('span', null, `${Number.isFinite(read.points) ? fmt1(read.points) : '—'} YTD pts`),
                 h('span', null, `${Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1)} Vault weeks left`),
@@ -243,6 +254,7 @@
         const [moveNotice, setMoveNotice] = useState('');
         const [moveChoice, setMoveChoice] = useState(null);
         const [moving, setMoving] = useState(false);
+        const [comparisonOpen, setComparisonOpen] = useState(false);
         const moveRef = React.useRef(null);
         const moveTrigger = React.useRef(null);
         const dossierRef=React.useRef(null);
@@ -285,6 +297,31 @@
             return new Map(team.roster.map(entry => [entry.entryId, league.seasonsRevealed && Stats ? Stats.totals(league, entry, logIndex, eraFactors, Stats.completedWeeks(league, throughWeek)).points : null]));
         }, [team.roster, revealed, league, throughWeek, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
+        const PlayerComparison = window.App.GamePlayerComparison;
+        const comparisonRows = comparisonOpen ? team.roster.map(entry => {
+            const read = scoutingRead(league, entry, cards, logIndex, eraFactors, throughWeek);
+            const outlook = read.status === 'ready' ? read.currentAvailable === false ? 'No game · 0 pts'
+                : read.currentAvailable ? read.currentStars == null ? 'Game available' : `${read.currentStars}/5 stars` : 'Unavailable'
+                : read.status === 'sealed' ? 'Sealed' : read.status === 'complete' ? 'Season complete' : 'Awaiting report';
+            return { id: entry.entryId, name: entry.name, position: entry.position, slot: entry.slot, read, outlook };
+        }) : [];
+        const comparisonColumns = [
+            { key: 'outlook', label: `Vault W${league.currentWeek} outlook`, getValue: row => row.outlook },
+            { key: 'average', label: 'Completed-game PPG', getValue: row => row.read.average, render: row => Number.isFinite(row.read.average) ? fmt1(row.read.average) : '—' },
+            { key: 'games', label: 'Completed games', getValue: row => row.read.games },
+            { key: 'remaining', label: 'Points left', getValue: row => row.read.remainingPoints,
+                render: row => Number.isFinite(row.read.remainingPoints) ? `${row.read.remainingEstimated ? 'Est. ' : ''}${fmt1(row.read.remainingPoints)}` : '—' },
+        ];
+        const comparisonScouting = row => {
+            const eligible = STARTER_SLOTS.filter(slot => Number(league.settings.rosterSlots[slot]) > 0 && Roster.SLOT_ELIGIBILITY[slot]?.includes(row.position)).map(slotName);
+            return {
+                subtitle: `${row.position} · ${slotName(row.slot)} · Vault W${league.currentWeek}`,
+                summary: row.read.currentAvailable === false && row.read.status === 'ready' ? 'Bench this week: the current public report confirms no recorded game and zero points.'
+                    : row.read.status === 'ready' ? 'Stars rate the current game within this player’s season; compare PPG separately across players.' : 'This week’s game clue is not available. A historical average is not a weekly projection.',
+                reason: `${row.slot === 'BN' ? 'On your bench' : `Currently in ${slotName(row.slot)}`}. Eligible starting slots: ${eligible.join(', ') || 'none configured'}.`,
+                confidence: `${row.read.games == null ? 'Completed-game records unavailable.' : `${row.read.games} recorded completed Vault game${row.read.games === 1 ? '' : 's'} in league scoring.`} ${remainingTitle(row.read)}`,
+            };
+        };
         const weeksRemaining = Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveEntry = async (entryId, slot, targetEntryId) => {
@@ -390,8 +427,13 @@
                 h('div', { className: 'tl-roster-toolbar' },
                     h('div', null, h('h2', null, 'My Roster'), h('p', null, `${team.name} · Week ${league.currentWeek} · ${team.roster.length}/${capacity} players · ${weeksRemaining} weeks left`)),
                     h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal ? 'good' : 'warn'}` }, editable ? optimal ? 'Lineup ready' : `${problems.length} open slot${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
+                        PlayerComparison && h('button', { type: 'button', className: 'tl-btn', 'aria-expanded': comparisonOpen, onClick: () => setComparisonOpen(value => !value) }, comparisonOpen ? 'Hide comparison' : 'Compare players'),
                         onStats && h('button', { type: 'button', className: 'tl-btn', onClick: onStats }, 'Player stats'),
                         h('button', { type: 'button', className: 'tl-btn', disabled: !editable || moving, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, 'Auto-fill'))),
+                comparisonOpen && PlayerComparison && h('div', { className: 'tl-roster-comparison' }, h(PlayerComparison, {
+                    rows: comparisonRows, columns: comparisonColumns, scoutingForRow: comparisonScouting,
+                    workspaceKey: `vault-lineup:${league.leagueId}:${team.teamId}`, title: 'Compare lineup options', onSelect: row => setSelectedId(row.id),
+                })),
                 moveNotice && !moveChoice && h('p', { className: 'tl-roster-notice', role: 'status' }, moveNotice),
                 !optimal && problems.length > 0 && h('details', { className: 'tl-roster-help tl-roster-problems' }, h('summary', null, headline), problems.map((problem, i) => h('p', { key: i }, problem))),
                 h('div', { className: 'tl-lineup-table' },

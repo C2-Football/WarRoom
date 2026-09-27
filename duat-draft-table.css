@@ -76,3 +76,28 @@
 .duat-game .duat-draft-history-board .is-mine { background:#f6d37c0b; }
 .duat-game .duat-draft-history-board .is-mine > th { color:#f6d37c; }
 .duat-game .duat-draft-history-board .duat-table-wrap { max-height:460px; }
+.duat-game .duat-draft-fit { margin:18px 0; padding:14px; border-left:3px solid #d2b063; background:#203d454d; border-radius:var(--card-radius-sm,8px); }
+.duat-game .duat-draft-fit h3 { font-size:17px; margin-bottom:8px; }
+.duat-game .duat-draft-fit p { margin-bottom:8px; }
+.duat-game .duat-draft-fit small { display:block; color:#bdcac6; line-height:1.5; }
+.duat-game .duat-draft-pick-feedback { display:flex; flex-wrap:wrap; align-items:center; gap:7px 14px; margin:0 0 14px; padding:14px 16px; background:#203d4599; border:1px solid #8b987a80; border-radius:var(--card-radius,10px); }
+.duat-game .duat-draft-pick-feedback strong { color:#f6d37c; }
+.duat-game .duat-draft-pick-feedback span { color:#cad5cc; flex:1 1 320px; font-size:13px; line-height:1.5; }
+.duat-game .duat-draft-pick-feedback.is-rejected { border-color:#d1997e; background:#53362966; }
+.duat-game .duat-draft-pick-feedback.is-rejected strong { color:#ffbda8; }
+.duat-game .duat-draft-pick-feedback.is-success { border-color:#94b99a; background:#294c3b66; }
+.duat-game .duat-draft-room .duat-army-player.is-new-pick { background:#e2c17613; border-left:3px solid #e0bf71; padding-left:8px; }
+.duat-game .duat-draft-room .duat-army-player.is-new-pick small { color:#f0d391; }
+.duat-game .duat-draft-room .game-draft-inspector { border-color:#b7985360; }
+@media (max-width:700px) {
+  .duat-game .duat-draft-pick-feedback { padding:12px; }
+  .duat-game .duat-draft-pick-feedback .duat-button { width:100%; }
+}
+.duat-game .duat-lineup-comparison { margin-top:18px; padding-top:16px; border-top:1px solid #7a8b7159; }
+.duat-game .duat-lineup-comparison > .duat-muted { margin:12px 0; font-size:13px; line-height:1.5; }
+/* Keep each compact scouting value legible on narrow lineup rows. */
+.duat-game .duat-lineup-stats strong { white-space:nowrap; flex-shrink:0; }
+.duat-game .duat-lineup-remaining small { white-space:nowrap; }
+@media (max-width:767px) {
+  .duat-game .duat-lineup-entry { grid-template-columns:44px minmax(0,1fr) 82px; }
+}

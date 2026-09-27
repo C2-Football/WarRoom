@@ -966,7 +966,7 @@
             joined.length > 0 && h('details', { className: 'tl-joined-managers' },
                 h('summary', null, `${joined.length} ${joined.length === 1 ? 'manager has' : 'managers have'} joined`),
                 joined.map(member => h('div', { key: member.id, className: 'tl-joined-manager' }, h('strong', null, seatName(member)),
-                    h('small', null, [member.displayName, member.role === 'commissioner' ? 'Commissioner' : member.guest ? 'Guest · Joined' : 'Joined'].filter(Boolean).join(' · '))))),
+                    h('small', null, [member.displayName, member.role === 'commissioner' ? 'Commissioner' : member.guest ? 'Guest · Joined' : 'Joined', member.ready_week === league.currentWeek ? 'Ready' : 'Not ready'].filter(Boolean).join(' · '))))),
             invitesOpen && host && h('button', { type: 'button', className: 'tl-btn primary tl-open-draft', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'Open draft room'),
             invitesOpen && !host && h('p', { className: 'tl-hint' }, 'The commissioner will open the draft once everyone has joined.'),
             h('details', { className: 'tl-friends-team-editor' },
@@ -1027,6 +1027,8 @@
             });
         }, []);
         const [connectionError, setConnectionError] = useState(null);
+        const [lastSyncedAt, setLastSyncedAt] = useState(0);
+        const [reconnecting, setReconnecting] = useState(false);
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
         const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
@@ -1115,8 +1117,18 @@
             setLeague(safe);
             setActiveTeamId(meta.seatTeamId);
             setConnectionError(null);
+            setLastSyncedAt(Date.now());
             setAuthRequired(false);
         }, []);
+
+        const reconnectRoom = async () => {
+            const meta = onlineRef.current;
+            if (!meta || reconnecting || authRequired) return;
+            setReconnecting(true);
+            try { acceptRow(await Remote.loadOnlineLeague(meta.rowId)); }
+            catch (error) { if (onlineRef.current?.rowId === meta.rowId) reportRemoteError(error); }
+            finally { setReconnecting(false); }
+        };
 
         const refreshOnlineIndex = useCallback(() => {
             if (!Remote) return;
@@ -1657,7 +1669,6 @@
                         h('strong', null, activeTab === 'draft' && league.phase !== 'draft' ? 'Draft recap' : TAB_LABELS[activeTab])),
                     h('div', { className: 'tl-league-context' },
                         !(activeTab === 'draft' && league.phase === 'draft') && h('span', { className: `tl-pill ${phaseTone}` }, watching ? `${playback.replay ? 'REPLAY' : playback.playing ? 'PLAYING' : 'PAUSED'} · WEEK ${playback.week}` : league.phase === 'draft' ? 'DRAFT' : league.phase === 'complete' ? 'COMPLETE' : `${league.weekStage === 'postgame' ? 'FINAL · ' : ''}WEEK ${Math.min(league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek, Engine.seasonEndWeek(league))}`),
-                        onlineMeta && h('span', { className: 'tl-connection-dot', role: 'status', title: authRequired ? 'Sign-in required' : saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online', 'aria-label': authRequired ? 'Sign-in required' : saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online' }, connectionError || authRequired ? '○' : '●'),
                         onlineMeta && h('button', { type: 'button', className: 'tl-btn tl-invite-trigger', onClick: openFriends, 'aria-controls': 'vault-friends-room', 'aria-expanded': showFriends || !onlineMeta.draftStarted }, onlineMeta.role === 'commissioner' ? 'Invite' : 'Managers'),
                         activeTab !== 'messages' && unreadMail.length > 0 && h('button', { type: 'button', className: 'tl-mail-trigger', onClick: () => openMail(unreadMail[0].fromTeamId), 'aria-label': `${unreadMail.length} unread messages. Open message from ${unreadMail[0].name}`, title: 'Unread messages' }, h('span', { 'aria-hidden': true }, '✉'), h('em', { className: 'tl-mail-badge' }, unreadMail.length)),
                         h('details', { key: `${league.leagueId}:${activeTab}`, className: 'tl-league-menu' },
@@ -1670,13 +1681,16 @@
                                 reportBug && h('button', { type: 'button', className: 'tl-btn', onClick: event => { event.currentTarget.closest('details')?.removeAttribute('open'); reportBug(); } }, 'Report a bug'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
                                 h('button', { type: 'button', className: 'tl-btn', onClick: () => { if (!storageError || keepPreviousSave()) onClose(); } }, storageError ? 'Keep previous save & go back' : 'Back to dashboard'))))),
-                conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
+                onlineMeta && window.App.GameRoomStatus && h(window.App.GameRoomStatus, { authRequired, saving, error: connectionError, lastSyncedAt, retrying: reconnecting, onRetry: reconnectRoom,
+                    joined: onlineMeta.members.filter(member => member.joined).length, total: onlineMeta.members.length,
+                    ready: onlineMeta.members.filter(member => member.joined && member.ready_week === league.currentWeek).length }),
+                conflictNotice && h('div', { className: 'tl-card', role: 'alert', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                         h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
-                        h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setConflictNotice(null) }, '✕'))),
+                        h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Dismiss move notice', onClick: () => setConflictNotice(null) }, '✕'))),
                 signInNotice,
                 guestAccess,
-                connectionError && !authRequired && h('p', { className: 'tl-card', role: 'status' }, 'Connection interrupted. Reconnecting automatically; your last saved game is shown.'),
+                connectionError && !authRequired && !window.App.GameRoomStatus && h('p', { className: 'tl-card', role: 'status' }, 'Connection interrupted. Reconnecting automatically; your last saved game is shown.'),
                 storageError && h('div', { className: 'tl-card', role: 'alert' },
                     h('p', null, storageError),
                     h('div', { className: 'tl-stage-actions' },

@@ -8,8 +8,12 @@ const vm = require('node:vm');
 // second filtering implementation. Browser layout and game privacy adapters
 // have separate coverage; these checks exercise the shared board's contract.
 let active;
+const focusLog = [];
 const React = {
-    createElement(type, props, ...children) { return { type, props: props || {}, children: children.flat(Infinity).filter(child => child !== null && child !== undefined && child !== false) }; },
+    createElement(type, props, ...children) {
+        if (props?.ref) props.ref.current = { focus() { focusLog.push(props['aria-label'] || children.filter(item => typeof item === 'string').join(' ')); } };
+        return { type, props: props || {}, children: children.flat(Infinity).filter(child => child !== null && child !== undefined && child !== false) };
+    },
     useState(initial) {
         const slot = active.cursor++, owner = active;
         if (!(slot in owner.hooks)) owner.hooks[slot] = typeof initial === 'function' ? initial() : initial;
@@ -18,6 +22,7 @@ const React = {
             if (!Object.is(next, owner.hooks[slot])) { owner.hooks[slot] = next; owner.dirty = true; }
         }];
     },
+    useRef(initial) { const slot = active.cursor++; return active.hooks[slot] || (active.hooks[slot] = { current: initial }); },
     useEffect(callback, deps) {
         const slot = active.cursor++, owner = active, previous = owner.hooks[slot];
         if (!previous || deps.length !== previous.deps.length || deps.some((value, index) => !Object.is(value, previous.deps[index]))) {
@@ -26,18 +31,18 @@ const React = {
     }
 };
 const root = { App: {} };
-for (const key of ['S', 'OD', 'WR', 'fetch', 'localStorage']) Object.defineProperty(root, key, { get() { throw new Error(`Shared board read forbidden global ${key}`); } });
+for (const key of ['S', 'OD', 'WR', 'fetch', 'localStorage']) Object.defineProperty(root, key, { configurable: true, get() { throw new Error(`Shared board read forbidden global ${key}`); } });
 const source = fs.readFileSync(path.join(__dirname, '../js/components/game-draft-table.js'), 'utf8');
 vm.runInNewContext(source, { window: root, React }, { filename: 'game-draft-table.js' });
 const { GameDraftTable, GameDraftTableModel: { viewRows } } = root.App;
-function mount(initial) {
+function mount(initial, Component = GameDraftTable) {
     const owner = { hooks: [], props: initial, cursor: 0, effects: [], dirty: false };
     return function render(patch = {}) {
         owner.props = { ...owner.props, ...patch };
         let tree;
         for (let passes = 0; passes < 12; passes++) {
             active = owner; owner.cursor = 0; owner.effects = []; owner.dirty = false;
-            tree = GameDraftTable(owner.props);
+            tree = Component(owner.props);
             for (const effect of owner.effects) effect();
             if (!owner.dirty) return tree;
         }
@@ -236,6 +241,132 @@ test('the shared board displays only public adapter fields and never loads curre
     assert.equal(control(tree, 'Draft player table').props.tabIndex, 0, 'Table scroll area is reachable by keyboard');
     assert.equal(control(tree, 'Draft player table').props.role, 'region', 'Scroll area has an exposed accessible name');
     assert.equal(nodes(tree, node => node.type === 'button' && /Draft Historical/.test(node.props['aria-label'] || '')).length, 0, 'Read-only adapters have no pick action');
+});
+
+function withStorage(run) {
+    const original = Object.getOwnPropertyDescriptor(root, 'localStorage'), saved = new Map();
+    Object.defineProperty(root, 'localStorage', { configurable: true, value: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) } });
+    try { run(saved); } finally { Object.defineProperty(root, 'localStorage', original); }
+}
+
+test('comparison is bounded to three current public rows and persists only scoped IDs', () => withStorage(saved => {
+    const draw = mount({ rows, columns: [points], workspaceKey: 'vault:room-a:seat-a', scoutingForRow: row => ({ reason: 'Public fit', metrics: [{ label: 'PPG', value: row.points }] }) });
+    let tree = draw();
+    for (const name of ['Quarterback 2', 'José Runner', 'Wide Receiver']) { assert.equal(click(control(tree, 'Compare ' + name)), 1); tree = draw(); }
+    assert.equal(control(tree, 'Compare Tight End').props.disabled, true);
+    click(control(tree, 'Compare Tight End')); tree = draw();
+    const comparison = control(tree, 'Player comparison');
+    assert.equal(nodes(comparison, node => node.type === 'article').length, 3);
+    assert.equal(JSON.parse(saved.get('wr-draft-research-v1:vault:room-a:seat-a')).compareIds.length, 3);
+    assert(![...saved.values()].some(value => value.includes('Quarterback') || value.includes('Public fit') || value.includes('points')));
+    click(button(tree, 'Compare (3/3)')); tree = draw();
+    assert(focusLog.includes('Compare players · 3/3'));
+    // A new server view cannot render remembered player details that it omits.
+    tree = draw({ rows: rows.filter(row => row.id !== 'rb') });
+    assert(!words(control(tree, 'Player comparison')).includes('José'));
+    assert(words(tree).includes('Some selections are outside this board view.'));
+    click(button(tree, 'Remove selections outside this view')); tree = draw();
+    assert.equal(nodes(control(tree, 'Player comparison'), node => node.type === 'article').length, 2);
+    tree = draw({ workspaceKey: 'vault:room-a:seat-b' });
+    assert.equal(nodes(tree, node => node.props['aria-label'] === 'Player comparison').length, 0);
+    tree = draw({ workspaceKey: 'vault:room-a:seat-a' });
+    assert.equal(nodes(control(tree, 'Player comparison'), node => node.type === 'article').length, 2);
+}));
+
+test('quick scouting focuses the inspector, preserves full-card clicks, and loses inaccessible rows without caching metrics', () => withStorage(saved => {
+    let opened = 0, returned = 0;
+    const draw = mount({ rows, columns: [points], workspaceKey: 'duat:room:cycle:faction:army', onSelect() { opened++; }, scoutingForRow: row => ({ subtitle: row.detail, summary: 'Archive context', reason: 'An open starting slot', confidence: 'Public candidates only', metrics: [{ label: 'Estimated PPG', value: row.points }] }) });
+    let tree = draw();
+    control(tree, 'Quick scout José Runner').props.onClick({ stopPropagation() {}, currentTarget: { focus() { returned++; } } }); tree = draw();
+    assert.equal(opened, 0); assert(focusLog.includes('José Runner'));
+    assert(words(control(tree, 'Scouting inspector')).includes('Public candidates only'));
+    click(button(tree, 'Open full player card')); assert.equal(opened, 1);
+    click(control(tree, 'Close scouting inspector')); tree = draw(); assert.equal(returned, 1);
+    click(control(tree, 'Open player card for Quarterback 2')); tree = draw(); assert.equal(opened, 2);
+    assert(words(control(tree, 'Scouting inspector')).includes('Quarterback 2'));
+    tree = draw({ rows: [] }); assert.equal(nodes(tree, node => node.props['aria-label'] === 'Scouting inspector').length, 0);
+    const stored = JSON.parse(saved.values().next().value);
+    assert.deepEqual(Object.keys(stored).sort(), ['compareIds', 'inspectorId', 'query']);
+    assert.equal(stored.inspectorId, 'qb'); assert(!JSON.stringify(stored).includes('Archive context'));
+}));
+
+test('view preferences survive remount while search and research remain seat-scoped', () => withStorage(saved => {
+    const props = { rows, columns: [points], positionOptions: positions, preferenceKey: 'vault-board', workspaceKey: 'room:seat-a' };
+    let draw = mount(props), tree = draw();
+    change(tree, 'Sort draft players', 'points'); tree = draw();
+    change(tree, 'Draft position', 'FLEX'); tree = draw();
+    change(tree, 'Draft row spacing', 'compact'); tree = draw();
+    const checkbox = one(tree, node => node.type === 'input' && node.props.type === 'checkbox');
+    checkbox.props.onChange({ target: { checked: false } }); tree = draw();
+    change(tree, 'Search draft players', 'Jose'); tree = draw();
+    draw = mount(props); tree = draw();
+    assert.equal(control(tree, 'Sort draft players').props.value, 'points');
+    assert.equal(control(tree, 'Draft position').props.value, 'FLEX');
+    assert.equal(control(tree, 'Draft row spacing').props.value, 'compact');
+    assert.equal(control(tree, 'Search draft players').props.value, 'Jose');
+    assert.equal(nodes(tree, node => node.props.className === 'game-draft-metric game-draft-col-points').length, 0);
+    assert.deepEqual(rowIds(tree), ['rb']);
+    tree = draw({ workspaceKey: 'room:seat-b' }); assert.equal(control(tree, 'Search draft players').props.value, '');
+    assert.equal(control(tree, 'Draft row spacing').props.value, 'compact');
+    tree = draw({ preferenceKey: 'duat-board' }); assert.equal(control(tree, 'Draft row spacing').props.value, 'comfortable');
+    assert(!saved.get('wr-draft-preferences-v1:vault-board').includes('Jose'));
+}));
+
+test('corrupt storage, hostile extra fields, and denied storage cannot broaden data or block board use', () => withStorage(saved => {
+    saved.set('wr-draft-preferences-v1:corrupt', '{');
+    saved.set('wr-draft-research-v1:corrupt', JSON.stringify({ compareIds: ['qb', 'qb', { name: 'Injected' }, 'rb', 'wr', 'te'], inspectorId: { name: 'Secret' }, player: rows[0], query: 'a'.repeat(500) }));
+    const draw = mount({ rows, columns: [points], preferenceKey: 'corrupt', workspaceKey: 'corrupt', countNoun: 'scouting cards' });
+    let tree = draw();
+    assert.equal(control(tree, 'Search draft players').props.value.length, 240);
+    click(button(tree, 'Reset view')); tree = draw();
+    const pref = JSON.parse(saved.get('wr-draft-preferences-v1:corrupt'));
+    assert.equal(pref.density, 'comfortable');
+    change(tree, 'Search draft players', ''); tree = draw();
+    assert(words(tree).includes('4 scouting cards'));
+    assert(!JSON.stringify(JSON.parse(saved.get('wr-draft-research-v1:corrupt'))).includes('Injected'));
+    root.localStorage.setItem = () => { throw new Error('Quota'); };
+    change(tree, 'Draft row spacing', 'compact'); tree = draw();
+    assert.equal(control(tree, 'Draft row spacing').props.value, 'compact');
+}));
+
+test('controlled search hydration is opt-in, once per workspace, and clears a previous seat search', () => withStorage(saved => {
+    saved.set('wr-draft-research-v1:room:seat-a', JSON.stringify({ query: 'Jose', compareIds: [], inspectorId: '' }));
+    const restored = [];
+    const draw = mount({ rows, columns: [points], workspaceKey: 'room:seat-a', restoreQuery: true, query: '', onQueryChange: value => restored.push(value) });
+    draw(); assert.deepEqual(restored, ['Jose']);
+    let tree = draw({ query: 'Jose' }); assert.deepEqual(rowIds(tree), ['rb']);
+    draw(); assert.deepEqual(restored, ['Jose']);
+    draw({ workspaceKey: 'room:seat-b' }); assert.deepEqual(restored, ['Jose', '']);
+    tree = draw({ query: '' }); assert.equal(bodyRows(tree).length, 4);
+}));
+
+test('lineup comparison reuses public weekly measures without mounting a draft board or storing scores', () => withStorage(saved => {
+    const lineup = [{ id: 'a', name: 'Starter', position: 'RB', week: 0, left: 125 }, { id: 'b', name: 'Bench', position: 'RB', week: 12, left: null }, { id: 'c', name: 'Third', position: 'WR', week: 8, left: 50 }, { id: 'd', name: 'Fourth', position: 'TE', week: 5, left: 30 }];
+    const selected = [];
+    const props = { rows: lineup, workspaceKey: 'vault:room:seat:lineup', columns: [{ key: 'week', label: 'Week 5 estimate', getValue: row => row.week }, { key: 'left', label: 'Remaining base points', getValue: row => row.left }], scoutingForRow: () => ({ reason: 'Fits RB or Flex', confidence: 'Candidate average' }), onSelect: row => selected.push(row.id) };
+    const draw = mount(props, root.App.GamePlayerComparison); let tree = draw();
+    for (const name of ['Starter', 'Bench', 'Third']) { click(control(tree, 'Compare ' + name)); tree = draw(); }
+    assert.equal(control(tree, 'Compare Fourth').props.disabled, true);
+    click(control(tree, 'Compare Fourth')); tree = draw();
+    assert.equal(nodes(tree, node => node.type === 'article').length, 3);
+    assert.equal(nodes(tree, node => node.type === 'table').length, 0);
+    const starter = nodes(tree, node => node.type === 'article').find(node => node.props.key === 'a');
+    assert(words(starter).includes('Week 5 estimate 0')); assert(words(tree).includes('Remaining base points —'));
+    click(button(tree, 'Starter')); assert.deepEqual(selected, ['a']);
+    const stored = saved.get('wr-draft-research-v1:vault:room:seat:lineup');
+    assert(!stored.includes('125') && !stored.includes('Candidate average') && !stored.includes('Starter'));
+    tree = draw({ rows: lineup.slice(1) }); assert.equal(nodes(tree, node => node.type === 'article').length, 2); assert(!words(tree).includes('Starter'));
+    tree = draw({ workspaceKey: 'vault:room:other-seat:lineup' }); assert.equal(nodes(tree, node => node.type === 'article').length, 0);
+}));
+
+test('controlled lineup pins remain under adapter authority and remove/clear restore heading focus', () => {
+    const updates = [], draw = mount({ rows, columns: [points], selectedIds: ['qb', 'rb'], showPicker: false, onChange: ids => updates.push(Array.from(ids)), title: 'Compare this lineup' }, root.App.GamePlayerComparison);
+    let tree = draw(); click(control(tree, 'Remove José Runner from comparison')); tree = draw();
+    assert.deepEqual(updates, [['qb']]); assert.equal(nodes(tree, node => node.type === 'article').length, 2);
+    assert(focusLog.includes('Compare this lineup'));
+    tree = draw({ selectedIds: updates.at(-1) }); assert.equal(nodes(tree, node => node.type === 'article').length, 1);
+    click(button(tree, 'Clear comparison')); tree = draw({ selectedIds: [] });
+    assert.deepEqual(updates.at(-1), []); assert.equal(nodes(tree, node => node.type === 'article').length, 0);
 });
 
 console.log(`Game draft table: ${checks.length} source-real interaction and data-contract checks passed.`);

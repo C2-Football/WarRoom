@@ -137,7 +137,7 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
             },
         };
         let engineCalls=0;
-        const sandbox = { Request,Response,URL,crypto:webcrypto,console,createClient:()=>admin,
+        const sandbox = { Request,Response,URL,TextEncoder,crypto:webcrypto,console,createClient:()=>admin,
             handleOptions:()=>null,json:(_req,body,status=200)=>new Response(JSON.stringify(body),{status}),
             requireActiveAppSession:async(_db,req)=>req.headers.get('x-test-user')?{userId:req.headers.get('x-test-user')}:null,
             handleGameGuestEntry:async()=>null,getGameGuestSession:async()=>null,loadGameMemberLabels:async()=>new Map(),
@@ -243,17 +243,23 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
                 const turn=room.campaign.draft.turn;assert([hostFaction,friendFaction].includes(turn.factionId));
                 const actor=turn.factionId===hostFaction?users[0]:users[1],other=actor===users[0]?users[1]:users[0];
                 const beforeOwn=dataLoads,own=await load(actor);assert.equal(dataLoads,beforeOwn+1);
-                const beforeOther=dataLoads,rival=await load(other);assert.equal(dataLoads,beforeOther);
+                const beforeOther=dataLoads,rival=await load(other);assert.equal(dataLoads,beforeOther+1,'Between-pick public research also loads the archive');assert(rival.campaign.draft.scouting.rows.length);assert(rival.campaign.draft.scouting.rows.every(player=>player.canDraft===false&&player.availability==='unconfirmed'));
                 const candidates=own.campaign.draft.candidates;
                 assert(candidates.length);assert.equal(rival.campaign.draft.candidates.length,0);
                 assert.equal(own.campaign.seed,undefined);assert.equal(own.campaign.conquest.seed,undefined);
                 for(const pick of rival.campaign.draft.picks)if(pick.factionId===turn.factionId)assert.equal(pick.playerId,undefined);
                 if(humanPicks===0){
+                    const scouting=rival.campaign.draft.scouting;assert.match(scouting.revision,/^[a-f0-9]{64}$/);
+                    const cached=await call(other,{op:'load',roomId,scoutingRevision:scouting.revision});
+                    assert.equal(cached.room.campaign.draft.scouting.unchanged,true);assert.equal(cached.room.campaign.draft.scouting.rows,undefined);assert.equal(cached.room.campaign.draft.scouting.revision,scouting.revision);
+                    const stale=await call(other,{op:'load',roomId,scoutingRevision:'old-public-archive'});assert.equal(stale.room.campaign.draft.scouting.rows.length,scouting.rows.length);assert.equal(stale.room.campaign.draft.scouting.unchanged,undefined);
+                    const current=await call(actor,{op:'load',roomId,scoutingRevision:own.campaign.draft.scouting.revision});assert.equal(current.room.campaign.draft.candidates.length,candidates.length,'Caching research never elides legal pick candidates');
+                    assert.equal((await call(other,{op:'load',roomId,scoutingRevision:'x'.repeat(129)})).status,400);
                     assert.equal((await action(other,{type:'draft-pick',playerId:candidates[0].id})).ok,false);
                     const requests=candidates.slice(0,2).map((player,index)=>({op:'action',roomId,expectedRevision:own.revision,actionId:'v2-raced-pick-'+index,action:{type:'draft-pick',playerId:player.id}}));
                     const race=await Promise.all(requests.map(body=>call(actor,body)));
                     assert.equal(race.filter(r=>r.ok).length,1);assert.equal(race.filter(r=>r.status===409&&r.conflict).length,1);
-                    const winner=race.findIndex(r=>r.ok),retry=await call(actor,requests[winner]);assert.equal(retry.deduplicated,true);
+                    const winner=race.findIndex(r=>r.ok),retry=await call(actor,{...requests[winner],scoutingRevision:race[winner].room.campaign.draft.scouting?.revision});assert.equal(retry.deduplicated,true);if(race[winner].room.campaign.draft.scouting)assert.equal(retry.room.campaign.draft.scouting.unchanged,true,'Deduplicated action responses use the same public archive cache contract');
                     assert.equal((await call(actor,{...requests[winner],action:{type:'draft-pick',playerId:candidates[2].id}})).ok,false);
                     room=retry.room;
                 }else room=await must(actor,{type:'draft-pick',playerId:candidates[0].id});

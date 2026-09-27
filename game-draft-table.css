@@ -41,6 +41,44 @@
 .game-draft-board .game-draft-more { display:block; width:100%; margin-top:10px; font-size:12px; }
 .game-draft-empty { padding:25px 12px; text-align:center; color:var(--draft-muted); }
 .game-draft-empty button { display:block; margin:12px auto 0; }
+.game-draft-list { min-width:0; }
+.game-draft-workspace { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; align-items:start; }
+.game-draft-workspace.has-inspector { grid-template-columns:minmax(0,1fr) minmax(220px,28%); }
+.game-draft-preferences { position:relative; color:var(--draft-muted); font-size:12px; }
+.game-draft-preferences summary { cursor:pointer; padding:8px 10px; border:1px solid rgba(184,200,182,.24); border-radius:8px; min-height:36px; box-sizing:border-box; }
+.game-draft-preferences > div { display:grid; gap:10px; position:absolute; right:0; top:100%; z-index:4; width:220px; max-width:75vw; padding:14px; background:var(--draft-header,#172820); border:1px solid rgba(184,200,182,.3); border-radius:8px; box-shadow:0 12px 32px #0007; }
+.game-draft-preferences label { display:flex; align-items:center; gap:8px; }
+.game-draft-preferences input[type=checkbox] { width:18px; min-height:18px; accent-color:var(--draft-accent); }
+.game-draft-preferences select { min-width:0; }
+.game-draft-comparison { margin-top:14px; padding:14px; border:1px solid rgba(227,189,112,.3); border-radius:10px; background:rgba(227,189,112,.025); min-width:0; }
+.game-draft-comparison > header, .game-draft-inspector > header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.game-draft-board h4 { margin:0; color:var(--draft-accent); font-size:15px; }
+.game-draft-comparison-scroll { overflow:auto; margin-top:10px; }
+.game-draft-comparison-grid { display:grid; grid-template-columns:repeat(var(--compare-count,3),minmax(180px,1fr)); gap:10px; }
+.game-draft-comparison article { min-width:0; padding:12px; border:1px solid rgba(184,200,182,.2); border-radius:8px; background:var(--bg,#111c19); }
+.game-draft-comparison article > small, .game-draft-inspector > small { display:block; color:var(--draft-muted); margin:4px 0 10px; }
+.game-draft-board :is(.game-draft-comparison,.game-draft-inspector) dl { margin:12px 0; }
+.game-draft-board :is(.game-draft-comparison,.game-draft-inspector) dl > div { padding:7px 0; border-bottom:1px solid rgba(184,200,182,.13); }
+.game-draft-board :is(.game-draft-comparison,.game-draft-inspector) dt { color:var(--draft-muted); font-size:11px; }
+.game-draft-board :is(.game-draft-comparison,.game-draft-inspector) dd { margin:3px 0 0; font-weight:700; overflow-wrap:anywhere; }
+.game-draft-inspector { position:sticky; top:12px; padding:14px; margin-top:12px; min-width:0; max-height:650px; overflow:auto; background:var(--draft-header,#172820); border:1px solid rgba(227,189,112,.3); border-radius:10px; }
+.game-draft-inspector > button { display:block; width:100%; margin-top:9px; }
+.game-draft-scouting { font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.game-draft-scout-subtitle, .game-draft-confidence { color:var(--draft-muted); }
+.game-draft-row-actions { white-space:normal; min-width:136px; max-width:220px; }
+.game-draft-row-actions button { margin:2px !important; }
+.game-draft-row-actions :is(.game-draft-compare-toggle,.game-draft-inspect) { font-size:10px; padding:6px; }
+.game-draft-compare-toggle[aria-pressed=true] { color:var(--draft-accent); border-color:var(--draft-accent); background:rgba(227,189,112,.1); }
+.game-draft-density-compact .game-draft-table :is(th,td) { padding-top:5px; padding-bottom:5px; }
+.game-draft-board :is(summary,[tabindex="-1"]):focus-visible { outline:2px solid var(--draft-accent); outline-offset:3px; }
+.game-player-comparison-picker { margin-top:10px; }
+.game-player-comparison-picker summary { cursor:pointer; min-height:44px; padding:10px 0; box-sizing:border-box; color:var(--draft-accent); }
+.game-player-comparison-picker > div { display:flex; flex-wrap:wrap; gap:7px; max-height:240px; overflow:auto; padding:3px; }
+.game-player-comparison-picker button { min-height:44px; text-align:left; }
+.game-player-comparison-picker small { display:block; color:var(--draft-muted); }
+.game-player-comparison-picker button[aria-pressed=true] { border-color:var(--draft-accent); background:rgba(227,189,112,.1); }
+.game-player-comparison .game-draft-comparison > header { flex-wrap:wrap; }
+@media (max-width:1100px) { .game-draft-workspace.has-inspector { grid-template-columns:minmax(0,1fr); }.game-draft-inspector { position:static; grid-row:1; max-height:none; } }
 @media (max-width:600px) {
  .game-draft-heading { margin-bottom:10px; }.game-draft-heading h3 { font-size:16px; }
  .game-draft-tools { gap:7px; }.game-draft-tools .game-draft-search { flex-basis:100%; }
@@ -59,4 +97,12 @@
  .game-draft-table .game-draft-row-actions { grid-column:2 / -1; display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
  .game-draft-row-actions .game-draft-queue { min-height:44px; min-width:44px; }.game-draft-row-actions .game-draft-pick { min-height:44px; min-width:78px; font-size:12px; }
  .game-draft-row-actions button + button { margin:0; }
+ .game-draft-table .game-draft-row-actions { flex-wrap:wrap; max-width:none; min-width:0; gap:5px; }
+ .game-draft-row-actions :is(.game-draft-compare-toggle,.game-draft-inspect) { min-height:44px; font-size:11px; }
+ .game-draft-preferences summary { min-height:44px; }
+ .game-draft-preferences > div { left:0; right:auto; }
+ .game-draft-density-compact .game-draft-table td { padding:0; }
+ .game-draft-comparison { padding:10px; }.game-draft-comparison > header { flex-wrap:wrap; }
+ .game-draft-comparison-grid { grid-template-columns:repeat(var(--compare-count,3),minmax(210px,1fr)); }
+ .game-draft-inspector { margin-top:0; }
 }

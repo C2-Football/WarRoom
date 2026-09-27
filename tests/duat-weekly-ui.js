@@ -36,7 +36,7 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
         DuatPresentation:{nameOf:id=>World.factionById(id)?.name||id,identity:id=>World.factionById(id),art:id=>id+'.webp',Sigil(){},World(){},Tournaments(){},Land(){},Pantheon(){},Draft(){},Archaeology(){}},
         DuatHeptadUI:{RulesControls:Empty,AllianceIntro:Empty,WeeklyRecap:Empty,Games:Empty},DuatRitualsView(){},DuatLibrary(){},DuatCouncil(){},
         OD:{getCurrentUserId:()=>actor?.kind==='account'?actor.userId:null,getSessionToken:()=>actor?.kind==='account'?actor.token:null},
-        GameGuest:{getActor:()=>actor,getSession:()=>actor?.kind==='guest'?actor:null,subscribe(fn){subscribers.push(fn);return()=>{};}},GameGuestPanel:function GuestPanel(){},
+        GameGuest:{getActor:()=>actor,getSession:()=>actor?.kind==='guest'?actor:null,subscribe(fn){subscribers.push(fn);return()=>{};}},GameGuestPanel:function GuestPanel(){},GameRoomStatus:function RoomStatus(){},
         TimeLeaguePlayerCards:{buildPlayerCardIndex:value=>value},
         DuatRemote:{async request(request){
             requests.push(clone(request));if(failure&&failure.op===request.op)return clone(failure.result);
@@ -380,4 +380,14 @@ test('host sees the joined player name and guest marker beside the reserved fact
     await page.open(false);button(page.draw(),'Friends & invites').props.onClick();
     const label=text(page.draw());assert.match(label,/Friend Manager/);assert.match(label,/Guest/);assert.match(label,/Joined · preparing/);
     assert.match(label,/Send a different faction link to each friend/);
+});
+
+
+test('room reconnect preserves the guided stage and confirms recovery without another action',async()=>{
+    const page=await harness({online:true});await page.open();await page.primary();
+    const stage=page.frame().stage,actions=page.actions.length;
+    page.setFailure('load',{ok:false,networkError:true,error:'Connection interrupted'});await page.poll();
+    const status=page.component(page.App.GameRoomStatus);assert.equal(status.error,true);assert(status.lastSyncedAt>0);
+    page.setFailure('load',{ok:true,room:clone(page.room)});await status.onRetry();await page.settle();
+    assert.equal(page.component(page.App.GameRoomStatus).error,false);assert.equal(page.frame().stage,stage);assert.equal(page.actions.length,actions);
 });

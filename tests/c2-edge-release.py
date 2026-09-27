@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the actual planner in disposable repositories; never contact hosted APIs."""
 import copy
+import io
 import importlib.util
 import json
 import os
@@ -149,7 +150,7 @@ class ReleaseTests(unittest.TestCase):
                 release.selected_functions([name])
 
     def test_shared_data_and_compiler_changes_invalidate_review(self):
-        for name in ['supabase/functions/_shared/security.ts', 'data/time-league/history.csv', 'data/duat/history.csv', 'scripts/build-time-league-server.cjs', '.github/workflows/deploy-functions.yml']:
+        for name in ['supabase/functions/_shared/security.ts', 'data/time-league/history.csv', 'data/duat/history.csv', 'scripts/build-time-league-server.cjs', 'scripts/extract-edge-source.mjs', '.github/workflows/deploy-functions.yml']:
             original = (self.root / name).read_bytes()
             (self.root / name).write_bytes(original + b'\nchanged\n')
             with self.assertRaises(release.Rejected):
@@ -265,6 +266,150 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertNotIn('--use-api', calls[1])
         self.assertTrue(all(command[1:3] == ['functions','download'] for command in calls))
+
+    def test_raw_recovery_runs_only_after_both_vault_downloads_fail_in_clean_directories(self):
+        calls = []
+        def download(command, **kwargs):
+            directory = Path(kwargs['cwd'])
+            self.assertEqual(list(directory.iterdir()), [], 'partial files from another downloader must not survive')
+            (directory / 'untrusted-partial.ts').write_text('partial')
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 1)
+        def recover(name, directory):
+            self.assertEqual(name, 'time-league')
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+            entry = Path(directory, 'supabase/functions/time-league/index.ts')
+            entry.parent.mkdir(parents=True)
+            entry.write_text("import '../_shared/security.ts';\nexport const original: boolean = true;\n")
+            shared = Path(directory, 'supabase/functions/_shared/security.ts')
+            shared.parent.mkdir(parents=True)
+            shared.write_text('export const security: boolean = true;\n')
+        inventory = [{'slug': 'time-league', 'version': 7, 'verify_jwt': False}]
+        with patch.object(release, 'management', return_value=inventory) as management, patch.object(release.subprocess, 'run', side_effect=download), patch.object(release, 'recover_large_bundle', side_effect=recover) as recovery:
+            result = release.hosted_snapshot(['time-league'])
+        self.assertEqual(set(result['time-league']['sources']), {'supabase/functions/time-league/index.ts', 'supabase/functions/_shared/security.ts'})
+        self.assertEqual(result['time-league']['version'], 7)
+        self.assertIn('--use-api', calls[0])
+        self.assertNotIn('--use-api', calls[1])
+        self.assertEqual(recovery.call_count, 1)
+        self.assertEqual(management.call_args_list[0].args, ('functions',))
+        self.assertEqual(management.call_args_list[1].args, ('functions',))
+
+    def test_recovery_is_not_used_when_the_normal_download_succeeds_or_for_other_games(self):
+        for name, success in [('time-league', True), ('duat', False), ('league-cup', False)]:
+            with self.subTest(name=name, success=success):
+                def download(command, **kwargs):
+                    if success:
+                        entry = Path(kwargs['cwd'], 'supabase/functions/' + name + '/index.ts')
+                        entry.parent.mkdir(parents=True)
+                        entry.write_text('export const complete = true;')
+                    return subprocess.CompletedProcess(command, 0 if success else 1)
+                with patch.object(release, 'management', return_value=[{'slug': name, 'version': 7, 'verify_jwt': False}]), patch.object(release.subprocess, 'run', side_effect=download) as command, patch.object(release, 'recover_large_bundle') as recovery:
+                    if success:
+                        release.hosted_snapshot([name])
+                    else:
+                        with self.assertRaisesRegex(release.Rejected, 'Cannot download complete hosted source'):
+                            release.hosted_snapshot([name])
+                    self.assertEqual(command.call_count, 1)
+                    recovery.assert_not_called()
+
+    def test_raw_recovered_sources_still_require_exact_dependency_closure(self):
+        for problem in ['missing', 'extra', 'out-of-scope', 'computed']:
+            with self.subTest(problem=problem):
+                def recover(name, directory):
+                    entry = Path(directory, 'supabase/functions/time-league/index.ts')
+                    entry.parent.mkdir(parents=True)
+                    entry.write_text({
+                        'missing': "import './missing.ts';",
+                        'extra': 'export const original = true;',
+                        'out-of-scope': "import '../fw-signin/index.ts';",
+                        'computed': 'const endpoint = "./runtime.js"; import(endpoint);',
+                    }[problem])
+                    if problem == 'extra':
+                        entry.with_name('unreferenced.ts').write_text('export const unexpected = true;')
+                    if problem == 'out-of-scope':
+                        other = Path(directory, 'supabase/functions/fw-signin/index.ts')
+                        other.parent.mkdir(parents=True)
+                        other.write_text('export const unexpected = true;')
+                with patch.object(release, 'management', return_value=[{'slug': 'time-league', 'version': 7, 'verify_jwt': False}]), patch.object(release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)), patch.object(release, 'recover_large_bundle', side_effect=recover):
+                    with self.assertRaisesRegex(release.Rejected, 'incomplete|inventory differs'):
+                        release.hosted_snapshot(['time-league'])
+
+    def test_raw_recovery_still_rejects_concurrent_version_or_gateway_changes(self):
+        def recover(name, directory):
+            entry = Path(directory, 'supabase/functions/time-league/index.ts')
+            entry.parent.mkdir(parents=True)
+            entry.write_text('export const original = true;')
+        before = [{'slug': 'time-league', 'version': 7, 'verify_jwt': False}]
+        for after in [[{'slug': 'time-league', 'version': 8, 'verify_jwt': False}], [{'slug': 'time-league', 'version': 7, 'verify_jwt': True}], [], None]:
+            with self.subTest(after=after), patch.object(release, 'management', side_effect=[before, after]), patch.object(release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)), patch.object(release, 'recover_large_bundle', side_effect=recover):
+                with self.assertRaisesRegex(release.Rejected, 'changed during source inspection|inventory became unavailable'):
+                    release.hosted_snapshot(['time-league'])
+
+    def test_raw_recovery_downloads_only_the_fixed_vault_body_and_scrubs_parser_credentials(self):
+        secret = 'test-only-management-credential'
+        payload = b'ESZIP2.3-controlled-fixture'
+        def parse(command, **kwargs):
+            self.assertEqual(command[:7], ['npx', '--yes', 'deno@2.9.6', 'run', '--no-config', '--node-modules-dir=none', '--no-lock'])
+            self.assertEqual(Path(command[-3]).read_bytes(), payload)
+            self.assertEqual(command[-1], 'time-league')
+            self.assertEqual(command[-2], str(self.root.resolve()))
+            self.assertEqual(command[-4], str(ROOT / 'scripts/extract-edge-source.mjs'))
+            self.assertEqual([value for value in command if value.startswith('--allow-net=')], ['--allow-net=registry.npmjs.org'])
+            self.assertEqual([value for value in command if value.startswith('--allow-write=')], ['--allow-write=' + str(self.root.resolve())])
+            self.assertEqual([value for value in command if value.startswith('--allow-read=')], ['--allow-read=' + str(Path(command[-3]).parent)])
+            self.assertNotIn(secret, str(command))
+            self.assertTrue(set(kwargs['env']).issubset({'PATH', 'HOME', 'TMPDIR', 'DENO_DIR'}))
+            self.assertNotIn(secret, str(kwargs['env']))
+            self.assertNotIn('NPM_CONFIG_USERCONFIG', kwargs['env'])
+            self.assertEqual(Path(kwargs['env']['DENO_DIR']).parent, Path(command[-3]).parent)
+            return subprocess.CompletedProcess(command, 0)
+        with patch.dict(os.environ, {'SUPABASE_ACCESS_TOKEN': secret, 'NPM_CONFIG_USERCONFIG': '/sensitive/private-config'}), patch.object(release.urllib.request, 'urlopen', return_value=io.BytesIO(payload)) as request, patch.object(release.subprocess, 'run', side_effect=parse):
+            release.recover_large_bundle('time-league', self.root)
+        request_args, request_kwargs = request.call_args
+        self.assertEqual(request_args[0].full_url, 'https://api.supabase.com/v1/projects/' + release.PROJECT + '/functions/time-league/body')
+        self.assertEqual(request_args[0].get_method(), 'GET')
+        self.assertEqual(request_args[0].get_header('Authorization'), 'Bearer ' + secret)
+        self.assertEqual(request_kwargs, {'timeout': 45})
+
+    def test_raw_recovery_rejects_scope_access_size_magic_download_and_parser_failure(self):
+        with patch.object(release.urllib.request, 'urlopen') as request, patch.object(release.subprocess, 'run') as parser:
+            for name in ['duat', 'league-cup', 'fw-signin', '../time-league']:
+                with self.subTest(name=name), self.assertRaisesRegex(release.Rejected, 'Unsupported raw-bundle recovery scope'):
+                    release.recover_large_bundle(name, self.root)
+            with patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(release.Rejected, 'access is required'):
+                release.recover_large_bundle('time-league', self.root)
+            request.assert_not_called()
+            parser.assert_not_called()
+
+        class Oversized(bytes):
+            def __len__(self):
+                return 100 * 1024 * 1024 + 1
+
+        class Response:
+            def __init__(self, value):
+                self.value = value
+            def __enter__(self):
+                return self
+            def __exit__(self, *_):
+                pass
+            def read(inner_self, limit):
+                self.assertEqual(limit, 100 * 1024 * 1024 + 1, 'raw download must stay bounded')
+                return inner_self.value
+
+        for payload in [b'', b'<html>upstream error</html>', b'ESZIP1.invalid', Oversized(b'ESZIP2.too-large')]:
+            with self.subTest(payload=payload), patch.dict(os.environ, {'SUPABASE_ACCESS_TOKEN': 'fixture'}), patch.object(release.urllib.request, 'urlopen', return_value=Response(payload)), patch.object(release.subprocess, 'run') as parser:
+                with self.assertRaisesRegex(release.Rejected, 'Cannot retrieve complete hosted game bundle'):
+                    release.recover_large_bundle('time-league', self.root)
+                parser.assert_not_called()
+        with patch.dict(os.environ, {'SUPABASE_ACCESS_TOKEN': 'fixture'}), patch.object(release.urllib.request, 'urlopen', side_effect=OSError('network unavailable')), patch.object(release.subprocess, 'run') as parser:
+            with self.assertRaisesRegex(release.Rejected, 'Cannot retrieve complete hosted game bundle'):
+                release.recover_large_bundle('time-league', self.root)
+            parser.assert_not_called()
+        with patch.dict(os.environ, {'SUPABASE_ACCESS_TOKEN': 'fixture'}), patch.object(release.urllib.request, 'urlopen', return_value=io.BytesIO(b'ESZIP2.3-incomplete')), patch.object(release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
+            with self.assertRaisesRegex(release.Rejected, 'Original game source recovery failed'):
+                release.recover_large_bundle('time-league', self.root)
 
     def test_workflow_has_only_three_explicit_scoped_deployments_and_no_schema_writes(self):
         import re

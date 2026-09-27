@@ -39,6 +39,8 @@ league = { ...league, phase: 'season', weekStage: 'lineup', currentWeek: 3, seas
     finalizedWeeks: [{ week: 1, results: [], matchups: [] }, { week: 2, results: [], matchups: [] }],
     teams: league.teams.map((team, index) => ({ ...team, roster: index ? [entry('foreign', 'Not Your Player', 'QB', 'QB')] : entries })) };
 let applied = [], saveResult = true, browsedSlot = null, selectedTeam;
+let comparisonProps = null;
+App.GamePlayerComparison = props => { comparisonProps = props; return React.createElement('section', { 'aria-label': props.title }); };
 const render = (extra = {}) => {
     cursor = 0; refCursor = 0; effects = [];
     return WrTimeLeagueTeamPanel({ league, cards, section: 'roster', activeTeamId: league.teams[0].teamId, logIndex: logs,
@@ -54,6 +56,19 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert.equal(signals.length, entries.length, 'Every starter and bench player has an always-visible metric group');
     assert(signals.every(row => text(row).includes('Avg pts / game') && text(row).includes('2.1') && text(row).includes('W3 game rating')));
     assert.equal(byClass(render(), 'tl-roster-mobile-detail').length, 0, 'Primary player signals never require opening a details element');
+    let compareControl = walk(render()).find(node => node.type === 'button' && node.children?.[0] === 'Compare players');
+    compareControl.props.onClick(); render();
+    assert(comparisonProps && comparisonProps.rows.length === entries.length, 'Lineup comparison includes this owner’s starters and bench');
+    assert(comparisonProps.workspaceKey.includes(league.leagueId) && comparisonProps.workspaceKey.endsWith(league.teams[0].teamId));
+    assert(!comparisonProps.rows.some(row => Object.hasOwn(row, 'entry') || Object.hasOwn(row, 'drawnSeason')), 'Comparison adapters do not pass the private assigned edition');
+    assert.deepEqual(comparisonProps.columns.map(column => column.label), ['Vault W3 outlook', 'Completed-game PPG', 'Completed games', 'Points left']);
+    assert(comparisonProps.scoutingForRow(comparisonProps.rows[1]).reason.includes('On your bench'));
+    assert(comparisonProps.scoutingForRow(comparisonProps.rows[0]).confidence.includes('league scoring'));
+    comparisonProps.onSelect(comparisonProps.rows[0]);
+    assert(text(byClass(render(), 'tl-roster-dossier')).includes('Steve Young'), 'Comparison opens the same full player card');
+    button(render(), 'Close player history').props.onClick();
+    compareControl = walk(render()).find(node => node.type === 'button' && node.children?.[0] === 'Hide comparison');
+    compareControl.props.onClick();
     let tree = render({ activeTeamId: league.teams[1].teamId });
     assert(text(tree).includes('Steve Young'));
     assert(!text(tree).includes('Not Your Player'));
@@ -144,10 +159,12 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     button(tree, 'Close lineup choices').props.onClick();
     button(render(), "Explore Steve Young's history").props.onClick();
     assert(text(byClass(render(), 'tl-roster-dossier')).includes('Your edition is sealed'));
+    assert(text(byClass(render(), 'tl-lineup-guidance')).includes('Game clue sealed') && !text(byClass(render(), 'tl-lineup-guidance')).includes('Bench this week'), 'Sealed editions do not receive invented lineup guidance');
     assert(!text(byClass(render(), 'tl-roster-dossier')).includes('1993'));
     league = { ...league, seasonsRevealed: true };
     tree = render();
     assert(text(byClass(tree, 'tl-roster-dossier')).includes('1993'));
+    assert(text(byClass(tree, 'tl-lineup-guidance')).includes('within the player’s own historical season') && text(byClass(tree, 'tl-lineup-guidance')).includes('Vault W3'), 'Current-star guidance states its period and player-relative meaning');
     assert(text(byClass(tree, 'tl-roster-dossier')).includes('Archive ceiling:'), 'Best unused archive clue remains available in player history');
     assert(!text(byClass(tree, 'tl-roster-dossier')).includes('1995'), 'Player archive still stops before the drawn season');
     const removedLogs = [];
@@ -179,6 +196,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     const currentKey = S.gameLogKey(entries[0].identity, 1994, 3), currentLog = logs.get(currentKey);
     logs.delete(currentKey); tree = render();
     assert(text(byClass(tree, 'tl-roster-signals')).includes('No recorded game'));
+    assert(text(byClass(tree, 'tl-lineup-guidance')).includes('Bench this week') && text(byClass(tree, 'tl-lineup-guidance')).includes('score zero'), 'Confirmed missing games provide a concrete bench reason');
     assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'A missing current game never reveals future Vault results');
     logs.set(currentKey, currentLog);
     cards.set(entries[0].identity, youngCard);
@@ -188,6 +206,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     league = { ...league, weekStage: 'postgame' };
     tree = render();
     assert(byClass(tree, 'tl-week-stars').every(node => text(node).includes('Awaiting next week') && !text(node).includes('No recorded game')));
+    assert(text(byClass(tree, 'tl-lineup-guidance')).includes('Awaiting a current game clue') && !text(byClass(tree, 'tl-lineup-guidance')).includes('Bench this week'), 'A stale postgame report cannot produce a new recommendation');
     assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'Postgame keeps the upcoming currentWeek absent from the completed-game table');
 
     league = { ...league, weekStage: 'ready' };

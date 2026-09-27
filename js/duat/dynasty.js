@@ -155,6 +155,19 @@
             && (!options.decade || player.decade===Number(options.decade))
             && (!query || player.name.toLowerCase().includes(query))).map(player=>({...player}));
     }
+    function draftScouting(state, viewerFactionId, data) {
+        if(!modern(state))return Legacy.draftScouting(state,viewerFactionId,data);
+        const faction=factionOf(state,viewerFactionId);
+        if(state.phase!=='draft'||state.draft.status!=='active'||!data)return null;
+        const next=state.draft.queue.slice(state.draft.cursor).find(turn=>turn.factionId===viewerFactionId);
+        const army=next?faction.armies.find(item=>item.id===next.armyId):livingArmies(faction).at(-1);
+        if(!army)return null;
+        // Public, seed-independent archive only. Do not use unusedPool,
+        // draftCandidates or snapshotCard here: they inspect sealed state.
+        const pool=next?.number===state.draft.cursor+1?[]:Mystery.enabled(state)?Mystery.pool(state,data,army.season):Legacy.draftPool(data,army.season,state.scoring);
+        return {version:1,armyId:army.id,armyNumber:army.rulerNumber,season:army.season,
+            nextPick:next?.number||null,availability:'unconfirmed',rows:pool.map(Legacy.draftScoutingCard)};
+    }
     function savePick(state, player, createdAt) {
         const turn = draftTurn(state), faction = factionOf(state,turn.factionId), army = faction.armies.find(a=>a.id===turn.armyId);
         army.players.push(copy(player));
@@ -458,6 +471,7 @@
         projected.activity=projected.activity.filter(e=>e.type!=='ritual'||e.factionId===viewerFactionId);
         projected.draft.turn=draftTurn(state);
         projected.draft.candidates=projected.draft.turn?.factionId===viewerFactionId&&data?draftCandidates(state,data):[];
+        projected.draft.scouting=draftScouting(state,viewerFactionId,data);
         projected.archaeology.progress=Legacy.revealProgress(state);
         if(data&&settingsOf(state).favors&&['season','complete'].includes(state.phase))projected.ritualCandidates=ritualCandidates(state,data,viewerFactionId);
         if(state.phase==='complete'&&data)projected.nextSeasonYears=nextSeasonYears(state,data);
@@ -625,6 +639,6 @@
             return true;
         } catch(error){if(error.code==='INVALID_CAMPAIGN')throw error;fail('INVALID_CAMPAIGN','This dynasty save is malformed: '+error.message);}
     }
-    return {...Legacy,createCampaign,applyAction,validateCampaign,projectCampaign,draftTurn,draftCandidates,estimatePlayer,
+    return {...Legacy,createCampaign,applyAction,validateCampaign,projectCampaign,draftTurn,draftCandidates,draftScouting,estimatePlayer,
         eraOptions,isResurrection,resurrectionStatus,expansionOptions,nextSeasonYears,requiredYears,ritualCandidates,unresolvedClaims,livingArmies};
 });

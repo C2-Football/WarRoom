@@ -125,6 +125,18 @@ test('scouting sends the selected drafted identity without leaking or changing i
     assert(!walk(readOnly).some(node => node.type === 'button'), 'Without a scout handler the roster has no dead player controls');
 });
 
+test('the newest confirmed pick is highlighted without exposing its sealed edition', () => {
+    const league = partial(), latest = league.draftPicks.at(-1), team = league.teams.find(row => row.teamId === latest.teamId);
+    let tree = render({ league, team });
+    const marked = walk(tree).filter(node => node.props.className === 'is-latest-pick');
+    assert.equal(marked.length, 1);
+    assert(text(marked[0]).includes(latest.name) && text(marked[0]).includes('New pick'));
+    assert(!text(marked[0]).includes('1988') && !text(marked[0]).includes('1999'));
+    const other = league.teams.find(row => row.teamId !== latest.teamId);
+    tree = render({ league, team: other });
+    assert.equal(walk(tree).filter(node => node.props.className === 'is-latest-pick').length, 0, 'Another manager’s live pick never highlights this roster');
+});
+
 test('mobile keeps totals visible with details collapsed while desktop can open the full roster', () => {
     const league = partial(), team = league.teams[1];
     isDesktop = false; let tree = render({ league, team });

@@ -63,17 +63,26 @@ async function authorizedRoom(admin: any, roomId: string, userId: string): Promi
     const memberLabels = await loadGameMemberLabels(admin, 'duat', roomId, members);
     return { row, members, member, memberLabels };
 }
-async function projectRoom({ row, members, member, memberLabels }: any): Promise<any> {
+async function projectRoom({ row, members, member, memberLabels }: any, scoutingRevision?: string): Promise<any> {
     const allReady = members.every((seat: any) => seat.user_id && seat.joined_at && seat.ready);
-    const needsDraftPool = row.state.phase === 'draft' && row.state.draft?.status === 'active'
-        && App.DuatCampaign.draftTurn(row.state)?.factionId === member.faction_id;
+    // Every joined viewer receives public research for their own next army.
+    // The engine still exposes legal pick candidates only to the on-clock seat.
+    const needsDraftPool = row.state.phase === 'draft' && row.state.draft?.status === 'active';
     const needsRitualPool = sourcebook(row.state) && ['season', 'complete'].includes(row.state.phase);
     const hasPendingRecruit = row.state.factions.some((faction: any) => faction.rituals?.pendingMahdi);
     const hasPendingClaims = sourcebook(row.state) && App.DuatCampaign.unresolvedClaims(row.state).length > 0;
+    const campaign = App.DuatCampaign.projectCampaign(row.state, member.faction_id,
+        needsDraftPool || needsRitualPool ? await loadData(dataYears(row.state, row.state.phase === 'complete')) : undefined);
+    const scouting = campaign.draft?.scouting;
+    if (scouting?.version === 1 && Array.isArray(scouting.rows)) {
+        // Hash only the already-sanitized public view, never private picks,
+        // assignments or room revisions. Repeated polls need not resend it.
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(scouting)));
+        scouting.revision = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+        if (scoutingRevision === scouting.revision) { delete scouting.rows; scouting.unchanged = true; }
+    }
     return {
-        id: row.id, revision: row.revision,
-        campaign: App.DuatCampaign.projectCampaign(row.state, member.faction_id,
-            needsDraftPool || needsRitualPool ? await loadData(dataYears(row.state, row.state.phase === 'complete')) : undefined),
+        id: row.id, revision: row.revision, campaign,
         seats: row.state.factions.map((faction: any) => {
             const seat = members.find((item: any) => item.faction_id === faction.id);
             return { factionId: faction.id, controller: seat ? 'human' : 'ai', role: seat?.role || 'ai',
@@ -153,8 +162,9 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
             return json(req, { ok: true, rooms });
         }
         if (!['load', 'action'].includes(body.op)) reject('Unknown campaign request.');
+        if (body.scoutingRevision !== undefined && (typeof body.scoutingRevision !== 'string' || body.scoutingRevision.length > 128)) reject('Invalid public scouting revision.');
         const loaded = await authorizedRoom(admin, body.roomId, session.userId);
-        if (body.op === 'load') return json(req, { ok: true, room: await projectRoom(loaded) });
+        if (body.op === 'load') return json(req, { ok: true, room: await projectRoom(loaded, body.scoutingRevision) });
         const { row, member, members } = loaded;
         const action = canonicalAction(body.action, member.faction_id);
         if (typeof body.actionId !== 'string' || !body.actionId.trim() || body.actionId.length > 120) reject('Supply an action ID.');
@@ -162,7 +172,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (receiptError) throw receiptError;
         if (receipt) {
             if (!sameIntent(receipt.request, action)) reject('This action ID was already used for another intent.');
-            return json(req, { ok: true, deduplicated: true, room: await projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
+            return json(req, { ok: true, deduplicated: true, room: await projectRoom(await authorizedRoom(admin, row.id, session.userId), body.scoutingRevision) });
         }
         if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision !== row.revision) return json(req, { ok: false, conflict: true, revision: row.revision, error: 'The campaign changed. Reload before retrying.' }, 409);
         if (!sourcebook(row.state) && SOURCEBOOK_ACTIONS.includes(action.type)) reject('This action requires a sourcebook dynasty.');
@@ -187,7 +197,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (saveError) throw saveError;
         if (!saved?.ok) return json(req, { ok: false, conflict: true, revision: saved?.revision, error: 'Someone else acted first. Reload the campaign.' }, 409);
         return json(req, { ok: true, deduplicated: saved.deduplicated === true,
-            room: await projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
+            room: await projectRoom(await authorizedRoom(admin, row.id, session.userId), body.scoutingRevision) });
     } catch (error: any) {
         return json(req, { ok: false, error: error?.message || 'The campaign could not be saved.' }, error?.status || 400);
     }

@@ -60,7 +60,7 @@ begin
     end if;
     if v_role is distinct from 'member' or v_owner is not null then raise exception 'This seat has already been claimed'; end if;
     if p_game='vault' and (v_vault.draft_started or v_vault.phase is distinct from 'draft') then raise exception 'This draft has already started'; end if;
-    if p_game='duat' and not (v_duat.state->>'phase'='preseason' or (v_duat.state->>'phase'='draft' and v_duat.state#>>'{draft,status}'='waiting'))
+    if p_game='duat' and not coalesce(v_duat.state->>'phase'='preseason' or (v_duat.state->>'phase'='draft' and v_duat.state#>>'{draft,status}'='waiting'),false)
         then raise exception 'The campaign has started; seats are locked'; end if;
     v_user:=gen_random_uuid();
     insert into public.app_users(id,email,password_hash,display_name)

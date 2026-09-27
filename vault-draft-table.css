@@ -9,10 +9,26 @@
 .tl-queue-player-card:focus-visible { outline:2px solid var(--gold); outline-offset:3px; border-radius:var(--card-radius-xs,5px); }
 .tl-draft-card-actions { flex-wrap:wrap; }
 .tl-draft-card-actions .tl-btn { min-height:44px; }
+.tl-draft-receipt { display:flex; flex-wrap:wrap; gap:5px 12px; margin:0 0 12px; padding:12px 14px; border:1px solid var(--gold); border-radius:var(--card-radius-sm,8px); background:color-mix(in srgb,var(--gold) 8%,transparent); color:var(--text); font-size:12px; line-height:1.5; }
+.tl-draft-receipt strong { color:var(--gold); }
+.tl-draft-receipt[data-state="rejected"] { border-color:var(--warn); }
+.tl-draft-receipt[data-state="rejected"] strong { color:var(--warn); }
+.tl-draft-roster-slots > .is-latest-pick { background:color-mix(in srgb,var(--gold) 10%,transparent); border-radius:var(--card-radius-xs,5px); padding:0 6px; box-shadow:inset 3px 0 var(--gold); }
+.tl-draft-new-pick { display:inline-block; margin-left:6px; color:var(--gold); font-weight:700; }
+.tl-lineup-guidance { margin:14px 0; padding:12px 14px; border-left:3px solid var(--gold); background:color-mix(in srgb,var(--gold) 6%,transparent); border-radius:var(--card-radius-xs,5px); }
+.tl-lineup-guidance > strong { color:var(--gold); font-size:14px; }
+.tl-lineup-guidance > p { margin:6px 0; color:var(--text); font-size:12px; line-height:1.55; }
+.tl-lineup-guidance > small { color:var(--text-muted); font-size:11px; }
 @media(min-width:1100px) {
   .tl-play .tl-grid-2.tl-draft-grid:has(.tl-vault-draft-table) { grid-template-columns:minmax(0,1fr) 300px; gap:20px; align-items:start; }
   .tl-play .tl-draft-grid:has(.tl-vault-draft-table) .tl-draft-sidebar { display:flex; flex-direction:column; gap:14px; }
   .tl-play .tl-draft-grid:has(.tl-vault-draft-table) .tl-draft-sidebar > .tl-card { margin:0; }
+  .tl-play .tl-grid-2.tl-draft-grid:has(.game-draft-workspace.has-inspector) { grid-template-columns:minmax(0,1fr); }
+  .tl-play .tl-draft-grid:has(.game-draft-workspace.has-inspector) .tl-draft-sidebar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(min-width:1800px) {
+  .tl-play .tl-grid-2.tl-draft-grid:has(.game-draft-workspace.has-inspector) { grid-template-columns:minmax(0,1fr) 280px; }
+  .tl-play .tl-draft-grid:has(.game-draft-workspace.has-inspector) .tl-draft-sidebar { display:flex; flex-direction:column; }
 }
 @media(min-width:901px) and (max-width:1099px) {
   .tl-play .tl-grid-2.tl-draft-grid:has(.tl-vault-draft-table) { grid-template-columns:minmax(0,1fr); gap:20px; align-items:start; }

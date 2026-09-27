@@ -20,7 +20,7 @@ PROJECT = 'sxshiqyxhhifvtfqawbq'
 REPOSITORY = 'C2-Football/WarRoom'
 PREFIX = '.github/c2-releases/'
 FUNCTIONS = ('league-cup', 'time-league', 'duat')
-CONTROLS = ('scripts/c2-edge-release.py', '.github/workflows/deploy-functions.yml',
+CONTROLS = ('scripts/c2-edge-release.py', 'scripts/extract-edge-source.mjs', '.github/workflows/deploy-functions.yml',
             'supabase/config.toml', 'package.json', 'package-lock.json')
 GENERATED = {'time-league': 'supabase/functions/time-league/runtime.js',
              'duat': 'supabase/functions/duat/runtime.js'}
@@ -281,6 +281,40 @@ def downloaded_sources(directory):
     return result
 
 
+def recover_large_bundle(name, target):
+    # Recover only original source. The normal complete import-closure and
+    # before/after hosted-version checks still run on the result below.
+    if name != 'time-league':
+        raise Rejected('Unsupported raw-bundle recovery scope')
+    token = os.environ.get('SUPABASE_ACCESS_TOKEN')
+    if not token:
+        raise Rejected('Supabase access is required for hosted source recovery')
+    request = urllib.request.Request('https://api.supabase.com/v1/projects/' + PROJECT + '/functions/' + name + '/body',
+        headers={'Authorization': 'Bearer ' + token})
+    with tempfile.TemporaryDirectory(prefix='dhq-game-bundle-') as temporary:
+        temporary = Path(temporary).resolve()
+        target = Path(target).resolve()
+        bundle = Path(temporary, 'source.eszip')
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                value = response.read(100 * 1024 * 1024 + 1)
+            if len(value) > 100 * 1024 * 1024 or not value.startswith(b'ESZIP2.'):
+                raise Rejected('Unsupported hosted game bundle')
+            bundle.write_bytes(value)
+        except Exception as error:
+            raise Rejected('Cannot retrieve complete hosted game bundle') from error
+        # The parser has no management credential and never evaluates recovered
+        # game code. Pinned tooling reads only the bundle and writes its temp dir.
+        env = {key: os.environ[key] for key in ('PATH', 'HOME', 'TMPDIR') if key in os.environ}
+        env['DENO_DIR'] = str(Path(temporary, 'parser-cache'))
+        parser = Path(__file__).resolve().with_name('extract-edge-source.mjs')
+        result = subprocess.run(['npx', '--yes', 'deno@2.9.6', 'run', '--no-config', '--node-modules-dir=none', '--no-lock',
+            '--allow-read=' + str(temporary), '--allow-write=' + str(target), '--allow-env', '--allow-net=registry.npmjs.org',
+            str(parser), str(bundle), str(target), name], env=env, capture_output=True)
+        if result.returncode:
+            raise Rejected('Original game source recovery failed')
+
+
 def hosted_snapshot(selected):
     rows = management('functions')
     if not isinstance(rows, list):
@@ -302,7 +336,11 @@ def hosted_snapshot(selected):
                 shutil.rmtree(target)
                 target.mkdir()
                 download = subprocess.run(['supabase', 'functions', 'download', name, '--project-ref', PROJECT], cwd=target, capture_output=True)
-            if download.returncode:
+            if download.returncode and name == 'time-league':
+                shutil.rmtree(target)
+                target.mkdir()
+                recover_large_bundle(name, target)
+            elif download.returncode:
                 raise Rejected('Cannot download complete hosted source: ' + name)
             sources = downloaded_sources(target)
             try:
