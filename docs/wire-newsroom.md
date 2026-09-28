@@ -31,6 +31,12 @@ Automatic rivalry discovery requires either at least four verified regular-seaso
 
 NFL scoreboards and game leaders come through the ESPN relay. The browser checks scores every minute while the view is active, but the relay's shared cache can delay changes for up to three hours; a check time is not proof of a fresh score. Box scores prefer Sleeper weekly statistics only when season, week, phase, teams and game identity match; otherwise they try the verified ESPN event summary. Missing statistics display as unavailable, not zero. Scores and statistics can be delayed or corrected. Failed refreshes retain a same-game snapshot with an explicit stale state.
 
-The multi-league newspaper remains text-only. Search and owner filters apply to loaded reporting and the relevant section data; they do not search remote, unloaded history. Owner continuity uses verified accounts rather than reused roster slots. Current-form averages and The Wire's record-then-points standings are neither projections nor official playoff seeds. League life and progressive draft retrospectives are described in [wire-league-life.md](wire-league-life.md).
+The multi-league newspaper remains text-only on desktop; phones show compact identity badges. Search and owner filters apply to loaded reporting and the relevant section data; they do not search remote, unloaded history. Owner continuity uses verified accounts rather than reused roster slots. Current-form averages and The Wire's record-then-points standings are neither projections nor official playoff seeds. League life and progressive draft retrospectives are described in [wire-league-life.md](wire-league-life.md).
 
 Validation combines deterministic evidence tests, account/scope and partial-refresh checks, and browser review with public Sleeper fixtures. These checks do not establish authenticated persistence or physical-device behavior. Deployment verification separately checks both release revisions and actual served browser assets.
+
+## Mobile identity marks
+
+Phone articles use up to two compact badges: the involved teams, or the league logo for a league-wide story. Custom Sleeper team logos take precedence over owner avatars; failed or unavailable images fall back to initials. Image dimensions are reserved, and decorative marks do not repeat the adjacent names for screen readers. Desktop multi-league articles mount no marks.
+
+The same marks appear in mobile news, League Life, Opinion and draft columns. Documentary and other-season stories use a year marker, avoiding any claim that a current team logo belonged to a past roster. Known owner accounts take precedence over reused roster slots. Single-league phone stories use these compact marks instead of a compressed illustration banner.

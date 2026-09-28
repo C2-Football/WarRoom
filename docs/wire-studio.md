@@ -1,6 +1,6 @@
 # The Wire Studio
 
-The Wire Studio is an explicit, on-demand graphic breakdown. The newspaper stays readable as text; no graphics render or playoff requests run until a reader opens a breakdown. The multi-league front page remains text-only.
+The Wire Studio is an explicit, on-demand graphic breakdown. The newspaper stays readable as text; no graphics render or playoff requests run until a reader opens a breakdown. The multi-league front page remains text-only on desktop; mobile articles can show small team or league logos.
 
 ## Reading flows
 

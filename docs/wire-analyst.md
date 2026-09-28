@@ -1,6 +1,6 @@
 # The Wire’s analyst
 
-The Opinion section gives The Wire a point of view on each league’s scoring, roster setup, team depth, results and drafts. A separate front-page column introduces the desk without mixing opinions into current-news headlines. The combined Wire uses the same text-only cards; no image or graphic is added to its feed.
+The Opinion section gives The Wire a point of view on each league’s scoring, roster setup, team depth, results and drafts. A separate front-page column introduces the desk without mixing opinions into current-news headlines. The combined Wire keeps text-only cards on desktop. On phones, compact team or league logo badges identify columns without adding large illustrations.
 
 Each column has a visible opinion label, a short argument and concrete evidence. Supporting arithmetic, source links and limits live under **The numbers and sources**. The analyst can be playful about a rule or a draft result, but does not invent an owner’s motives, injury explanations, votes, grades or projections.
 

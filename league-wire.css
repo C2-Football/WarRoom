@@ -110,3 +110,8 @@
 .wr-wire-briefing{margin:14px 0;padding:12px 0}.wr-wire-briefing>header strong{display:block;font-size:.8rem;line-height:1.5}.wr-wire-briefing>header small{display:block;margin-top:4px;font-size:.69rem;color:var(--muted)}.wr-wire-briefing>details>summary{font-size:.73rem;color:var(--muted);cursor:pointer;padding-top:12px;min-height:32px}.wr-wire-briefing>p{font-size:.75rem;line-height:1.5;margin:8px 0 0}
 .wr-wire-reader-tools .wr-all-wire-coverage{margin:0;padding:0;border:0}.wr-wire-reader-tools .wr-all-wire-coverage>summary{font-size:.73rem;padding:12px 0}.wr-wire-reader-tools .wr-all-wire-coverage[open]{grid-column:1/-1}.wr-wire-portfolio .wr-wire-reader-tools{margin-bottom:28px}.wr-wire-portfolio .wr-wire-briefing{margin-bottom:0}
 @media(max-width:767px){.wr-wire-portfolio .wr-wire-reader-tools{grid-template-columns:minmax(0,1fr);gap:6px;margin-bottom:18px}.wr-wire-portfolio .wr-wire-search label{max-width:none}}
+/* Phones use small identity marks instead of a compressed story-art column. */
+@media(max-width:767px){
+  .wr-journal-grid>.wr-journal-story,.wr-wire-lookback>.wr-journal-story{display:block}
+  .wr-journal-grid .wr-journal-story-copy,.wr-journal-story-copy{display:flow-root}
+}

@@ -66,4 +66,62 @@ assert.equal(api.forOwner(accountOnly, 'gone', { priorSeasons: [{ league: { ...l
 assert.equal(api.forOwner(accountOnly, 'gone', { priorSeasons: [{ league: lost }, { league: { ...lost, users: [{ user_id: 'gone', display_name: 'Conflicting snapshot' }] } }] }).ownerKnown, false, 'ambiguous history snapshots do not choose one name');
 assert.equal(api.forOwner({ ...league, previous_league_id: 'not-loaded' }, 'former', { priorSeasons }).teamName, 'Legacy Team', 'a unique sourcebook membership can bridge an unloaded season without guessing by league name');
 assert.equal(api.forOwner(league, null, { priorSeasons }).ownerKnown, false);
-console.log('PASS Wire identity: league-scoped documented owners, account fallbacks, separate team names, replacements, former managers, source evidence and ambiguous-history guards');
+
+const uploaded = 'https://sleepercdn.com/uploads/alice-team_2026.jpg', accountAvatar = 'alice_avatar-26';
+const logoLeague = { ...league, name: 'The One', avatar: 'league_avatar', users: league.users.map(user => ({ ...user, avatar: user.user_id === 'a' ? accountAvatar : `${user.user_id}_avatar`, metadata: { ...user.metadata, ...(user.user_id === 'a' ? { avatar: uploaded } : {}) } })) };
+const thumb = value => `https://sleepercdn.com/avatars/thumbs/${value}`;
+assert.deepEqual(plain(api.logoSources(logoLeague, 1)), [uploaded, thumb(accountAvatar)], 'a team upload precedes the owner account image so the UI can fall back in order');
+assert.deepEqual(plain(api.logoSources(logoLeague)), [thumb('league_avatar')]);
+assert.deepEqual(plain(api.logoSources({ ...logoLeague, avatar: uploaded })), [uploaded], 'league logos also support a trusted upload URL');
+assert.deepEqual(plain(api.logoSources({ ...logoLeague, users: logoLeague.users.map(user => user.user_id === 'a' ? { ...user, metadata: { ...user.metadata, avatar: thumb(accountAvatar) } } : user) }, 1)), [thumb(accountAvatar)], 'identical custom and account sources are tried once');
+assert.deepEqual(plain(api.logoSources({ ...logoLeague, rosters: [...logoLeague.rosters, { roster_id: 1, owner_id: 'b' }] }, 1)), [], 'an ambiguous roster cannot select someone’s logo');
+assert.deepEqual(plain(api.logoSources({ ...logoLeague, users: [...logoLeague.users, logoLeague.users[0]] }, 1)), [], 'duplicate owner account rows are not silently chosen');
+assert.deepEqual(plain(api.logoSources({ ...logoLeague, rosters: [{ roster_id: 1 }] }, 1)), []);
+assert.deepEqual(plain(api.logoSources(logoLeague, 999)), []);
+assert.deepEqual(plain(api.logoSources(logoLeague, null)), [], 'explicit invalid roster IDs do not accidentally request a league image');
+for (const unsafe of [
+    'https://example.com/team.png', 'https://sleepercdn.com.example.com/uploads/team.png', 'http://sleepercdn.com/uploads/team.png',
+    '//sleepercdn.com/uploads/team.png', 'data:image/png;base64,AA', 'javascript:alert(1)', 'https://owner:secret@sleepercdn.com/uploads/team.png',
+    'https://sleepercdn.com:443/uploads/team.png', 'https://sleepercdn.com/content/nfl/team.png', 'https://sleepercdn.com/uploads/../avatars/team.png',
+    'https://sleepercdn.com/uploads/%2e%2e/avatar.png', 'https://sleepercdn.com/uploads/a%2fb.png', 'https://sleepercdn.com/uploads/a\\b.png',
+    'https://sleepercdn.com/uploads/a.png?redirect=https://example.com', 'https://sleepercdn.com/uploads/a.png#fragment',
+    'https://sleepercdn.com/uploads/.hidden', 'https://sleepercdn.com/uploads//team.png', 'https://sleepercdn.com/uploads/team.png\n/extra',
+]) {
+    const changed = { ...logoLeague, users: logoLeague.users.map(user => user.user_id === 'a' ? { ...user, metadata: { ...user.metadata, avatar: unsafe } } : user) };
+    assert.deepEqual(plain(api.logoSources(changed, 1)), [thumb(accountAvatar)], `untrusted custom URL falls back to the account: ${unsafe}`);
+    assert.deepEqual(plain(api.logoSources({ ...logoLeague, avatar: unsafe })), [], `untrusted league URL is never returned: ${unsafe}`);
+}
+for (const unsafeHash of ['../another', 'avatar.png', 'a/b', 'a?b', 'a#b', 'a%b', 'a:b', 'a'.repeat(129), 'https://sleepercdn.com/avatars/a']) {
+    const changed = { ...logoLeague, users: logoLeague.users.map(user => user.user_id === 'a' ? { ...user, avatar: unsafeHash, metadata: {} } : user) };
+    assert.deepEqual(plain(api.logoSources(changed, 1)), [], 'account avatar values must be identifiers, not URLs or paths');
+}
+const currentStory = { season: '2026', rosterIds: [1, 2], participants: [{ ownerId: 'a', rosterId: 1, season: '2026' }, { ownerId: 'b', rosterId: 2, season: '2026' }] };
+const marks = plain(api.storyMarks(logoLeague, currentStory));
+assert.deepEqual(marks[0], { key: 'owner:a', label: 'Alice Adams', initials: 'AA', sources: [uploaded, thumb(accountAvatar)] });
+assert.equal(marks.length, 2); assert.equal(marks[1].label, 'Blake Brown');
+assert.equal(api.storyMarks(logoLeague, { ...currentStory, participants: [...currentStory.participants, { ownerId: 'replacement', rosterId: 3, season: '2026' }] }).length, 2, 'story marks stay bounded to two');
+assert.equal(api.storyMarks(logoLeague, { season: '2026', participants: [currentStory.participants[0], currentStory.participants[0]], rosterIds: [1, 1] }).length, 1, 'duplicate participants and roster IDs do not duplicate a mark');
+const moved = plain(api.storyMarks(logoLeague, { season: '2026', rosterIds: [2], participants: [{ ownerId: 'a', rosterId: 2, season: '2026' }] }));
+assert.deepEqual(moved, [marks[0]], 'the owner account wins when a supplied roster slot points at someone else');
+const departed = plain(api.storyMarks(logoLeague, { season: '2026', rosterIds: [3], participants: [{ ownerId: 'former', ownerName: 'Former Manager', rosterId: 3, season: '2026' }] }));
+assert.deepEqual(departed, [{ key: 'owner:former', label: 'Former Manager', initials: 'FM', sources: [] }], 'a departed owner keeps initials and never inherits the replacement’s image');
+const ambiguousOwner = plain(api.storyMarks({ ...logoLeague, rosters: [...logoLeague.rosters, { roster_id: 4, owner_id: 'a' }] }, { season: '2026', participants: [{ ownerId: 'a', ownerName: 'Alice Adams', rosterId: 1, season: '2026' }], rosterIds: [1] }));
+assert.deepEqual(ambiguousOwner[0].sources, [], 'an account on multiple roster slots is not arbitrarily mapped');
+const noImages = { ...logoLeague, users: logoLeague.users.map(user => ({ ...user, avatar: null, metadata: { team_name: user.metadata.team_name } })) };
+assert.deepEqual(plain(api.storyMarks(noImages, currentStory))[0], { ...marks[0], sources: [] }, 'known identity supplies usable initials when every image is absent');
+assert.deepEqual(plain(api.storyMarks(logoLeague, { documentary: true, season: '2026', eventSeason: 2024, ...{ rosterIds: [1], participants: currentStory.participants } })), [{ key: 'archive:2024', label: '2024 archive', initials: '2024', sources: [] }], 'documentary stories show the event year, never current team branding');
+assert.deepEqual(plain(api.storyMarks(logoLeague, { ...currentStory, season: '2025' })), [{ key: 'archive:2025', label: '2025 archive', initials: '2025', sources: [] }]);
+assert.deepEqual(plain(api.storyMarks(logoLeague, { ...currentStory, participants: currentStory.participants.map(person => ({ ...person, season: '2025' })) })), [], 'mismatched participant seasons cannot fall back through bare roster IDs');
+const unnamed = plain(api.storyMarks(logoLeague, { season: '2026', participants: [{ rosterId: 1, teamName: 'Source Team' }] }));
+assert.deepEqual(unnamed[0].sources, [uploaded, thumb(accountAvatar)], 'unknown owners can use a roster slot when the source season explicitly matches');
+assert.equal(unnamed[0].label, 'Source Team', 'an explicit source name is preserved rather than inferred');
+const unscoped = plain(api.storyMarks(logoLeague, { participants: [{ rosterId: 1, teamName: 'Unscoped Team' }], rosterIds: [1] }));
+assert.deepEqual(unscoped[0].sources, [], 'an unknown participant without a source season cannot borrow current identity');
+const leagueMark = [{ key: 'league:current', label: 'The One', initials: 'TO', sources: [thumb('league_avatar')] }];
+assert.deepEqual(plain(api.storyMarks(logoLeague, { season: '2026' })), leagueMark);
+assert.deepEqual(plain(api.storyMarks(logoLeague, null)), leagueMark);
+assert.deepEqual(plain(api.storyMarks({ ...logoLeague, avatar: null }, {})), [{ ...leagueMark[0], sources: [] }], 'league initials remain usable without a league logo');
+assert.equal(api.storyMarks({ ...logoLeague, name: 'Équipe Montréal' }, {})[0].initials, 'ÉM');
+const before = JSON.stringify({ logoLeague, currentStory }); api.logoSources(logoLeague, 1); api.storyMarks(logoLeague, currentStory);
+assert.equal(JSON.stringify({ logoLeague, currentStory }), before, 'logo resolution does not mutate the story or league');
+console.log('PASS Wire identity: documented owners, historical boundaries, trusted logo sources, ordered fallbacks, reused-slot safeguards and scoped story marks');

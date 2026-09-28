@@ -35,4 +35,4 @@ Owner notebooks collect qualifying picks across checked seasons using the same v
 
 Account or edition changes hide old results immediately and cancel pending work. Updated loaded history rechecks an already-open desk. Failures and timeouts offer retry; a failed refresh can retain previously verified receipts with a stale notice. The coverage disclosure identifies checked, missing and ineligible seasons, so partial history never becomes an all-history claim.
 
-The multi-league newspaper remains text-only. These features introduce no generated photographs or decorative graphics.
+The multi-league newspaper remains text-only on desktop; phones show compact identity badges. These features introduce no generated photographs or decorative graphics.

@@ -1,4 +1,17 @@
 // Small identity bylines and an optional, lazy draft-history desk.
+function WrWireLogo({ sources = [], initials = 'W', label = '', className = 'wr-wire-mark' }) {
+    const [failed, setFailed] = React.useState([]);
+    const src = sources.find(url => !failed.includes(url));
+    return <span className={className} title={label} aria-hidden="true"><span>{initials}</span>{src && <img key={src} src={src} alt="" width="42" height="42" loading="lazy" decoding="async" onError={() => setFailed(previous => [...previous, src])} />}</span>;
+}
+
+function WrWireStoryMarks({ story, league }) {
+    const viewport = window.WR?.useViewport?.() || {};
+    if (!viewport.isPhone || !league) return null;
+    const marks = window.WrWireIdentity?.storyMarks?.(league, story) || [];
+    return marks.length ? <div className="wr-wire-story-marks" aria-hidden="true">{marks.map(mark => <WrWireLogo key={mark.key + ':' + mark.sources.join('|')} {...mark} />)}</div> : null;
+}
+
 function WrWirePeople({ participants = [] }) {
     const people = [...new Map(participants.filter(p => p?.ownerName).map(p => [p.ownerId || p.ownerName + ':' + p.teamName, p])).values()];
     if (!people.length) return null;
@@ -78,7 +91,7 @@ function WrWireDraftReceipts({ league, weeks = [], priorSeasons = [], throughWee
             {!opinionOnly && <label>Receipt type<select aria-label="Draft receipt type" value={selected.category} onChange={event => updateFilter('category', event.target.value)}>{[['all', 'All receipts'], ['value', 'Later-pick wins'], ['doover', 'Draft do-overs'], ['late', 'Late-round contributors'], ['workload', 'Lineup gaps']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}
         </div>}
         {seasons.length > 0 && <p className="wr-wire-draft-scope">Checked seasons: {seasons.join(', ')}. {visible.length} {opinionOnly ? visible.length === 1 ? 'column' : 'columns' : visible.length === 1 ? 'receipt' : 'receipts'}{filtered ? ' matching this view' : ''}.{current.progress?.remaining > 0 ? ` ${current.progress.remaining} older loaded seasons remain available.` : ''}</p>}
-        {visible.slice(0, selected.limit).map(story => <article key={story.id} className="wr-wire-feature-story"><p className="wr-wire-feature-kicker">{story.label || 'DRAFT RECEIPTS'}</p><h4>{story.text}</h4>{opinionOnly && <p className="wr-wire-opinion-byline">The Wire’s analyst{story.timingLabel ? ` · ${story.timingLabel}` : ''}</p>}<WrWirePeople participants={story.participants} />{window.WrWireReading.paragraphs(story.body).map((paragraph, i) => <p key={i}>{paragraph}</p>)}{(story.sources?.length > 0 || story.related?.length > 0) && <details className="wr-journal-context"><summary>The receipts</summary>{story.related?.map((item, i) => <div key={'note-' + i}><strong>{item.label}</strong><p>{item.text}</p></div>)}{(story.sources || []).map((source, i) => <p key={i}><a href={source.url} target="_blank" rel="noreferrer">{source.label || 'Draft source'}</a></p>)}</details>}</article>)}
+        {visible.slice(0, selected.limit).map(story => <article key={story.id} className="wr-wire-feature-story"><WrWireStoryMarks story={story} league={league} /><p className="wr-wire-feature-kicker">{story.label || 'DRAFT RECEIPTS'}</p><h4>{story.text}</h4>{opinionOnly && <p className="wr-wire-opinion-byline">The Wire’s analyst{story.timingLabel ? ` · ${story.timingLabel}` : ''}</p>}<WrWirePeople participants={story.participants} />{window.WrWireReading.paragraphs(story.body).map((paragraph, i) => <p key={i}>{paragraph}</p>)}{(story.sources?.length > 0 || story.related?.length > 0) && <details className="wr-journal-context"><summary>The receipts</summary>{story.related?.map((item, i) => <div key={'note-' + i}><strong>{item.label}</strong><p>{item.text}</p></div>)}{(story.sources || []).map((source, i) => <p key={i}><a href={source.url} target="_blank" rel="noreferrer">{source.label || 'Draft source'}</a></p>)}</details>}</article>)}
         {visible.length > selected.limit && <button type="button" onClick={() => setFilters({ ...selected, scope, limit: selected.limit + 6 })}>More {opinionOnly ? 'columns' : 'receipts'} · {visible.length - selected.limit} remaining</button>}
         {loaded && !loading && !visible.length && current.status !== 'error' && <p className="wr-journal-footnote">{opinionOnly ? filtered ? 'No draft columns match these filters in the checked seasons.' : 'The checked drafts do not yet support a strong editorial take.' : filtered ? 'No receipts match these filters in the checked seasons.' : current.ownerHistories?.length ? 'No comparison met the story threshold. Choose an owner to explore their verified picks.' : 'More completed lineup evidence is needed before publishing a receipt.'}</p>}
         {notebook && <section className="wr-wire-owner-notebook" aria-label={`${notebook.ownerName} draft notebook`}><h4>{notebook.ownerName}’s draft notebook</h4><p>The same owner, across {notebook.seasons.length} checked {notebook.seasons.length === 1 ? 'draft' : 'drafts'}. Each season keeps its own scoring rules; picks with fewer than four verified fantasy starts are omitted.</p>
@@ -90,3 +103,5 @@ function WrWireDraftReceipts({ league, weeks = [], priorSeasons = [], throughWee
 }
 window.WrWirePeople = WrWirePeople;
 window.WrWireDraftReceipts = WrWireDraftReceipts;
+window.WrWireLogo = WrWireLogo;
+window.WrWireStoryMarks = WrWireStoryMarks;

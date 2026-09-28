@@ -1,7 +1,8 @@
-// A text-only opinion desk: the take is visible, the evidence is one click away.
-function WrWireOpinionCard({ story, leagueName = '', compact = false }) {
+// Compact mobile identity marks keep the column itself easy to read.
+function WrWireOpinionCard({ story, league, leagueName = '', compact = false }) {
     const reading = window.WrWireReading;
     return <article className="wr-wire-opinion-card">
+        {window.WrWireStoryMarks && <window.WrWireStoryMarks story={story} league={league} />}
         <p className="wr-wire-opinion-kicker">{story.label || 'THE ANALYST · OPINION'}{leagueName && <span>{leagueName}</span>}</p>
         <h4>{story.text}</h4>
         <p className="wr-wire-opinion-byline">The Wire’s analyst{story.timingLabel ? ` · ${story.timingLabel}` : ''}</p>
@@ -26,7 +27,7 @@ function WrWireAnalystDesk({ analysis = {}, league, search = '', ownerFilter = n
         <header><span className="wr-wire-opinion-kicker">THE ANALYST · OPINION</span><h3>A league worth arguing about.</h3><p>A closer look at the rules, rosters and decisions shaping your league.</p></header>
         <nav className="wr-wire-opinion-filters" aria-label="Opinion subjects">{desks.map(([value, label]) => <button type="button" key={value} aria-pressed={selected.desk === value} onClick={() => setSelection({ scope, desk: value, limit: 4 })}>{label}</button>)}</nav>
         {ownerFilter && <p className="wr-wire-opinion-note">Columns about this owner, plus league-wide rules that affect every team.</p>}
-        {stories.slice(0, selected.limit).map(story => <WrWireOpinionCard key={story.id} story={story} />)}
+        {stories.slice(0, selected.limit).map(story => <WrWireOpinionCard key={story.id} story={story} league={league} />)}
         {stories.length > selected.limit && <button className="wr-wire-opinion-more" type="button" onClick={() => setSelection({ ...selected, scope, limit: selected.limit + 4 })}>More opinions · {stories.length - selected.limit} remaining</button>}
         {!stories.length && selected.desk !== 'draft' && <p className="wr-wire-opinion-note">{search.trim() || ownerFilter ? 'No columns match this view. Try another subject or clear the filters.' : 'No column here yet. We need a fuller picture before weighing in.'}</p>}
         {['all', 'draft'].includes(selected.desk) && draft}
