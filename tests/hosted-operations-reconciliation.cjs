@@ -61,7 +61,7 @@ async function scoreboard(){
  let result=await call('OPTIONS');assert.equal(result.status,200);assert.equal(result.headers.get('Access-Control-Allow-Origin'),'*');assert.equal(result.headers.get('Access-Control-Allow-Credentials'),null);assert.equal(state.fetches,0);
  result=await call('POST');assert.equal(result.status,405);assert.equal(state.fetches,0);
  result=await call('GET','?week=99');assert.equal(result.status,400);assert.equal(state.fetches,0);
- result=await call();assert.equal(result.status,200);assert.deepEqual(await result.json(),payload);assert.equal(state.upserts,1,'provider result survives cache-write error');assert.equal(result.headers.get('X-Wr-Cache'),'miss');
+ result=await call();assert.equal(result.status,200);const {_wire,...scores}=await result.json();assert.deepEqual(scores,payload);assert(Number.isFinite(Date.parse(_wire.fetchedAt)),'scoreboard reports its upstream fetch time');assert.equal(result.headers.get('Cache-Control'),'no-store');assert.equal(state.upserts,1,'provider result survives cache-write error');assert.equal(result.headers.get('X-Wr-Cache'),'miss');
  state.cached=true;result=await call();assert.equal(result.headers.get('X-Wr-Cache'),'hit');assert.equal(state.fetches,1);
  state.cached=false;state.error=true;result=await call();assert.equal(result.status,502);assert.match((await result.json()).error,/ESPN scoreboard error/);assert.equal(state.upserts,1,'provider failure never saved as fake score');
  console.log('PASS actual public GET scoreboard preserves wildcard CORS, fixed provider, cache, bad-input rejection and truthful provider failure');

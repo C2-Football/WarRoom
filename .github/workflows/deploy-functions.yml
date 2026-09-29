@@ -16,6 +16,8 @@ on:
       - "scripts/build-duat-data.py"
       - "scripts/c2-edge-release.py"
       - "tests/c2-edge-release*"
+      - "tests/nfl-scoreboard-cache.cjs"
+      - "tests/hosted-operations-reconciliation.cjs"
       - "tests/duat-*"
       - "tests/game-guest*"
       - ".github/c2-releases/**"
@@ -59,6 +61,8 @@ jobs:
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
       - name: Verify Cup, security, billing and Vault contracts
         run: npm run test:cup && npm run test:security && npm run test:billing && npm run test:timeleague
+      - name: Verify public NFL scoreboard freshness
+        run: node tests/nfl-scoreboard-cache.cjs
       - name: Verify Duat contracts
         run: npm run test:duat
       - name: Verify invitation and guest access contracts
