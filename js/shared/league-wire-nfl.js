@@ -39,12 +39,44 @@
             throw error;
         } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
     }
+    // A readable score list is not necessarily a complete weekly schedule.
+    // Validate the raw response before allowing it to advance an edition;
+    // parseScores intentionally omits malformed events for the display path.
+    function completedSchedule(data, phase, games) {
+        const scalar = value => typeof value === 'string' || typeof value === 'number';
+        const number = value => scalar(value) ? num(value) : null;
+        const scoped = value => number(value?.season?.year) === Number(phase.season) && number(value?.season?.type) === Number(phase.seasontype) && number(value?.week?.number) === Number(phase.week);
+        if (!scoped(data) || !Array.isArray(data.events) || !data.events.length || games.length !== data.events.length) return false;
+        const eventIds = new Set(), teamIds = new Set(), teams = new Set();
+        const validTeams = new Set('ARI ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LAC LAR LV MIA MIN NE NO NYG NYJ PHI PIT SEA SF TB TEN WAS'.split(' '));
+        const final = status => status?.type?.completed === true && status.type.state === 'post' && /^STATUS_FINAL(?:_|$)/.test(status.type.name || '');
+        return data.events.every((event, index) => {
+            const eventId = String(event?.id || '');
+            if (!scoped(event) || !scalar(event?.id) || !/^\d{6,12}$/.test(eventId) || eventIds.has(eventId) || !Array.isArray(event.competitions) || event.competitions.length !== 1) return false;
+            eventIds.add(eventId);
+            const competition = event.competitions[0], competitors = competition?.competitors;
+            if (!scalar(competition?.id) || String(competition.id) !== eventId || !Array.isArray(competitors) || competitors.length !== 2 || !final(competition.status || event.status)) return false;
+            if ((competition.status && !final(competition.status)) || (event.status && !final(event.status))) return false;
+            if (!Number.isFinite(Date.parse(competition.date || event.date || ''))) return false;
+            const home = competitors.filter(team => team?.homeAway === 'home'), away = competitors.filter(team => team?.homeAway === 'away');
+            if (home.length !== 1 || away.length !== 1) return false;
+            const game = games[index];
+            if (!game || String(game.id) !== eventId || !game.completed || game.state !== 'post') return false;
+            return [home[0], away[0]].every((team, i) => {
+                const teamId = String(team.team?.id || ''), name = abbr(team.team?.abbreviation), score = number(team.score);
+                if (!scalar(team.team?.id) || !scalar(team.id) || !/^\d+$/.test(teamId) || String(team.id) !== teamId || teamIds.has(teamId) || typeof team.team.abbreviation !== 'string' || !validTeams.has(name) || teams.has(name) || score == null || !Number.isInteger(score) || score < 0) return false;
+                teamIds.add(teamId); teams.add(name);
+                return game[i ? 'away' : 'home'] === name && game[i ? 'awayScore' : 'homeScore'] === score;
+            });
+        });
+    }
     async function loadWeek({ phase, ...options }) {
         const season = String(phase?.season || ''), week = Number(phase?.week), type = Number(phase?.seasontype);
         if (!/^\d{4}$/.test(season) || !Number.isInteger(week) || week < 1 || week > 22 || ![1, 2, 3].includes(type)) throw Error('The current NFL week could not be verified.');
         const result = await request(`season=${season}&week=${week}&seasontype=${type}`, options);
         if (!Array.isArray(result.data.events)) throw Error('The NFL scoreboard could not be verified.');
-        return { status: 'ready', games: root.App.NflContext.parseScores(result.data), checkedAt: result.checkedAt, updatedAt: result.updatedAt };
+        const games = root.App.NflContext.parseScores(result.data);
+        return { status: 'ready', games, completionVerified: completedSchedule(result.data, phase, games), checkedAt: result.checkedAt, updatedAt: result.updatedAt };
     }
     function parseSummary(data, game) {
         const event = String(game?.id || ''), competition = data?.header?.competitions?.[0];

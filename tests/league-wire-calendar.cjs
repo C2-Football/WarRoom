@@ -1,0 +1,77 @@
+'use strict';
+const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
+const root = { Date, AbortController, setTimeout, clearTimeout, WrWireStories: { bounds: league => ({ start: Number(league.settings?.start_week) || 1, end: Math.min(18, (Number(league.settings?.playoff_week_start) || 19) - 1) }) } };
+vm.createContext(root); vm.runInContext(fs.readFileSync('js/shared/league-wire-calendar.js', 'utf8'), root);
+const api = root.WrWireCalendar, league = { season: '2026', settings: { playoff_week_start: 15 } };
+const nfl = { season: '2026', season_type: 'regular', week: 4, leg: 4, display_week: 3 };
+const stateFetcher = async () => ({ ok: true, json: async () => ({ ...nfl }) });
+const plain = value => JSON.parse(JSON.stringify(value));
+(async () => {
+    let scoreCalls = 0, final = true, fail = false;
+    root.WrWireNfl = { loadWeek: async options => {
+        scoreCalls++; assert.deepEqual(plain(options.phase), { season: '2026', week: 3, seasontype: 2 });
+        assert.equal(options.fetcher, stateFetcher); assert.equal(options.force, true);
+        if (fail) throw Error('Scoreboard unavailable');
+        return { completionVerified: final };
+    } };
+    const fresh = await api.load({ fetcher: stateFetcher, force: true, now: () => 12345 });
+    assert.equal(fresh.completedWeek, 3); assert.equal(fresh.provisional, true); assert.equal(fresh.checkedAt, 12345);
+    assert.deepEqual(plain(fresh.nfl), nfl, 'the provider state stays intact');
+    assert.deepEqual(plain(api.period(league, fresh)), { start: 1, end: 3, week: 4, live: true, provisional: true }, 'Tuesday can publish Week 3 and preview Week 4 before display_week rolls');
+    final = false;
+    const ongoing = await api.load({ fetcher: stateFetcher, force: true });
+    assert.equal(ongoing.completedWeek, 2); assert.equal(ongoing.provisional, false);
+    assert.deepEqual(plain(api.period(league, ongoing)), { start: 1, end: 2, week: 3, live: true, provisional: false });
+    fail = true;
+    const unavailable = await api.load({ fetcher: stateFetcher, force: true });
+    assert.equal(unavailable.completedWeek, 2); assert.equal(unavailable.provisional, false, 'a scoreboard outage falls back to the provider cutoff');
+    assert.equal(unavailable.scoreboardUnavailable, true);
+    assert.equal(scoreCalls, 3);
+    fail = false; final = true;
+    await api.load({ fetcher: stateFetcher, force: true, now: () => 23456 });
+    fail = true;
+    const retained = await api.load({ fetcher: stateFetcher, force: true, now: () => 34567 });
+    assert.equal(retained.completedWeek, 3); assert.equal(retained.provisional, true); assert.equal(retained.scoreboardUnavailable, true);
+    assert.equal(retained.checkedAt, 23456, 'an outage retains the original completion check time, not a fresh claim');
+    fail = false; final = false;
+    await api.load({ fetcher: stateFetcher, force: true });
+    fail = true;
+    assert.equal((await api.load({ fetcher: stateFetcher, force: true })).completedWeek, 2, 'successful contradictory evidence revokes remembered completion');
+    assert.equal(scoreCalls, 7);
+    assert.deepEqual(plain(api.period(league, nfl)), plain(api.period(league, ongoing)), 'existing plain NFL-state callers keep their cutoff');
+    const rolled = { nfl: { ...nfl, display_week: 4 }, completedWeek: 3, provisional: false };
+    assert.deepEqual(plain(api.period(league, rolled)), { start: 1, end: 3, week: 4, live: true, provisional: false }, 'the provider rollover does not advance twice');
+    assert.equal(api.period({ ...league, season: '2025' }, fresh).end, 14);
+    assert.equal(api.period({ ...league, season: '2025' }, fresh).provisional, false, 'current scoreboard evidence does not mark archives provisional');
+    assert.equal(api.period({ ...league, season: '2027' }, fresh).provisional, false, 'another season cannot inherit completion evidence');
+    assert.deepEqual(plain(api.period({ ...league, season: '2027' }, fresh)), { start: 1, end: 0, week: 1, live: false, provisional: false }, 'future leagues have no completed current-season results');
+    const endOfRegular = { nfl: { ...nfl, display_week: 14 }, completedWeek: 14, provisional: true };
+    assert.deepEqual(plain(api.period(league, endOfRegular)), { start: 1, end: 14, week: 15, live: true, provisional: true });
+    const afterRegular = { nfl: { ...nfl, display_week: 15 }, completedWeek: 15, provisional: true };
+    assert.equal(api.period(league, afterRegular).end, 14); assert.equal(api.period(league, afterRegular).provisional, false, 'later NFL finals do not extend league regular-season records');
+    const lastNflWeek = { nfl: { ...nfl, display_week: 18 }, completedWeek: 18, provisional: true };
+    assert.equal(api.period({ season: '2026', settings: {} }, lastNflWeek).end, 18);
+    assert.equal(api.period({ season: '2026', settings: {} }, lastNflWeek).week, 19);
+    assert.equal(api.period({ ...league, settings: { start_week: 5 } }, fresh).provisional, false, 'completion before a league starts does not create a provisional league result');
+    for (const phase of ['pre', 'post', 'off']) {
+        const state = { season: '2026', season_type: phase, week: 1 };
+        const result = await api.load({ fetcher: async () => ({ ok: true, json: async () => state }) });
+        assert.equal(result.provisional, false); assert.equal(scoreCalls, 7, phase + ' does not consult regular-season completion');
+        assert.equal(api.period(league, result).end, phase === 'post' ? 14 : 0);
+        assert.equal(api.period(league, { ...result, completedWeek: 1, provisional: true }).provisional, false);
+    }
+    for (const invalid of [{}, { ...nfl, season: 'invalid' }, { ...nfl, display_week: 0, week: 0 }, { ...nfl, display_week: 19 }, { ...nfl, season_type: 'unknown' }]) {
+        await assert.rejects(api.load({ fetcher: async () => ({ ok: true, json: async () => invalid }) }), /calendar could not be verified/);
+    }
+    await assert.rejects(api.load({ fetcher: async () => ({ ok: false }) }), /calendar could not load/);
+    await assert.rejects(api.load({ fetcher: async () => { throw Error('Offline'); } }), /Offline/);
+    const controller = new AbortController(); controller.abort();
+    await assert.rejects(api.load({ signal: controller.signal, fetcher: stateFetcher }), { name: 'AbortError' });
+    root.WrWireNfl.loadWeek = async () => { const error = Error('Canceled'); error.name = 'AbortError'; throw error; };
+    await assert.rejects(api.load({ fetcher: stateFetcher }), { name: 'AbortError' });
+    const during = new AbortController();
+    await assert.rejects(api.load({ signal: during.signal, fetcher: async (url, options) => { during.abort(); assert.equal(options.signal.aborted, true); return { ok: true, json: async () => nfl }; } }), { name: 'AbortError' });
+    root.setTimeout = fn => { fn(); return 1; }; root.clearTimeout = () => {};
+    await assert.rejects(api.load({ fetcher: async (url, options) => { assert.equal(options.signal.aborted, true, 'timeout aborts the underlying calendar request'); throw Error('Aborted'); } }), /calendar took too long/);
+    console.log('PASS Wire calendar: verified Tuesday rollover, provider fallback, correction window, season bounds and cancellation');
+})().catch(error => { console.error(error); process.exitCode = 1; });

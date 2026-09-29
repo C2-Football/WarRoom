@@ -4,27 +4,32 @@
     const recent = new Map();
     const keyFor = l => `${l.league_id || l.id}|${l.season}`;
     function period(league, nfl) {
+        if (root.WrWireCalendar) return root.WrWireCalendar.period(league, nfl);
         const range = root.WrWireStories.bounds(league);
         const historical = Number(league.season) < Number(nfl.season);
         const postseason = String(league.season) === String(nfl.season) && nfl.season_type === 'post';
         const week = historical || postseason ? range.end + 1 : nfl.season_type === 'regular' ? Math.max(1, Math.min(18, Number(nfl.display_week || nfl.week) || 1)) : 1;
         return { start: range.start, end: Math.min(range.end, week - 1), week, live: !historical && !postseason && Number(league.season) === Number(nfl.season) };
     }
-    async function load({ leagues, accountId = '', signal, force = false, onUpdate, fetcher = (...args) => root.fetch(...args), now = Date.now }) {
+    async function load({ leagues, accountId = '', signal, force = false, onUpdate, fetcher = root.fetch, now = Date.now }) {
         const ownerScope = root.App?.AccountStorage?.owner?.() || '';
         const stillCurrent = () => (root.App?.AccountStorage?.owner?.() || '') === ownerScope;
         const eligible = [...new Map(leagues.filter(l => root.App.LeagueLiveScores.supported(l)).map(l => [keyFor(l), l])).values()];
         const json = async url => { if (signal?.aborted) throw Error('aborted'); const r = await fetcher(url, { signal, cache: 'no-store' }); if (!r.ok) throw Error('Scores unavailable'); return r.json(); };
-        let nfl;
-        try { nfl = await json('https://api.sleeper.app/v1/state/nfl'); if (!nfl?.season) throw Error('No season'); }
+        let nfl, calendar;
+        try {
+            calendar = root.WrWireCalendar ? await root.WrWireCalendar.load({ signal, force, fetcher, now }) : null;
+            nfl = calendar?.nfl || await json('https://api.sleeper.app/v1/state/nfl');
+            if (!nfl?.season) throw Error('No season');
+        }
         catch (_) { if (!signal?.aborted && stillCurrent()) eligible.forEach(league => onUpdate({ league, status: 'error', error: 'The league calendar could not load. Refresh to retry.', currentError: 'The league calendar could not load. Refresh to retry.', archiveError: '', currentReady: false, resultsReady: false, scheduleReady: false, currentUpdatedAt: null, stories: [] })); return; }
         let cursor = 0;
         const archiveJobs = [];
         async function worker() {
             while (cursor < eligible.length && !signal?.aborted && stillCurrent()) {
-                const league = eligible[cursor++], span = period(league, nfl);
+                const league = eligible[cursor++], span = period(league, calendar || nfl);
                 const analystSourceKey = root.WrWireAnalyst?.sourceKey?.(league, root.S?.players || {}) || '';
-                const cacheKey = `${ownerScope}|${accountId}|${keyFor(league)}|${span.week}|${analystSourceKey}`;
+                const cacheKey = `${ownerScope}|${accountId}|${keyFor(league)}|${span.week}|${!!span.provisional}|${analystSourceKey}`;
                 const cached = recent.get(cacheKey);
                 if (!force && cached && cached.selectionKey === JSON.stringify(root.WrWireRivalries?.list(league, cached.value.rivalryHistory) || []) && now() - cached.at < 60000) { onUpdate(cached.value); continue; }
                 const nameFor = rid => root.WrWireStories.oldName(league, rid);
@@ -52,6 +57,7 @@
                     publishedAnalystKey = root.WrWireAnalyst?.sourceKey?.(league, root.S?.players || {}) || '';
                     const analysis = root.WrWireAnalyst?.build({ league, weeks, edition, throughWeek: span.end, players: root.S?.players || {}, nameFor, priorSeasons: past.seasons, rosterScope: span.live ? 'current' : 'archive' }) || { stories: [], weeklyOpinion: null, coverage: [] };
                     const value = { analysis, recordBook: root.WrWireRecords?.build({ edition, league, priorSeasons: past.seasons, complete: past.complete && scoresReady }) || null, features: edition.features || [], weeklyFeature: edition.weeklyFeature || null, draftContext: { weeks, priorSeasons: past.seasons, throughWeek: span.end }, rivalryProfiles: edition.rivals || [], race: root.WrWirePlayoffs?.race({ league, edition: { ...edition, expectedThrough: span.end } }) || null, league, historical: Number(league.season) < Number(nfl.season), status: status === 'ready' && (error || !currentReady) ? 'partial' : status, error, currentError, archiveError, currentUpdatedAt, resultsReady: scoresExpected && scoresReady, scheduleReady: scheduleExpected && scheduleLoaded, stories, week: span.week, completedThrough: edition.completedThrough, priorSeasons: past.seasons.length, rivalryHistory: past.seasons.map(s => ({ league: s.league })), reusedSeasons: past.fromMemory ? past.seasons.length : past.savedCount || 0, currentReady, at: now() };
+                    value.provisional = !!span.provisional && scoresReady && scoresExpected;
                     onUpdate(value); return value;
                 };
                 publish('loading');

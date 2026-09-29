@@ -552,9 +552,11 @@ async function handleNflScoreboard(req, res) {
     api += '?' + qp.join('&');
     const r = await fetch(api, { headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' } });
     if (!r.ok) { sendJson(res, r.status, { error: 'ESPN scoreboard error ' + r.status }); return; }
-    const data = await r.text();
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=900' });
-    res.end(data);
+    const data = await r.json();
+    const payload = data && typeof data === 'object' && !Array.isArray(data)
+      ? { ...data, _wire: { fetchedAt: new Date().toISOString() } } : data;
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(payload));
   } catch (error) {
     sendJson(res, 500, { error: error.message || 'NFL scoreboard proxy error' });
   }

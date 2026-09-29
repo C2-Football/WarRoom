@@ -10,9 +10,9 @@
 // GET ?week=N&season=YYYY&seasontype=2 — same params as the dev proxy; the
 // upstream mapping (season → dates=) is mirrored from serve-static.cjs so the
 // two environments stay interchangeable. Responses are cached in
-// nfl_week_context so one fetch serves every user for hours: Vegas lines drift
-// slowly and schedules are static. Serving N users costs ~6 ESPN calls/day
-// instead of N×weeks.
+// nfl_week_context so one fetch serves every user. Distant/archival schedules
+// last three hours; active and recently played weeks refresh within a minute
+// so the Wire can recognize final games without waiting on an old scoreboard.
 //
 // CORS is a deliberate wildcard, NOT the _shared/security.ts allowlist: this
 // relay serves public, read-only league data with no cookies or auth, and the
@@ -22,7 +22,10 @@
 // abuse control.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3h — odds move, but not minute-to-minute
+const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+const ACTIVE_CACHE_TTL_MS = 60 * 1000;
+const RECENT_GAME_MS = 48 * 60 * 60 * 1000;
+const KICKOFF_WINDOW_MS = 6 * 60 * 60 * 1000;
 const RATE_LIMIT = 40;                   // per IP per window (a full-season sweep is 18)
 const RATE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -38,8 +41,35 @@ const CORS: HeadersInit = {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+type ScoreboardEvent = {
+  date?: string;
+  status?: { type?: { completed?: boolean } };
+  competitions?: Array<{ date?: string; status?: { type?: { completed?: boolean } } }>;
+};
+
+function cacheTtl(payload: unknown, now: number): number {
+  const events = (payload as { events?: ScoreboardEvent[] } | null)?.events;
+  if (!Array.isArray(events)) return CACHE_TTL_MS;
+  const recent = events.some(event => {
+    const competition = event?.competitions?.[0];
+    const kickoff = Date.parse(event?.date || competition?.date || '');
+    if (!Number.isFinite(kickoff)) return false;
+    const untilKickoff = kickoff - now;
+    const completed = (event?.status || competition?.status)?.type?.completed === true;
+    return (untilKickoff <= 0 && untilKickoff >= -RECENT_GAME_MS)
+      || (!completed && untilKickoff > 0 && untilKickoff <= KICKOFF_WINDOW_MS);
+  });
+  return recent ? ACTIVE_CACHE_TTL_MS : CACHE_TTL_MS;
+}
+
+// A cache hit must retain the upstream read time, not look freshly fetched.
+function withFreshness(payload: unknown, fetchedAt: string): unknown {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  return { ...payload, _wire: { fetchedAt } };
 }
 
 function clientIp(req: Request): string {
@@ -87,10 +117,12 @@ Deno.serve(async (req: Request) => {
         .select('payload, updated_at')
         .eq('season', season).eq('seasontype', seasontype).eq('week', week)
         .maybeSingle();
-      if (row && row.payload && Date.now() - Date.parse(row.updated_at) < CACHE_TTL_MS) {
-        return new Response(JSON.stringify(row.payload), {
+      const now = Date.now();
+      const age = row ? now - Date.parse(row.updated_at) : NaN;
+      if (row && row.payload && age >= 0 && age < cacheTtl(row.payload, now)) {
+        return new Response(JSON.stringify(withFreshness(row.payload, row.updated_at)), {
           status: 200,
-          headers: { ...CORS, 'Content-Type': 'application/json', 'X-Wr-Cache': 'hit' },
+          headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Wr-Cache': 'hit' },
         });
       }
     } catch (_) { /* cache miss path below */ }
@@ -113,17 +145,18 @@ Deno.serve(async (req: Request) => {
   }
 
   // 3. Cache write (best effort — a failed upsert must not fail the response).
+  const fetchedAt = new Date().toISOString();
   if (admin) {
     try {
       await admin.from('nfl_week_context').upsert(
-        { season, seasontype, week, payload, updated_at: new Date().toISOString() },
+        { season, seasontype, week, payload, updated_at: fetchedAt },
         { onConflict: 'season,seasontype,week' },
       );
     } catch (_) { /* non-fatal */ }
   }
 
-  return new Response(JSON.stringify(payload), {
+  return new Response(JSON.stringify(withFreshness(payload, fetchedAt)), {
     status: 200,
-    headers: { ...CORS, 'Content-Type': 'application/json', 'X-Wr-Cache': 'miss' },
+    headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Wr-Cache': 'miss' },
   });
 });

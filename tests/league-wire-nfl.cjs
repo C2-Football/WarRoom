@@ -68,6 +68,56 @@ assert.equal(api.recap({ ...game, homeScore: 25 }, box).spotlight.length, 0, 'mi
     const week = await api.loadWeek({ phase: { season: '2025', week: 1, seasontype: 2 }, now: () => time, fetcher: async () => ({ ok: true, json: async () => ({ events: [game] }) }) });
     assert.equal(week.updatedAt, null, 'checking an old relay does not imply upstream scores just updated');
     assert.equal(week.checkedAt, time);
+    assert.equal(week.completionVerified, false, 'displayable games without raw schedule scope cannot advance an edition');
     await assert.rejects(api.loadWeek({ phase: { season: '2025', week: 0, seasontype: 2 }, fetcher }), /week could not be verified/);
+
+    const evidence = { AbortController, Date, setTimeout, clearTimeout, App: {} };
+    vm.createContext(evidence);
+    for (const file of ['nfl-context', 'league-wire-nfl']) vm.runInContext(fs.readFileSync(`js/shared/${file}.js`, 'utf8'), evidence);
+    const phase = { season: '2026', week: 3, seasontype: 2 };
+    const finalStatus = { type: { completed: true, state: 'post', name: 'STATUS_FINAL' } };
+    const event = (id, teams, date) => ({ id, date, season: { year: 2026, type: 2 }, week: { number: 3 }, status: clone(finalStatus), competitions: [{ id, date, status: clone(finalStatus), competitors: teams.map(([teamId, abbreviation], i) => ({ id: teamId, homeAway: i ? 'away' : 'home', score: i ? '0' : '21', team: { id: teamId, abbreviation } })) }] });
+    const schedule = { season: { year: 2026, type: 2 }, week: { number: 3 }, events: [event('401872001', [['1', 'BUF'], ['2', 'NE']], '2026-09-28T23:00Z'), event('401872002', [['3', 'DAL'], ['4', 'PHI']], '2026-09-29T00:30Z')] };
+    const verify = async data => (await evidence.WrWireNfl.loadWeek({ phase, fetcher: async () => ({ ok: true, json: async () => data }) })).completionVerified;
+    assert.equal(await verify(schedule), true, 'all games in a Monday doubleheader must be final; zero scores remain valid');
+    for (const [label, mutate] of [
+        ['empty schedule', d => { d.events = []; }],
+        ['unfinished second game', d => { d.events[1].competitions[0].status.type = { completed: false, state: 'in', name: 'STATUS_IN_PROGRESS' }; }],
+        ['future game', d => { d.events[1].competitions[0].status.type = { completed: false, state: 'pre', name: 'STATUS_SCHEDULED' }; }],
+        ['postponed final flag', d => { d.events[1].competitions[0].status.type.name = 'STATUS_POSTPONED'; }],
+        ['canceled final flag', d => { d.events[1].status.type.name = 'STATUS_CANCELED'; }],
+        ['suspended final flag', d => { d.events[1].status.type.name = 'STATUS_SUSPENDED'; }],
+        ['delayed final flag', d => { d.events[1].status.type.name = 'STATUS_DELAYED'; }],
+        ['truthy nonboolean completion', d => { d.events[1].competitions[0].status.type.completed = 'true'; }],
+        ['wrong response year', d => { d.season.year = 2025; }],
+        ['wrong response week', d => { d.week.number = 2; }],
+        ['wrong response phase', d => { d.season.type = 1; }],
+        ['malformed response scope', d => { d.week.number = [3]; }],
+        ['missing response scope', d => { delete d.week; }],
+        ['wrong event year', d => { d.events[1].season.year = 2025; }],
+        ['wrong event week', d => { d.events[1].week.number = 2; }],
+        ['wrong event phase', d => { d.events[1].season.type = 3; }],
+        ['duplicate event', d => { d.events[1] = clone(d.events[0]); }],
+        ['malformed event ID', d => { d.events[1].id = [d.events[1].id]; }],
+        ['mismatched competition', d => { d.events[1].competitions[0].id = '401879999'; }],
+        ['duplicate team', d => { d.events[1].competitions[0].competitors[1] = clone(d.events[0].competitions[0].competitors[1]); }],
+        ['duplicated home designation', d => { d.events[1].competitions[0].competitors[1].homeAway = 'home'; }],
+        ['dropped malformed game', d => { delete d.events[1].competitions[0].competitors[1].team.abbreviation; }],
+        ['unknown team', d => { d.events[1].competitions[0].competitors[1].team.abbreviation = 'BAD'; }],
+        ['missing score', d => { delete d.events[1].competitions[0].competitors[1].score; }],
+        ['boolean score', d => { d.events[1].competitions[0].competitors[1].score = false; }],
+        ['malformed score', d => { d.events[1].competitions[0].competitors[1].score = [0]; }],
+        ['negative NFL score', d => { d.events[1].competitions[0].competitors[1].score = '-1'; }],
+    ]) { const data = clone(schedule); mutate(data); assert.equal(await verify(data), false, label + ' cannot advance an edition'); }
+    const tie = clone(schedule); tie.events[1].competitions[0].competitors.forEach(team => { team.score = '21'; });
+    assert.equal(await verify(tie), true, 'a final tied game is complete');
+    let source = clone(schedule), checks = 0, clock = 100000;
+    const reusableFetcher = async () => { checks++; return { ok: true, json: async () => clone(source) }; };
+    const initial = await evidence.WrWireNfl.loadWeek({ phase, fetcher: reusableFetcher, now: () => clock });
+    source.events[0].competitions[0].competitors[0].score = '24'; clock += 1000;
+    const cached = await evidence.WrWireNfl.loadWeek({ phase, fetcher: reusableFetcher, now: () => clock });
+    assert.equal(cached.games[0].homeScore, 21); assert.equal(cached.checkedAt, initial.checkedAt); assert.equal(checks, 1);
+    const corrected = await evidence.WrWireNfl.loadWeek({ phase, fetcher: reusableFetcher, now: () => clock, force: true });
+    assert.equal(corrected.games[0].homeScore, 24); assert.equal(corrected.completionVerified, true); assert.equal(checks, 2, 'refresh picks up corrections without waiting for the client cache');
     console.log('PASS NFL reporting: verified event/team/date/phase joins, original player teams, missing/zero stats, substantive recaps, lazy caching, cancellation, retry and source freshness');
 })().catch(error => { console.error(error); process.exitCode = 1; });

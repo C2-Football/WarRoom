@@ -15,10 +15,11 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
     const [loadedScope, setLoadedScope] = React.useState(scope);
     const [studio, setStudio] = React.useState(null);
     const activeEntries = loadedScope === scope ? entries : {};
+    const loadPending = React.useRef(false);
     React.useEffect(() => { dialog.current?.showModal(); return () => { window.requestAnimationFrame(() => { const target = opener.current?.isConnected ? opener.current : document.querySelector('.wr-wire-brand, .wr-wire-mobile-launch, .wr-all-wire-launch'); target?.focus?.(); }); }; }, []);
     React.useEffect(() => {
-        if (previousScope.current !== scope) { setEntries({}); setSearch(''); setStudio(null); previousScope.current = scope; }
-        setLoadedScope(scope); setLimit(18);
+        if (previousScope.current !== scope) { setEntries({}); setSearch(''); setStudio(null); setLimit(18); previousScope.current = scope; }
+        setLoadedScope(scope); loadPending.current = true;
         const controller = new window.AbortController();
         const timeout = setTimeout(() => controller.abort(), 120000);
         let alive = true;
@@ -26,10 +27,17 @@ function WrAllLeaguesWire({ leagues = [], accountId = '', onClose, onOpenLeague 
             onUpdate: entry => { if (alive) setEntries(old => ({ ...old, [entry.league.league_id || entry.league.id]: reading.retain(old[entry.league.league_id || entry.league.id], entry) })); },
         }).catch(() => {}).finally(() => {
             clearTimeout(timeout);
+            if (alive) loadPending.current = false;
             if (alive) setEntries(old => Object.fromEntries(eligible.map(l => { const id = l.league_id || l.id, entry = old[id]; return [id, reading.finish(entry, l)]; })));
         });
-        return () => { alive = false; controller.abort(); clearTimeout(timeout); };
+        return () => { alive = false; loadPending.current = false; controller.abort(); clearTimeout(timeout); };
     }, [scope, revision]);
+    React.useEffect(() => {
+        const refresh = () => { if (!document.hidden && !loadPending.current) setRevision(n => n + 1); };
+        const timer = setInterval(refresh, 60000);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    }, [scope]);
     React.useEffect(() => {
         const refresh = event => { if (!event.key || event.key.includes('wire_rivalries_v1:')) setRevision(n => n + 1); };
         window.addEventListener('wr:wire-rivalries-changed', refresh);

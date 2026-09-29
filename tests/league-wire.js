@@ -19,8 +19,8 @@ function harness({ reduced = false, phone = false, week = 1 } = {}) {
     const props = { currentLeague: { league_id: 'test', season: '2026', rosters: [] }, standings: [], transactions: [] };
     const render = () => { cursor = 0; effects = []; return context.window.WrLeagueWire(props); };
     render();
-    states[10] = [{ state: 'pre', away: 'AAA', home: 'BBB', shortDetail: 'Sunday' }, { state: 'in', away: 'CCC', home: 'DDD', awayScore: 7, homeScore: 3 }];
-    return { context, props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[4] = value; }, setPast: value => { states[3] = value; } };
+    states[11] = [{ state: 'pre', away: 'AAA', home: 'BBB', shortDetail: 'Sunday' }, { state: 'in', away: 'CCC', home: 'DDD', awayScore: 7, homeScore: 3 }];
+    return { context, props, render, rotate: () => effects.at(-1)(), intervals: () => intervals, engine: context.window.WrWireStories, setArchive: value => { states[5] = value; }, setPast: value => { states[3] = value; } };
 }
 function nodes(node) { return node && typeof node === 'object' ? [node, ...node.children.flatMap(nodes)] : []; }
 function text(node) { return node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : node.children.map(text).join(' '); }

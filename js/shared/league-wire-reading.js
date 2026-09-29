@@ -25,19 +25,26 @@
     }
     function period(entry) {
         const results = Number(entry.completedThrough) > 0 ? `Results through Week ${entry.completedThrough}` : 'Awaiting the first completed results';
-        return `${entry.historical ? `${entry.league.season} archive · ` : ''}${results}${!entry.historical && Number(entry.week) > Number(entry.completedThrough) && entry.week <= (root.WrWireStories?.bounds(entry.league).end || 18) ? ` · Week ${entry.week} matchups` : ''}`;
+        return `${entry.historical ? `${entry.league.season} archive · ` : ''}${results}${!entry.historical && Number(entry.week) > Number(entry.completedThrough) && entry.week <= (root.WrWireStories?.bounds(entry.league).end || 18) ? ` · Week ${entry.week} matchups` : ''}${entry.provisional ? ' · Scores may change with stat corrections' : ''}`;
     }
     function retain(previous, next) {
         const same = previous && String(previous.league.league_id || previous.league.id) === String(next.league.league_id || next.league.id) && String(previous.league.season) === String(next.league.season);
-        if (!same || !previous.currentReady || next.currentReady) return next;
-        if (previous.week !== next.week) return { ...previous, status: next.status, currentError: next.currentError, error: next.error, stale: !!next.currentError, refreshing: next.status === 'loading' };
+        if (!same || !(previous.currentReady || previous.resultsReady || previous.scheduleReady) || next.currentReady) return next;
+        if (previous.week !== next.week) {
+            // New recaps can arrive before the next schedule. Publish the
+            // verified results without carrying last week's previews forward.
+            if (next.resultsReady) return next;
+            return { ...previous, status: next.status, currentError: next.currentError, error: next.error, stale: !!next.currentError, refreshing: next.status === 'loading' };
+        }
         // Results and the schedule can refresh independently. A failed source
         // keeps its last reporting; a successful source replaces only its part.
         const results = next.resultsReady ? next : previous;
         const schedule = next.scheduleReady ? next : previous;
+        const resultsReady = !!(results.resultsReady || results.currentReady);
+        const scheduleReady = !!(schedule.scheduleReady || schedule.currentReady);
         const times = [results.currentUpdatedAt, schedule.currentUpdatedAt].filter(t => Number(t) > 0);
         return { ...next, stories: [...results.stories.filter(s => !s.preview), ...schedule.stories.filter(s => s.preview)],
-            analysis: results.analysis || null, recordBook: results.recordBook || null, features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, currentReady: true, resultsReady: true, scheduleReady: true,
+            analysis: results.analysis || null, recordBook: results.recordBook || null, features: results.features || [], weeklyFeature: results.weeklyFeature || null, draftContext: results.draftContext || null, race: results.race || null, rivalryProfiles: results.rivalryProfiles || [], completedThrough: results.completedThrough, provisional: !!results.provisional, currentReady: resultsReady && scheduleReady, resultsReady, scheduleReady,
             currentUpdatedAt: times.length ? Math.min(...times) : null, stale: !!next.currentError || next.status === 'error', refreshing: next.status === 'loading' };
     }
     function finish(entry, league) {
