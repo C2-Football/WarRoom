@@ -31,7 +31,7 @@
 //
 // Exposes: window.WrLeagueWire
 // ══════════════════════════════════════════════════════════════════
-function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName, onOpenAllWire }) {
+function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName, onOpenAllWire, forceOpen = false }) {
 
     const vp = window.WR?.useViewport?.() || {};
     const isPhone = !!vp.isPhone;
@@ -441,6 +441,8 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     }, []);
     React.useEffect(() => { setIndex(0); dialogRef.current?.scrollTo?.({ top: 0 }); }, [leagueId, topic]);
     React.useEffect(() => { setEditionWeek('latest'); setReadingSeason('current'); setTeamFilter('all'); setSearch(''); setExpanded(false); }, [leagueId, season, accountScope]);
+    React.useEffect(() => { setExpanded(!!forceOpen); }, [forceOpen, leagueId, season, accountScope]);
+    React.useEffect(() => { const open = () => setExpanded(true); window.addEventListener('wr:wire-open', open); return () => window.removeEventListener('wr:wire-open', open); }, []);
     React.useEffect(() => {
         if (expanded) dialogRef.current?.showModal?.();
     }, [expanded]);

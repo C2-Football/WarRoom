@@ -247,19 +247,9 @@
     }
 
     // ── Phone bottom dock (≤767 only) ──
-    // ONE fixed bottom row, Scout mobile-nav idiom: a sliding module strip
-    // of EVERY nav item from buildLeagueNavItems above (same array instance
-    // the sidebar maps — no 'More' slot; the hamburger drawer stays as
-    // redundant access), plus a PINNED Ask Alex peer item at the right end
-    // (gold-hairline left divider) that opens the Alex chat sheet — it
-    // replaces the FAB on phone. Returns null outside the phone tier and
-    // while the iOS keyboard is open (WR.useViewport kbOpen), so
-    // tablet/desktop render byte-identical; it STAYS mounted while the Alex
-    // sheet is open (sheet z 200 covers the dock at z 100 — expected).
-    // Visuals live in index.html's PHONE TIER block (.wr-phone-dock /
-    // .wr-dock-*); z + bottom offsets come from the fixed-layer registry
-    // (--wr-z-nav / --wr-tab-bar-h / --wr-bottom-inset — heights are the
-    // STATIC 56px / 48px landscape-compact CSS values, no JS measuring).
+    // Four customizable destinations; the header menu keeps every permitted
+    // view accessible. Hide the dock while typing. Fixed-layer tokens and
+    // mission-control.css provide the safe-area and glass treatment.
     // The gate lives in this thin wrapper so PhoneDockInner's hooks
     // mount/unmount cleanly.
     function PhoneDock(props) {
@@ -293,11 +283,16 @@
         const selectTab = tab => { setMoreOpen(false); onSelectTab(tab); };
 
         useEffect(() => { setMoreOpen(false); }, [activeTab]);
+        useEffect(() => {
+            const openMenu = () => setMoreOpen(true);
+            window.addEventListener?.('wr:phone-menu', openMenu);
+            return () => window.removeEventListener?.('wr:phone-menu', openMenu);
+        }, []);
 
 
         return <React.Fragment>
             <nav className="wr-phone-dock" aria-label="Primary">
-                <div className="wr-dock-strip" style={{ gridTemplateColumns: `repeat(${chips.length + 1}, minmax(0, 1fr))` }}>
+                <div className="wr-dock-strip" style={{ gridTemplateColumns: `repeat(${Math.max(1, chips.length)}, minmax(0, 1fr))` }}>
                     {chips.map(item => {
                         const isActive = item.tab === activeTab;
                         return <button key={item.tab} type="button"
@@ -307,22 +302,23 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
                             </svg>
-                            <span>{item.tab === 'myteam' ? 'My Team' : item.tab === 'central' ? 'League' : item.label}</span>
+                            <span>{item.tab === 'myteam' ? 'Roster' : item.tab === 'central' ? 'League' : item.label}</span>
                         </button>;
                     })}
-                    <button type="button" className={'wr-dock-chip' + (moreActive ? ' is-active' : '')}
+                    {!chips.length && <button type="button" className={'wr-dock-chip' + (moreActive ? ' is-active' : '')}
                         aria-current={moreActive ? 'page' : undefined} aria-haspopup="dialog"
                         aria-expanded={moreOpen} aria-controls="wr-phone-more-menu" onClick={() => setMoreOpen(true)}>
                         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
-                        <span>More</span>
-                    </button>
+                        <span>Customize navigation</span>
+                    </button>}
                 </div>
             </nav>
-            {moreOpen && <window.WR.Sheet open={true} title="More league views" onClose={() => setMoreOpen(false)}>
+            {moreOpen && <window.WR.Sheet open={true} title="Your command center" onClose={() => setMoreOpen(false)}>
                 <div id="wr-phone-more-menu" className="wr-phone-more-menu">
+                    <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('wr:mission-alex-open')); }}>Chat with Alex</button>
                     <button type="button" onClick={() => setEditingDock(v => !v)} aria-expanded={editingDock}>Customize bottom menu</button>
                     {editingDock && <section aria-label="Customize bottom menu">
-                        <p>Choose up to four. More stays available. Saved on this device for this account and league format.</p>
+                        <p>Choose up to four destinations. The top-left menu always opens every view. Saved for this account and league format.</p>
                         <p>{selected.length} of 4 selected</p>
                         {selected.map((tab,index) => <div key={tab} className="wr-dock-order"><span>{choices.find(c=>c.tab===tab)?.label}</span><button type="button" disabled={index===0} aria-label={'Move ' + tab + ' left'} onClick={()=>moveDock(tab,-1)}>←</button><button type="button" disabled={index===selected.length-1} aria-label={'Move ' + tab + ' right'} onClick={()=>moveDock(tab,1)}>→</button></div>)}
                         {choices.map(item => <label key={item.tab} className="wr-dock-choice"><input type="checkbox" checked={selected.includes(item.tab)} disabled={!selected.includes(item.tab) && selected.length>=4} onChange={()=>toggleDock(item.tab)} />{item.label}</label>)}
@@ -2685,12 +2681,21 @@
             />
         );
 
+        const openLeagueTeam = (rosterId, context = {}) => {
+            const roster = currentLeague?.rosters?.find(row => String(row.roster_id) === String(rosterId));
+            if (!roster) return;
+            const standing = standings.find(row => String(row.rosterId) === String(rosterId) || String(row.userId) === String(roster.owner_id)) || {};
+            setLeagueSelectedTeam({ ...standing, ...context, roster, rosterId: roster.roster_id, userId: roster.owner_id, displayName: getOwnerName(roster.roster_id) });
+            setLeagueViewMode('roster');
+            setActiveTab('league-team');
+        };
+        const showLeagueOverview = alexPhone && isCurrentYear && leagueSkin?.phase === 'in_season';
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
         const leagueSkinClassName = leagueSkin?.theme?.className || (leagueSkin?.type ? 'wr-league-skin-' + leagueSkin.type : 'wr-league-skin-default');
 
         return (
           <window.App.SeasonContext.Provider value={_seasonCtxValue}>
-            <div className={'app-container ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
+            <div className={'app-container wr-mission-control ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
                 {/* DHQ Loading Bubble — .wr-dhq-bubble: phone tier repoints it
                     above the bottom dock (index.html PHONE TIER block). */}
                 {dhqStatus.loading && (
@@ -3052,6 +3057,9 @@
                         return (
                             <React.Fragment>
                                 <div className="wr-phone-lhdr" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, paddingLeft: '2px' }}>
+                                    <button type="button" className="mc-menu-trigger" aria-label="Open all views" aria-haspopup="dialog" onClick={() => window.dispatchEvent(new CustomEvent('wr:phone-menu'))}>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                                    </button>
                                     <div role="button" tabIndex={0} aria-label="League status and actions"
                                         onClick={() => setPhHdrSheetOpen(true)}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhHdrSheetOpen(true); } }}
@@ -3060,7 +3068,7 @@
                                         <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
                                     </div>
-                                    <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
+                                    <button type="button" className="mc-alex-trigger" onClick={() => window.dispatchEvent(new CustomEvent('wr:mission-alex-open'))} aria-label="Chat with Alex"><span aria-hidden="true">✦</span> Alex</button>
                                 </div>
                                 {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
                                     <div style={{ padding: '2px 16px 8px' }}>
@@ -3096,6 +3104,7 @@
                                             <span style={rowLbl}>Phase</span>
                                             <span style={{ ...rowVal, color: leagueSkin.phaseMeta.color }}>{leagueSkin.phaseMeta.label}</span>
                                         </div>}
+                                        <button style={rowSt} onClick={onBack}><span style={rowVal}>Switch league</span></button>
                                         <button style={rowSt} onClick={doRefresh} disabled={!!loadStage}><span style={rowVal}>{loadStage ? 'Refreshing…' : 'Refresh data'}</span></button>
                                         {window.WR?.Feedback?.reportBug && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.reportBug(); }}><span style={rowVal}>Report a bug</span></button>}
                                         {window.WR?.Feedback?.openBoard && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.openBoard(); }}><span style={rowVal}>Feature requests</span></button>}
@@ -3407,6 +3416,7 @@
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}
+                        forceOpen={viewTab === 'wire'}
                         currentLeague={currentLeague}
                         standings={standings}
                         transactions={transactions}
@@ -3475,11 +3485,11 @@
                     gmStrategy={gmStrategy}
                     setActiveTab={setActiveTab}
                     timeRecomputeTs={timeRecomputeTs}
-                /> : viewTab === 'league' ? <LeagueMapTabLazy
+                /> : viewTab === 'league-team' ? <LeagueMapTabLazy
                     leagueViewTab={leagueViewTab}
                     setLeagueViewTab={setLeagueViewTab}
                     leagueSelectedTeam={leagueSelectedTeam}
-                    setLeagueSelectedTeam={setLeagueSelectedTeam}
+                    setLeagueSelectedTeam={team => { setLeagueSelectedTeam(team); if (!team) setActiveTab('central'); }}
                     leagueSort={leagueSort}
                     setLeagueSort={setLeagueSort}
                     leagueSubView={leagueSubView}
@@ -3495,6 +3505,7 @@
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     statsData={statsData}
+                    stats2025Data={stats2025Data}
                     sleeperUserId={sleeperUserId}
                     myRoster={myRoster}
                     activeYear={activeYear}
@@ -3578,8 +3589,8 @@
                 }) : viewTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
-                    homeMerged: false,
-                }) : dashboardEl(selectedWidgets)}
+                    homeMerged: false, onOpenTeam: openLeagueTeam,
+                }) : viewTab === 'wire' ? <section className="mc-wire-destination"><h2>The Wire</h2><p>Your league’s stories, records, rivalries and weekly editions.</p><button type="button" className="gd-primary" onClick={() => window.dispatchEvent(new CustomEvent('wr:wire-open'))}>Open The Wire</button></section> : showLeagueOverview ? <div className="mc-overview"><LeagueCentralTabLazy currentLeague={currentLeague} leagueSkin={leagueSkin} myRoster={myRoster} playersData={playersData} standings={standings} transactions={transactions} sleeperUserId={sleeperUserId} getOwnerName={getOwnerName} getPlayerName={getPlayerName} timeAgo={timeAgo} setActiveTab={setActiveTab} onOpenTeam={openLeagueTeam} overview={true} /><details className="mc-overview-insights"><summary>Team outlook &amp; dashboard</summary>{dashboardEl(selectedWidgets)}</details></div> : dashboardEl(selectedWidgets)}
                 </div>
                 </div>{/* end marginLeft wrapper */}
 
@@ -3600,8 +3611,8 @@
                 }}
             />}
 
-            {/* Phone dock: three frequent workspaces plus the remaining
-                capability-aware routes in More. Hidden off-phone and while typing. */}
+            {/* Four saved destinations; all routes remain in the header menu. */}
+            {typeof window.WrMissionAlex === 'function' && <window.WrMissionAlex key={String(sleeperUserId) + ':' + (currentLeague?.league_id || currentLeague?.id)} currentLeague={currentLeague} myRoster={myRoster} playersData={playersData} statsData={statsData} sleeperUserId={sleeperUserId} activeTab={viewTab} />}
             <PhoneDock
                 activeTab={viewTab}
                 navItems={navItems}

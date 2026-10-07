@@ -1,0 +1,25 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),babel=require('@babel/standalone');
+const source=fs.readFileSync('js/trade-calc.js','utf8'),ast=babel.packages.parser.parse(source,{plugins:['jsx']});
+function fn(name){let out;babel.packages.traverse.default(ast,{FunctionDeclaration(p){if(p.node.id?.name===name)out=source.slice(p.node.start,p.node.end)}});assert(out,name);return out;}
+const ctx=vm.createContext({tradeOwner:{A:'me',B:'old-owner'},tradeIds:{A:['mine'],B:['old-player']},tradePickIds:{A:[],B:['old-pick']},tradeFaab:{A:0,B:50},myRosterId:1,notice:null,window:{}});
+for(const key of ['tradeOwner','tradeIds','tradePickIds','tradeFaab'])ctx['set'+key[0].toUpperCase()+key.slice(1)]=update=>ctx[key]=typeof update==='function'?update(ctx[key]):update;
+ctx.setDealHqNotice=value=>ctx.notice=value;
+vm.runInContext(fn('changeBuilderOwner'),ctx);
+assert.equal(ctx.changeBuilderOwner('B','new-owner'),true);
+assert.deepEqual([...ctx.tradeIds.A],['mine']);assert.equal(ctx.tradeIds.B.length,0);assert.equal(ctx.tradePickIds.B.length,0);assert.equal(ctx.tradeFaab.B,0);
+ctx.tradeIds.B=['new-player'];ctx.tradeFaab.B=7;
+ctx.changeBuilderOwner('B','new-owner');assert.deepEqual([...ctx.tradeIds.B],['new-player']);assert.equal(ctx.tradeFaab.B,7,'Re-selecting a team retains its package');
+assert.equal(ctx.changeBuilderOwner('B','me'),false);assert.equal(ctx.tradeOwner.B,'new-owner');assert.match(ctx.notice,/different teams/);
+ctx.changeBuilderOwner('B',null);assert.equal(ctx.tradeIds.B.length,0);assert.equal(ctx.tradeOwner.B,null);
+let handler;Object.assign(ctx,{allRosters:[{roster_id:1,owner_id:'me',players:['mine']},{roster_id:2,owner_id:'partner',players:[],taxi:['target'],reserve:[]}],myRoster:{roster_id:1},setPhBuilderSide:s=>ctx.side=s,setBuilderPlayerContext:value=>ctx.playerContext=value,revealTradeBuilder:()=>ctx.builderShown=true,useEffect:fn=>fn()});
+ctx.window={_wrTradeBuilderTarget:{pid:'target',returnTab:'stats'},addEventListener:(name,fn)=>{if(name==='wr:open-trade-builder')handler=fn;},removeEventListener(){}};
+let hook;babel.packages.traverse.default(ast,{CallExpression(p){if(p.node.callee.name==='useEffect'&&source.slice(p.node.start,p.node.end).includes("window.addEventListener('wr:open-trade-builder'"))hook=source.slice(p.node.start,p.node.end)}});assert(hook);
+vm.runInContext(hook,ctx);
+assert.equal(ctx.tradeOwner.B,'partner');assert.deepEqual([...ctx.tradeIds.B],['target']);assert.equal(ctx.playerContext.returnTab,'stats');assert.equal(ctx.side,'B');assert.equal(ctx.builderShown,true);assert.equal(ctx.window._wrTradeBuilderTarget,null);
+handler({detail:{pid:'target',returnTab:'myteam'}});assert.deepEqual([...ctx.tradeIds.B],['target'],'Repeated context open does not duplicate assets');
+ctx.window._wrTradeBuilderTarget={pid:'unknown'};handler({detail:ctx.window._wrTradeBuilderTarget});assert.equal(ctx.window._wrTradeBuilderTarget,null);assert.match(ctx.notice,/not on a roster/);
+ctx.leagueId='league';ctx.setExpandedDnaOwner=id=>ctx.ownerId=id;ctx.setOwnerSection=section=>ctx.ownerSection=section;ctx.setTcTab=tab=>ctx.tab=tab;ctx.window._wrOwnerProfileTarget={rosterId:'2',leagueId:'league'};
+babel.packages.traverse.default(ast,{CallExpression(p){if(p.node.callee.name==='useEffect'&&source.slice(p.node.start,p.node.end).includes("window.addEventListener('wr:open-owner-profile'"))hook=source.slice(p.node.start,p.node.end)}});
+vm.runInContext(hook,ctx);assert.equal(ctx.ownerId,2);assert.equal(ctx.ownerSection,'scout');assert.equal(ctx.tab,'dna');assert.equal(ctx.window._wrOwnerProfileTarget,null);
+console.log('PASS Mission Control trade handoffs: owner-change package isolation, different teams, taxi player context, repeat/stale seed handling and targeted owner profiles');

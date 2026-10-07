@@ -8,16 +8,16 @@ const source = fs.readFileSync('js/league-detail.js', 'utf8');
 const compiled = babel.transform(source, { presets: ['react'] }).code;
 
 function fixture({ open = false, phone = true, keyboard = false, activeTab = 'myteam', options = {} } = {}) {
-    const updates = [], selections = [];
+    const updates = [], selections = [], events = {};
     const h = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) });
     let hook = 0;
     const context = {
         console,
         useState: initial => [hook++ === 0 ? open : typeof initial === 'function' ? initial() : initial, value => updates.push(value)],
         useRef: () => ({ current: null }),
-        useEffect: () => {},
+        useEffect: fn => fn(),
         React: { createElement: h, Fragment: 'fragment' },
-        window: { App: {}, WR: { LeagueWorkspaces: workspaces, Sheet: 'sheet', useViewport: () => ({ isPhone: phone, kbOpen: keyboard }) } },
+        window: { addEventListener: (name, fn) => { events[name] = fn; }, App: {}, WR: { LeagueWorkspaces: workspaces, Sheet: 'sheet', useViewport: () => ({ isPhone: phone, kbOpen: keyboard }) } },
     };
     vm.createContext(context);
     vm.runInContext(compiled, context);
@@ -28,32 +28,29 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
     function walk(node) { if (!node || typeof node !== 'object') return; nodes.push(node); (node.children || []).forEach(walk); }
     walk(tree);
     const text = node => typeof node === 'string' ? node : (node?.children || []).map(text).join('');
-    return { context, nodes, text, updates, selections };
+    return { context, nodes, text, updates, selections, events };
 }
 
 const closed = fixture();
 const dock = closed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip'));
-assert.deepEqual(dock.map(closed.text), ['Home', 'My Team', 'League', 'More']);
-assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'My Team');
-dock[3].props.onClick();
-assert.deepEqual(closed.updates, [true]);
+assert.deepEqual(dock.map(closed.text), ['Overview', 'Roster', 'League', 'Game Day']);
+assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'Roster');
+closed.events['wr:phone-menu']();
+assert.deepEqual(closed.updates, [false, true]);
 
 const expanded = fixture({ open: true, activeTab: 'stats' });
-const more = expanded.nodes.find(n => n.type === 'button' && expanded.text(n) === 'More');
-assert.equal(more.props['aria-current'], 'page');
-assert.equal(more.props['aria-expanded'], true);
-for (const tab of ['fa', 'trades', 'draft', 'draft-review', 'stats', 'compare', 'settings', 'gm-settings', 'legend']) {
+for (const tab of ['fa', 'trades', 'draft', 'draft-review', 'wire', 'stats', 'compare', 'settings', 'gm-settings', 'legend']) {
     const expected = workspaces.resolve(tab).label;
     assert.ok(expanded.nodes.some(n => n.type === 'button' && expanded.text(n) === expected + '›'), `More must retain ${expected}`);
 }
 expanded.nodes.find(n => n.type === 'button' && expanded.text(n) === 'Waivers›').props.onClick();
 assert.deepEqual(expanded.selections, ['fa']);
-assert.deepEqual(expanded.updates, [false]);
+assert.deepEqual(expanded.updates, [false, false]);
 
 const restricted = fixture({ open: true, options: { showTrades: false, showGmOffice: false, leagueType: 'chopped' } });
 const labels = restricted.nodes.filter(n => n.type === 'button').map(restricted.text);
 assert.ok(labels.includes('Waivers›'));
-assert.ok(!labels.includes('Trades›'));
+assert.ok(!labels.includes('Trade Desk›'));
 assert.ok(!labels.includes('Alex preferences›'));
 
 for (const opts of [{ phone: false }, { keyboard: true }]) {

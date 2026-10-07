@@ -8226,7 +8226,7 @@
                     at ≤767). The ActionBar (and its 66px clearance) was removed. */}
                 <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn}
                     intel={draftCastIntel} />
-                <label className="la-view-select">Live room<select value={phTab} onChange={event => setPhTab(event.target.value)}>{(hasTeamTracker ? [['feed','Feed'],['board','Board'],['teams','Teams'],['roster','My roster']] : [['feed','Draft feed'],['board','Big Board'],['roster','My roster']]).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                <nav className="mc-section-tabs" aria-label="Live draft views">{(hasTeamTracker ? [['feed','Feed'],['board','Board'],['teams','Teams'],['roster','My roster']] : [['feed','Feed'],['board','Board'],['roster','My roster']]).map(([key, label]) => <button type="button" key={key} aria-pressed={phTab === key} onClick={() => setPhTab(key)}>{label}</button>)}</nav>
                 {hasTeamTracker && phTab === 'feed' && LiveRoomPulse && <LiveRoomPulse state={state} onOpen={() => setPhTab('teams')} />}
                 {hasTeamTracker && <div hidden={phTab !== 'teams'} style={{ display: phTab === 'teams' ? 'flex' : 'none', flexDirection: 'column' }}><LiveRoomPanel state={state} /></div>}
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
@@ -8283,12 +8283,15 @@
                             : <MyDraftRosterPanel state={state} />}
                     </div>
                 )}
-                {/* Opp Intel opens from the DraftCast card's Intel row (owner ask) —
-                    only Ask Alex + Analytics live down here. */}
-                <div className="wr-seg" style={{ margin: '10px 0' }}>
-                    <button type="button" className={phPanel === 'alex' ? 'is-on' : ''} onClick={() => setPhPanel('alex')}>Ask Alex ▾</button>
-                    <button type="button" className={phPanel === 'analytics' ? 'is-on' : ''} onClick={() => setPhPanel('analytics')}>Analytics ▾</button>
-                </div>
+                <nav className="mc-draft-tools" aria-label="Draft tools">
+                    <button type="button" aria-expanded={phPanel === 'intel'} onClick={() => setPhPanel('intel')}>Owner intel</button>
+                    <button type="button" aria-expanded={phPanel === 'analytics'} onClick={() => setPhPanel('analytics')}>Analytics</button>
+                    <button type="button" aria-expanded={phPanel === 'trades'} onClick={() => setPhPanel('trades')}>Trades</button>
+                    <button type="button" aria-expanded={phPanel === 'alex'} onClick={() => setPhPanel('alex')}>Ask Alex</button>
+                </nav>
+                <Sheet open={phPanel === 'trades'} onClose={() => setPhPanel(null)} title="Draft trades" desktop={null}>
+                    <div className="la-mobile la-draft la-draft-sheet" style={{ padding: '4px 12px 10px' }}>{isRedraftLive(state) ? <><p>Open the Trade Desk to build a league offer. Live draft picks remain with your provider.</p><button type="button" onClick={() => window.wrNavigateTab?.('trades')}>Open Trade Desk →</button></> : <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={(rosterId, seed) => { setPhPanel(null); onPropose?.(rosterId, seed); }} />}</div>
+                </Sheet>
                 <Sheet open={phPanel === 'alex'} onClose={() => setPhPanel(null)} title="Ask Alex" desktop={null}>
                     <div className="la-mobile la-draft la-draft-sheet" style={{ padding: '4px 12px 10px', minHeight: 0 }}>
                         {AlexStreamPanel ? <AlexStreamPanel state={state} dispatch={dispatch} /> : null}
@@ -8313,6 +8316,7 @@
                 {/* Trade offer → the same popup desktop uses (room stays paused
                     behind it; Accept/Decline resume it). */}
                 {!isRedraftLive(state) && tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                {!isRedraftLive(state) && tradeIsPro && state.proposerDrawer && window.DraftCC.TradeProposer && React.createElement(window.DraftCC.TradeProposer, { state, dispatch })}
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
                 {/* AlexCall overlay removed on phone (owner ask) — the red DraftCast
                     takeover + edge glow already carry the your-turn signal. */}

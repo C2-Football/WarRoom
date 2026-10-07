@@ -27,6 +27,84 @@
 //
 // Exposes: window.LeagueCentralTab
 // ══════════════════════════════════════════════════════════════════
+// Proactive overview uses reported starters and the current NFL schedule. It never
+// treats a missing feed as a healthy lineup, or a schedule time as a league lock rule.
+function buildLeagueOverviewDecision({ league, roster, playersData = {}, skin, week, games = [], now = Date.now() }) {
+    const positions = (league?.roster_positions || []).filter(pos => !['BN', 'IR', 'TAXI', 'RESERVE'].includes(String(pos).toUpperCase()));
+    const automatic = skin?.type === 'best_ball' || Number(league?.settings?.best_ball) === 1;
+    const known = !!roster && Array.isArray(roster.starters);
+    const flags = [];
+    if (known && !automatic) {
+        const slots = Math.max(positions.length, roster.starters.length);
+        for (let index = 0; index < slots; index++) {
+            const pid = roster.starters[index], player = playersData[pid];
+            const slot = positions[index] || 'Starter';
+            if (!pid || String(pid) === '0') { flags.push({ pid: null, name: slot + ' slot', reason: 'Empty starter', kind: 'empty' }); continue; }
+            if (!player) continue;
+            const name = player.full_name || [player.first_name, player.last_name].filter(Boolean).join(' ') || 'Player ' + pid;
+            const injury = String(player.injury_status || '').toLowerCase();
+            let bye = null;
+            try { bye = window.App?.NFLByes?.weekForPlayer?.(player, league?.season); } catch (_) { /* unavailable */ }
+            if (Number(bye) > 0 && Number(bye) === Number(week)) flags.push({ pid, name, reason: 'Bye this week', kind: 'bye' });
+            else if (['out', 'ir', 'injured reserve', 'suspended', 'pup'].includes(injury)) flags.push({ pid, name, reason: 'Listed ' + player.injury_status, kind: 'out' });
+            else if (['doubtful', 'questionable'].includes(injury)) flags.push({ pid, name, reason: 'Monitor · ' + player.injury_status, kind: 'monitor' });
+            else if (Object.prototype.hasOwnProperty.call(player, 'team') && (!player.team || ['FA', 'FA*'].includes(String(player.team).toUpperCase()))) flags.push({ pid, name, reason: 'No NFL team listed', kind: 'unsigned' });
+        }
+    }
+    const gameStatus = game => {
+        if (/POSTPONED|CANCEL|SUSPEND|DELAY/i.test(game.statusName || '')) return 'unknown';
+        if (game.completed) return 'final';
+        if (game.state === 'in') return 'live';
+        const start = Date.parse(game.kickoff || '');
+        return game.state === 'pre' && Number.isFinite(start) && start > now ? 'upcoming' : 'unknown';
+    };
+    const upcoming = games.filter(game => gameStatus(game) === 'upcoming').sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
+    const next = upcoming[0] || null;
+    const startersInNext = next && known ? roster.starters.filter(pid => [next.home, next.away].includes(playersData[pid]?.team)).length : 0;
+    return { week, known, automatic, flags, next, startersInNext, live: games.some(game => gameStatus(game) === 'live'), complete: games.length > 0 && games.every(game => gameStatus(game) === 'final') };
+}
+
+function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersData, setActiveTab }) {
+    // This is always the current week, independent of the scoreboard's history picker.
+    const week = window.App.LeagueLiveScores.currentWeek(currentLeague);
+    const season = Number(currentLeague?.season);
+    const liveSeason = Number(window.S?.nflState?.season) || new Date().getFullYear();
+    const key = [currentLeague?.league_id || currentLeague?.id, season, week].join('|');
+    const [schedule, setSchedule] = React.useState({ key: '', status: 'loading', games: [], now: Date.now() });
+    React.useEffect(() => {
+        let alive = true, pending = false;
+        const context = window.App?.NflContext;
+        if (!context?.loadScoreboard || season !== liveSeason || !(week >= 1 && week <= 18)) {
+            setSchedule({ key, status: 'unavailable', games: [], now: Date.now() }); return;
+        }
+        const refresh = async () => {
+            if (!alive || pending || document.visibilityState === 'hidden') return;
+            pending = true;
+            try {
+                const games = await context.loadScoreboard(week, season, 2);
+                if (alive) setSchedule({ key, status: Array.isArray(games) && games.length ? 'ready' : 'unavailable', games: Array.isArray(games) ? games : [], now: Date.now() });
+            } catch (_) { if (alive) setSchedule({ key, status: 'unavailable', games: [], now: Date.now() }); }
+            finally { pending = false; }
+        };
+        refresh();
+        const timer = setInterval(refresh, 60000);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { alive = false; clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    }, [key, liveSeason]);
+    const current = schedule.key === key ? schedule : { status: 'loading', games: [], now: Date.now() };
+    const decision = buildLeagueOverviewDecision({ league: currentLeague, roster: myRoster, playersData, skin: leagueSkin, week, games: current.games, now: current.now });
+    const title = decision.automatic ? 'Check your roster depth' : !decision.known ? 'Review your starting lineup' : decision.flags.length ? decision.flags.length + ' lineup check' + (decision.flags.length === 1 ? '' : 's') : decision.live ? 'Follow your remaining starters' : decision.complete ? 'Review the week' : 'Set up your week';
+    const nextLabel = decision.next ? new Date(decision.next.kickoff).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : null;
+    const scheduleLabel = nextLabel ? 'Next kickoff · ' + nextLabel : decision.live ? 'NFL games are underway' : decision.complete ? 'This week’s NFL games are complete' : current.status === 'loading' ? 'Checking kickoff times…' : 'Kickoff times unavailable';
+    const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: decision.flags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
+    return <section className="mc-overview-decisions" aria-label="Your next decisions">
+        <header><span>Next moves</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
+        <h3>{title}</h3><p className="mc-next-kickoff">{scheduleLabel}{decision.next && decision.startersInNext > 0 ? ' · ' + decision.startersInNext + ' of your starters' : ''}</p>
+        {decision.flags.length > 0 ? <ul>{decision.flags.slice(0, 3).map((flag, index) => <li key={String(flag.pid) + ':' + index}><strong>{flag.name}</strong><span>{flag.reason}</span></li>)}{decision.flags.length > 3 && <li className="mc-next-more">+{decision.flags.length - 3} more to review in Game Day</li>}</ul> : <p className="mc-next-note">{decision.automatic ? 'Your league sets the scoring lineup automatically. Review depth and available adds.' : !decision.known ? 'Starter details have not loaded. Open Game Day to check your lineup.' : 'Compare your starters and bench in Game Day. Listed status alone does not confirm availability.'}</p>}
+        <div className="mc-next-actions"><button type="button" onClick={() => setActiveTab?.(decision.automatic ? 'myteam' : 'lineup')}>{decision.automatic ? 'Review roster' : 'Review lineup'}</button><button type="button" onClick={() => setActiveTab?.('fa')}>Waivers</button><button type="button" onClick={ask}>Ask Alex</button></div>
+    </section>;
+}
+
 function LeagueCentralTab({
     currentLeague,
     leagueSkin,
@@ -37,6 +115,8 @@ function LeagueCentralTab({
     getOwnerName,
     getPlayerName,
     setActiveTab,
+    onOpenTeam,
+    overview = false,
     // Merged-home mode (redraft / chopped): this tab IS the landing page, so
     // it also carries the intelligence briefing and the Home widget grid.
     // Both arrive as ready-built elements from league-detail.js rather than as
@@ -264,7 +344,7 @@ function LeagueCentralTab({
     // Hook-free render helpers keep native details mounted across live score refreshes.
     // ── Shells ──
     const renderPanel = ({ title, meta, right, children }) => (
-        <div style={{ minWidth: 0, background: PANEL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: isPhone ? '12px 10px' : '14px 16px', marginBottom: '16px' }}>
+        <div className="mc-league-panel" style={{ minWidth: 0, background: PANEL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: isPhone ? '12px 10px' : '14px 16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <span style={{ fontFamily: RAJ, fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.03em', color: WHITE }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -288,12 +368,15 @@ function LeagueCentralTab({
     const navigationLeagueId = dashboardNav.leagueId(currentLeague);
     const centralRef = React.useRef(null);
     const [innerTab, setInnerTab] = React.useState(() => dashboardNav.peek(navigationLeagueId)?.section || (homeMerged && isChopped ? 'kpis' : 'league'));
+    const [phoneLeagueView, setPhoneLeagueView] = React.useState('standings');
     const [navigationIntent, setNavigationIntent] = React.useState(null);
     React.useEffect(() => {
         const apply = () => {
             const intent = dashboardNav.consume(navigationLeagueId);
             if (!intent) return;
             setInnerTab(intent.section);
+            if (intent.anchor === 'scoreboard') setPhoneLeagueView('scores');
+            if (intent.anchor === 'standings') setPhoneLeagueView('standings');
             setNavigationIntent(intent);
         };
         apply();
@@ -395,7 +478,7 @@ function LeagueCentralTab({
         const movement = liveReady && before != null && rank != null ? before - rank : null;
         const result = team.currentResult;
         const cutline = showCutline && !hasDivisions && index === playoffTeams - 1 && index < teams.length - 1;
-        return <React.Fragment key={team.rosterId}><details className={'la-report-row' + (sameId(team.rosterId, myRoster?.roster_id) ? ' la-own' : '')}><summary aria-label={`${rank ?? 'Unranked'}. ${team.teamName || team.displayName || _getOwnerName(team.rosterId)}, ${team.wins}-${team.losses}-${team.ties || 0}, ${score(team.pointsFor)} fantasy points for. Show details`}><span className="la-standing-rank">{rank ?? '—'}</span><span className="la-standing-team"><strong>{team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong>{movement ? <small>{movement > 0 ? '↑' : '↓'}{Math.abs(movement)}</small> : null}</span><span className="la-standing-record">{team.wins}-{team.losses}-{team.ties || 0}</span><span className="la-standing-points">{score(team.pointsFor)}</span></summary><dl className="la-fields"><div><dt>Fantasy points for</dt><dd>{score(team.pointsFor)}</dd></div><div><dt>Points against</dt><dd>{score(team.pointsAgainst)}</dd></div>{liveReady ? <><div><dt>Week {board.week}</dt><dd>{result ? (liveContext.historical ? result : { W:'Leading', L:'Trailing', T:'Tied' }[result]) : team.opponentRosterId == null && team.currentPoints != null ? 'Bye' : 'Pending'}</dd></div><div><dt>Current points</dt><dd>{score(team.currentPoints)}{team.opponentRosterId != null && `–${score(team.opponentPoints)}`}</dd></div>{team.medianResult && <div><dt>Median result</dt><dd>{team.medianResult}</dd></div>}<div><dt>Rank movement</dt><dd>{movement == null ? 'No prior rank' : movement ? `${movement > 0 ? 'Up' : 'Down'} ${Math.abs(movement)} since entering Week ${board.week}` : 'Unchanged'}</dd></div></> : <div><dt>Form</dt><dd>{team.streak || '—'}{team.form?.length > 0 && <span className="la-form-history">{team.form.map(game => `Week ${game.week}: ${game.result}${game.pts != null ? ' · ' + Number(game.pts).toFixed(1) : ''}`).join('; ')}</span>}</dd></div>}</dl></details>{cutline && <p className="la-cutline">Playoff cutline</p>}</React.Fragment>;
+        return <React.Fragment key={team.rosterId}><details className={'la-report-row' + (sameId(team.rosterId, myRoster?.roster_id) ? ' la-own' : '')}><summary aria-label={`${rank ?? 'Unranked'}. ${team.teamName || team.displayName || _getOwnerName(team.rosterId)}, ${team.wins}-${team.losses}-${team.ties || 0}, ${score(team.pointsFor)} fantasy points for. Show details`}><span className="la-standing-rank">{rank ?? '—'}</span><span className="la-standing-team"><strong>{team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong>{movement ? <small>{movement > 0 ? '↑' : '↓'}{Math.abs(movement)}</small> : null}</span><span className="la-standing-record">{team.wins}-{team.losses}-{team.ties || 0}</span><span className="la-standing-points">{score(team.pointsFor)}</span></summary><dl className="la-fields"><div><dt>Fantasy points for</dt><dd>{score(team.pointsFor)}</dd></div><div><dt>Points against</dt><dd>{score(team.pointsAgainst)}</dd></div>{liveReady ? <><div><dt>Week {board.week}</dt><dd>{result ? (liveContext.historical ? result : { W:'Leading', L:'Trailing', T:'Tied' }[result]) : team.opponentRosterId == null && team.currentPoints != null ? 'Bye' : 'Pending'}</dd></div><div><dt>Current points</dt><dd>{score(team.currentPoints)}{team.opponentRosterId != null && `–${score(team.opponentPoints)}`}</dd></div>{team.medianResult && <div><dt>Median result</dt><dd>{team.medianResult}</dd></div>}<div><dt>Rank movement</dt><dd>{movement == null ? 'No prior rank' : movement ? `${movement > 0 ? 'Up' : 'Down'} ${Math.abs(movement)} since entering Week ${board.week}` : 'Unchanged'}</dd></div></> : <div><dt>Form</dt><dd>{team.streak || '—'}{team.form?.length > 0 && <span className="la-form-history">{team.form.map(game => `Week ${game.week}: ${game.result}${game.pts != null ? ' · ' + Number(game.pts).toFixed(1) : ''}`).join('; ')}</span>}</dd></div>}{team.projWins != null && <div><dt>Projected record</dt><dd>{Number(team.projWins).toFixed(1)}–{Number(team.projLosses || 0).toFixed(1)}</dd></div>}{team.playoffPct != null && <div><dt>Playoff chance</dt><dd>{team.playoffPct}%</dd></div>}</dl>{onOpenTeam && <button type="button" className="mc-team-link" onClick={() => onOpenTeam(team.rosterId, team)}>Roster &amp; team profile →</button>}</details>{cutline && <p className="la-cutline">Playoff cutline</p>}</React.Fragment>;
     })}</div> : <div className="lct-table-wrap">
         <table className="lct-table" aria-label={liveReady ? `Week ${board.week} live standings` : 'Official standings'}>
             <thead><tr>
@@ -473,8 +556,32 @@ function LeagueCentralTab({
     const me = enrichedStandings.find(t => sameId(t.rosterId, myRoster?.roster_id));
     const oddsReady = odds.status === 'ready' && odds.sim;
 
+    const renderScoreboard = () => window.LeagueLiveScoreboard && React.createElement(window.LeagueLiveScoreboard, {
+        key: leagueId + ':' + season,
+        currentLeague, myRoster, playersData, onOpenTeam,
+        getOwnerName: _getOwnerName, getPlayerName: _getPlayerName, setActiveTab,
+        selectedWeek: scoreWeek, onWeekChange: week => setScoreSelection({ key: `${leagueId}|${season}`, week }),
+        onRefresh: liveContext?.refresh, fullBoard: isPhone, overview,
+    });
+    const overviewTeam = tableTeams.find(team => sameId(team.rosterId, myRoster?.roster_id));
+    const overviewRank = overviewTeam ? (liveReady ? overviewTeam.rank : tableTeams.indexOf(overviewTeam) + 1) : null;
+    let overviewHealth = null;
+    if (overview && isPhone && myRoster && typeof window.assessTeamFromGlobal === 'function') {
+        try { overviewHealth = window.assessTeamFromGlobal(myRoster.roster_id)?.healthScore ?? null; } catch (_) { /* unavailable read stays empty */ }
+    }
+    if (overview && isPhone) return <div ref={centralRef} className="la-mobile la-central mc-league-overview">
+        {overviewTeam && <button type="button" className="mc-overview-summary" aria-label="Open your league standing and season outlook" onClick={() => setActiveTab?.('central')}>
+            <span><small>{liveReady ? 'Live record' : 'Record'}</small><strong>{overviewTeam.wins}–{overviewTeam.losses}{overviewTeam.ties ? '–' + overviewTeam.ties : ''}</strong></span>
+            <span><small>Standing</small><strong>{overviewRank != null ? '#' + overviewRank : '—'}<em> / {tableTeams.length}</em></strong></span>
+            <span><small>{overviewHealth != null ? 'Roster health' : 'Points for'}</small><strong>{overviewHealth != null ? overviewHealth : score(overviewTeam.pointsFor)}</strong></span>
+        </button>}
+        <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />
+        {renderScoreboard()}
+        <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.('central')}>Full standings →</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
+    </div>;
+
     return (
-        <div ref={centralRef} className={isPhone ? 'la-mobile la-central' : undefined} style={{ padding: isPhone ? '0' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
+        <div ref={centralRef} className={isPhone ? 'la-mobile la-central mc-league' : undefined} style={{ padding: isPhone ? '0' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
             {!isPhone && <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>
                     {homeMerged ? 'Command Center' : 'League Central'}
@@ -485,13 +592,8 @@ function LeagueCentralTab({
                 </div>
             </div>}
 
-            {window.LeagueLiveScoreboard && (!isPhone || innerTab === 'league') && React.createElement(window.LeagueLiveScoreboard, {
-                key: leagueId + ':' + season,
-                currentLeague, myRoster, playersData,
-                getOwnerName: _getOwnerName, getPlayerName: _getPlayerName, setActiveTab,
-                selectedWeek: scoreWeek, onWeekChange: week => setScoreSelection({ key: `${leagueId}|${season}`, week }),
-                onRefresh: liveContext?.refresh,
-            })}
+            {isPhone && <nav className="mc-section-tabs" aria-label="League views">{[['standings', 'Standings'], ['scores', 'Scores'], ['stats', 'Leaders']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}{cupEnabled && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => setInnerTab('cup')}>Cup</button>}</nav>}
+            {(!isPhone || (innerTab === 'league' && phoneLeagueView === 'scores')) && renderScoreboard()}
 
             {/* Briefing — always the first thing you see on entry, collapsible
                 to a one-line bar once you've read it. */}
@@ -516,7 +618,7 @@ function LeagueCentralTab({
             )}
 
             {/* League / KPIs */}
-            {(homeMerged || cupEnabled) && (
+            {(!isPhone && (homeMerged || cupEnabled)) && (
                 <div style={{ display: 'flex', gap: '22px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: '14px' }}>
                     {[...(homeMerged ? (isChopped ? [['kpis', 'KPIs'], ['league', 'League']] : [['league', 'League'], ['kpis', 'KPIs']]) : [['league', 'League']]), ...(cupEnabled ? [['cup', 'In-season Cup']] : [])].map(([k, label]) => (
                         <button key={k} type="button" onClick={() => setInnerTab(k)} style={{
@@ -535,7 +637,7 @@ function LeagueCentralTab({
             <React.Fragment>
             {isChopped && window.WrChopBlock && <window.WrChopBlock active currentLeague={currentLeague} myRoster={myRoster} />}
             {/* The two things that matter: Standings | Stats */}
-            <div id="league-central-standings" style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0,1fr)' : 'minmax(0,1.32fr) minmax(0,1fr)', gap: '14px', alignItems: 'start' }}>
+            <div id="league-central-standings" className={isPhone ? `mc-league-content mc-league-${phoneLeagueView}` : undefined} style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0,1fr)' : 'minmax(0,1.32fr) minmax(0,1fr)', gap: '14px', alignItems: 'start' }}>
 
                 {renderPanel({ title: "Standings", meta: stMode === 'odds' ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools">{!noPlayoffs && <select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select>}{hasDivisions && stMode === 'table' && <select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">Overall</option><option value="division">By division</option></select>}</div> :
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -622,7 +724,7 @@ function LeagueCentralTab({
                     </div>
                 </> })}
 
-                <window.WR.MobileSection title="Stat leaders">
+                <div className="mc-league-leaders">
                 {renderPanel({ title: "Stat leaders", right: <div style={segWrap}>
                             <button onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
                                 {leaders.week ? 'Week ' + leaders.week : 'Week'}
@@ -679,7 +781,7 @@ function LeagueCentralTab({
                         </div>
                     )}
                 </> })}
-                </window.WR.MobileSection>
+                </div>
             </div>
             </React.Fragment>
             )}
@@ -689,3 +791,5 @@ function LeagueCentralTab({
 }
 
 window.LeagueCentralTab = LeagueCentralTab;
+window.LeagueOverviewDecisions = LeagueOverviewDecisions;
+window.buildLeagueOverviewDecision = buildLeagueOverviewDecision;

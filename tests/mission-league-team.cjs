@@ -1,0 +1,45 @@
+'use strict';
+const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), Babel = require('@babel/standalone');
+let state, effect, cleanup, dependencies, writes = [], forecasts = [], pending = {};
+const React = {
+  Fragment: 'fragment',
+  useState(initial) { if (state === undefined) state = initial; return [state, value => { state = typeof value === 'function' ? value(state) : value; }]; },
+  useEffect(fn, next) { if (!dependencies || next.some((v, i) => v !== dependencies[i])) { cleanup?.(); dependencies = next; effect = fn; } },
+  createElement(type, props, ...children) { return { type, props: props || {}, children }; },
+};
+const root = { App: { Schedule: { buildSeason: opts => { forecasts.push(opts); return Promise.resolve({ summary: { remainingWeeks: 4, projWins: 7.2, projLosses: 6.8 } }); } } }, OD: { loadDNA: id => new Promise(resolve => { pending[id] = resolve; }) }, dispatchEvent: event => writes.push(event), wrNavigateTab: route => writes.push(route) };
+const context = { React, window: root, console, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } } };
+vm.createContext(context);
+vm.runInContext(Babel.transform(fs.readFileSync('js/tabs/league-map.js', 'utf8'), { presets: ['react'] }).code, context);
+const walk = n => n == null || typeof n === 'boolean' ? [] : Array.isArray(n) ? n.flatMap(walk) : typeof n === 'object' ? [n, ...walk(n.children)] : [n];
+const text = n => walk(n).filter(x => typeof x !== 'object').join('');
+let props = { team: { roster: { roster_id: 2, owner_id: 'o2', settings: { wins: 0, losses: 1, ties: 1 } } }, league: { league_id: 'a', season: 2026 }, leagueSkin: { phase: 'in_season' }, assessment: { healthScore: 0, strengths: ['WR'], needs: [{ pos: 'RB' }], window: 'Contender' }, playersData: {}, statsData: {}, priorData: { p1: { gp: 17 } }, isPro: true };
+function render() { const tree = context.LeagueTeamMissionSummary(props); if (effect) { const fn = effect; effect = null; cleanup = fn(); } return tree; }
+// Team rows use the same prior-season projection baseline and season-keyed NFL schedule as Roster/Game Day.
+let projectedContext, byeContext;
+root.WR = { PlayerMetrics: { slots: (selected, values) => values } };
+root.App.WeeklyProj = { currentWeek: () => 1, projectPlayer: (pid, options) => { projectedContext = { pid, options }; return { available: true, points: { median: options.priorData[pid] ? 14.6 : 0 } }; }, formStats: () => ({ rollingPPG: 0 }) };
+root.App.NFLByes = { seasonFor: league => Number(league.season), weekForPlayer: (player, season) => { byeContext = { player, season }; return season === 2026 ? 9 : 6; } };
+const metricPlayer = { pid: 'p1', p: { team: 'GB', age: 25, bye_week: 6 }, dhq: 4000, ppg: 12.3 };
+const metricOptions = { preference: { selected: ['proj', 'ppg', 'bye'] }, currentLeague: props.league, playersData: { p1: metricPlayer.p }, statsData: {}, stats2025Data: props.priorData };
+let metrics = context.leagueTeamPlayerMetrics(metricPlayer, metricOptions);
+assert.equal(projectedContext.options.priorData, props.priorData, 'Team player forecast retains the real prior-season baseline');
+assert.equal(metrics.proj, 14.6, 'Prior-year production contributes before current-season games are available');
+assert.equal(metrics.ppg, 0, 'A zero rolling PPG remains a valid result');
+assert.equal(metrics.bye, 9, 'Stale bye_week from player metadata cannot override the authoritative league-season schedule');
+assert.equal(byeContext.season, 2026);
+metrics = context.leagueTeamPlayerMetrics(metricPlayer, { ...metricOptions, currentLeague: { ...props.league, season: 2025 } });
+assert.equal(metrics.bye, 6, 'Historical team rows use that season schedule');
+root.App.NFLByes.weekForPlayer = () => null;
+assert.equal(context.leagueTeamPlayerMetrics(metricPlayer, metricOptions).bye, null, 'Unavailable schedule does not fall back to stale player metadata');
+(async () => {
+  let tree = render(); assert(text(tree).includes('0–1–1'), 'Zero wins and ties are preserved'); assert(text(tree).includes('Roster health0'), 'Zero health is not replaced by a default');
+  assert.equal(forecasts[0].stats2025Data, props.priorData, 'Real projection receives prior season data');
+  props = { ...props, league: { league_id: 'b', season: 2026 } }; render();
+  pending.a({ o2: 'FLEECER' }); await new Promise(setImmediate); assert(!text(render()).includes('Fleecer'), 'Late previous league scouting cannot leak');
+  pending.b({ o2: 'STALWART' }); await new Promise(setImmediate); tree = render(); assert(text(tree).includes('Stalwart')); assert(text(tree).includes('7.2–6.8')); assert(text(tree).includes('WR') && text(tree).includes('RB'));
+  walk(tree).find(n => n.type === 'button').props.onClick(); assert.equal(root._wrOwnerProfileTarget.rosterId, 2); assert.equal(root._wrOwnerProfileTarget.leagueId, 'b'); assert.equal(writes.at(-1), 'trades');
+  const count = forecasts.length; props = { ...props, team: { ...props.team, projWins: 0, projLosses: 14 } }; tree = render(); assert(text(tree).includes('0.0–14.0'), 'Loaded standings simulation preserves zero'); assert.equal(forecasts.length, count, 'An available standings forecast is reused');
+  props = { ...props, team: { roster: props.team.roster }, leagueSkin: { phase: 'complete' } }; render(); assert.equal(forecasts.length, count, 'Completed seasons do not start a new projection');
+  console.log('PASS mission league team: source-scoped scouting, schedule projection, unavailable/zero fields and selected-owner navigation');
+})().catch(error => { console.error(error); process.exitCode = 1; });

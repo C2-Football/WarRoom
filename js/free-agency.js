@@ -834,15 +834,64 @@
         </div>;
     }
 
+    // Preference evidence is private to one account, league, season and horizon.
+    // Votes change the Alex context, never the underlying projection or value.
+    function waiverPreferenceKey(league) {
+        const account = (window.App?.OD || window.OD)?.getCurrentUserId?.()
+            || (window.S?.platform !== 'mfl' && window.S?.platform !== 'espn' ? window.S?.user?.user_id : null);
+        return account ? 'wr_waiver_preferences_v1:' + [account, league?.league_id || league?.id || '', league?.season || ''].map(encodeURIComponent).join(':') : null;
+    }
+    function readWaiverPreferences(key) {
+        try { const value = key && JSON.parse(localStorage.getItem(key) || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch (_) { return {}; }
+    }
+    function writeWaiverPreference(key, pid, horizon, action) {
+        if (!key || !pid || !['week','season'].includes(horizon) || !['up','down'].includes(action)) return null;
+        const next = { ...readWaiverPreferences(key), [horizon + ':' + pid]: action };
+        try { localStorage.setItem(key, JSON.stringify(next)); return JSON.stringify(readWaiverPreferences(key)) === JSON.stringify(next) ? next : null; } catch (_) { return null; }
+    }
+
     function FreeAgencyTab({ playersData, statsData, prevStatsData, statsSeason, priorStatsSeason, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo, initialView = 'overview' }) {
-        const [faSection, setFaSection] = React.useState(initialView === 'targets' ? 'targets' : 'overview');
+        const [faSection, setFaSection] = React.useState(initialView === 'targets' ? 'claims' : 'market');
         const acquisitionLeagueId = String(currentLeague?.league_id || currentLeague?.id || '');
         const [streamHorizon, setStreamHorizon] = useState('week');
+        const metricPreference = window.WR?.PlayerMetrics?.useMetrics?.((window.App?.OD || window.OD)?.getCurrentUserId?.() || sleeperUserId, acquisitionLeagueId);
+        const preferenceKey = waiverPreferenceKey(currentLeague);
+        const [missionVotes, setMissionVotes] = useState(() => ({ key: preferenceKey, values: readWaiverPreferences(preferenceKey) }));
+        const [missionNotice, setMissionNotice] = useState('');
+        const [plannedBid, setPlannedBid] = useState('');
+        const claimStore = window.WR?.WaiverPlans;
+        const claimScope = claimStore?.scope(currentLeague);
+        const claimAccount = claimStore?.account();
+        const claimAccountRef = React.useRef(claimAccount);
+        const [claimPlanRevision, setClaimPlanRevision] = useState(0);
+        const claimPlans = claimStore?.list(currentLeague) || [];
+        useEffect(() => {
+            if (claimAccountRef.current !== claimAccount) {
+                window.WR.acquisitionContext = null;
+                setAcquisitionContext(null); setPlannedBid(''); setMissionNotice('');
+                claimAccountRef.current = claimAccount;
+            }
+            const refresh = event => {
+                if (!event?.detail?.key || event.detail.key === claimScope) setClaimPlanRevision(n => n + 1);
+            };
+            window.addEventListener('wr:waiver-plans-changed', refresh);
+            window.addEventListener('storage', refresh);
+            return () => { window.removeEventListener('wr:waiver-plans-changed', refresh); window.removeEventListener('storage', refresh); };
+        }, [claimScope, claimAccount]);
+        const [bidHistory, setBidHistory] = useState(null);
+        useEffect(() => {
+            let alive = true;
+            setBidHistory(null);
+            if (window.WrTxns?.fetchLeagueTxns && acquisitionLeagueId) Promise.resolve(window.WrTxns.fetchLeagueTxns(acquisitionLeagueId)).then(txns => { if (alive) setBidHistory({ leagueId: acquisitionLeagueId, txns: txns || [] }); }).catch(() => { if (alive) setBidHistory({ leagueId: acquisitionLeagueId, txns: [], error: true }); });
+            return () => { alive = false; };
+        }, [acquisitionLeagueId]);
+        const activeVotes = missionVotes.key === preferenceKey ? missionVotes.values : readWaiverPreferences(preferenceKey);
         const [acquisitionContext, setAcquisitionContext] = useState(null);
         const [notebookRevision, setNotebookRevision] = useState(0);
         useEffect(() => {
             const plan = window.WR?.PlayerNotebook?.contextFor(window.WR?.acquisitionContext, acquisitionLeagueId);
-            setFaSection(initialView === 'targets' ? 'targets' : plan ? 'market' : 'overview');
+            setFaSection(initialView === 'targets' ? 'claims' : plan ? 'claims' : 'market');
+            setMissionNotice('');
         }, [initialView, acquisitionLeagueId]);
         useEffect(() => {
             const changed = () => setNotebookRevision(n => n + 1);
@@ -898,9 +947,12 @@
             const receive = event => {
                 const next = window.WR?.PlayerNotebook?.contextFor(event?.detail || window.WR?.acquisitionContext, acquisitionLeagueId);
                 if (!next) { if (!event) setAcquisitionContext(null); return; }
-                setAcquisitionContext(next);
+                const saved = next.pid ? window.WR?.WaiverPlans?.get(currentLeague, next.pid) : null;
+                setAcquisitionContext(saved ? { ...next, ...saved, leagueId: acquisitionLeagueId } : next);
+                setPlannedBid(saved?.bid == null ? '' : String(saved.bid));
+                setMissionNotice(saved ? 'Editing your saved local plan. Review the bid and drop before submitting on your league platform.' : '');
                 if (!event && initialView === 'targets') return;
-                setFaSection('market');
+                setFaSection('claims');
                 setFaFilter(next.position || '');
                 setFaSearch('');
                 setRookieOnly(false);
@@ -911,7 +963,7 @@
             receive();
             window.addEventListener('wr:acquisition-context', receive);
             return () => window.removeEventListener('wr:acquisition-context', receive);
-        }, [acquisitionLeagueId]);
+        }, [acquisitionLeagueId, claimScope]);
         // ── Waiver Take (one-shot AI card, no chat) ──────────────────────
         // Ask once → structured take on the already-ranked Priority Moves list.
         // Reuses the orphaned 'waiver-agent' DHQ_PROMPTS type — the deterministic
@@ -1094,19 +1146,18 @@
                     }
                     return { pid, p, dhq, proj, pos: normPos(p.position) || p.position };
                 })
-                .sort((a, b) => b.dhq - a.dhq)
-                .slice(0, 300);
+                .sort((a, b) => b.dhq - a.dhq);
         }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet, marketIsCurrent, marketWeek, marketDataVersion]);
 
         // Compare the same legal add/drop across both scoring horizons.
         const streamCandidates = useMemo(() => {
-            if (!isPro || skinFeatures.showStreaming === false) return [];
+            if (!isPro) return [];
             const state = window.App?.PlayerValue?.rosState?.();
             const validRos = state && String(state.leagueId) === acquisitionLeagueId && Number(state.week) === Number(marketWeek) && marketIsCurrent;
             const options = { ...waiverRosterOptions({currentLeague,playersData,statsData,prevStatsData}), horizon: streamHorizon,
                 rosProject: pid => validRos ? state.points?.[pid] ?? null : null };
             const read=buildFaRosterRead(myRoster,currentLeague,playersData,pid=>waiverValue(pid,currentLeague,resolvedLeagueSkin),options);
-            return availablePlayers.filter(x=>waiverRoleRead(x.p,currentLeague,resolvedLeagueSkin).eligible).map(fa=>({fa,fit:read.fit(fa.pos,fa.dhq,fa)}))
+            return applyGmFaFilters(availablePlayers, getGmFaFilters(currentLeague)).slice(0, 300).filter(x=>waiverRoleRead(x.p,currentLeague,resolvedLeagueSkin).eligible).map(fa=>({fa,fit:read.fit(fa.pos,fa.dhq,fa)}))
                 .filter(({fit}) => streamHorizon === 'season' ? fit.rosGain > 0 : streamHorizon === 'both' ? fit.weeklyGain != null && fit.rosGain != null && fit.weeklyGain >= 0 && fit.rosGain >= 0 && (fit.weeklyGain > 0 || fit.rosGain > 0) : fit.weeklyGain > 0)
                 .map(({fa,fit})=>({pos:fa.pos,fa,worstName:'best available lineup',worstProj:read.beforeWeekly.total,delta:fit.weeklyGain,rosGain:fit.rosGain,rosPoints:fit.candidateRosPoints,dropPid:fit.dropPid,dropName:fit.dropName}))
                 .sort((a,b)=>streamHorizon === 'season' ? b.rosGain-a.rosGain : (b.delta ?? -Infinity)-(a.delta ?? -Infinity));
@@ -1535,17 +1586,27 @@
             const name = targetPlayer ? playerName(targetPlayer, acquisitionContext.pid) : acquisitionContext.pid;
             const suggestion = target ? faabSuggest(target.dhq, target.pos || normPos(target.p.position), target.p.age) : null;
             return <section className="fa-acquisition-plan" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--acc-line2, rgba(212,175,55,.35))', borderRadius: 10, background: 'var(--acc-fill1, rgba(212,175,55,.04))' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setFaFilter(''); }}>Clear plan</button></div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); setMissionNotice(''); setFaFilter(''); }}>Close editor</button></div>
                 {acquisitionContext.reason && <p style={{ margin: '8px 0', color: 'var(--silver)', fontSize: '.82rem' }}>{acquisitionContext.reason}</p>}
                 {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player below.</p>}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
                     <label style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
+                    {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={myRoster?.settings?.waiver_budget_used != null ? remaining : undefined} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" /></label>}
                     {target && suggestion && <span style={{ color: 'var(--gold)', fontSize: '.8rem' }}>Historical bid range ${suggestion.lo}–${suggestion.hi}</span>}
                     {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>Player details &amp; notebook</button>}
                 </div>
                 {protectedDrop && <p role="alert" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>You marked this player Untouchable. Choose another drop or revisit that decision in My Team.</p>}
                 {acquisitionContext.dropPid && !dropId && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>The earlier drop candidate is no longer on your roster. No drop is selected.</p>}
                 {target && isPro && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} />}
+                {target && <button type="button" onClick={() => {
+                    const bid = !hasFAAB || plannedBid === '' ? null : Number(plannedBid);
+                    if (bid != null && (!Number.isInteger(bid) || bid < 0 || (myRoster?.settings?.waiver_budget_used != null && bid > remaining))) { setMissionNotice('Enter a whole-dollar bid within your remaining budget.'); return; }
+                    if (protectedDrop) { setMissionNotice('Choose another drop before saving; this player is marked Untouchable.'); return; }
+                    const saved = window.WR?.WaiverPlans?.save(currentLeague, { pid: target.pid, dropPid: dropId || null, bid, position: target.pos || normPos(target.p.position), reason: acquisitionContext.reason, source: acquisitionContext.source });
+                    if (saved) { setAcquisitionContext({ ...acquisitionContext, ...saved }); setClaimPlanRevision(n => n + 1); }
+                    setMissionNotice(saved ? 'Local claim plan saved. Submit it on your league platform.' : 'Could not save the plan on this device. Your edits remain open.');
+                }}>{window.WR?.WaiverPlans?.get(currentLeague, target.pid) ? 'Update claim plan' : 'Save claim plan'}</button>}
+                {missionNotice && <p role="status">{missionNotice}</p>}
                 {target && window.WR?.PlayerNotebook?.NotebookEditor && React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
                 <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>Planning only. Submit any claim and roster change on your league platform.</small>
             </section>;
@@ -1600,6 +1661,78 @@
             </section>;
         }
 
+        function renderMissionWaiverBoard() {
+            if (!isPro) return renderActionHqTeaser();
+            const seasonRows = streamCandidates.filter(row => row.rosGain > 0).map(row => ({ ...row.fa, fit: { weeklyGain: row.delta, rosGain: row.rosGain, dropPid: row.dropPid, dropName: row.dropName }, basis: 'ROS lineup points', gain: row.rosGain }));
+            const rows = streamHorizon === 'week'
+                ? actionBoardPlayers.filter(row => row.fit.weeklyGain > 0).map(row => ({ ...row, basis: 'lineup points this week', gain: row.fit.weeklyGain }))
+                : seasonRows.length ? seasonRows : resolvedLeagueSkin?.type === 'dynasty' ? actionBoardPlayers.filter(row => row.fit.seasonGain > 0 || row.fit.benchGain > 0).map(row => ({ ...row, basis: row.fit.seasonGain > 0 ? 'starter dynasty value' : 'bench dynasty value', gain: row.fit.seasonGain > 0 ? row.fit.seasonGain : row.fit.benchGain })) : [];
+            const boardRows = rows.slice(0, 3);
+            const feedback = (row, action) => {
+                const next = writeWaiverPreference(preferenceKey, row.pid, streamHorizon, action);
+                setMissionVotes({ key: preferenceKey, values: next || { ...activeVotes, [streamHorizon + ':' + row.pid]: action } });
+                setMissionNotice(next ? 'Preference saved for this league and outlook.' : 'Preference kept for this visit; device storage is unavailable.');
+                window.WR?.AIFeedback?.send?.({ leagueId: acquisitionLeagueId, surface: 'fa_targets', recId: 'waiver-board:' + currentLeague?.season + ':' + streamHorizon + ':' + row.pid, action, subject: { pid: row.pid, name: playerName(row.p), horizon: streamHorizon } });
+            };
+            const chat = row => {
+                const context = { ...waiverSnapshot, horizon: streamHorizon, preferences: activeVotes,
+                    selectedPlan: row ? { pid: row.pid, name: playerName(row.p), gain: row.gain, gainUnit: row.basis, dropPid: row.fit.dropPid, dropName: row.fit.dropName } : null };
+                window.dispatchEvent(new CustomEvent('wr:ask-open', { detail: { title: row ? 'Waiver plan · ' + playerName(row.p) : 'Your waiver outlook', kind: 'waiver-plan', prompt: 'Help me decide whether to make this waiver move. Use only this supplied league evidence. Discuss risk and the proposed drop. Incorporate my saved up/down preferences without changing the measured gains. Do not invent playoff or title odds, a winning bid, or player news. ' + JSON.stringify(context) } }));
+            };
+            return <section className="mc-waiver-board" aria-label="Alex’s waiver board">
+                <header><div><span className="mc-eyebrow">ALEX · YOUR NEXT MOVE</span><h2>Waiver board</h2></div><button type="button" onClick={() => chat(null)}>Chat with Alex ↗</button></header>
+                <div className="mc-horizon" role="group" aria-label="Waiver outlook">{[['week','Win this week'],['season','Season outlook']].map(([key,label]) => <button type="button" key={key} aria-pressed={streamHorizon === key} onClick={() => setStreamHorizon(key)}>{label}</button>)}</div>
+                {boardRows.length ? boardRows.map((row, index) => {
+                    const evidence = waiverBidEvidence(bidHistory?.leagueId === acquisitionLeagueId ? bidHistory.txns : [], currentLeague, myRoster, playersData, row.pos);
+                    const vote = activeVotes[streamHorizon + ':' + row.pid];
+                    const risk = row.p.injury_status ? 'Injury: ' + row.p.injury_status : Number(row.p.depth_chart_order) > 1 ? 'Depth-chart role may limit opportunity.' : 'Projection varies with role and game script.';
+                    return <article key={row.pid} className="mc-waiver-pick"><div className="mc-waiver-pick-head"><span className="mc-pick-rank">{index + 1}</span><button type="button" onClick={() => openFaPlayer(row.pid)}><strong>{playerName(row.p)}</strong><small>{row.pos} · {row.p.team || 'FA'} · {byeRead(row.p)}</small></button><div className="mc-waiver-gain"><b>+{row.gain.toLocaleString(undefined, { maximumFractionDigits: 1 })}</b><small>{row.basis}</small></div></div>
+                        <p>{row.fit.dropName ? 'Possible drop: ' + row.fit.dropName : 'Uses an open roster spot'}{streamHorizon === 'season' && row.fit.weeklyGain != null ? ' · This week ' + (row.fit.weeklyGain > 0 ? '+' : '') + row.fit.weeklyGain.toFixed(1) : ''}</p><p className="mc-risk">{risk}</p>
+                        {hasFAAB && <small className="mc-bid-read">{evidence.low == null ? 'Bid range unavailable · set your maximum' : 'League winning bids at ' + row.pos + ': $' + evidence.low + '–$' + evidence.high + ' · historical range'}</small>}
+                        <div className="mc-waiver-pick-actions"><button type="button" className="mc-primary-action" onClick={() => { window.WR?.openAcquisition?.({ pid: row.pid, dropPid: row.fit.dropPid, position: row.pos, leagueId: acquisitionLeagueId, source: 'mission-waiver-board', reason: '+' + row.gain + ' ' + row.basis }); setFaSection('claims'); }}>Plan add</button><button type="button" onClick={() => chat(row)}>Why this move?</button><span className="mc-feedback"><button type="button" aria-label={'Useful suggestion for ' + playerName(row.p)} aria-pressed={vote === 'up'} onClick={() => feedback(row, 'up')}><svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 10v11H3V10zm0 0 5-8a3 3 0 0 1 2 3l-1 5h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/></svg></button><button type="button" aria-label={'Unhelpful suggestion for ' + playerName(row.p)} aria-pressed={vote === 'down'} onClick={() => feedback(row, 'down')}><svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 14V3H3v11zm0 0 5 8a3 3 0 0 0 2-3l-1-5h6a2 2 0 0 0 2-2l-2-7a2 2 0 0 0-2-2H7"/></svg></button></span></div>
+                    </article>;
+                }) : <div className="mc-waiver-hold"><strong>{rosterRead.known ? 'No confirmed upgrade in this outlook.' : 'Roster evidence is incomplete.'}</strong><p>{streamHorizon === 'week' ? 'The board compares additions against your best projected lineup. Missing projections stay unknown; you can still review every available player below.' : 'A season scoring gain needs a current rest-of-season forecast. Dynasty value is shown separately when available.'}</p><button type="button" onClick={() => window.wrNavigateTab?.('lineup')}>Review your best lineup →</button></div>}
+                {missionNotice && <p className="mc-board-notice" role="status">{missionNotice}</p>}
+                <details className="mc-board-method"><summary>How this board works</summary><p>Each move compares a legal add/drop against your best lineup, protecting marked players and roster coverage. Gains are separate alternatives and cannot be added together. Season scoring is a fixed-roster estimate; dynasty value is not a scoring forecast. League bid ranges describe completed transactions. Player locks and claims are confirmed on your league platform.</p></details>
+            </section>;
+        }
+        function renderMissionCoverage() {
+            return <section className="mc-waiver-coverage"><header><h2>Roster coverage</h2><b>{rosterRead.known ? rosterRead.coverage + ' / ' + rosterRead.total : '—'} slots</b></header>{rosterGapRows.map(row => <article key={row.pos}><div><strong>{row.pos}</strong><span>{row.actual} available · {row.required} dedicated slots</span><b>{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b></div><p>{row.owned.map(player => player.name).join(' · ') || 'No players owned'}</p><button type="button" onClick={() => { setFaFilter(row.pos); setFaSection('market'); }}>Find {row.pos} help →</button></article>)}<details><summary>Bid history &amp; add/drop evidence</summary>{renderActionHQ(true)}</details></section>;
+        }
+        function renderMissionTabs() {
+            return <nav className="fa-section-tabs mc-market-tabs" aria-label="Free agency sections">{[['market','Market'],['claims','Claims'],['coverage','Coverage']].map(([key,label]) => <button type="button" key={key} aria-pressed={faSection === key} onClick={() => setFaSection(key)}>{label}</button>)}</nav>;
+        }
+        function renderMissionClaims() {
+            const edit = plan => {
+                const next = { ...plan, leagueId: acquisitionLeagueId };
+                window.WR.acquisitionContext = next;
+                setAcquisitionContext(next); setPlannedBid(plan.bid == null ? '' : String(plan.bid)); setMissionNotice('');
+            };
+            const changeOrder = (plan, direction) => {
+                const ok = window.WR?.WaiverPlans?.move(currentLeague, plan.id, direction);
+                setMissionNotice(ok ? 'Local plan order updated.' : 'Could not update the plan order.');
+                if (ok) setClaimPlanRevision(n => n + 1);
+            };
+            const remove = plan => {
+                const ok = window.WR?.WaiverPlans?.remove(currentLeague, plan.id);
+                if (ok) {
+                    setClaimPlanRevision(n => n + 1);
+                    if (String(acquisitionContext?.pid) === plan.pid) { setAcquisitionContext(null); window.WR.acquisitionContext = null; setPlannedBid(''); }
+                }
+                setMissionNotice(ok ? 'Local plan removed.' : 'Could not remove the plan on this device.');
+            };
+            return <section className="mc-waiver-claims"><p className="mc-eyebrow">LOCAL CLAIM PLANS</p><p>Arrange your priorities, then submit them on your league platform. These plans stay on this device and do not place claims.</p>
+                {renderAcquisitionPlan()}
+                <div className="mc-claim-list" aria-label="Saved local claim plans">{claimPlans.length ? claimPlans.map((plan, index) => {
+                    const name = playerName(playersData[plan.pid] || {}, plan.pid);
+                    const available = availablePlayers.some(row => String(row.pid) === plan.pid);
+                    return <article key={plan.id} className="mc-claim-row"><header><span className="mc-claim-priority">{index + 1}</span><div><strong>Add {name}</strong><small>{plan.dropPid ? 'Drop ' + playerName(playersData[plan.dropPid] || {}, plan.dropPid) : 'No drop selected'}</small></div><b>{hasFAAB ? plan.bid == null ? 'Bid unset' : '$' + plan.bid : 'Priority ' + (index + 1)}</b></header>{!available && <p className="mc-risk">This target is no longer in the available-player pool. Review or remove this plan.</p>}<div className="mc-claim-actions"><button type="button" onClick={() => edit(plan)}>Edit plan</button><button type="button" aria-label={'Move ' + name + ' up'} disabled={index === 0} onClick={() => changeOrder(plan, -1)}>↑</button><button type="button" aria-label={'Move ' + name + ' down'} disabled={index === claimPlans.length - 1} onClick={() => changeOrder(plan, 1)}>↓</button><button type="button" onClick={() => remove(plan)}>Remove</button></div></article>;
+                }) : <div className="mc-claim-empty"><strong>No claim plans yet.</strong><p>Select “Plan add” on a player, choose a drop and bid, then save your plan here.</p><button type="button" onClick={() => setFaSection('market')}>Browse available players →</button></div>}</div>
+                {!acquisitionContext && missionNotice && <p role="status">{missionNotice}</p>}
+                <details className="mc-claim-watchlist"><summary>Watchlist &amp; player notes</summary>{renderSavedTargets()}</details>
+            </section>;
+        }
+
         function renderRosterSyncBlocker() {
             const isPreDraft = !!rosterState.isPreDraftRosterEmpty;
             return (
@@ -1615,7 +1748,6 @@
             );
         }
 
-        if (faSection === 'targets') return <div className="fa-page wr-fade-in">{renderSavedTargets()}</div>;
         if (!rosterState.isUsable) return renderRosterSyncBlocker();
 
         // ── UDFA CRAZE PANEL ──────────────────────────────────────────────────
@@ -2009,29 +2141,15 @@
             // desktop's sortedPlayers cap is untouched; sort/search/filters
             // surface anyone below the cut.
             const _faPhoneMkt = sortedPlayers.slice(0, faPhoneLimit);
-            const _faMktRows = _faPhoneMkt.map(x => {
-                const bits = [x.p.team || 'FA', window.App?.NFLByes?.label(x.p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'];
-                if (x.p.age) bits.push(String(x.p.age));
-                if (x.p.injury_status) bits.push(x.p.injury_status);
-                return React.createElement(window.WR.AssetRow, {
-                    key: x.pid,
-                    className: 'fa-market-phone-row',
-                    pos: x.pos,
-                    pid: x.pid,
-                    name: playerName(x.p, x.pid),
-                    tag: bits.join(' · '),
-                    slots: _faSlotKeys.slice(0, 1).map(k => _faSlotFor(k, x)),
-                    details: _faSlotKeys.length > 1 ? <window.WR.MobileSection phone={true} title={_faSlotKeys.slice(1).map(k => _faSlotFor(k, x).label).join(' · ')}><dl className="fa-phone-stat-details">{_faSlotKeys.slice(1).map(k => { const stat = _faSlotFor(k, x); return <div key={k}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>; })}</dl></window.WR.MobileSection> : null,
-                    // Roster-fit verdict chip (Thin / Fills thin room / …) removed
-                    // from phone FA rows, and the desktop Fit column + _faFitChip
-                    // helper went with it (owner ask 2026-07-12) — the pos badge +
-                    // stat slots carry the read; the roster-fit read still powers
-                    // the drawer's Roster Fit panel and the rec surfaces.
-                    accent: (_heroPro && _heroPro.pid === x.pid) ? 'gold' : undefined,
-                    onClick: () => openFaPlayer(x.pid),
-                    title: 'Open player card',
-                });
-            });
+            const _faMetricSlots = x => {
+                if (!metricPreference || !window.WR?.PlayerMetrics?.slots) return _faSlotKeys.map(k => ({ key: k, ..._faSlotFor(k, x) }));
+                const historyId = window.S?.weeklyPlayerPointsLeagueId;
+                const recent = historyId && String(historyId) === acquisitionLeagueId && marketIsCurrent ? window.App?.FAMarketData?.recentPpg(window.App?.WeeklyProj?.weeklyHistory?.(x.pid), marketWeek, 5) : null;
+                const source = marketStatSource(x.pid);
+                const seasonPpg = source.prior ? null : window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, x.pos);
+                return window.WR.PlayerMetrics.slots(metricPreference.selected, { proj: x.proj, ppg: recent?.value ?? null, dhq: x.dhq, age: x.p.age, season: seasonPpg, bye: window.App?.NFLByes?.weekForPlayer?.(x.p, Number(marketSeason)) });
+            };
+            const _faMktRows = _faPhoneMkt.map(x => <button key={x.pid} type="button" className="mc-market-row" onClick={() => openFaPlayer(x.pid)} aria-label={playerName(x.p, x.pid) + ': player details'} style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + _faMetricSlots(x).length + ',minmax(33px,.44fr))' }}><span className="mc-market-name"><strong>{playerName(x.p, x.pid)}</strong><small>{x.pos} · {x.p.team || 'FA'}{x.p.injury_status ? ' · ' + x.p.injury_status : ''}</small></span>{_faMetricSlots(x).map(slot => <span key={slot.key} className="mc-market-stat"><b>{slot.value}</b></span>)}</button>);
             const _faMktRowNodes = _faMktRows.length ? _faMktRows : [
                 <div key="fa-mkt-empty" style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No available players match this view.</div>
             ];
@@ -2064,11 +2182,15 @@
                 <React.Fragment>
                     <div className="fa-page wr-fade-in">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {renderAcquisitionPlan()}
-                            <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
-                            {renderCrazePanel()}
-                            {faSection === 'overview' && renderWeeklyStreams()}
-                            {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{hasFAAB && <div className="fa-market-phone-budget">FAAB remaining <strong>${remaining.toLocaleString()}</strong><span> / ${budget.toLocaleString()}</span></div>}{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}{faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}</>}
+                            {renderMissionTabs()}
+                            {faSection === 'claims' ? renderMissionClaims() : faSection === 'coverage' ? renderMissionCoverage() : <>
+                                {renderMissionWaiverBoard()}{renderCrazePanel()}
+                                <div className="mc-market-summary"><strong>Available players <span>{sortedPlayers.length}</span></strong>{hasFAAB && <span>{myRoster?.settings?.waiver_budget_used == null ? 'FAAB unknown' : '$' + remaining + ' left'}</span>}</div>
+                                <div className="mc-market-tools"><input type="search" aria-label="Search available players" placeholder="Search the market…" value={faSearch} onChange={e => setFaSearch(e.target.value)} /><button type="button" aria-expanded={faPanel === 'filters'} onClick={() => _faTogglePanel('filters')}>Filters{faFilter || rookieOnly ? ' •' : ''}</button><button type="button" aria-expanded={faPanel === 'sort'} onClick={() => _faTogglePanel('sort')}>Sort</button>{metricPreference && window.WR.PlayerMetrics.Picker ? <window.WR.PlayerMetrics.Picker preference={metricPreference} /> : <button type="button" onClick={() => _faTogglePanel('view')}>Columns</button>}</div>
+                                {_faPanelEl}<details className="mc-market-views"><summary>Advanced &amp; saved market views</summary>{_faPillsEl}</details>
+                                <div className="mc-market-table" aria-label="Available player comparison"><div className="mc-market-heading" style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + (metricPreference?.selected.length || _faSlotKeys.length) + ',minmax(33px,.44fr))' }}><span>PLAYER</span>{(metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {}) : _faSlotKeys.map(key => ({key,label:faColumns[key]?.shortLabel || key}))).map(slot => <span key={slot.key}>{slot.label}</span>)}</div>{_faMktRowNodes}</div>
+                                {faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}
+                            </>}
                         </div>
                     </div>
                     {/* The column customizer stays a drill-down sheet, rendered
@@ -2106,11 +2228,10 @@
                     }
                 `}</style>
 
-                {renderAcquisitionPlan()}
-                {renderCrazePanel()}
-                <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
-                {faSection === 'overview' && renderWeeklyStreams()}
-                {faSection === 'overview' && (isPro ? renderActionHQ(viewMode === 'command') : renderActionHqTeaser())}
+                {renderMissionTabs()}
+                {faSection === 'market' && <>{renderMissionWaiverBoard()}{renderCrazePanel()}</>}
+                {faSection === 'claims' && renderMissionClaims()}
+                {faSection === 'coverage' && renderMissionCoverage()}
 
                 <section className="fa-market-shell" hidden={faSection !== 'market'}>
                 <div className="fa-market-head">

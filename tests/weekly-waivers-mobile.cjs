@@ -35,11 +35,12 @@ vm.runInContext(babel.transform(dock, {presets:['react']}).code, ctx);
 for (const leagueType of ['redraft', 'chopped']) {
  out = ctx.PhoneDockInner({activeTab:'fa', navItems, onSelectTab:t=>selected=t, workspaceOptions:{leagueType}});
  const buttons = nodes(out).filter(n => n.type === 'button');
- assert.deepEqual(buttons.map(text), ['Home','My Team','Waivers','League','More']);
- buttons[2].props.onClick(); assert.equal(selected,'fa'); assert.equal(buttons[2].props['aria-current'],'page');
+ assert.deepEqual(buttons.map(text), ['Overview','Roster','League','Game Day']);
+ assert(!buttons.some(button => button.props['aria-current'] === 'page'), 'An unpinned waiver screen does not mark a different destination active');
+ buttons[3].props.onClick(); assert.equal(selected,'lineup');
 }
 out = ctx.PhoneDockInner({activeTab:'dashboard',navItems,onSelectTab:()=>{},workspaceOptions:{leagueType:'dynasty'}});
-assert.deepEqual(nodes(out).filter(n=>n.type==='button').map(text),['Home','My Team','League','More']);
+assert.deepEqual(nodes(out).filter(n=>n.type==='button').map(text),['Overview','Roster','League','Game Day']);
 console.log('PASS weekly waiver navigation, stream claims, projection sorting, unavailable data, and format/access boundaries');
 if (process.env.WAIVER_PREVIEW) {
     ctx.isPro = true; ctx.skinFeatures = {};

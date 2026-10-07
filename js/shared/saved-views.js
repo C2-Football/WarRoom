@@ -19,7 +19,7 @@
     const WrStorage = window.App && window.App.WrStorage;
     if (!WrStorage) { console.warn('[SavedViews] WrStorage not available'); return; }
 
-    const SURFACES = new Set(['roster', 'free_agency', 'all_players', 'big_board']);
+    const SURFACES = new Set(['roster', 'free_agency', 'all_players', 'big_board', 'research']);
 
     function storageKey(surface, leagueId) {
         return `wr_list_views_${surface}_${leagueId || 'global'}`;

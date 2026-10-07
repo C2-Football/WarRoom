@@ -3,7 +3,7 @@
     'use strict';
     const analysisRoutes = { roster: 'team-outlook', draft: 'draft-review', trades: 'market-review', assets: 'research-players', reports: 'research-reports' };
     const routes = [
-        { tab: 'dashboard', workspace: 'home', label: 'Home' },
+        { tab: 'dashboard', workspace: 'home', label: 'Overview' },
         { tab: 'myteam', workspace: 'team', label: 'Roster' },
         { tab: 'lineup', workspace: 'team', label: 'Game Day', capability: 'gameDay' },
         { tab: 'team-outlook', workspace: 'team', label: 'Team outlook', analysis: 'roster' },
@@ -11,15 +11,17 @@
         { tab: 'decisions', workspace: 'team', label: 'Decision review', alex: 'history', capability: 'gm' },
         { tab: 'patterns', workspace: 'team', label: 'Patterns', alex: 'patterns', capability: 'patterns' },
         { tab: 'fa', workspace: 'market', label: 'Waivers' },
-        { tab: 'trades', workspace: 'market', label: 'Trades', capability: 'trades' },
+        { tab: 'trades', workspace: 'market', label: 'Trade Desk', capability: 'trades' },
         { tab: 'targets', workspace: 'market', label: 'Saved targets' },
         { tab: 'market-review', workspace: 'market', label: 'Market review', analysis: 'trades' },
         { tab: 'draft', workspace: 'draft', label: 'Draft room' },
         { tab: 'draft-review', workspace: 'draft', label: 'Draft analysis', analysis: 'draft' },
         { tab: 'central', workspace: 'league', label: 'Standings & matchups' },
+        { tab: 'league-team', workspace: 'league', label: 'Team profile', legacy: true },
+        { tab: 'wire', workspace: 'league', label: 'The Wire' },
         { tab: 'calendar', workspace: 'league', label: 'Calendar' },
         { tab: 'trophies', workspace: 'league', label: 'History & trophies' },
-        { tab: 'stats', workspace: 'research', label: 'Stats' },
+        { tab: 'stats', workspace: 'research', label: 'Research' },
         { tab: 'research-players', workspace: 'research', label: 'Players & picks', analysis: 'assets' },
         { tab: 'compare', workspace: 'research', label: 'Compare' },
         { tab: 'research-reports', workspace: 'research', label: 'Custom reports', analysis: 'reports' },
@@ -30,8 +32,8 @@
         { tab: 'alex', workspace: 'team', label: "GM's Office", alex: null, legacy: true, capability: 'gm' },
     ];
     const workspaces = [
-        { id: 'home', label: 'Home', tab: 'dashboard', iconKey: 'home', description: 'Your next decisions and this week at a glance.' },
-        { id: 'team', label: 'My Team', tab: 'myteam', iconKey: 'roster', description: 'Your roster, weekly lineup, and plan for the team.' },
+        { id: 'home', label: 'Overview', tab: 'dashboard', iconKey: 'home', description: 'Your next decisions and this week at a glance.' },
+        { id: 'team', label: 'Roster', tab: 'myteam', iconKey: 'roster', description: 'Your roster, weekly lineup, and plan for the team.' },
         { id: 'market', label: 'Market', tab: 'fa', iconKey: 'fa', description: 'Find an upgrade, compare options, and plan your next move.' },
         { id: 'draft', label: 'Draft', tab: 'draft', iconKey: 'draft', description: 'Prepare your board, follow the draft, and review your picks.' },
         { id: 'league', label: 'League', tab: 'central', iconKey: 'central', description: 'The competition, important dates, and your league history.' },
@@ -85,7 +87,7 @@
         return routes.filter(r => !r.legacy && allowed(r, options)).map(r => ({ ...r, iconKey: workspaces.find(w => w.id === r.workspace)?.iconKey || 'home' }));
     }
     function dockDefaults(options) {
-        return ['redraft', 'chopped'].includes(options?.leagueType) ? ['dashboard','myteam','fa','central'] : ['dashboard','myteam','central'];
+        return ['dashboard', 'myteam', 'central', 'lineup'].filter(tab => allowed(routes.find(route => route.tab === tab), options));
     }
     function dockSelection(saved, options) {
         const valid = new Set(dockChoices(options).map(r => r.tab));

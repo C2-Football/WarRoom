@@ -741,6 +741,66 @@ const ALL_PLAYERS_COLUMNS = [
 // report-grade columns and users can toggle the extras (YOE, Peak bar) from the picker.
 const ALL_PLAYERS_DEFAULT_VISIBLE = ['name', 'pos', 'nflTeam', 'age', 'dhq', 'ppg', 'peakYrs', 'tier', 'owner', 'acq'];
 
+function leagueTeamPlayerMetrics(player, { preference, currentLeague, playersData, statsData, stats2025Data }) {
+  let projection = null;
+  const App = window.App;
+  if (App?.WeeklyProj?.projectPlayer) {
+    try {
+      const result = App.WeeklyProj.projectPlayer(player.pid, { playersData, statsData, priorData: stats2025Data || {}, scoring: currentLeague?.scoring_settings || {}, week: App.WeeklyProj.currentWeek?.() || window.S?.currentWeek || 1 });
+      if (result?.available !== false && Number.isFinite(result?.points?.median)) projection = result.points.median;
+    } catch (_) { /* unavailable projection stays empty */ }
+  }
+  return window.WR.PlayerMetrics.slots(preference.selected, {
+    proj: projection,
+    ppg: App?.WeeklyProj?.formStats?.(player.pid, 5)?.rollingPPG ?? App?.computeRollingPPG?.(player.pid, 5),
+    bye: App?.NFLByes?.weekForPlayer?.(player.p, App?.NFLByes?.seasonFor?.(currentLeague)),
+    dhq: player.dhq, age: player.p.age, season: statsData?.[player.pid]?.gp > 0 ? player.ppg : null,
+  });
+}
+
+// Team context is a real league read: saved scouting labels and schedule forecasts,
+// with unavailable fields left empty until their corresponding source resolves.
+function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, playersData, statsData, priorData, isPro }) {
+  const roster = team.roster;
+  const leagueId = String(league?.league_id || league?.id || '');
+  const profileKey = leagueId + ':' + String(league?.season || '') + ':' + String(roster.roster_id);
+  const [read, setRead] = React.useState({ key: '', dna: null, forecast: null });
+  React.useEffect(() => {
+    let active = true;
+    const update = fields => { if (active) setRead(previous => ({ ...(previous.key === profileKey ? previous : {}), key: profileKey, ...fields })); };
+    update({ dna: null, forecast: null });
+    if (window.OD?.loadDNA) Promise.resolve(window.OD.loadDNA(leagueId)).then(map => update({ dna: map?.[roster.owner_id] || null })).catch(() => update({ dna: null }));
+    const phase = leagueSkin?.phase || window.App?.LeagueSkin?.getCurrent?.()?.phase;
+    if (team.projWins == null && window.App?.Schedule?.buildSeason && !['complete', 'offseason'].includes(phase)) {
+      Promise.resolve(window.App.Schedule.buildSeason({ league, myRoster: roster, playersData, statsData, stats2025Data: priorData })).then(result => update({ forecast: result?.summary?.remainingWeeks > 0 ? result.summary : null })).catch(() => update({ forecast: null }));
+    }
+    return () => { active = false; };
+  }, [profileKey, league, roster, playersData, statsData, priorData, team.projWins, leagueSkin?.phase]);
+  const current = read.key === profileKey ? read : {};
+  const dnaLabels = { FLEECER: ['Fleecer', '#e74c3c'], DOMINATOR: ['Dominator', '#e67e22'], STALWART: ['Stalwart', '#5dade2'], ACCEPTOR: ['Acceptor', '#2ecc71'], DESPERATE: ['Desperate', '#bb8fce'] };
+  const dna = dnaLabels[current.dna];
+  const forecast = team.projWins != null && team.projLosses != null ? { projWins: team.projWins, projLosses: team.projLosses } : current.forecast;
+  const posRead = items => (items || []).map(item => typeof item === 'string' ? item : item.pos || item.position).filter(Boolean).map(leagueMapPosLabel).join(' · ');
+  const openOwner = () => {
+    const detail = { leagueId, rosterId: roster.roster_id };
+    window._wrOwnerProfileTarget = detail;
+    window.dispatchEvent(new CustomEvent('wr:open-owner-profile', { detail }));
+    window.wrNavigateTab?.('trades');
+  };
+  return <React.Fragment>
+    <div className="mc-team-facts">
+      <div><small>Record</small><strong>{roster.settings?.wins ?? team.wins ?? '—'}–{roster.settings?.losses ?? team.losses ?? '—'}{roster.settings?.ties > 0 ? '–' + roster.settings.ties : ''}</strong></div>
+      <div><small>Projected record</small><strong title="Schedule-based estimate">{forecast ? Number(forecast.projWins).toFixed(1) + '–' + Number(forecast.projLosses).toFixed(1) : '—'}</strong></div>
+      <div><small>Roster health</small><strong>{assessment?.healthScore ?? '—'}</strong></div>
+    </div>
+    {isPro && <div className="mc-team-scout">
+      <div><b>Owner DNA</b><span>{dna ? <span style={{ color: dna[1] }}>{dna[0]} <small>· saved read</small></span> : 'Open scouting for the current read'}</span></div>
+      {assessment && <React.Fragment><div><b>Window</b><span>{assessment.window || assessment.tier || 'Still evaluating'}</span></div><div><b>Strengths</b><span>{posRead(assessment.strengths) || 'No clear positional surplus'}</span></div><div><b>Needs</b><span>{posRead(assessment.needs) || 'No clear positional gap'}</span></div></React.Fragment>}
+      <button type="button" className="mc-owner-open" onClick={openOwner}>Owner scouting →</button>
+    </div>}
+  </React.Fragment>;
+}
+
 function LeagueMapTab({
   // Phase 8: when `embedSubView` is set, we render ONLY that sub-view content
   // (Teams / All Players / Draft Picks / Custom Reports) without the outer header,
@@ -762,6 +822,7 @@ function LeagueMapTab({
   leagueSkin,
   playersData,
   statsData,
+  stats2025Data,
   sleeperUserId,
   myRoster,
   activeYear,
@@ -793,6 +854,7 @@ function LeagueMapTab({
   // page's lifetime. Desktop/tablet output below stays byte-identical.
   const _lmVp = window.WR.useViewport();
   const _phone = !!_lmVp.isPhone && !!(window.WR && window.WR.AssetRow && window.WR.CardList);
+  const teamMetricPreference = window.WR?.PlayerMetrics?.useMetrics(sleeperUserId, currentLeague?.league_id || currentLeague?.id);
   // Shared filter control — ReportSubView binds its own; this is the copy for
   // the asset ledgers (Draft Picks year/owner filters).
   const WrSelect = window.WR && window.WR.Select;
@@ -1047,7 +1109,7 @@ function LeagueMapTab({
           const acqLabel = acq?.type === 'draft' ? ('Draft R' + (acq.round || '?')) : acq?.type === 'trade' ? 'Trade' : acq?.type === 'add' ? 'FA' : '\u2014';
           let projWk = 0;
           if (window.App?.WeeklyProj?.projectPlayer) {
-            try { const prj = window.App.WeeklyProj.projectPlayer(pid, { playersData, statsData, priorData: {}, scoring: currentLeague?.scoring_settings || {}, week: window.App.WeeklyProj.currentWeek ? window.App.WeeklyProj.currentWeek() : (window.S?.currentWeek || 1) }); projWk = (prj && prj.points) ? +((prj.points.median) || 0).toFixed(1) : 0; } catch (e) { projWk = 0; }
+            try { const prj = window.App.WeeklyProj.projectPlayer(pid, { playersData, statsData, priorData: stats2025Data || {}, scoring: currentLeague?.scoring_settings || {}, week: window.App.WeeklyProj.currentWeek ? window.App.WeeklyProj.currentWeek() : (window.S?.currentWeek || 1) }); projWk = (prj && prj.points) ? +((prj.points.median) || 0).toFixed(1) : 0; } catch (e) { projWk = 0; }
           }
           const rosValue = (window.App?.PlayerValue?.getValue) ? window.App.PlayerValue.getValue(pid) : dhq;
           const SC = window.App?.StatCatalog;
@@ -2329,9 +2391,11 @@ function LeagueMapTab({
       return { pid, p, pos, dhq, acq, ppg, isStarter, posCol: posColors[pos] || 'var(--silver)' };
     }).filter(Boolean).sort((a,b) => b.dhq - a.dhq);
 
+    const assessment = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(roster.roster_id) : null;
+    const metricSlots = player => leagueTeamPlayerMetrics(player, { preference: teamMetricPreference, currentLeague, playersData, statsData, stats2025Data });
     return (
-      <div id="wr-export-team-roster" style={{ padding: '16px' }}>
-        <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); }} style={{ background: 'none', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem', marginBottom: '12px' }}>Back to League</button>
+      <div id="wr-export-team-roster" className={_phone ? 'la-mobile mc-team-profile' : undefined} style={{ padding: '16px' }}>
+        <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); if (!embedSubView) setActiveTab?.('central'); }} style={{ background: 'none', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem', marginBottom: '12px' }}>Back to League</button>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.4rem', color: 'var(--gold)', marginBottom: '4px' }}>{team.displayName}</div>
           <button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-team-roster'), 'team-' + (team.displayName || 'roster').replace(/\s+/g, '-').toLowerCase())} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Share</button>
@@ -2341,6 +2405,8 @@ function LeagueMapTab({
           {roster?.settings?.fpts ? ' (' + roster.settings.fpts + ' PF)' : ''}
           {' \u00B7 '}{players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players
         </div>
+
+        {_phone && <LeagueTeamMissionSummary team={team} assessment={assessment} league={currentLeague} leagueSkin={resolvedLeagueSkin} playersData={playersData} statsData={statsData} priorData={stats2025Data} isPro={isPro} />}
 
         {/* Roster / History toggle */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
@@ -2481,7 +2547,12 @@ function LeagueMapTab({
             );
         })()}
 
-        {leagueViewMode === 'roster' && (
+        {_phone && leagueViewMode === 'roster' && teamMetricPreference && <div>
+          {React.createElement(window.WR.PlayerMetrics.Picker, { preference: teamMetricPreference })}
+          <div className="mc-team-assets"><div className="mc-team-asset-row mc-table-head" style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} aria-hidden="true"><span>Player</span>{window.WR.PlayerMetrics.slots(teamMetricPreference.selected, {}).map(slot => <span key={slot.key}>{slot.label}</span>)}</div>{players.map(player => <button type="button" className="mc-team-asset-row" key={player.pid} style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} onClick={() => openLeagueMapPlayerCard(player.pid, { context: 'league_team', rosterId: roster.roster_id })}><span><strong>{player.p.full_name || `${player.p.first_name || ''} ${player.p.last_name || ''}`.trim()}</strong><small>{leagueMapPosLabel(player.pos)} · {player.p.team || 'FA'}{player.isStarter ? ' · Starter' : ''}</small></span>{metricSlots(player).map(slot => <span key={slot.key} title={slot.label}>{slot.value}</span>)}</button>)}</div>
+          <details className="la-disclosure"><summary>Acquisition history</summary><div className="la-disclosure-body">{players.map(player => <div className="mc-team-scout" key={player.pid}><strong>{player.p.full_name || player.p.last_name}</strong><div>{player.acq.method}{player.acq.cost ? ' · ' + player.acq.cost : ''}{player.acq.date ? ' · ' + player.acq.date : ''}</div></div>)}</div></details>
+        </div>}
+        {leagueViewMode === 'roster' && (!_phone || !teamMetricPreference) && (
         <div>
         {/* Phone (owner iPhone pass 2026-07-12): the 307px of fixed columns
             crushed the 1fr name track at 375px — scope an h-scroll with a

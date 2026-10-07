@@ -10,14 +10,22 @@ const walk=n=>n==null||typeof n==='boolean'?[]:Array.isArray(n)?n.flatMap(walk):
 const base={phase:'drafting',mode:'live-sync',draftMechanic:'snake',variant:'startup',userRosterId:1,userSlot:1,leagueSize:2,rounds:3,currentIdx:0,picks:[],pool:[],personas:{1:{teamName:'Owner with a long franchise name'},2:{teamName:'Other franchise'}},pickOrder:[{rosterId:1,overall:1,round:1,slot:1}],alex:{stream:[]},liveSync:{}};
 let actions=[];function render(state=base){index=0;return root.__PhoneDraft({state,dispatch:a=>actions.push(a),currentSlot:state.pickOrder[0],isUserTurn:true})}
 for(const mode of ['live-sync','manual','solo']){
- slots=[];let state={...base,mode};let tree=render(state);const select=find(tree,n=>n.type==='select');assert(select,'Inner views are selectable for '+mode);assert(text(select).includes('My roster'));assert.equal(text(select).includes('Teams'),mode==='live-sync','Team tracking remains live-only');
+ slots=[];let state={...base,mode};let tree=render(state);const nav=find(tree,n=>n.props['aria-label']==='Live draft views');assert(nav,'Inner views are visible for '+mode);assert(text(nav).includes('My roster'));assert.equal(text(nav).includes('Teams'),mode==='live-sync','Team tracking remains live-only');
  assert.equal(find(tree,n=>n.props.className==='la-draft-pane').props.style.minHeight,0);
- select.props.onChange({target:{value:'board'}});tree=render(state);assert(find(tree,n=>n.type===boundary&&n.props.showPickAdvisory===true),'Board retains pick-advisory capabilities');
+ find(nav,n=>n.type==='button'&&text(n)==='Board').props.onClick();tree=render(state);assert(find(tree,n=>n.type===boundary&&n.props.showPickAdvisory===true),'Board retains pick-advisory capabilities');
  assert.equal(actions.length,0,'Selecting views never makes a pick');
  viewport={isPhone:true,height:390,width:320,kbOpen:false};tree=render(state);assert.equal(find(tree,n=>n.props.className==='la-draft-pane').props.style.height,'auto','Short phone uses document scrolling');
  viewport={isPhone:true,height:600,width:390,kbOpen:true};tree=render(state);assert.equal(find(tree,n=>n.props.className==='la-draft-pane').props.style.overflowY,'visible','Keyboard never forces minimum-height pane');
  viewport={isPhone:true,height:844,width:390,kbOpen:false};
 }
+// Phone Trades opens the existing proposer exactly once; navigating tools does not make a pick.
+root.wrIsPro=()=>true;root.DraftCC.TradeProposer=function Proposer(){};
+slots=[];let phoneState={...base,mode:'solo',proposerDrawer:{targetRosterId:2}};let phoneTree=render(phoneState);
+assert.equal(walk(phoneTree).filter(n=>n.type===root.DraftCC.TradeProposer).length,1,'Phone owns exactly one trade proposer');
+find(phoneTree,n=>n.type==='button'&&text(n)==='Trades').props.onClick();phoneTree=render(phoneState);
+assert(find(phoneTree,n=>n.type===boundary&&n.props.title==='Draft trades').props.open,'Trades tool opens its sheet');
+assert.equal(actions.length,0,'Opening trades does not submit a trade or draft pick');
+root.wrIsPro=()=>false;slots=[];assert(!find(render(phoneState),n=>n.type===root.DraftCC.TradeProposer),'Free tier does not bypass the proposer gate');
 slots=[];const picks=Array.from({length:33},(_,i)=>({pid:'p'+i,name:'Player full name '+i,pos:'WR',dhq:100,overall:i+1,round:i+1,rosterId:1}));const recap={id:'r1',picks,totalDHQ:3300,grade:{letter:'B',totalDHQ:3300},teamRecaps:[]};index=0;let tree=root.DraftCC.DraftRecapReport({recap,inline:true,userRosterId:1});assert(text(tree).includes('Show 10 more picks'),'Long completed drafts have continuation');const showMore=find(tree,n=>n.type==='button'&&text(n)==='Show 10 more picks');showMore.props.onClick();index=0;tree=root.DraftCC.DraftRecapReport({recap,inline:true,userRosterId:1});assert(text(tree).includes('Player full name 19'));assert(!text(tree).includes('Player full name 20'),'Only selected continuation renders');
 
 slots=[];viewport={isPhone:true,height:390,width:320,kbOpen:false};index=0;

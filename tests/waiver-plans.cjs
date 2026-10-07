@@ -1,0 +1,36 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),babel=require('@babel/standalone');
+const values=new Map();let user='alice',blocked=false,notebookWrites=0,event;
+const window={App:{OD:{getCurrentUserId:()=>user}},S:{platform:'sleeper'},WR:{PlayerNotebook:{update:()=>{notebookWrites++;},contextFor:x=>x}},localStorage:{getItem:key=>values.get(key)||null,setItem:(key,value)=>{if(blocked)throw Error('quota');values.set(key,value);}},CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail;}},dispatchEvent:e=>event=e};
+const ctx=vm.createContext({window,console});vm.runInContext(fs.readFileSync('js/shared/waiver-plans.js','utf8'),ctx);
+const store=window.WR.WaiverPlans,league={league_id:'league-a',season:2026},leagueB={...league,league_id:'league-b'};
+let saved=store.save(league,{pid:'add-a',dropPid:'drop-a',bid:14,position:'WR'});
+assert(saved);assert.equal(event.type,'wr:waiver-plans-changed');assert.equal(store.get(league,'add-a').bid,14);
+const originalId=saved.id,created=saved.createdAt;
+saved=store.save(league,{pid:'add-a',dropPid:'drop-b',bid:9,position:'WR'});
+assert.equal(saved.id,originalId);assert.equal(saved.createdAt,created);assert.equal(store.list(league).length,1);assert.equal(store.get(league,'add-a').dropPid,'drop-b');
+store.save(league,{pid:'add-b',dropPid:null,bid:0});assert(store.move(league,originalId,1));assert.deepEqual(Array.from(store.list(league),p=>p.pid),['add-b','add-a']);
+assert.equal(store.move(league,originalId,1),false);assert.equal(store.get(league,'add-b').bid,0,'A zero-dollar bid stays a real bid');
+assert.equal(store.list(leagueB).length,0);assert.equal(store.list({...league,season:2027}).length,0);user='bob';assert.equal(store.list(league).length,0);user='alice';
+vm.runInContext(fs.readFileSync('js/shared/waiver-plans.js','utf8'),ctx);assert.equal(window.WR.WaiverPlans.get(league,'add-a').bid,9,'Plan survives reloading the store');
+assert.equal(store.save(league,{pid:'bad',bid:-2}),null);assert.equal(store.save(league,{pid:'bad',bid:2.5}),null);
+blocked=true;assert.equal(store.save(league,{pid:'add-a',bid:20}),null);assert.equal(store.get(league,'add-a').bid,9,'Failed persistence retains last saved plan');blocked=false;
+user=null;window.S={platform:'mfl',user:{user_id:'franchise-1'}};assert.equal(store.scope(league),null);assert.equal(store.save(league,{pid:'bad',bid:4}),null,'A league-local franchise is never an account scope');user='alice';window.S={platform:'sleeper'};
+const source=fs.readFileSync('js/free-agency.js','utf8'),ast=babel.packages.parser.parse(source,{plugins:['jsx']});
+function take(name){let out;babel.packages.traverse.default(ast,{FunctionDeclaration(p){if(p.node.id?.name===name)out=source.slice(p.node.start,p.node.end)}});assert(out);return out;}
+const h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),walk=n=>n&&typeof n==='object'?[n,...(n.children||[]).flatMap(walk)]:[],text=n=>n&&typeof n==='object'?(n.children||[]).map(text).join(''):String(n??''),button=(tree,label)=>walk(tree).find(n=>n.type==='button'&&text(n)===label);
+Object.assign(ctx,{React:{createElement:h,Fragment:'fragment'},currentLeague:league,acquisitionLeagueId:'league-a',playersData:{'add-a':{full_name:'Target A'},'add-b':{full_name:'Target B'},'drop-a':{full_name:'Drop A'},'drop-b':{full_name:'Drop B'}},availablePlayers:[{pid:'add-a',pos:'WR',p:{position:'WR'},dhq:500},{pid:'add-b',pos:'RB',p:{position:'RB'},dhq:400}],myRoster:{players:['drop-a','drop-b'],settings:{waiver_budget_used:25}},hasFAAB:true,remaining:75,plannedBid:'',acquisitionContext:null,claimPlans:store.list(league),missionNotice:'',isPro:false,playerName:(p,id)=>p.full_name||id,normPos:x=>x,faabSuggest:()=>null,openFaPlayer(){},setFaFilter(){},setFaSection(){},setClaimPlanRevision(){},setPlannedBid:value=>ctx.plannedBid=value,setAcquisitionContext:value=>ctx.acquisitionContext=value,setMissionNotice:value=>ctx.missionNotice=value,renderSavedTargets:()=>h('aside',{},'Watchlist stays separate')});
+vm.runInContext(babel.transform(take('renderAcquisitionPlan')+'\n'+take('renderMissionClaims'),{presets:['react']}).code,ctx);
+let tree=ctx.renderMissionClaims();assert.match(text(tree),/Add Target A.*Drop Drop B.*\$9/s);
+const targetRow=walk(tree).find(n=>n.props.className==='mc-claim-row'&&text(n).includes('Target A'));
+button(targetRow,'Edit plan').props.onClick();assert.equal(ctx.plannedBid,'9');assert.equal(ctx.acquisitionContext.dropPid,'drop-b');
+ctx.plannedBid='12';tree=ctx.renderAcquisitionPlan();button(tree,'Update claim plan').props.onClick();assert.equal(store.get(league,'add-a').bid,12);assert.equal(store.list(league).length,2);assert.equal(notebookWrites,0,'Editing a plan does not append duplicate notebook prose or modify watches');
+ctx.plannedBid='80';tree=ctx.renderAcquisitionPlan();button(tree,'Update claim plan').props.onClick();assert.match(ctx.missionNotice,/remaining budget/);assert.equal(store.get(league,'add-a').bid,12);
+ctx.claimPlans=store.list(league);tree=ctx.renderMissionClaims();const row=walk(tree).find(n=>n.props.className==='mc-claim-row'&&text(n).includes('Target A'));button(row,'Remove').props.onClick();assert.equal(store.get(league,'add-a'),null);assert.equal(ctx.acquisitionContext,null);
+// The real acquisition event effect hydrates saved bid/drop, even when the incoming
+// recommendation suggests a different drop. It does not erase edits on tab changes.
+store.save(league,{pid:'add-a',dropPid:'drop-b',bid:17});
+let receive;Object.assign(ctx,{useEffect:fn=>fn(),claimScope:store.scope(league),initialView:null,setFaSearch(){},setRookieOnly(){},setRookieTeamFilter(){},setRookieCollegeFilter(){},setRookieSlotFilter(){}});
+window.acquisitionContext={pid:'add-a',dropPid:'drop-a',leagueId:'league-a'};window.WR.acquisitionContext=window.acquisitionContext;window.addEventListener=(name,fn)=>{if(name==='wr:acquisition-context')receive=fn;};window.removeEventListener=()=>{};
+let hook;babel.packages.traverse.default(ast,{CallExpression(p){if(p.node.callee.name==='useEffect'&&source.slice(p.node.start,p.node.end).includes("window.addEventListener('wr:acquisition-context'"))hook=source.slice(p.node.start,p.node.end)}});vm.runInContext(hook,ctx);assert.equal(ctx.plannedBid,'17');assert.equal(ctx.acquisitionContext.dropPid,'drop-b');assert(receive);
+console.log('PASS local waiver plans: account/league/season isolation, reload, edit without duplicate notes, zero/unset bids, priority order, remove, failed-storage retention and acquisition hydration');

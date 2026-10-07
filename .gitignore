@@ -1,5 +1,5 @@
 supabase/.temp/
-node_modules/
+node_modules
 dist-preview/
 dist-deploy/
 dist-native/

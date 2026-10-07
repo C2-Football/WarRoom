@@ -562,6 +562,13 @@
             } catch (e) { /* noop */ }
             onClose && onClose();
         }
+        function goTradeBuilder() {
+            window._wrTradeBuilderTarget = { pid, returnTab: typeof S.activeTab === 'string' ? S.activeTab : 'myteam', ts: Date.now() };
+            onClose && onClose();
+            if (typeof window.wrNavigateTab === 'function') window.wrNavigateTab('trades');
+            else if (typeof window.setActiveTab === 'function') window.setActiveTab('trades');
+            window.dispatchEvent(new CustomEvent('wr:open-trade-builder', { detail: window._wrTradeBuilderTarget }));
+        }
         function goTradeFinder() {
             try {
                 // Trade Center listens on window._wrTradeFinderTarget
@@ -977,7 +984,10 @@
                 // targets (never a sideways pan); desktop keeps the flex row.
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative', ...(isPhone ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' } : null) } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),
-                    React.createElement('button', { onClick: goPrimaryAction, style: btnStyle('primary') }, cardAction.label),
+                    React.createElement('button', { onClick: cardAction.kind === 'trade' ? goTradeBuilder : goPrimaryAction, style: btnStyle('primary') }, cardAction.kind === 'trade' ? 'Build a trade' : cardAction.label),
+                    cardAction.kind === 'trade' && React.createElement('button', { onClick: goTradeFinder, style: btnStyle() }, 'Find offers'),
+                    isOnMyTeam && React.createElement('button', { onClick: () => { onClose && onClose(); window.wrNavigateTab?.('lineup'); }, style: btnStyle() }, 'Set lineup'),
+                    React.createElement('button', { onClick: () => { onClose && onClose(); window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { pid, prompt: 'Help me decide what to do with ' + (p.full_name || [p.first_name, p.last_name].filter(Boolean).join(' ')) + '.' } })); }, style: btnStyle() }, 'Ask Alex'),
                     isOnMyTeam && React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
                     isOnMyTeam && tagMenu ? React.createElement('div', {
                         // Phone: full-width above the grid so the 4 tag rows are

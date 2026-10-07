@@ -134,8 +134,13 @@ assert.equal(window.WR.acquisitionContext.week, 9);
 assert.equal(window.WR.acquisitionContext.dropPid, 'mine');
 assert.ok(flatten(tree).some(node => node.children.some(value => typeof value === 'string' && value.includes('Owned in 1 of 3 synced leagues'))));
 tree = card('other');
-button = flatten(tree).find(node => node.type === 'button' && node.children.includes('Find trade'));
+button = flatten(tree).find(node => node.type === 'button' && node.children.includes('Build a trade'));
 assert.ok(button);
+button.props.onClick();
+assert.equal(window._wrTradeBuilderTarget.pid, 'other');
+assert.equal(navigations.at(-1), 'trades');
+button = flatten(tree).find(node => node.type === 'button' && node.children.includes('Find offers'));
+assert.ok(button, 'explicit offer discovery remains available');
 button.props.onClick();
 assert.equal(window._wrTradeFinderTarget.pid, 'other');
 tree = card('rookie', { context: 'draft-board' });
@@ -145,7 +150,7 @@ button.props.onClick();
 assert.equal(window.WR.draftPlayerContext.pid, 'rookie');
 league.settings.disable_trades = 1;
 tree = card('other');
-assert.equal(flatten(tree).some(node => node.type === 'button' && node.children.includes('Find trade')), false);
+assert.equal(flatten(tree).some(node => node.type === 'button' && node.children.includes('Build a trade')), false);
 
 // All consuming modules still compile in the same React-only production transform.
 for (const file of ['js/free-agency.js', 'js/draft-room.js']) {
@@ -196,7 +201,8 @@ window.WR.openAcquisition({ pid: 'fa', position: 'TE', week: 7, dropPid: 'mine',
 faRender(null);
 tree = faRender(null);
 assert.ok(flatten(tree).some(node => node.props?.className === 'fa-acquisition-plan'), 'context survives a targets-to-waivers route change');
-assert.ok(flatten(tree).some(node => node.props?.className === 'fa-market-shell' && node.props.hidden === false), 'filtered market remains visible after route prop effect');
+assert.ok(flatten(tree).some(node => node.props?.className === 'mc-waiver-claims'), 'planned additions open the Claims workspace after the route prop effect');
+assert.ok(flatten(tree).some(node => node.type === 'button' && node.children.includes('Claims') && node.props['aria-pressed'] === true), 'Claims remains selected while the plan is open');
 assert.equal(window.WR.acquisitionContext.dropPid, 'mine');
 faRender('targets');
 tree = faRender('targets');

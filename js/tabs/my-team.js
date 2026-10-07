@@ -50,6 +50,7 @@ function MyTeamTab({
   setTimeRecomputeTs,
   getAcquisitionInfo: getAcquisitionInfoProp,
 }) {
+  const metricPreference = window.WR?.PlayerMetrics?.useMetrics(sleeperUserId, currentLeague?.league_id || currentLeague?.id);
   // Fallback if prop not passed — prevents crash
   const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function' ? getAcquisitionInfoProp : () => ({ method: 'Unknown', date: '', cost: '' });
   const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
@@ -1654,7 +1655,7 @@ function MyTeamTab({
     );
     _phonePillsEl = (
       <div className="wr-roster-mobile-controls">
-        <div className="wr-roster-mobile-list-heading"><h3>Your players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button></div>
+        <div className="wr-roster-mobile-list-heading"><h3>Players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button>{metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
         <div className="wr-roster-mobile-scopes wr-hscroll" role="group" aria-label="Roster group">
           {phoneScopes.map(scope => <button key={scope} type="button" aria-pressed={rosterFilter === scope} onClick={() => { setRosterFilter(scope); setExpandedPid(null); }}><span>{scope}</span><span>{scopeCounts[scope]}</span></button>)}
         </div>
@@ -1815,10 +1816,21 @@ function MyTeamTab({
           <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
             <span className="wr-roster-mobile-player-identity"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r)}</span></span>
-            <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>
+            {metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {
+              proj: projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null,
+              ppg: window.App?.WeeklyProj?.formStats?.(r.pid, 5)?.rollingPPG,
+              dhq: showRosterRosPoints ? rosterRosPoints(r.pid) : r.dhq,
+              age: r.age || null, season: r.curGP > 0 ? r.curPPG : null,
+              bye: window.App?.NFLByes?.weekForPlayer?.(r.p, byeSeason), matchup: isPro ? projFor(r.pid)?.matchupGrade : null,
+            }).map(stat => <span key={stat.key} title={stat.key === 'dhq' ? valueLabel : stat.label}><strong>{stat.value}</strong><small>{stat.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : stat.label}</small></span>)}</span> : <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>}
             <span className="wr-roster-mobile-player-chevron" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
           </button>
           {isExpanded && <div id={'roster-detail-' + r.pid} className="wr-roster-mobile-detail">
+            <div className="mc-player-actions">
+              {skinFeatures.showTrades !== false && <button type="button" onClick={() => { window._wrTradeBuilderTarget = { pid: r.pid, returnTab: 'myteam', ts: Date.now() }; setActiveTab?.('trades'); window.dispatchEvent(new CustomEvent('wr:open-trade-builder', { detail: window._wrTradeBuilderTarget })); }}>Build a trade</button>}
+              <button type="button" onClick={() => setActiveTab?.('lineup')}>Set lineup</button>
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { prompt: 'Help me decide what to do with ' + getPlayerName(r.pid) + ' on my roster.', pid: r.pid } }))}>Ask Alex</button>
+            </div>
             <div className="wr-roster-mobile-detail-facts">{[r.age ? 'Age ' + r.age : null, !isChoppedRoster ? byeLabel(r.p) : null].filter(Boolean).join(' · ')}</div>
             <div className="wr-roster-mobile-detail-stats">
               {_phoneSlotKeys.map(key => { const stat = _phoneSlotFor(key, r); return <div key={key}><span>{stat.label}</span><strong>{stat.value}</strong></div>; })}

@@ -20,12 +20,13 @@ function LineupInjuryBadge({ status }) {
 }
 
 // Stable component identity keeps the player button available for sheet focus return.
-const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick }) => (
-    <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '')} onClick={onClick}>
+const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick, delta, disabled }) => (
+    <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '')} onClick={onClick} disabled={disabled}>
         <span className="gd-player-initial" aria-hidden="true">{pos}</span>
         <span className="gd-player-main"><strong>{name}</strong><LineupInjuryBadge status={injuryStatus} /><span>{tag}</span></span>
-        <span className="gd-plan-stats">{(slots || []).map(stat => <span key={stat.label}><strong>{stat.value}</strong><small>{stat.label === 'PROJ' ? 'Proj' : stat.label}</small></span>)}</span>
+        <span className="gd-plan-stats" style={{ '--mc-columns': (slots || []).length }}>{(slots || []).map(stat => <span key={stat.label}><strong>{stat.value}</strong><small>{stat.label === 'PROJ' ? 'Proj' : stat.label}</small></span>)}</span>
         <span className="gd-row-chevron" aria-hidden="true">›</span>
+        {delta != null && <span className={'mc-swap-delta ' + (delta < 0 ? 'is-loss' : 'is-gain')}>{delta > 0 ? '+' : ''}{delta.toFixed(1)} projected pts</span>}
     </button>
 );
 
@@ -85,6 +86,7 @@ function LineupTab({
     myRoster, currentLeague, leagueSkin, playersData, statsData, stats2025Data,
     sleeperUserId, gmStrategy, setActiveTab, timeRecomputeTs, rosterView = false,
 }) {
+    const metricPreference = window.WR?.PlayerMetrics?.useMetrics(sleeperUserId, currentLeague?.league_id || currentLeague?.id);
     const WP = window.App && window.App.WeeklyProj;
     const SS = window.App && window.App.StartSit;
     const normPos = (window.App && window.App.normPos) || (p => p);
@@ -1217,6 +1219,18 @@ function LineupTab({
 
 
 
+        const playerMetricSlots = pid => {
+            const projection = projOf(pid), player = playersData?.[pid];
+            return metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {
+                proj: projection?.available !== false ? projection?.points?.[objective] : null,
+                ppg: WP?.formStats?.(pid, 5)?.rollingPPG,
+                dhq: window.App?.PlayerValue?.getValue?.(pid) ?? window.App?.LI?.playerScores?.[pid],
+                age: player?.age, season: WP?.formStats?.(pid, 'season')?.rollingPPG,
+                bye: window.App?.NFLByes?.weekForPlayer?.(player, window.App?.NFLByes?.seasonFor?.(currentLeague)),
+                matchup: pro ? projection?.matchupGrade : null,
+            }) : [{ label: 'PROJ', value: projection?.available !== false && Number.isFinite(projection?.points?.[objective]) ? projection.points[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(formOf(pid)?.rollingPPG) ? formOf(pid).rollingPPG.toFixed(1) : '—' }];
+        };
+
         // Phone rows keep the projection and selected-window PPG visible together.
         // A tap opens eligible replacements and deeper matchup/form context.
         const slotRow = (sl) => {
@@ -1225,7 +1239,7 @@ function LineupTab({
             const open = openSlot === sl.idx;
             if (!pid) {
                 return <MobilePlayerRow key={sl.idx} pos={SLOT_SHORT[sl.slotName] || sl.slotName} name="Empty — tap to set" tag={slotLabel}
-                    slots={[{ label: 'PROJ', value: '—', tone: 'mute' }, { label: formWinLabel + ' PPG', value: '—' }]} accent={open ? 'gold' : undefined}
+                    slots={playerMetricSlots(null)} accent={open ? 'gold' : undefined}
                     onClick={() => setOpenSlot(open ? null : sl.idx)} />;
             }
             const meta = pmeta(pid), proj = projOf(pid), pts = proj && proj.points;
@@ -1235,7 +1249,7 @@ function LineupTab({
             const fs = formOf(pid);
             const atRisk = !!status || (proj && proj.available === false);
             return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} injuryStatus={status} tag={<>{tag}<LineupLiveStatus pid={pid} /></>}
-                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(fs?.rollingPPG) ? fs.rollingPPG.toFixed(1) : '—' }]}
+                slots={playerMetricSlots(pid)}
                 accent={open ? 'gold' : atRisk ? 'risk' : undefined}
                 onClick={() => setOpenSlot(open ? null : sl.idx)} />;
         };
@@ -1255,8 +1269,10 @@ function LineupTab({
             const opp = proj && proj.opponent;
             const fs = formOf(epid);
             return <MobilePlayerRow key={epid} pos={meta.pos || '?'} name={meta.name} injuryStatus={status}
-                tag={[isCur ? 'IN' : null, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, pro ? 'Matchup ' + (proj?.matchupGrade || '—') : null].filter(Boolean).join(' · ')}
-                slots={[{ label: 'PROJ', value: proj?.available !== false && Number.isFinite(pts?.[objective]) ? pts[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(fs?.rollingPPG) ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
+                tag={[isCur ? 'CURRENT STARTER' : 'START', meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, pro ? 'Matchup ' + (proj?.matchupGrade || '—') : null].filter(Boolean).join(' · ')}
+                slots={playerMetricSlots(epid)}
+                delta={!isCur && proj?.available !== false && Number.isFinite(pts?.[objective]) && (!openPid || (projOf(openPid)?.available !== false && Number.isFinite(projOf(openPid)?.points?.[objective]))) ? pts[objective] - (openPid ? projOf(openPid).points[objective] : 0) : null}
+                disabled={!canChangePlayer(openPid) || !canChangePlayer(epid)}
                 accent={isCur ? 'gold' : undefined}
                 onClick={() => { canChangePlayer(openPid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
         };
@@ -1278,7 +1294,8 @@ function LineupTab({
                 {/* This Week ⇄ Season toggle (owner ask) — week = matchup +
                     lineup; season = outlook + schedule. */}
                 <div className="wr-seg gd-view-nav" aria-label="Game Day views">
-                    <button aria-pressed={phoneView === 'week'} className={phoneView === 'week' ? 'is-on' : ''} onClick={() => setPhoneView('week')}>This Week</button>
+                    <button aria-pressed={phoneView === 'week'} className={phoneView === 'week' ? 'is-on' : ''} onClick={() => setPhoneView('week')}>Lineup</button>
+                    <button aria-pressed={phoneView === 'matchup'} className={phoneView === 'matchup' ? 'is-on' : ''} onClick={() => setPhoneView('matchup')}>Matchup</button>
                     <button aria-pressed={phoneView === 'season'} className={phoneView === 'season' ? 'is-on' : ''} onClick={() => setPhoneView('season')}>Season</button>
                     <button aria-pressed={phoneView === 'odds'} className={phoneView === 'odds' ? 'is-on' : ''} onClick={() => setPhoneView('odds')}>Odds</button>
                 </div>
@@ -1292,17 +1309,17 @@ function LineupTab({
                             playersData={playersData} statsData={statsData} stats2025Data={stats2025Data}
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
-                ) : phoneView === 'week' ? (<React.Fragment>
+                ) : phoneView === 'matchup' ? (matchup ? matchupPanel : <p className="gd-muted">The matchup appears when an opponent and projections are available.</p>) : phoneView === 'week' ? (<React.Fragment>
                 {heroEl}
                 <div className="roster-lineup-form" aria-label="Optimizer form window">{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>
-                <p className="gd-muted">{formHelp}</p>
-                {matchupPanel}
                 <section id="gameday-starting-lineup" className="gd-working-lineup" aria-label="Local lineup plan">
-                    <div className="gd-list-heading"><h2>Starting lineup</h2><span>{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
+                    <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2>{metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
+                    <div className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</div>
                     <p className="gd-muted">{isMfl ? 'Review changes here, then submit to MFL.' : 'Plan here. Set your final starters on your league platform.'}</p>
                     {!optimizerAvailable ? <p className="gd-muted">Only players with verified upcoming games can be moved.</p> : null}
                     {trackingLineup ? mobileScoreboard : null}
                     <div className="gd-player-list">{dispSlots.map(slotRow)}</div>
+                    <details className="mc-lineup-rules"><summary>How lineup suggestions work</summary><p className="gd-muted">{formHelp}</p></details>
                     {trackingLineup ? mobileScoreHelp : null}
                     {dirty || isMfl ? <button type="button" className="gd-secondary" onClick={() => setApplyOpen(true)}>Review planned changes</button> : null}
                 </section>
@@ -1316,6 +1333,8 @@ function LineupTab({
                 <Sheet open={!!openSl} onClose={() => setOpenSlot(null)} title={openSl ? 'Set ' + openSl.slotName.replace('_', ' ') : ''} desktop={null}>
                     {openSl ? (
                         <div className="gd-mobile-sheet" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
+                            <div className="mc-swap-summary"><span>SIT</span><strong>{openPid ? pmeta(openPid).name : 'Empty slot'}</strong><small>Choose the player to START below</small></div>
+                            {metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}
                             <div className="wr-seg">
                                 {[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(opt => (
                                     <button key={opt[0]} className={formWindow === opt[1] ? 'is-on' : ''} onClick={() => setFormWindow(opt[1])}>{opt[0]}</button>

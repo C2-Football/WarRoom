@@ -2764,7 +2764,7 @@
                     strip below — navDraftView / launchLiveDraft / Draft History
                     all preserved; the strip itself never mounts on phone. */}
                 {_phone && (
-                    <label className="la-view-select">Draft view<select value={showDraftHistory ? 'history' : activeView} onChange={event => { const next = event.target.value; if (next === 'history') setShowDraftHistory(true); else if (next === 'live') launchLiveDraft(); else navDraftView(next); }}>{commandTabAllowed && <option value="command">War Room</option>}<option value="board">Big Board</option><option value="mock">Mock draft</option><option value="live">Follow live draft</option><option value="history">Draft history</option></select></label>
+                    <div className="mc-draft-navigation"><nav className="mc-section-tabs" aria-label="Draft views">{[...(commandTabAllowed ? [['command', 'War Room']] : []), ['board', 'Big Board'], ['mock', 'Mock Center'], ['live', 'Live']].map(([key, label]) => <button type="button" key={key} aria-pressed={!showDraftHistory && activeView === key} onClick={() => { setShowDraftHistory(false); if (key === 'live') launchLiveDraft(); else navDraftView(key); }}>{label}</button>)}</nav><div className="mc-context-actions"><button type="button" aria-pressed={showDraftHistory} onClick={() => setShowDraftHistory(true)}>History &amp; recaps</button><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft research →</button></div></div>
                 )}
                 {!_phone && (
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
@@ -2780,7 +2780,6 @@
                 </div>
                 )}
 
-                {_phone && activeView !== 'live' && activeView !== 'mock' && <details className="la-disclosure"><summary>Draft research</summary><div><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft results &amp; research</button></div></details>}
                 {!_phone && activeView !== 'live' && activeView !== 'mock' && <div style={{ marginBottom: 10, color: 'var(--silver)', fontSize: '.78rem' }}>Use your league’s past results to inform prep. <button type="button" onClick={() => window.wrNavigateTab?.('draft-review')} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textDecoration: 'underline', minHeight: 36 }}>Draft results &amp; research →</button></div>}
                 {activeView === 'board' && notebookPlayerFocus && !draftPoolRows.some(row => String(row.pid) === String(notebookPlayerFocus)) && <p role="status" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>This player is not in the current draft pool. Your notebook is still saved. <button type="button" onClick={() => { setNotebookPlayerFocus(null); setBoardSearch(''); }}>Browse this draft</button></p>}
 
@@ -2858,7 +2857,7 @@
                                 : (isRookieDraft ? leagueSeason + ' rookie class' : leagueSeason + ' draft board');
                             const _futurePickCount = futureCapitalRows.reduce((sum, row) => sum + row.picks.length, 0);
                             return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                                <div className="mc-draft-brief" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                                     {React.createElement(window.WR.HeroCard, {
                                         kicker: 'Draft war room',
                                         headline: nextPick ? 'NEXT PICK ' + fmtPick(nextPick) : 'NO ' + String(currentCapitalRow.year) + ' PICKS HELD',
@@ -3746,7 +3745,7 @@
                     // (the ≡ grip → handleGripDrop) ships as-is.
                     if (_phone) {
                         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-                        const MICRO = '14px';
+                        const MICRO = '12px';
                         const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
                         const phDossier = (r) => {
                             const pos = normPos(r.p.position) || r.p.position;
@@ -3834,24 +3833,14 @@
                                 return next;
                             });
                             return (
-                                <div key={r.pid} style={isDrafted ? { opacity: 0.45 } : undefined}>
-                                    {React.createElement(window.WR.AssetRow, {
-                                        pos,
-                                        name: pName(r.p),
-                                        tag: ['#' + (idx + 1), isSeasonalDraft ? (team || 'FA') : (college || 'School TBD'), showDraftCapitalColumn && draftStr ? draftStr : null].filter(Boolean).join(' · '),
-                                        slots: [
-                                            { label: valueShortLabel, value: r.dhq > 0 ? r.dhq.toLocaleString() : '—' },
-                                            { label: 'Rank', value: rankStr, tone: 'mute' },
-                                        ],
-                                        verdict: isDrafted
-                                            ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--bad)', color: 'var(--bad)', whiteSpace: 'nowrap' }}>GONE</span>
-                                            : tagDef
-                                                ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + tagDef.color, color: tagDef.color, whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{tagDef.label}</span>
-                                                : null,
-                                        accent: tag === 'must' || tag === 'target' ? 'gold' : tag === 'avoid' ? 'risk' : undefined,
-                                        expanded: isExp,
-                                        onClick: toggle,
-                                    }, isExp ? phDossier(r) : null)}
+                                <div className={'mc-prospect' + (isDrafted ? ' is-drafted' : '')} key={r.pid}>
+                                    <button type="button" className="mc-prospect-row" aria-expanded={isExp} onClick={toggle}>
+                                        <span className="mc-prospect-rank">{idx + 1}</span>
+                                        <span className="mc-prospect-player"><strong>{pName(r.p)}</strong><small><b style={{ color: posColors[pos] }}>{window.App?.posLabel?.(pos) || pos}</b> · {isSeasonalDraft ? (team || 'FA') : (college || team || 'School TBD')}{isDrafted ? ' · Gone' : tagDef ? ' · ' + tagDef.label : ''}</small></span>
+                                        <span className="mc-prospect-value">{r.dhq > 0 ? r.dhq.toLocaleString() : '—'}</span>
+                                        <span className="mc-prospect-value">{rankStr}</span>
+                                    </button>
+                                    {isExp && <div className="mc-prospect-detail"><button type="button" className="mc-player-open" onClick={() => openDraftPlayer(r.pid)}>Full player card →</button>{phDossier(r)}</div>}
                                 </div>
                             );
                         };
@@ -3897,6 +3886,8 @@
                                 <React.Fragment>
                                     {phBoardPanelLbl('Search')}
                                     <input type="text" value={boardSearch} onChange={e => setBoardSearch(e.target.value)} placeholder="Players, teams, colleges..." style={{ width: '100%', padding: '9px 12px', minHeight: '44px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: 'var(--card-radius, 10px)', outline: 'none', boxSizing: 'border-box' }} />
+                                    {phBoardPanelLbl('Position')}
+                                    <select aria-label="Draft position" value={boardPosFilter} onChange={event => setBoardPosFilter(event.target.value)}><option value="">All positions</option>{phPosOptions.map(pos => <option key={pos} value={pos}>{window.App?.posLabel?.(pos) || pos}</option>)}</select>
                                     {phBoardPanelLbl('NFL team')}
                                     <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ width: '100%', padding: '9px 10px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', background: 'var(--charcoal, #0e0e12)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', outline: 'none' }}>
                                         <option value="">All teams</option>
@@ -3924,13 +3915,9 @@
                                     <span style={{ color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: MICRO, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{isRookieDraft ? 'Draft Big Board' : 'Redraft Big Board'}</span>
                                     <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: MICRO, fontFamily: MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeBoardInfo.label} · {visibleBoardPlayers.length} players</span>
                                 </div>
-                                <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-                                    {React.createElement(window.WR.FilterPill, { label: 'Lane', value: activeBoardInfo.label, onClick: () => setPhBoardPanel(p => p === 'lane' ? null : 'lane') })}
-                                    {React.createElement(window.WR.FilterPill, { label: 'Pos', value: boardPosFilter || 'ALL', onClick: () => setPhBoardPanel(p => p === 'pos' ? null : 'pos') })}
-                                    {React.createElement(window.WR.FilterPill, { label: 'Filters', value: [boardTeamFilter, boardRoundFilter && ('R' + boardRoundFilter).replace('RUDFA', 'UDFA'), boardSearch && '"' + boardSearch + '"'].filter(Boolean).join(' · ') || null, onClick: () => setPhBoardPanel(p => p === 'filters' ? null : 'filters') })}
-                                    {skinFeatures.showDraftGameplan !== false && React.createElement(window.WR.FilterPill, { label: 'Plan', value: gameplanArch !== 'balanced' ? gameplanArch : null, onClick: () => setPhBoardPanel(p => p === 'gameplan' ? null : 'gameplan') })}
-                                    {React.createElement(window.WR.FilterPill, { label: 'Hide drafted', value: hideDrafted ? 'ON' : null, onClick: toggleHideDrafted })}
-                                </div>
+                                <nav className="mc-section-tabs mc-board-lanes" aria-label="Big Board source">{boardModeOptions.map(opt => <button type="button" key={opt.k} aria-pressed={boardMode === opt.k} onClick={() => { setBoardMode(opt.k); setPhBoardPanel(null); }}>{opt.k === 'my' ? 'My Board' : opt.label}</button>)}</nav>
+                                <div className="mc-board-tools"><input type="search" aria-label="Search draft prospects" value={boardSearch} onChange={event => setBoardSearch(event.target.value)} placeholder="Find a prospect…"/><button type="button" aria-expanded={phBoardPanel === 'filters'} onClick={() => setPhBoardPanel(p => p === 'filters' ? null : 'filters')}>Filters{boardPosFilter || boardTeamFilter || boardRoundFilter ? ' •' : ''}</button></div>
+                                <div className="mc-context-actions">{skinFeatures.showDraftGameplan !== false && <button type="button" aria-expanded={phBoardPanel === 'gameplan'} onClick={() => setPhBoardPanel(p => p === 'gameplan' ? null : 'gameplan')}>Gameplan{gameplanArch !== 'balanced' ? ' · ' + gameplanArch : ''}</button>}<button type="button" aria-pressed={hideDrafted} onClick={toggleHideDrafted}>{hideDrafted ? 'Show drafted' : 'Hide drafted'}</button></div>
                                 {phBoardPanelEl}
                                 {boardMode === 'my' ? (
                                     <React.Fragment>
@@ -3938,9 +3925,7 @@
                                         {renderCompactBoard(visibleBoardPlayers, false)}
                                     </React.Fragment>
                                 ) : phGroups.length ? (
-                                    React.createElement(window.WR.CardList, {
-                                        groups: phGroups.map(g => ({ label: g.key, sub: g.rows.length + (g.rows.length === 1 ? ' player' : ' players'), rows: g.rows })),
-                                    })
+                                    <div className="mc-prospect-table"><div className="mc-prospect-row mc-table-head" aria-hidden="true"><span>#</span><span>Player</span><span>{valueShortLabel}</span><span>Rank</span></div>{phGroups.flatMap(group => group.rows)}</div>
                                 ) : (
                                     <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No players match filter</div>
                                 )}

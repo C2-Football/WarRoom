@@ -160,12 +160,17 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     assert.equal(select(tablet.out, n => n.props.className === 'gd-mobile'), undefined);
     for (const width of [390, 1280]) {
         const forecast = await fixture({ width, withMatchup: true });
+        if (width < 768) {
+            assert(!select(forecast.out, n => n.props.className === 'gd-matchup'), 'lineup opens directly without a duplicate matchup analysis above players');
+            button(forecast.out, 'Matchup').props.onClick(); await forecast.render();
+        }
         const breakdown = select(forecast.out, n => n.props.className === 'gd-matchup');
         assert(breakdown, 'matchup is visible on both viewport branches');
         assert.match(textOf(breakdown), /Position strength.*Slot by slot/);
         assert(!all(forecast.out).some(n => ['details', 'dialog'].includes(n.type) && textOf(n).includes('Position strength')), 'analysis requires no expansion or sheet');
         assert.doesNotMatch(textOf(forecast.out), /view their lineup|View opponent breakdown/);
         const free = await fixture({ width, withMatchup: true, pro: false });
+        if (width < 768) { button(free.out, 'Matchup').props.onClick(); await free.render(); }
         assert(select(free.out, n => n.props.className === 'gd-matchup'));
         assert.doesNotMatch(textOf(free.out), /Your biggest edge|Win probability|Slot by slot/);
     }

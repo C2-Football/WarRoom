@@ -16,6 +16,9 @@ const React = {
 const root = { App: {}, setTimeout, clearTimeout, WR: { useViewport: () => ({ isPhone: true, width: 491, height: 900 }), openPlayerCard: () => fullCardCalls++ } };
 const context = { window: root, React, console, setInterval: () => 1, clearInterval() {}, setTimeout: fn => fn(), document: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} } };
 vm.createContext(context);
+const savedStorage = new Map();
+root.App.WrStorage = { get: (key, fallback) => savedStorage.has(key) ? savedStorage.get(key) : fallback, set: (key, value) => savedStorage.set(key, value) };
+vm.runInContext(fs.readFileSync('js/shared/saved-views.js', 'utf8'), context);
 for (const file of ['js/shared/stat-catalog.js', 'js/shared/league-stats.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), context);
 const playersData = {}, statsByPid = {};
 for (let i = 0; i < 53; i++) { const id = 'p' + i; playersData[id] = { full_name: i === 0 ? 'Zero Player' : i === 1 ? 'Negative Player' : i === 2 ? 'Missing Player' : 'Player ' + i, position: i % 2 ? 'QB' : 'WR', team: 'CHI' }; if (i !== 2) statsByPid[id] = { gp: 2, rec: i === 0 || i === 1 ? 0 : i, rec_yd: i * 10, rec_tgt: i + 3, pass_yd: i * 20, pass_att: 10, pass_cmp: 6, fum_lost: i === 1 ? 1 : 0 }; }
@@ -33,28 +36,29 @@ const search = () => find(tree, n => n.type === 'input' && n.props.placeholder =
 (async () => {
     await flush();
     assert(find(tree, n => n.props['aria-label'] === 'Player stats results'));
-    assert(!find(tree, n => n.type === 'table'), 'Mobile defaults to player rows without a duplicated wide table');
-    assert.equal(all(tree, n => n.props.className === 'dhs-mobile-player').length, 50);
+    assert(!find(tree, n => n.type === 'table'), 'Mobile defaults to a compact scan table without a duplicated wide ledger');
+    assert.equal(all(tree, n => n.props.className === 'mc-research-row').length, 50);
+    assert.equal(all(find(tree, n => n.props.className === 'mc-research-heading'), n => n.type === 'button').length, 5, 'Player plus four pinned stats are visible together');
     assert(search()); assert(!find(tree, n => n.props['aria-label'] === 'Sort players by'), 'Sort stays in Stat view'); assert(!find(tree, n => n.props['aria-label'] === 'Filter by position'), 'Positions stay in Filters without a duplicate strip');
     assert(!sheet()); assert(!labelledSelect('NFL team'), 'Advanced filters stay out of the results flow');
     await click('Next'); assert(text(tree).includes('51–53 of 53'));
     await click('Stat view'); await change(find(sheet(), n => n.props['aria-label'] === 'Sort players by'), 'name');
-    assert(text(all(tree, n => n.props.className === 'dhs-mobile-player')[0]).includes('Missing Player'), 'Sort choice applies and resets pagination');
+    assert(text(all(tree, n => n.props.className === 'mc-research-row')[0]).includes('Missing Player'), 'Sort choice applies and resets pagination');
     find(tree, n => n.props['aria-label'] === 'Sort descending').props.onClick(); await flush();
-    assert(text(all(tree, n => n.props.className === 'dhs-mobile-player')[0]).includes('Zero Player'), 'Sort direction changes the visible order'); await click('Done', sheet());
+    assert(text(all(tree, n => n.props.className === 'mc-research-row')[0]).includes('Zero Player'), 'Sort direction changes the visible order'); await click('Done', sheet());
     await click('Filters'); assert.equal(sheet().props.title, 'Filter players');
     await change(labelledSelect('Availability', sheet()), 'rostered'); await click('Show 1 players', sheet());
-    assert(!sheet()); assert.equal(all(tree, n => n.props.className === 'dhs-mobile-player').length, 1); assert(text(tree).includes('Zero Player'));
+    assert(!sheet()); assert.equal(all(tree, n => n.props.className === 'mc-research-row').length, 1); assert(text(tree).includes('Zero Player'));
     await click('Filters (1)'); await click('Reset filters', sheet()); sheet().props.onClose(); await flush();
     await change(find(tree, n => n.props['aria-label'] === 'Stats period'), '2'); assert.equal(loads.at(-1).week, 2); assert(text(tree).includes('Week 2'));
-    await click('Filters'); await change(labelledSelect('Position', sheet()), 'WR'); assert(all(tree, n => n.props.className === 'dhs-mobile-player').every(n => text(n).includes('WR')));
+    await click('Filters'); await change(labelledSelect('Position', sheet()), 'WR'); assert(all(tree, n => n.props.className === 'mc-research-row').every(n => text(n).includes('WR')));
     await change(labelledSelect('Position', sheet()), ''); sheet().props.onClose(); await flush();
     for (const [name, expected] of [['Zero Player', '0.00'], ['Negative Player', '-2.00'], ['Missing Player', '—']]) {
-        await change(search(), name); const row = find(tree, n => n.props.className === 'dhs-mobile-player'); assert(row); assert(text(find(row, n => n.props.className === 'dhs-player-score')).includes(expected), name + ' scoring stays distinct');
+        await change(search(), name); const row = find(tree, n => n.props.className === 'mc-research-row'); assert(row); assert(text(find(row, n => n.props.className === 'mc-research-score')).includes(expected), name + ' scoring stays distinct');
     }
     await change(search(), 'Zero Player');
     await click('Stat view'); await change(labelledSelect('Display', sheet()), 'game'); await click('Done', sheet());
-    const row = find(tree, n => n.props.className === 'dhs-mobile-player'); row.props.onClick(); await flush();
+    const row = find(tree, n => n.props.className === 'mc-research-row'); row.props.onClick(); await flush();
     assert.equal(sheet().props.title, 'Player stats'); assert.equal(fullCardCalls, 0, 'Tapping a result only opens the Stats sheet');
     assert(find(sheet(), n => n.props.className === 'dhs-detail-metrics'), 'Overview is the initial detail');
     await click('Game log', sheet());
@@ -66,9 +70,27 @@ const search = () => find(tree, n => n.type === 'input' && n.props.placeholder =
     await change(find(sheet(), n => n.type === 'input' && n.props.placeholder?.startsWith('Search yards')), 'complet');
     const detailStats = all(sheet(), n => n.props.className === 'dhs-detail-stat'); assert(detailStats.length); assert(detailStats.every(n => /complet/i.test(text(n))), 'Player stat search narrows the full breakdown');
     sheet().props.onClose(); await flush(); assert(!sheet());
+    await click('Stat view');
+    await click('Use 3 columns', sheet());
+    await click('Done', sheet());
+    assert.equal(all(find(tree, n => n.props.className === 'mc-research-heading'), n => n.type === 'button').length, 4, 'Player plus three chosen stats');
     await click('Stat view'); await change(labelledSelect('Layout', sheet()), 'table'); await click('Done', sheet());
     assert(find(tree, n => n.type === 'table'), 'Explicit Table layout exposes full columns');
     assert(!find(tree, n => n.props['aria-label'] === 'Player stats results'), 'Only one results representation renders');
     assert(all(tree, n => n.type === 'th').length > 3, 'Table keeps selected stats beyond the three mobile highlights');
-    console.log('PASS mobile Stats: focused results, filtering/scope/sort controls, pagination, sheets, detail views, scoring semantics and optional full table');
+    await click('Stat view');
+    const viewBar = find(sheet(), n => n.type === root.WR.SavedViews.SavedViewBar);
+    assert(viewBar, 'Research exposes the real saved-view control');
+    const saved = root.WR.SavedViews.save(viewBar.props.surface, viewBar.props.leagueId, { name: 'Decision view', ...viewBar.props.currentState });
+    assert.equal(root.WR.SavedViews.list('research', '123').length, 1, 'Research is a supported persistence surface');
+    assert.equal(saved.sort.dir, -1, 'Descending sort is preserved by the shared store');
+    const restored = root.WR.SavedViews.get('research', '123', saved.id);
+    await change(labelledSelect('Layout', sheet()), 'dense');
+    await change(find(sheet(), n => n.props['aria-label'] === 'Sort players by'), 'fantasyPoints');
+    viewBar.props.onApply(restored); await flush();
+    assert.equal(labelledSelect('Layout', sheet()).props.value, 'table', 'Saved layout restores');
+    assert.equal(find(sheet(), n => n.props['aria-label'] === 'Sort players by').props.value, 'name', 'Saved sort column restores');
+    assert(find(tree, n => n.props['aria-label'] === 'Sort ascending'), 'Saved descending order restores');
+    assert.equal(restored.filters.scope, 'week'); assert.equal(restored.filters.week, 2, 'Saved period is retained with the metric view');
+    console.log('PASS mobile Research: dense 3/4-column results, filtering/scope/sort, pagination, sheets, detail views, scoring semantics and optional full ledger');
 })().catch(error => { console.error(error); process.exitCode = 1; });

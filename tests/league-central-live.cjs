@@ -50,6 +50,7 @@ assert.equal(table(tree).props['aria-label'], 'Week 2 live standings');
 board = { ...board, rows: [{ roster_id: 1, matchup_id: 1, points: 5 }, { roster_id: 2, matchup_id: 1, points: 200 }], updatedAt: 2000 };
 tree = render(); assert(text(teamRows(tree)[0]).includes('Beta'), 'Changed live results reorder the visible table');
 assert(text(teamRows(tree)[0]).includes('1-1-0'));
+find(tree, n => n.type === 'button' && text(n) === 'Scores').props.onClick(); tree = render();
 let scoreboard = find(tree, n => n.type === boundary);
 assert.equal(scoreboard.props.selectedWeek, 2); assert.equal(typeof scoreboard.props.onWeekChange, 'function'); assert.equal(scoreboard.props.onRefresh, liveContext.refresh);
 scoreboard.props.onWeekChange(1); tree = render(); scoreboard = find(tree, n => n.type === boundary);

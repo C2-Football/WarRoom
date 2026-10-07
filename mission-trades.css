@@ -1,0 +1,96 @@
+/* Mission Control: compact trade decisions and complete owner dossiers. */
+.mc-trade-nav { display:grid!important; grid-template-columns:1.2fr 1.25fr .85fr .8fr; gap:3px!important; overflow:visible!important; padding:4px; border:1px solid rgba(205,220,237,.12); border-radius:14px; background:linear-gradient(120deg,rgba(235,243,252,.09),rgba(235,243,252,.025)); }
+.mc-trade-nav button { min-width:0; min-height:44px; padding:6px 3px!important; font-size:11px!important; letter-spacing:0!important; white-space:normal!important; line-height:1.25; border-radius:10px!important; }
+.mc-trade-filter-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; color:var(--silver); }
+.mc-trade-filter-bar>span { min-width:0; }
+.mc-trade-filter-bar>button,.mc-trade-player-back { flex-shrink:0; min-height:44px; padding:6px 12px; border:1px solid rgba(235,243,252,.2); border-radius:9px; background:rgba(235,243,252,.04); color:var(--gold); font:600 12px var(--font-body); cursor:pointer; }
+.mc-trade-filter-panel { padding:8px; border:1px solid rgba(235,243,252,.12); border-radius:10px; }
+.mc-trade-filter-panel .tc-phone-filters { flex-wrap:wrap; overflow:visible!important; }
+.mc-trade-packages { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+.mc-trade-packages>div { min-width:0; border:1px solid rgba(125,183,232,.3); background:rgba(125,183,232,.06); border-radius:12px; overflow:hidden; padding:8px; }
+.mc-trade-packages>div+div { border-color:rgba(77,208,167,.3); background:rgba(77,208,167,.06); }
+.mc-trade-packages header { display:flex; justify-content:space-between; gap:6px; align-items:center; border-bottom:1px solid rgba(235,243,252,.1); padding-bottom:6px; font-size:10px; color:var(--silver); }
+.mc-trade-packages header b { color:var(--white); font:700 13px var(--font-mono); }
+.mc-trade-packages>div>div { display:flex; align-items:center; gap:3px; min-height:36px; font-size:11px; line-height:1.35; }
+.mc-trade-packages>div>div>span { flex:1; min-width:0; overflow-wrap:anywhere; }
+.mc-trade-packages button { min-width:32px; min-height:36px; color:var(--silver); background:transparent; border:0; font-size:18px; cursor:pointer; }
+.mc-trade-packages p { font-size:11px; line-height:1.4; color:var(--silver); }
+.mc-trade-impact>h3 { font:700 14px var(--font-body); color:var(--white); margin:4px 0 10px; }
+.mc-trade-row-metrics { display:flex; align-items:center; gap:8px; margin-left:auto; font-variant-numeric:tabular-nums; flex-shrink:0; }
+.mc-trade-row-metrics>span { display:flex; flex-direction:column; text-align:right; min-width:29px; }
+.mc-trade-row-metrics small { font-size:8px; letter-spacing:.02em; color:var(--silver); opacity:.7; }
+.mc-trade-row-metrics b { font:600 11px var(--font-mono); color:var(--white); }
+.mc-owner-directory-row .mc-owner-record { display:flex; flex-direction:column; flex-shrink:0; align-items:flex-end; min-width:36px; font-variant-numeric:tabular-nums; }
+.mc-owner-record small { font-size:8px; color:var(--silver); opacity:.7; }
+.mc-owner-record b { font:600 12px var(--font-mono); }
+.mc-owner-directory-row:focus-visible,.mc-trade-nav button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+.mc-owner-profile { border-top:3px solid var(--owner-color)!important; }
+.mc-owner-hero>div:first-child { border-color:var(--owner-color)!important; }
+.mc-owner-dna-badge { padding:3px 7px; border:1px solid currentColor; border-radius:6px; font-size:10px; font-weight:700; }
+.mc-owner-sections { margin:12px 0; display:grid!important; grid-template-columns:1fr 1.2fr 1fr; }
+.mc-owner-sections button { white-space:normal!important; min-width:0; min-height:44px; font-size:11px!important; padding:6px 5px!important; letter-spacing:0!important; }
+.mc-owner-needs { display:grid; grid-template-columns:1fr 1fr; border:1px solid rgba(235,243,252,.12); border-radius:10px; margin-bottom:10px; }
+.mc-owner-needs>div { padding:10px; min-width:0; }
+.mc-owner-needs>div+div { border-left:1px solid rgba(235,243,252,.12); }
+.mc-owner-needs small { display:block; font:500 9px var(--font-mono); color:var(--silver); margin-bottom:5px; }
+.mc-owner-needs strong { font-size:12px; color:var(--white); }
+.mc-owner-needs>div:first-child strong { color:var(--warn); }
+.mc-owner-needs>div+div strong { color:var(--good); }
+.mc-owner-approach,.mc-owner-behavior { padding:12px; border:1px solid rgba(235,243,252,.12); border-radius:10px; margin-bottom:12px; }
+.mc-owner-approach { border-color:rgba(212,175,55,.25); background:rgba(212,175,55,.04); }
+.mc-owner-approach header,.mc-owner-behavior header { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:10px; }
+.mc-owner-approach h3,.mc-owner-behavior h3 { margin:0; font-size:13px; color:var(--white); }
+.mc-owner-approach header>span,.mc-owner-behavior header>span { font-size:9px; color:var(--silver); text-align:right; }
+.mc-owner-approach p { font-size:12px; line-height:1.55; margin:0 0 9px; color:var(--silver); }
+.mc-owner-approach>strong { display:block; font-size:12px; line-height:1.5; font-weight:500; color:var(--white); border-left:2px solid var(--owner-color); padding:8px 10px; background:rgba(235,243,252,.03); }
+.mc-owner-approach .tc-rail-dna-link { margin:10px 0 0!important; }
+.mc-owner-facts { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+.mc-owner-facts>div { padding:8px 0; border-bottom:1px solid rgba(235,243,252,.07); min-width:0; }
+.mc-owner-facts small { display:block; color:var(--silver); font-size:10px; margin-bottom:4px; }
+.mc-owner-facts b { display:block; font-size:12px; color:var(--white); overflow-wrap:anywhere; }
+.mc-owner-settings { border:1px solid rgba(235,243,252,.13); border-radius:10px; padding:0 10px 8px; margin:10px 0; }
+.mc-owner-settings>summary { min-height:44px; display:flex; align-items:center; color:var(--silver); font-size:12px; font-weight:600; cursor:pointer; }
+.mc-owner-settings>summary:after { content:'+'; margin-left:auto; }
+.mc-owner-settings[open]>summary:after { content:'−'; }
+.mc-owner-read-label { display:block; color:var(--silver); font-size:11px; margin-top:10px; }
+.mc-owner-read-label select { display:block; margin-top:6px; width:100%; }
+.mc-dna-guide { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; margin-top:12px; }
+.mc-dna-guide>div { border-left:3px solid; background:rgba(235,243,252,.025); padding:8px; }
+.mc-dna-guide strong { font-size:12px; }
+.mc-dna-guide p,.mc-dna-guide small { font-size:11px; line-height:1.45; color:var(--silver); }
+@media(max-width:767px) {
+ .mc-trades { gap:10px!important; padding-bottom:12px!important; }
+ .mc-trade-builder>div { padding:0!important; }
+ .mc-trade-builder .tc-ta-side { min-width:0!important; padding:10px!important; }
+ .mc-trade-builder .tc-ta-side>span:first-child { display:none; }
+ .mc-trade-builder .tc-ta-player-row { display:none; } /* selected packages are always visible above both side selectors */
+ .mc-trade-builder .tc-ta-roster-item { gap:5px; padding:6px 4px; font-size:11px; }
+ .mc-trade-builder .tc-ta-roster-item>span:nth-child(2) { white-space:normal!important; line-height:1.3; }
+ .mc-trade-builder .tc-ta-pos-dot { width:4px; min-width:4px; }
+ .mc-trade-builder .tc-ta-roster-list-tall { max-height:420px; }
+ .mc-trade-builder .tc-ta-roster-filter,.mc-trade-builder select { width:100%; box-sizing:border-box; min-width:0; font-size:16px; }
+ .mc-trade-builder .tc-ta-total-row { display:none; }
+ .mc-owner-profile { padding:12px!important; }
+ .mc-owner-hero { gap:9px!important; margin-bottom:9px!important; padding-bottom:9px!important; }
+ .mc-owner-hero>div:first-child { width:36px!important; height:36px!important; }
+ .mc-owner-hero>div+div>div:first-child { font-size:18px!important; overflow-wrap:anywhere; }
+ .mc-owner-profile .tc-owner-kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
+ .mc-owner-profile .tc-owner-kpi-grid>div { padding:7px 3px!important; }
+ .mc-owner-profile .tc-owner-kpi-grid>div>div:first-child { font-size:12px!important; overflow-wrap:anywhere; }
+ .mc-owner-profile .tc-owner-kpi-grid>div>div+div { font-size:8px!important; letter-spacing:0!important; }
+ .mc-owner-profile .tc-owner-profile-grid { grid-template-columns:minmax(0,1fr)!important; }
+ .mc-owner-profile .tc-owner-signal-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+ .mc-owner-scout>div[style*="minmax(260px"] { grid-template-columns:minmax(0,1fr)!important; }
+ .mc-owner-profile .tc-owner-history-panel { overflow-wrap:anywhere; }
+ .mc-owner-profile .tc-owner-trade-row { min-width:0; }
+ .mc-owner-directory-row { gap:6px!important; }
+ .mc-owner-directory-row>div:nth-child(2) { display:none!important; }
+}
+@media(max-width:350px) {
+ .mc-trade-nav button { font-size:10px!important; }
+ .mc-trade-row-metrics { gap:5px; }
+ .mc-trade-row-metrics>span { min-width:25px; }
+ .mc-trade-row-metrics b { font-size:10px; }
+ .mc-owner-profile { padding:9px!important; }
+ .mc-owner-sections button { font-size:10px!important; }
+}
