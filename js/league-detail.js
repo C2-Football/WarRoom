@@ -2695,7 +2695,7 @@
 
         return (
           <window.App.SeasonContext.Provider value={_seasonCtxValue}>
-            <div className={'app-container wr-mission-control ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
+            <div className={'app-container wr-mission-control wr-mission-v8 ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
                 {/* DHQ Loading Bubble — .wr-dhq-bubble: phone tier repoints it
                     above the bottom dock (index.html PHONE TIER block). */}
                 {dhqStatus.loading && (
@@ -3023,7 +3023,7 @@
                     under the transparent status bar. z 60 sits above content +
                     sticky table columns (z≤50) and below drawer/dock/sheets
                     (99/100/150/200). Desktop/tablet branch byte-identical. */}
-                <header className="header" style={phoneHdrKit
+                <header className={'header' + (phoneHdrKit ? ' mc-v8-topbar' : '')} style={phoneHdrKit
                     ? { position: 'sticky', top: 'var(--wr-dev-banner-height, 0px)', zIndex: 60, marginBottom: '0', paddingTop: 'calc(0.35rem + var(--sat, 0px))', paddingBottom: '0.35rem' }
                     // iPad pass (G3): the inline paddingTop was overriding the base
                     // .header --sat rule, putting the league title under the status
@@ -3064,8 +3064,8 @@
                                         onClick={() => setPhHdrSheetOpen(true)}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhHdrSheetOpen(true); } }}
                                         style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
-                                        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: phaseColor }} />
-                                        <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
+                                        <span aria-hidden="true" className="mc-v8-phase-dot" style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: phaseColor }} />
+                                        <span className="mc-v8-league-identity"><small>DYNASTY HQ</small><strong>{currentLeague.name}</strong></span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
                                     </div>
                                     <button type="button" className="mc-alex-trigger" onClick={() => window.dispatchEvent(new CustomEvent('wr:mission-alex-open'))} aria-label="Chat with Alex"><span aria-hidden="true">✦</span> Alex</button>

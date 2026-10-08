@@ -1,0 +1,209 @@
+/* Revision eight port: compact, blue glass Mission Control on phone.
+   This intentionally sits after the older mobile styles so data components retain
+   their behavior while adopting the approved visual hierarchy. */
+@media (max-width:767px) {
+  html:has(.wr-mission-v8){--wr-dev-banner-height:0px!important;}
+  body:has(.wr-mission-v8) .wr-dev-banner{display:none!important;}
+  body:has(.wr-mission-v8) .wr-sheet-backdrop{background:rgba(6,12,24,.6)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+  body:has(.wr-mission-v8) .wr-sheet{border-color:var(--gx-edge)!important;background:linear-gradient(145deg,rgba(42,61,92,.97),rgba(21,34,55,.98))!important;box-shadow:inset 0 1px rgba(255,255,255,.13),0 -18px 60px rgba(0,0,0,.46)!important;}
+  body:has(.wr-mission-v8) .wr-sheet :is(header,.wr-sheet-head){border-color:rgba(183,206,255,.18)!important;background:rgba(255,255,255,.025)!important;}
+  body:has(.wr-mission-v8) .wr-sheet :is(h1,h2,h3,strong){color:var(--cx-ink)!important;}
+  body:has(.wr-mission-v8) .wr-sheet :is(p,small){color:var(--cx-muted)!important;}
+  body:has(.wr-mission-v8) .wr-sheet button{color:var(--cx-ink);}
+  .wr-mission-v8 {
+    --cx-bg:#131d31;
+    --cx-paper:#202d44;
+    --cx-ink:#f3f6fc;
+    --cx-muted:#b6c5da;
+    --cx-line:#435571;
+    --cx-soft:#2c3d5d;
+    --cx-accent:#b7ceff;
+    --cx-on:#12284b;
+    --gx-glass:#21314be8;
+    --gx-edge:#798ea77d;
+    --gx-shadow:#00000050;
+    --gx-wash:#243957;
+    --black:var(--cx-bg);
+    --surf-solid:var(--cx-paper);
+    --white:var(--cx-ink);
+    --text-primary:var(--cx-ink);
+    --text:var(--cx-ink);
+    --silver:var(--cx-muted);
+    --text-secondary:var(--cx-muted);
+    --text-muted:#91a3bd;
+    --gold:var(--cx-accent);
+    --acc-fill1:rgba(183,206,255,.12);
+    --acc-fill2:rgba(183,206,255,.18);
+    --acc-line1:rgba(183,206,255,.34);
+    --acc-line2:rgba(183,206,255,.46);
+    --acc-line3:rgba(183,206,255,.66);
+    --ov-2:rgba(243,246,252,.035);
+    --ov-3:rgba(243,246,252,.055);
+    --ov-4:rgba(243,246,252,.08);
+    --ov-5:rgba(243,246,252,.11);
+    --ov-6:rgba(243,246,252,.16);
+    --wr-tab-bar-h:70px;
+    min-height:100dvh;
+    background:
+      radial-gradient(130% 52% at 10% -4%,rgba(148,123,206,.35),transparent 50%),
+      radial-gradient(90% 46% at 100% 12%,rgba(75,151,189,.24),transparent 55%),
+      linear-gradient(180deg,#17233a 0%,#131d31 48%,#111a2c 100%)!important;
+    color:var(--cx-ink);
+    font-family:var(--font-body,"DM Sans",system-ui,sans-serif);
+  }
+  .wr-mission-v8 .wr-main-content{background:transparent!important;}
+  .wr-mission-v8 :is(button,select,input,textarea){font-family:inherit;}
+  .wr-mission-v8 :is(button,summary):focus-visible{outline:2px solid var(--cx-accent)!important;outline-offset:2px;}
+
+  /* Shared top chrome: the app now starts with the revision-eight glass bar. */
+  .wr-mission-v8 .header.mc-v8-topbar {
+    padding:calc(7px + var(--sat,0px)) 12px 7px!important;
+    background:linear-gradient(110deg,rgba(33,49,75,.96),rgba(35,54,83,.88))!important;
+    border-bottom:1px solid var(--gx-edge)!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.12),0 9px 28px var(--gx-shadow);
+    backdrop-filter:blur(22px) saturate(132%);
+    -webkit-backdrop-filter:blur(22px) saturate(132%);
+  }
+  .wr-mission-v8 .wr-phone-lhdr{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto;gap:8px!important;padding:0!important;}
+  .wr-mission-v8 .mc-menu-trigger,.wr-mission-v8 .mc-alex-trigger{
+    min-width:44px;height:44px;padding:8px;border:1px solid var(--gx-edge);border-radius:14px;
+    color:var(--cx-ink);background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(149,173,211,.08));
+    box-shadow:inset 0 1px rgba(255,255,255,.14);}
+  .wr-mission-v8 .mc-alex-trigger{min-width:59px;gap:3px;color:var(--cx-accent);font-size:10px;font-weight:750;letter-spacing:.025em;}
+  .wr-mission-v8 .mc-alex-trigger>span{font-size:17px;line-height:1;}
+  .wr-mission-v8 .mc-v8-phase-dot{display:none;}
+  .wr-mission-v8 .mc-v8-league-identity{display:grid;min-width:0;text-align:center;line-height:1.05;}
+  .wr-mission-v8 .mc-v8-league-identity small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cx-muted);font-size:8px;font-weight:800;letter-spacing:.15em;}
+  .wr-mission-v8 .mc-v8-league-identity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cx-ink);font-family:var(--font-title,inherit);font-size:13px;font-weight:750;letter-spacing:-.01em;}
+  .wr-mission-v8 .wr-workspace-header{margin:0!important;padding:15px 12px 7px!important;border:0!important;background:transparent!important;}
+  .wr-mission-v8 .wr-workspace-heading{display:none!important;}
+  .wr-mission-v8 .wr-mobile-workspace{align-items:center!important;min-height:38px;}
+  .wr-mission-v8 .wr-mobile-workspace h1,.wr-mission-v8 .wr-mobile-workspace select{color:var(--cx-ink)!important;font-size:20px!important;font-weight:760!important;letter-spacing:-.035em!important;}
+  .wr-mission-v8 .wr-mobile-workspace select{padding:0 20px 0 0!important;background:transparent!important;border:0!important;}
+  .wr-mission-v8 .wr-mobile-help{min-height:34px!important;min-width:0!important;padding:6px 9px!important;border:1px solid var(--gx-edge)!important;border-radius:10px!important;background:rgba(255,255,255,.06)!important;color:var(--cx-muted)!important;font-size:10px!important;}
+  .wr-mission-v8 .wr-workspace-views{gap:3px!important;margin-top:8px!important;padding:3px!important;border:1px solid var(--gx-edge)!important;border-radius:13px!important;background:rgba(31,46,71,.7)!important;box-shadow:inset 0 1px rgba(255,255,255,.08);}
+  .wr-mission-v8 .wr-workspace-views button{min-height:34px!important;border-radius:9px!important;color:var(--cx-muted)!important;font-size:10px!important;font-weight:720!important;}
+  .wr-mission-v8 .wr-workspace-views button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.2);}
+  .wr-mission-v8 .wr-league-wire-entry{margin:0 12px!important;}
+  .wr-mission-v8 .wr-content-frame{padding:7px 12px 88px!important;}
+  .wr-mission-v8 .wr-debug-strip,.wr-mission-v8 .wr-time-bar{display:none!important;}
+
+  /* Reusable cards and controls. They retain the information density of each data owner. */
+  .wr-mission-v8 :is(.mc-overview-summary,.mc-overview-decisions,.lls,.gd-planning-focus,.gd-matchup,.wr-roster-mobile-summary,.wr-roster-mobile-planning,.mc-waiver-board,.mc-waiver-coverage,.mc-waiver-claims,.mc-trade-finder,.mc-trade-builder,.mc-research-pinned,.mc-research-comparison article,.la-mobile .la-section,.la-mobile .la-report,.la-mobile .la-card,.draft-card,.draft-stage) {
+    border-color:var(--gx-edge)!important;
+    background:linear-gradient(135deg,rgba(48,68,101,.84),rgba(28,42,66,.92))!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.09),0 10px 28px rgba(0,0,0,.12);
+  }
+  .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg){padding:3px!important;border:1px solid var(--gx-edge)!important;border-radius:13px!important;background:rgba(25,39,63,.65)!important;box-shadow:inset 0 1px rgba(255,255,255,.08);}
+  .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button{min-height:34px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:var(--cx-muted)!important;font-size:10px!important;font-weight:750!important;letter-spacing:.01em!important;}
+  .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button[aria-pressed=true],
+  .wr-mission-v8 .wr-seg button.active{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
+  .wr-mission-v8 :is(.mc-metric-picker button,.mc-player-actions button,.mc-context-actions button,.mc-next-actions button,.mc-market-tools button,.mc-research-actions button){border-color:var(--acc-line1)!important;background:rgba(183,206,255,.09)!important;color:var(--cx-ink)!important;border-radius:10px!important;}
+  .wr-mission-v8 :is(input,select,textarea){border-color:var(--gx-edge)!important;background:rgba(13,24,43,.58)!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 :is(h1,h2,h3,h4,strong){color:var(--cx-ink);}
+  .wr-mission-v8 :is(p,small,.gd-muted,.mc-next-note,.mc-next-kickoff){color:var(--cx-muted)!important;}
+
+  /* Overview and league score board become a compact decision board instead of black cards. */
+  .wr-mission-v8 .mc-overview-summary{gap:0!important;padding:0!important;overflow:hidden;}
+  .wr-mission-v8 .mc-overview-summary>*{padding:11px 9px!important;border-right:1px solid rgba(183,206,255,.18)!important;}
+  .wr-mission-v8 .mc-overview-summary>*:last-child{border-right:0!important;}
+  .wr-mission-v8 .mc-overview-summary strong{font-size:18px!important;font-variant-numeric:tabular-nums;}
+  .wr-mission-v8 .mc-overview-summary span{color:var(--cx-muted)!important;font-size:9px!important;letter-spacing:.04em;}
+  .wr-mission-v8 .mc-overview-decisions{padding:12px!important;margin:0 0 9px!important;border-radius:15px!important;}
+  .wr-mission-v8 .mc-overview-decisions header{color:var(--cx-accent)!important;font-size:9px!important;}
+  .wr-mission-v8 .mc-overview-decisions h3{font-size:17px!important;letter-spacing:-.025em;}
+  .wr-mission-v8 .mc-overview-decisions li{border-color:rgba(183,206,255,.15)!important;font-size:11px!important;}
+  .wr-mission-v8 .lls{border-radius:16px!important;overflow:hidden;}
+  .wr-mission-v8 .lls :is(header,.lls-heading){background:rgba(183,206,255,.08)!important;border-color:rgba(183,206,255,.16)!important;}
+  .wr-mission-v8 .lls :is(.lls-row,.lls-matchup,.lls-game){border-color:rgba(183,206,255,.14)!important;background:transparent!important;}
+  .wr-mission-v8 .lls :is(.lls-team,.lls-score,.lls-name){color:var(--cx-ink)!important;}
+
+  /* Roster is a scanable player table: name at left, chosen metrics at right. */
+  .wr-mission-v8 .wr-roster-mobile{padding:0!important;gap:8px!important;}
+  .wr-mission-v8 .wr-roster-mobile-summary{border-radius:14px!important;}
+  .wr-mission-v8 .wr-roster-mobile-summary-main{padding:10px 12px!important;}
+  .wr-mission-v8 .wr-roster-mobile-summary h2{font-size:15px!important;}
+  .wr-mission-v8 .wr-roster-mobile-capacity strong{color:var(--cx-accent)!important;font-size:18px!important;}
+  .wr-mission-v8 .wr-roster-mobile-review{border-color:rgba(183,206,255,.16)!important;background:rgba(183,206,255,.06)!important;color:var(--cx-ink)!important;font-size:11px!important;}
+  .wr-mission-v8 .wr-roster-mobile-players,.wr-mission-v8 .wr-roster-mobile-content{gap:6px!important;}
+  .wr-mission-v8 .wr-roster-mobile-list-heading{padding:2px 2px 4px!important;}
+  .wr-mission-v8 .wr-roster-mobile-list-heading h3{font-size:14px!important;letter-spacing:-.015em;}
+  .wr-mission-v8 .wr-roster-mobile-list-heading button{color:var(--cx-accent)!important;font-size:10px!important;}
+  .wr-mission-v8 .wr-roster-mobile-group-heading{padding:8px 2px 5px!important;color:var(--cx-muted)!important;font-size:9px!important;letter-spacing:.09em!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-list{gap:7px!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-rows{border:1px solid var(--gx-edge)!important;border-radius:14px!important;background:rgba(27,42,66,.65)!important;box-shadow:inset 0 1px rgba(255,255,255,.07);overflow:hidden;}
+  .wr-mission-v8 .wr-roster-mobile-player-rows .wr-roster-mobile-player+ .wr-roster-mobile-player{border-top:1px solid rgba(183,206,255,.14);}
+  .wr-mission-v8 .wr-roster-mobile-player-trigger{min-height:58px!important;padding:8px 9px!important;background:transparent!important;grid-template-columns:minmax(95px,1fr) minmax(0,1.35fr)!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-trigger:active{background:rgba(183,206,255,.08)!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-identity strong{color:var(--cx-ink)!important;font-size:12px!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-identity>span{color:var(--cx-muted)!important;font-size:9px!important;}
+  .wr-mission-v8 .mc-roster-metrics strong{color:var(--cx-ink)!important;font-size:11px!important;}
+  .wr-mission-v8 .mc-roster-metrics small{color:var(--cx-muted)!important;font-size:8px!important;}
+  .wr-mission-v8 .wr-roster-mobile-detail{border-top:1px solid rgba(183,206,255,.17)!important;background:rgba(15,28,48,.38)!important;}
+
+  /* Gameday keeps its lineup surface visible at a glance. */
+  .wr-mission-v8 .gd-mobile{gap:8px!important;}
+  .wr-mission-v8 .gd-planning-focus{padding:12px!important;border-radius:15px!important;}
+  .wr-mission-v8 .gd-planning-focus h2{font-size:18px!important;}
+  .wr-mission-v8 .gd-player-list{border-color:var(--gx-edge)!important;border-radius:14px!important;background:rgba(27,42,66,.65)!important;}
+  .wr-mission-v8 .gd-plan-player{min-height:58px!important;background:transparent!important;border-color:rgba(183,206,255,.14)!important;}
+  .wr-mission-v8 .gd-player-main strong,.wr-mission-v8 .gd-plan-stats strong{color:var(--cx-ink)!important;}
+  .wr-mission-v8 .gd-player-main>span,.wr-mission-v8 .gd-plan-stats small{color:var(--cx-muted)!important;}
+  .wr-mission-v8 .gd-player-initial{background:rgba(183,206,255,.12)!important;border-color:rgba(183,206,255,.28)!important;color:var(--cx-accent)!important;}
+
+  /* League, market, trade and research all share the dense stat-table grammar. */
+  .wr-mission-v8 .la-mobile{color:var(--cx-ink)!important;}
+  .wr-mission-v8 .la-mobile :is(h2,h3){color:var(--cx-ink)!important;}
+  .wr-mission-v8 .la-mobile :is(p,.la-muted){color:var(--cx-muted)!important;}
+  .wr-mission-v8 :is(.mc-market-table,.mc-research-table,.la-mobile table,.la-standings,.draft-board){border-color:var(--gx-edge)!important;border-radius:14px!important;background:rgba(27,42,66,.67)!important;overflow:hidden;}
+  .wr-mission-v8 :is(.mc-market-heading,.mc-research-heading,.la-mobile thead,.la-standings-header,.draft-board-header){background:rgba(183,206,255,.1)!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 :is(.mc-market-row,.dhq-stats .mc-research-row,.la-mobile tbody tr,.la-standings-row,.draft-board-row){border-color:rgba(183,206,255,.14)!important;background:transparent!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 :is(.mc-market-name strong,.mc-research-row strong,.la-mobile td,.la-mobile th){color:var(--cx-ink)!important;}
+  .wr-mission-v8 :is(.mc-market-name small,.mc-research-row small,.la-mobile .muted){color:var(--cx-muted)!important;}
+  .wr-mission-v8 .mc-research-score,.wr-mission-v8 .mc-market-stat b{color:var(--cx-accent)!important;}
+  .wr-mission-v8 .mc-metric-options{border-color:var(--gx-edge)!important;background:#263854!important;color:var(--cx-ink)!important;box-shadow:0 18px 36px rgba(0,0,0,.35)!important;}
+
+  /* The finder preserves its real filters and builder actions, but its player board
+     returns to the revision-eight compact scan pattern. */
+  .wr-mission-v8 .mc-trades{padding:1px 0 12px!important;gap:8px!important;}
+  .wr-mission-v8 .mc-trade-nav{border-color:var(--gx-edge)!important;background:rgba(25,39,63,.7)!important;box-shadow:inset 0 1px rgba(255,255,255,.08)!important;}
+  .wr-mission-v8 .mc-trade-nav button{min-height:34px!important;color:var(--cx-muted)!important;font-size:10px!important;}
+  .wr-mission-v8 .mc-trade-nav button.is-on,.wr-mission-v8 .mc-trade-nav button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
+  .wr-mission-v8 .wr-asset-row{border-color:var(--gx-edge)!important;border-radius:13px!important;background:rgba(29,44,70,.78)!important;box-shadow:inset 0 1px rgba(255,255,255,.075)!important;}
+  .wr-mission-v8 .wr-asset-head{display:grid!important;grid-template-columns:27px minmax(0,1fr) minmax(112px,1.12fr) 15px!important;align-items:center!important;gap:6px!important;min-height:59px!important;padding:8px!important;}
+  .wr-mission-v8 .wr-asset-avatar{width:27px!important;height:29px!important;border-radius:8px!important;grid-column:1!important;grid-row:1!important;}
+  .wr-mission-v8 .wr-asset-identity{grid-column:2!important;grid-row:1!important;min-width:0!important;}
+  .wr-mission-v8 .wr-asset-name{font-size:12px!important;line-height:1.23!important;color:var(--cx-ink)!important;-webkit-line-clamp:1!important;white-space:nowrap!important;text-overflow:ellipsis!important;}
+  .wr-mission-v8 .wr-asset-tag{font-size:9px!important;line-height:1.35!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 .wr-asset-slots{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-column:3!important;grid-row:1!important;gap:3px!important;max-width:none!important;flex-basis:auto!important;padding:0!important;}
+  .wr-mission-v8 .wr-asset-slot{min-width:0!important;text-align:right!important;}
+  .wr-mission-v8 .wr-asset-label{font-size:7px!important;line-height:1.2!important;color:var(--cx-muted)!important;white-space:nowrap!important;}
+  .wr-mission-v8 .wr-asset-value{font-size:10px!important;line-height:1.25!important;color:var(--cx-ink)!important;white-space:nowrap!important;}
+  .wr-mission-v8 .wr-asset-slots>span:last-child{grid-column:4!important;}
+  .wr-mission-v8 .wr-asset-head>.wr-asset-slots>span[aria-hidden=true]{grid-column:4!important;display:none!important;}
+  .wr-mission-v8 .wr-asset-row button{min-height:34px!important;min-width:34px!important;}
+  .wr-mission-v8 .mc-trade-filter-bar{font-size:10px!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 .mc-trade-filter-bar>button{min-height:36px!important;padding:6px 10px!important;border-color:var(--gx-edge)!important;background:rgba(183,206,255,.08)!important;color:var(--cx-accent)!important;}
+  .wr-mission-v8 .tc-dhq-panel,.wr-mission-v8 .tc-finder-browse,.wr-mission-v8 .tc-dhq-asset-browser,.wr-mission-v8 .tc-trade-root details{border-color:var(--gx-edge)!important;background:linear-gradient(135deg,rgba(48,68,101,.84),rgba(28,42,66,.92))!important;box-shadow:inset 0 1px rgba(255,255,255,.09),0 10px 28px rgba(0,0,0,.12)!important;}
+  .wr-mission-v8 .tc-dhq-asset-table{border-color:var(--gx-edge)!important;background:rgba(18,31,51,.52)!important;}
+  .wr-mission-v8 .tc-dhq-asset-row{border-color:rgba(183,206,255,.14)!important;background:transparent!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 .tc-dhq-asset-head{background:rgba(183,206,255,.1)!important;color:var(--cx-muted)!important;}
+
+  /* The bottom navigation is a fixed four-destination glass dock. */
+  .wr-mission-v8 .wr-phone-dock{left:10px!important;right:10px!important;bottom:calc(8px + var(--sab,0px))!important;height:62px!important;padding:4px!important;border:1px solid var(--gx-edge)!important;border-radius:20px!important;background:rgba(32,47,73,.88)!important;box-shadow:inset 0 1px rgba(255,255,255,.15),0 12px 36px rgba(0,0,0,.35)!important;backdrop-filter:blur(24px) saturate(135%)!important;-webkit-backdrop-filter:blur(24px) saturate(135%)!important;}
+  .wr-mission-v8 .wr-dock-strip{gap:3px!important;}
+  .wr-mission-v8 .wr-dock-chip{min-height:52px!important;padding:5px 2px!important;border-radius:14px!important;color:var(--cx-muted)!important;font-size:10px!important;font-weight:650!important;}
+  .wr-mission-v8 .wr-dock-chip.is-active{background:linear-gradient(135deg,rgba(183,206,255,.28),rgba(183,206,255,.12))!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.19)!important;}
+  .wr-mission-v8 .wr-phone-more-menu>section{border-color:var(--gx-edge)!important;background:linear-gradient(135deg,rgba(48,68,101,.92),rgba(28,42,66,.96))!important;}
+  .wr-mission-v8 .wr-phone-more-menu>section>button{border-color:rgba(183,206,255,.14)!important;color:var(--cx-ink)!important;}
+}
+
+@media (max-width:350px){
+  .wr-mission-v8 .mc-alex-trigger{min-width:44px!important;font-size:0!important;}
+  .wr-mission-v8 .mc-alex-trigger>span{font-size:18px!important;}
+  .wr-mission-v8 .wr-roster-mobile-player-trigger{grid-template-columns:minmax(86px,1fr) minmax(0,1.4fr)!important;}
+}
+
+@media (prefers-reduced-transparency:reduce){
+  .wr-mission-v8 .header.mc-v8-topbar,.wr-mission-v8 .wr-phone-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+}
