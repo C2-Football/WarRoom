@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), Babel = require('@babel/standalone');
 const { test } = require('node:test');
 const source = fs.readFileSync('js/tabs/league-central.js', 'utf8');
+const detailSource = fs.readFileSync('js/league-detail.js', 'utf8');
 function fixture() {
     const hooks = [], effects = [], events = [];
     let cursor = 0, week = 6;
@@ -72,4 +73,14 @@ test('the proactive section is rendered above full scoreboard and outside dashbo
     assert(overview.indexOf('mc-overview-summary')<overview.indexOf('<LeagueOverviewDecisions'));
     assert(overview.indexOf('<LeagueOverviewDecisions')<overview.indexOf('{renderScoreboard()}'));
     assert(!overview.includes('<details'));
+});
+
+test('mobile Overview does not mount the legacy team outlook dashboard',()=>{
+    const start=detailSource.indexOf('showLeagueOverview ?');
+    const end=detailSource.indexOf(' : dashboardEl(selectedWidgets)',start);
+    assert(start>=0&&end>start);
+    const mobileOverview=detailSource.slice(start,end);
+    assert.match(mobileOverview,/LeagueCentralTabLazy/);
+    assert.doesNotMatch(mobileOverview,/mc-overview-insights|Team outlook &amp; dashboard|dashboardEl\(selectedWidgets\)/);
+    assert.match(detailSource.slice(end),/^ : dashboardEl\(selectedWidgets\)/);
 });

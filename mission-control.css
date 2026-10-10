@@ -20,8 +20,6 @@
 .mc-swap-delta { grid-column:2 / -1; text-align:right; padding-top:3px; font:650 11px var(--font-mono,monospace); }
 .mc-swap-delta.is-loss { color:#ff969f; }
 .mc-swap-delta.is-gain { color:#80dfab; }
-.mc-overview-insights { margin:14px 0; border:1px solid var(--ov-6,rgba(255,255,255,.12)); border-radius:12px; overflow:hidden; }
-.mc-overview-insights>summary { min-height:44px; padding:13px; cursor:pointer; font-size:13px; font-weight:600; }
 @media(max-width:767px) {
   .wr-mission-control { --mc-surface:linear-gradient(140deg,rgba(67,70,78,.24),rgba(18,20,26,.96)); --mc-line:rgba(203,213,229,.12); --wr-tab-bar-h:62px; background:radial-gradient(ellipse at 0 5%,rgba(174,122,62,.1),transparent 40%),var(--black,#0c0d11); }
   .wr-mission-control .header { background:rgba(15,17,22,.86)!important; backdrop-filter:blur(24px) saturate(140%); -webkit-backdrop-filter:blur(24px) saturate(140%); border-bottom:1px solid var(--mc-line); padding-inline:12px!important; }
