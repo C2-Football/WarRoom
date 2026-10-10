@@ -205,6 +205,19 @@
   .gd-matchup-player > span { flex: 1; font-size: 13px; }
   .gd-matchup-player > strong { font-size: 13px; }
   .gd-matchup-key { font-size: 11px; }
+  /* Phone matchup cards prioritize the score and player decisions. */
+  .wr-mission-control .gd-matchup-compact .gd-matchup-heading > div:first-child { width: 100%; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-totals { justify-content: center; gap: 14px; margin-top: 10px; text-align: center; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-totals > span:not(.gd-matchup-versus) { min-width: 70px; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-slot { grid-template-columns: 30px minmax(0, 1fr) auto; grid-template-areas: 'slot you edge' 'slot them edge'; column-gap: 6px; row-gap: 2px; padding: 7px 6px; margin-bottom: 3px; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-slot-label { grid-area: slot; align-self: center; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-you { grid-area: you; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-them { grid-area: them; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-slot > .gd-matchup-edge { grid-area: edge; align-self: center; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player { min-width: 0; gap: 4px; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player > small { display: inline; width: 28px; flex-shrink: 0; font-size: 9px; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player > strong { font-size: 12px; }
 }
 
 /* Injury severity is shared by desktop, phone, and roster pickers. */

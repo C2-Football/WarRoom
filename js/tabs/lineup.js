@@ -30,8 +30,9 @@ const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick,
     </button>
 );
 
-// One always-visible matchup view for desktop and phone.
-function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade }) {
+// One always-visible matchup view for desktop and phone. Phone keeps the score
+// and player comparisons, without repeating the explanatory copy from desktop.
+function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false }) {
     if (!matchup) return null;
     const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '—';
     const gap = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? Math.round((a - b) * 10) / 10 : null;
@@ -47,16 +48,16 @@ function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade }) {
     const largest = Math.max(0, ...rows.map(row => Math.abs(row.delta || 0)));
     const maxPosition = Math.max(1, ...positions.flatMap(row => [Math.abs(row.mine || 0), Math.abs(row.theirs || 0)]));
     const margin = matchup.fc.margin;
-    return <section className="gd-matchup" aria-label="Weekly matchup breakdown">
+    return <section className={'gd-matchup' + (compact ? ' gd-matchup-compact' : '')} aria-label="Weekly matchup breakdown">
         <div className="gd-matchup-heading">
             <div><div className="gd-matchup-eyebrow">Week {week} · Matchup outlook</div><h2>vs {matchup.oppName}</h2>
-                <p>Projected points · your lineup plan vs their {pro ? 'optimal' : 'current'} lineup</p>
+                {!compact && <p>Projected points · your lineup plan vs their {pro ? 'optimal' : 'current'} lineup</p>}
                 <div className="gd-matchup-totals"><span><strong>{fmt(matchup.fc.projMe)}</strong><small>You</small></span><span className="gd-matchup-versus">vs</span><span><strong>{fmt(pro ? matchup.fc.projOpp : matchup.oppCurTotal > 0 ? matchup.oppCurTotal : null)}</strong><small>Them</small></span></div>
             </div>
             {pro ? <div className={'gd-matchup-odds is-' + tone(margin)}><strong>{matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%'}</strong><span>Win probability</span><small>{margin == null ? 'Forecast unavailable' : margin === 0 ? 'Even projection' : fmt(Math.abs(margin)) + ' pts ' + (margin > 0 ? 'ahead' : 'behind')}</small></div> : null}
         </div>
         {pro ? <React.Fragment>
-            <p className="gd-matchup-context">Their current lineup: {matchup.oppCurTotal > 0 ? fmt(matchup.oppCurTotal) : '—'} · Optimal: {fmt(matchup.oppIdealTotal)}{matchup.oppCurTotal > 0 && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>
+            {!compact && <p className="gd-matchup-context">Their current lineup: {matchup.oppCurTotal > 0 ? fmt(matchup.oppCurTotal) : '—'} · Optimal: {fmt(matchup.oppIdealTotal)}{matchup.oppCurTotal > 0 && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>}
             <div className="gd-matchup-focus" aria-label="Matchup key edges">
                 <div className="is-ahead"><small>Your biggest edge</small><strong>{best ? best.pos + ' +' + fmt(best.delta) : incomplete ? 'Incomplete data' : 'No projected edge'}</strong><span>{best ? 'Your strongest position advantage' : 'Look for gains in the close slots'}</span></div>
                 <div className="is-behind"><small>Biggest gap</small><strong>{toughest ? toughest.pos + ' −' + fmt(Math.abs(toughest.delta)) : incomplete ? 'Incomplete data' : 'No projected deficit'}</strong><span>{toughest ? 'Their strongest position advantage' : incomplete ? 'Some projections are unavailable' : 'No position group trails'}</span></div>
@@ -70,7 +71,7 @@ function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade }) {
                 <span className="gd-position-value">{fmt(row.theirs)}</span><span className={'gd-matchup-edge is-' + tone(row.delta)}>{edge(row.delta)}</span>
             </div>)}</div>
             <div className="gd-matchup-section-heading"><h3>Slot by slot</h3><span>You lead {leads} of {rows.length}</span></div>
-            <p className="gd-matchup-key">Green: your edge · Red: their edge · Gold outline: within 2 pts{rows.some(row => row.delta == null) ? ' · Some projections unavailable' : ''}</p>
+            {!compact && <p className="gd-matchup-key">Green: your edge · Red: their edge · Gold outline: within 2 pts{rows.some(row => row.delta == null) ? ' · Some projections unavailable' : ''}</p>}
             <div className="gd-matchup-slot-head" aria-hidden="true"><span>Slot</span><span>You</span><span>Edge</span><span>Opponent</span></div>
             <div className="gd-matchup-slots">{rows.map((row, index) => <div key={index} className={'gd-matchup-slot is-' + tone(row.delta) + (row.delta != null && Math.abs(row.delta) <= 2 ? ' is-close' : '') + (largest > 0 && Math.abs(row.delta) === largest ? ' is-key' : '')}>
                 <strong className="gd-matchup-slot-label">{row.slot.replace('_', ' ')}</strong>
@@ -990,7 +991,7 @@ function LineupTab({
         }
     }
 
-    const matchupPanel = <MatchupBreakdown matchup={matchup} week={result.week} pro={pro} pmeta={pmeta}
+    const matchupPanel = <MatchupBreakdown matchup={matchup} week={result.week} pro={pro} pmeta={pmeta} compact={isPhone}
         upgrade={GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null} />;
 
     // ── MFL lineup push card (write to MyFantasyLeague) ──

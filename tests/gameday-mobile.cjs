@@ -89,6 +89,7 @@ const all = node => node && typeof node === 'object' ? [node, ...(node.children 
 const textOf = node => node == null ? '' : typeof node === 'object' ? (node.children || []).map(textOf).join('') : String(node);
 const select = (out, predicate) => all(out).find(predicate);
 const button = (out, label) => select(out, n => n.type === 'button' && textOf(n) === label);
+const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).includes('gd-matchup');
 
 (async () => {
     const active = await fixture();
@@ -167,17 +168,24 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     for (const width of [390, 1280]) {
         const forecast = await fixture({ width, withMatchup: true });
         if (width < 768) {
-            assert(!select(forecast.out, n => n.props.className === 'gd-matchup'), 'lineup opens directly without a duplicate matchup analysis above players');
+            assert(!select(forecast.out, matchupPanel), 'lineup opens directly without a duplicate matchup analysis above players');
             button(forecast.out, 'Matchup').props.onClick(); await forecast.render();
         }
-        const breakdown = select(forecast.out, n => n.props.className === 'gd-matchup');
+        const breakdown = select(forecast.out, matchupPanel);
         assert(breakdown, 'matchup is visible on both viewport branches');
         assert.match(textOf(breakdown), /Position strength.*Slot by slot/);
+        if (width < 768) {
+            assert.match(breakdown.props.className, /gd-matchup-compact/, 'phone matchup uses the denser layout');
+            assert.doesNotMatch(textOf(breakdown), /Projected points · your lineup plan|Their current lineup:|Green: your edge/, 'phone matchup leaves desktop-only explanations out');
+        } else {
+            assert.doesNotMatch(breakdown.props.className, /gd-matchup-compact/, 'desktop matchup keeps its full layout');
+            assert.match(textOf(breakdown), /Projected points · your lineup plan/, 'desktop matchup retains its explanatory subtitle');
+        }
         assert(!all(forecast.out).some(n => ['details', 'dialog'].includes(n.type) && textOf(n).includes('Position strength')), 'analysis requires no expansion or sheet');
         assert.doesNotMatch(textOf(forecast.out), /view their lineup|View opponent breakdown/);
         const free = await fixture({ width, withMatchup: true, pro: false });
         if (width < 768) { button(free.out, 'Matchup').props.onClick(); await free.render(); }
-        assert(select(free.out, n => n.props.className === 'gd-matchup'));
+        assert(select(free.out, matchupPanel));
         assert.doesNotMatch(textOf(free.out), /Your biggest edge|Win probability|Slot by slot/);
     }
     // Apply Optimal must follow the selected history window even when the
