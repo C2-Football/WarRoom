@@ -115,18 +115,18 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
     // ── Shells ───────────────────────────────────────────────────────
     const Section = ({ title, meta, children }) => (
         <div className="gd-season-odds" style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+            <div className="gd-season-odds-heading" style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span className="gd-season-odds-title" style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                {meta ? <span className="gd-season-odds-meta" style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
         </div>
     );
     const Kpi = ({ label, value, sub, color }) => (
-        <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', minWidth: '104px', flex: 1 }}>
-            <div style={{ ...microHdr }}>{label}</div>
-            <div style={{ ...mono, fontSize: '1.3rem', fontWeight: 700, color: color || TEXT, marginTop: '2px' }}>{value}</div>
-            {sub ? <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '1px' }}>{sub}</div> : null}
+        <div className="gd-season-odds-kpi" style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', minWidth: '104px', flex: 1 }}>
+            <div className="gd-season-odds-kpi-label" style={{ ...microHdr }}>{label}</div>
+            <div className="gd-season-odds-kpi-value" style={{ ...mono, fontSize: '1.3rem', fontWeight: 700, color: color || TEXT, marginTop: '2px' }}>{value}</div>
+            {sub ? <div className="gd-season-odds-kpi-sub" style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '1px' }}>{sub}</div> : null}
         </div>
     );
 
@@ -193,28 +193,28 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
             {sim ? (
                 <Section title="Playoff Odds" meta={sim.simCount.toLocaleString() + ' simulations · record then points-for' + (sim.usedDivisions ? ' · division winners seeded' : '')}>
                     {mine ? (
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                        <div className="gd-season-odds-kpis" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
                             <Kpi label="Make playoffs" value={mine.playoffPct + '%'} color={GOLD} />
                             {sim.byeSlots ? <Kpi label="First-round bye" value={(mine.byePct ?? 0) + '%'} /> : null}
                             <Kpi label="Win title" value={mine.titlePct + '%'} />
                             <Kpi label="Proj record" value={mine.projWins + '-' + mine.projLosses} sub={mine.avgSeed ? 'avg seed ' + mine.avgSeed : null} />
                         </div>
                     ) : null}
-                    <div style={{ overflowX: 'auto' }}>
-                        <div style={{ minWidth: '520px' }}>
-                            <div style={{ ...oddsGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
-                                <span>Team</span><span style={{ textAlign: 'right' }}>Rec</span><span style={{ textAlign: 'right' }}>Playoff</span>
-                                {sim.byeSlots ? <span style={{ textAlign: 'right' }}>Bye</span> : <span />}
-                                <span style={{ textAlign: 'right' }}>Title</span><span style={{ textAlign: 'right' }}>Proj W-L</span>
+                    <div className="gd-season-odds-table" style={{ overflowX: 'auto' }}>
+                        <div className="gd-season-odds-table-inner" style={{ minWidth: '520px' }}>
+                            <div className="gd-season-odds-table-row gd-season-odds-table-head" style={{ ...oddsGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
+                                <span className="gd-season-odds-team">Team</span><span className="gd-season-odds-rec" style={{ textAlign: 'right' }}>Rec</span><span className="gd-season-odds-playoff" style={{ textAlign: 'right' }}>Playoff</span>
+                                {sim.byeSlots ? <span className="gd-season-odds-bye" style={{ textAlign: 'right' }}>Bye</span> : <span className="gd-season-odds-bye" />}
+                                <span className="gd-season-odds-title-col" style={{ textAlign: 'right' }}>Title</span><span className="gd-season-odds-proj" style={{ textAlign: 'right' }}>Proj W-L</span>
                             </div>
                             {sim.rows.map(r => (
-                                <div key={r.rosterId} style={{ ...oddsGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
-                                    <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                                    <span style={{ textAlign: 'right' }}>{r.record}</span>
-                                    <span style={{ textAlign: 'right', color: String(r.rosterId) === myId ? GOLD : undefined }}>{r.playoffPct}%</span>
-                                    {sim.byeSlots ? <span style={{ textAlign: 'right' }}>{r.byePct != null ? r.byePct + '%' : '—'}</span> : <span />}
-                                    <span style={{ textAlign: 'right' }}>{r.titlePct}%</span>
-                                    <span style={{ textAlign: 'right', opacity: 0.8 }}>{r.projWins}-{r.projLosses}</span>
+                                <div key={r.rosterId} className="gd-season-odds-table-row" style={{ ...oddsGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
+                                    <span className="gd-season-odds-team" style={{ fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                    <span className="gd-season-odds-rec" style={{ textAlign: 'right' }}>{r.record}</span>
+                                    <span className="gd-season-odds-playoff" style={{ textAlign: 'right', color: String(r.rosterId) === myId ? GOLD : undefined }}>{r.playoffPct}%</span>
+                                    {sim.byeSlots ? <span className="gd-season-odds-bye" style={{ textAlign: 'right' }}>{r.byePct != null ? r.byePct + '%' : '—'}</span> : <span className="gd-season-odds-bye" />}
+                                    <span className="gd-season-odds-title-col" style={{ textAlign: 'right' }}>{r.titlePct}%</span>
+                                    <span className="gd-season-odds-proj" style={{ textAlign: 'right', opacity: 0.8 }}>{r.projWins}-{r.projLosses}</span>
                                 </div>
                             ))}
                         </div>

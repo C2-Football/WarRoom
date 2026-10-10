@@ -1,7 +1,20 @@
 /* Game Day phone layout. All rules are scoped to the phone branch. */
 @media (max-width: 767px) {
-  .gd-season-odds [style*="font-size: 0."] { font-size: 14px !important; line-height: 1.5; }
-  .gd-season-odds > div:last-child { font-size: 16px !important; line-height: 1.55 !important; }
+  /* Keep the season read natural and compact without changing its data table. */
+  .gd-mobile .gd-season-odds { padding: 12px !important; }
+  .gd-mobile .gd-season-odds-heading { align-items: flex-start !important; flex-direction: column; gap: 3px !important; margin-bottom: 9px !important; }
+  .gd-mobile .gd-season-odds-title { font-family: var(--font-body, "DM Sans", sans-serif); font-size: 12px !important; font-weight: 700; letter-spacing: .06em; }
+  .gd-mobile .gd-season-odds-meta { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 12px !important; font-weight: 400; line-height: 1.4; letter-spacing: 0 !important; }
+  .gd-mobile .gd-season-odds-kpis { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px !important; margin-bottom: 10px !important; }
+  .gd-mobile .gd-season-odds-kpi { min-width: 0 !important; padding: 8px !important; }
+  .gd-mobile .gd-season-odds-kpi-label, .gd-mobile .gd-season-odds-kpi-sub { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 10px !important; line-height: 1.3; letter-spacing: .03em !important; }
+  .gd-mobile .gd-season-odds-kpi-value { font-size: 20px !important; }
+  .gd-mobile .gd-season-odds-table { overflow-x: visible !important; }
+  .gd-mobile .gd-season-odds-table-inner { min-width: 0 !important; }
+  .gd-mobile .gd-season-odds-table-row { grid-template-columns: minmax(0, 1.45fr) .56fr .78fr .65fr !important; gap: 4px !important; padding: 6px 7px !important; font-size: 11px !important; }
+  .gd-mobile .gd-season-odds-table-head { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 10px !important; letter-spacing: .04em !important; }
+  .gd-mobile .gd-season-odds-bye,
+  .gd-mobile .gd-season-odds-proj { display: none; }
   .gd-mobile {
     --text-micro: 0.875rem;
     display: flex;

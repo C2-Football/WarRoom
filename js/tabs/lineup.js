@@ -1145,8 +1145,6 @@ function LineupTab({
                                 </div>
                             </div>
                         ))}</window.WR.MobileSection>}
-                        {/* The raw bye listing is free; the "do X" line is a rec. */}
-                        <div style={{ fontSize: fz('0.62rem'), color: SILVER, opacity: 0.7, marginTop: '6px' }}>Carry the week and position into your waiver plan.</div>
                     </div>
                 ) : null}
 
