@@ -98,24 +98,24 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
     const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: decision.flags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
     const primaryFlag = decision.flags[0];
     const primaryMove = (() => {
-        if (decision.automatic) return { label: 'Review your roster depth', detail: 'Your league sets the scoring lineup automatically. Check depth and available adds.', action: 'Open roster', tab: 'myteam' };
-        if (!decision.known) return { label: 'Load your starting lineup', detail: 'Starter details have not loaded yet. Open Game Day to review your lineup.', action: 'Open Game Day', tab: 'lineup' };
+        if (decision.automatic) return { message: 'Review your roster depth — your league sets the scoring lineup automatically, so check depth and available adds.', action: 'Open roster', tab: 'myteam' };
+        if (!decision.known) return { message: 'Load your starting lineup — starter details have not loaded yet, so open Game Day to review it.', action: 'Open Game Day', tab: 'lineup' };
         if (!primaryFlag) {
-            if (decision.live) return { label: 'Follow your remaining starters', detail: 'NFL games are underway. See your live lineup and remaining players.', action: 'Open Game Day', tab: 'lineup' };
-            if (decision.complete) return { label: 'Review this week', detail: 'This week’s NFL games are complete. See the results across your league.', action: 'Open League', tab: 'central' };
-            return { label: 'Set up your week', detail: 'Compare your starters and bench before the next kickoff.', action: 'Open Game Day', tab: 'lineup' };
+            if (decision.live) return { message: 'Follow your remaining starters — NFL games are underway, so check your live lineup and remaining players.', action: 'Open Game Day', tab: 'lineup' };
+            if (decision.complete) return { message: 'Review this week — NFL games are complete, so see the results across your league.', action: 'Open League', tab: 'central' };
+            return { message: 'Set up your week — compare your starters and bench before the next kickoff.', action: 'Open Game Day', tab: 'lineup' };
         }
-        if (primaryFlag.kind === 'empty') return { label: 'Fill your ' + primaryFlag.name + ' slot', detail: 'This starting slot is empty.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'bye') return { label: 'Replace ' + primaryFlag.name, detail: primaryFlag.name + ' is on bye this week.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'out') return { label: 'Replace ' + primaryFlag.name, detail: primaryFlag.name + ' is listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'unsigned') return { label: 'Replace ' + primaryFlag.name, detail: 'No NFL team is listed for ' + primaryFlag.name + '.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'empty') return { message: 'Fill your ' + primaryFlag.name + ' slot — it is empty.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'bye') return { message: 'Replace ' + primaryFlag.name + ' — they are on bye this week.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'out') return { message: 'Replace ' + primaryFlag.name + ' — they are listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'unsigned') return { message: 'Replace ' + primaryFlag.name + ' — no NFL team is listed.', action: 'Open Game Day', tab: 'lineup' };
         const status = String(primaryFlag.reason || 'needs monitoring').replace(/^Monitor\s*·\s*/i, '');
-        return { label: 'Plan a backup for ' + primaryFlag.name, detail: primaryFlag.name + ' is listed ' + status + '.', action: 'Open Game Day', tab: 'lineup' };
+        return { message: 'Plan a backup for ' + primaryFlag.name + ' — they are listed ' + status + '.', action: 'Open Game Day', tab: 'lineup' };
     })();
-    return <section className="mc-overview-decisions" aria-label="Your next decisions">
-        <header><span>Do this now</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
+    return <section className="mc-overview-decisions" aria-label="Alex Insights">
+        <header><span>Alex Insights</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
         <div className="mc-primary-move">
-            <div><h3>{primaryMove.label}</h3><p>{primaryMove.detail}</p></div>
+            <div><h3>{primaryMove.message}</h3></div>
             <button type="button" onClick={() => setActiveTab?.(primaryMove.tab)}>{primaryMove.action} →</button>
         </div>
         <p className="mc-next-kickoff">{scheduleLabel}{decision.next && decision.startersInNext > 0 ? ' · ' + decision.startersInNext + ' of your starters' : ''}</p>
