@@ -94,8 +94,10 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     const active = await fixture();
     assert.equal(all(active.out).filter(n => n.props.className === 'gd-scoreboard').length, 1, 'one scoreboard in the existing lineup');
     assert.doesNotMatch(textOf(active.out), /FOLLOW YOUR LINEUP|Submitted starters/);
+    assert.equal(select(active.out, n => n.props.className === 'gd-planning-focus'), undefined, 'mobile lineup opens directly on the actionable lineup surface');
     const plan = select(active.out, n => n.props.className === 'gd-working-lineup');
     assert(plan); assert.match(textOf(plan), /partial/);
+    assert.doesNotMatch(textOf(plan), /Plan here\. Set your final starters|Only players with verified upcoming games/, 'redundant planning instructions stay out of the mobile lineup');
     assert(select(plan, n => n.props.className === 'gd-scoreboard'), 'live scores stay inside starting lineup');
     assert.match(textOf(plan), /Final · 0.00 pts · Locked/);
     assert.match(textOf(plan), /Final · -2.50 pts · Locked/);
@@ -155,6 +157,10 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
     assert(select(select(desktop.out, n => n.props.id === 'gameday-starting-lineup'), n => n.props.className === 'gd-scoreboard'));
     const beforeKickoff = await fixture({ upcoming: true });
     assert(!select(beforeKickoff.out, n => n.props.className === 'gd-scoreboard'), 'no pregame score panel');
+    const upcomingRow = select(beforeKickoff.out, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
+    const upcomingKickoff = new Date(beforeKickoff.games[0].kickoff).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    assert(textOf(upcomingRow).includes(upcomingKickoff), 'scheduled players show their verified game date and kickoff time');
+    assert.doesNotMatch(textOf(upcomingRow), /Upcoming/, 'scheduled player rows no longer use the vague upcoming label');
     const tablet = await fixture({ width: 768, rosterView: true });
     assert.match(textOf(tablet.out), /Starting lineup/);
     assert.equal(select(tablet.out, n => n.props.className === 'gd-mobile'), undefined);

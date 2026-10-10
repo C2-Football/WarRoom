@@ -152,6 +152,11 @@ function LineupTab({
         return games.find(g => g.home === team || g.away === team);
     };
     const gameState = pid => statusOfGame(gameFor(pid));
+    const gameKickoffLabel = game => {
+        const kickoff = Date.parse(game?.kickoff || '');
+        if (!Number.isFinite(kickoff)) return null;
+        return new Date(kickoff).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    };
     const gamesFresh = nflGames.key === liveKey && Date.now() - nflGames.updatedAt < 90000;
     const weekStarted = games.some(g => ['live', 'final', 'locked'].includes(statusOfGame(g)));
     const optimizerAvailable = gamesFresh && games.length > 0 && !weekStarted
@@ -608,9 +613,14 @@ function LineupTab({
     const trackingLineup = weekStarted || (liveTotal != null && liveTotal !== 0);
     // The existing Game Day lineup is the single home for planning and scores.
     function LineupLiveStatus({ pid }) {
-        if (!trackingLineup || !pid) return null;
+        if (!pid) return null;
+        const game = gameFor(pid);
         const state = gameState(pid);
-        if (state === 'upcoming') return <span style={{ display: 'block', color: SILVER, fontSize: '0.75rem', marginTop: '4px' }}>Upcoming</span>;
+        if (state === 'upcoming') {
+            const kickoff = gameKickoffLabel(game);
+            return kickoff ? <span style={{ display: 'block', color: SILVER, fontSize: '0.75rem', marginTop: '4px' }}>{kickoff}</span> : null;
+        }
+        if (!trackingLineup) return null;
         const started = ['live', 'final', 'locked'].includes(state);
         const submitted = platformStarters.map(String).includes(String(pid));
         const actual = submitted && Live && liveRow ? Live.playerPoints(liveRow, pid) : null;
@@ -656,7 +666,7 @@ function LineupTab({
             if (state === 'final') return 'Final · Locked';
             if (state === 'live') return (game.shortDetail || 'Live') + ' · Locked';
             if (state === 'locked') return 'Kickoff · Locked';
-            if (state === 'upcoming') return new Date(game.kickoff).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            if (state === 'upcoming') return gameKickoffLabel(game) || 'Schedule unverified';
             return 'Game status unverified';
         };
         const selectPlayer = (slot, pid) => {
@@ -1191,7 +1201,7 @@ function LineupTab({
         // Optimal swap summary for the hero facts — the same per-slot
         // assignment walk as applyOptimal(), diffed against the working
         // lineup. Pro only (the optimizer layer).
-        let swaps = [], topSwap = null;
+        let swaps = [];
         if (pro && canOptimize) {
             const byName = {};
             formOptimal.starters.forEach(s => { (byName[s.slot] = byName[s.slot] || []).push(s.pid); });
@@ -1202,13 +1212,8 @@ function LineupTab({
                 if (cur === opt) return;
                 const sw = { sl, cur, opt, gain: formPts(opt) != null && (!cur || formPts(cur) != null) ? objPts(opt) - objPts(cur) : null };
                 swaps.push(sw);
-                if (!topSwap || sw.gain > topSwap.gain) topSwap = sw;
             });
         }
-        const swapFacts = topSwap
-            ? swaps.length + ' swap' + (swaps.length === 1 ? '' : 's') + ': ' + (topSwap.cur ? pmeta(topSwap.cur).name : 'Empty') + ' → ' + (topSwap.opt ? pmeta(topSwap.opt).name : 'Empty') + ' · ' + topSwap.sl.slotName.replace('_', ' ') + ' slot'
-            : 'No swaps — your best lineup is in';
-
         // Apply Optimal, then show the moves it made as a list (owner ask).
         // Capture the swaps BEFORE applying (post-apply they recompute to []).
         const applyOptimalWithSummary = () => {
@@ -1277,17 +1282,6 @@ function LineupTab({
                 onClick={() => { canChangePlayer(openPid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
         };
 
-        // Pregame has one next action. Every change here is explicitly a local
-        // plan; the existing optimizer and provider submission guards stay intact.
-        const heroEl = (
-            <section className="gd-planning-focus" aria-label="Lineup planning guidance">
-                <div className="gd-eyebrow">Week {liveWeek} · Local lineup plan</div>
-                <h2>{!optimizerAvailable ? 'Review your lineup' : !formComplete ? 'More game history needed' : missingPlanForm ? 'Some averages are missing' : planUnavailable ? 'Replace unavailable starters' : pro ? isOptimal ? 'Your strongest ' + formWinLabel + ' lineup' : '+' + benchPts.toFixed(1) + ' ' + formWinLabel + ' PPG available' : 'Check your starters'}</h2>
-                <p>{!optimizerAvailable ? 'Whole-lineup optimization is paused while games are underway or kickoff status is unverified.' : !formComplete || missingPlanForm ? formHelp : planUnavailable ? 'Auto-fill replaces unavailable starters using the selected rolling average.' : pro ? isOptimal ? 'No improvement in ' + formWinLabel + ' PPG from a swap.' : swapFacts : 'Tap a player in your plan to compare eligible options.'}</p>
-                {pro && canOptimize && !isOptimal ? <button type="button" className="gd-primary" onClick={() => { applyOptimalWithSummary(); }}>Use optimal in my plan</button> : <a className="gd-primary" href="#gameday-starting-lineup" onClick={event => { event.preventDefault(); document.getElementById('gameday-starting-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View starting lineup</a>}
-            </section>
-        );
-
         return (
             <div className="gd-mobile">
                 {ledgerNode}
@@ -1310,13 +1304,11 @@ function LineupTab({
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
                 ) : phoneView === 'matchup' ? (matchup ? matchupPanel : <p className="gd-muted">The matchup appears when an opponent and projections are available.</p>) : phoneView === 'week' ? (<React.Fragment>
-                {heroEl}
                 <div className="roster-lineup-form" aria-label="Optimizer form window">{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>
                 <section id="gameday-starting-lineup" className="gd-working-lineup" aria-label="Local lineup plan">
                     <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2>{metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
                     <div className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</div>
-                    <p className="gd-muted">{isMfl ? 'Review changes here, then submit to MFL.' : 'Plan here. Set your final starters on your league platform.'}</p>
-                    {!optimizerAvailable ? <p className="gd-muted">Only players with verified upcoming games can be moved.</p> : null}
+                    {pro && canOptimize && !isOptimal ? <button type="button" className="gd-secondary" onClick={applyOptimalWithSummary}>Use optimal in my plan</button> : null}
                     {trackingLineup ? mobileScoreboard : null}
                     <div className="gd-player-list">{dispSlots.map(slotRow)}</div>
                     <details className="mc-lineup-rules"><summary>How lineup suggestions work</summary><p className="gd-muted">{formHelp}</p></details>
