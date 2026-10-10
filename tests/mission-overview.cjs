@@ -34,17 +34,17 @@ test('scheduled next kickoff requires a future timestamp and excludes postponed 
     assert.equal(h.read({games:[{...game,kickoff:'bad'}]}).next,null);
 });
 
-test('questionable is a monitoring flag and automatic lineup leagues get roster actions',()=>{
+test('questionable is a monitoring flag and automatic lineup leagues get a clear roster action',()=>{
     const h=fixture(); const players={a:{full_name:'Questionable QB',team:'KC',injury_status:'Questionable'}};
     assert.equal(h.read({roster:{starters:['a']},playersData:players}).flags[0].kind,'monitor');
     h.props.leagueSkin={type:'best_ball'}; const tree=h.render(); assert.match(text(tree),/sets the scoring lineup automatically/);
-    assert(!button(tree,'Review lineup')); button(tree,'Review roster').props.onClick(); assert.equal(h.events[0],'myteam');
+    assert(!button(tree,'Open Game Day →')); button(tree,'Open roster →').props.onClick(); assert.equal(h.events[0],'myteam');
 });
 
-test('lineup, waivers and contextual Alex remain visible without expanded dashboard or an AI call',()=>{
+test('overview names one primary lineup move and keeps waivers and Alex within reach',()=>{
     const h=fixture(), tree=h.render();
-    assert.match(text(tree),/2 lineup checks/); assert.match(text(tree),/Bye Receiver/); assert.match(text(tree),/Listed Out/);
-    button(tree,'Review lineup').props.onClick(); button(tree,'Waivers').props.onClick(); button(tree,'Ask Alex').props.onClick();
+    assert.match(text(tree),/Replace Bye Receiver/); assert.match(text(tree),/on bye this week/); assert.match(text(tree),/\+1 more lineup issue/);
+    button(tree,'Open Game Day →').props.onClick(); button(tree,'Explore waivers').props.onClick(); button(tree,'Ask Alex').props.onClick();
     assert.equal(h.events[0],'lineup'); assert.equal(h.events[1],'fa'); assert.equal(h.events[2].type,'wr:mission-alex-open');
     assert.match(h.events[2].detail.prompt,/"week":6/); assert.match(h.events[2].detail.prompt,/"kind":"bye"/); assert.match(h.events[2].detail.prompt,/no move has been submitted/);
     assert.equal(walk(tree).some(n=>n.type==='details'),false);

@@ -93,15 +93,34 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
     }, [key, liveSeason]);
     const current = schedule.key === key ? schedule : { status: 'loading', games: [], now: Date.now() };
     const decision = buildLeagueOverviewDecision({ league: currentLeague, roster: myRoster, playersData, skin: leagueSkin, week, games: current.games, now: current.now });
-    const title = decision.automatic ? 'Check your roster depth' : !decision.known ? 'Review your starting lineup' : decision.flags.length ? decision.flags.length + ' lineup check' + (decision.flags.length === 1 ? '' : 's') : decision.live ? 'Follow your remaining starters' : decision.complete ? 'Review the week' : 'Set up your week';
     const nextLabel = decision.next ? new Date(decision.next.kickoff).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : null;
     const scheduleLabel = nextLabel ? 'Next kickoff · ' + nextLabel : decision.live ? 'NFL games are underway' : decision.complete ? 'This week’s NFL games are complete' : current.status === 'loading' ? 'Checking kickoff times…' : 'Kickoff times unavailable';
     const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: decision.flags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
+    const primaryFlag = decision.flags[0];
+    const primaryMove = (() => {
+        if (decision.automatic) return { label: 'Review your roster depth', detail: 'Your league sets the scoring lineup automatically. Check depth and available adds.', action: 'Open roster', tab: 'myteam' };
+        if (!decision.known) return { label: 'Load your starting lineup', detail: 'Starter details have not loaded yet. Open Game Day to review your lineup.', action: 'Open Game Day', tab: 'lineup' };
+        if (!primaryFlag) {
+            if (decision.live) return { label: 'Follow your remaining starters', detail: 'NFL games are underway. See your live lineup and remaining players.', action: 'Open Game Day', tab: 'lineup' };
+            if (decision.complete) return { label: 'Review this week', detail: 'This week’s NFL games are complete. See the results across your league.', action: 'Open League', tab: 'central' };
+            return { label: 'Set up your week', detail: 'Compare your starters and bench before the next kickoff.', action: 'Open Game Day', tab: 'lineup' };
+        }
+        if (primaryFlag.kind === 'empty') return { label: 'Fill your ' + primaryFlag.name + ' slot', detail: 'This starting slot is empty.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'bye') return { label: 'Replace ' + primaryFlag.name, detail: primaryFlag.name + ' is on bye this week.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'out') return { label: 'Replace ' + primaryFlag.name, detail: primaryFlag.name + ' is listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'unsigned') return { label: 'Replace ' + primaryFlag.name, detail: 'No NFL team is listed for ' + primaryFlag.name + '.', action: 'Open Game Day', tab: 'lineup' };
+        const status = String(primaryFlag.reason || 'needs monitoring').replace(/^Monitor\s*·\s*/i, '');
+        return { label: 'Plan a backup for ' + primaryFlag.name, detail: primaryFlag.name + ' is listed ' + status + '.', action: 'Open Game Day', tab: 'lineup' };
+    })();
     return <section className="mc-overview-decisions" aria-label="Your next decisions">
-        <header><span>Next moves</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
-        <h3>{title}</h3><p className="mc-next-kickoff">{scheduleLabel}{decision.next && decision.startersInNext > 0 ? ' · ' + decision.startersInNext + ' of your starters' : ''}</p>
-        {decision.flags.length > 0 ? <ul>{decision.flags.slice(0, 3).map((flag, index) => <li key={String(flag.pid) + ':' + index}><strong>{flag.name}</strong><span>{flag.reason}</span></li>)}{decision.flags.length > 3 && <li className="mc-next-more">+{decision.flags.length - 3} more to review in Game Day</li>}</ul> : <p className="mc-next-note">{decision.automatic ? 'Your league sets the scoring lineup automatically. Review depth and available adds.' : !decision.known ? 'Starter details have not loaded. Open Game Day to check your lineup.' : 'Compare your starters and bench in Game Day. Listed status alone does not confirm availability.'}</p>}
-        <div className="mc-next-actions"><button type="button" onClick={() => setActiveTab?.(decision.automatic ? 'myteam' : 'lineup')}>{decision.automatic ? 'Review roster' : 'Review lineup'}</button><button type="button" onClick={() => setActiveTab?.('fa')}>Waivers</button><button type="button" onClick={ask}>Ask Alex</button></div>
+        <header><span>Do this now</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
+        <div className="mc-primary-move">
+            <div><h3>{primaryMove.label}</h3><p>{primaryMove.detail}</p></div>
+            <button type="button" onClick={() => setActiveTab?.(primaryMove.tab)}>{primaryMove.action} →</button>
+        </div>
+        <p className="mc-next-kickoff">{scheduleLabel}{decision.next && decision.startersInNext > 0 ? ' · ' + decision.startersInNext + ' of your starters' : ''}</p>
+        {decision.flags.length > 1 && <p className="mc-next-more">+{decision.flags.length - 1} more lineup {decision.flags.length === 2 ? 'issue' : 'issues'} to review in Game Day</p>}
+        <div className="mc-next-actions"><button type="button" onClick={() => setActiveTab?.('fa')}>Explore waivers</button><button type="button" onClick={ask}>Ask Alex</button></div>
     </section>;
 }
 

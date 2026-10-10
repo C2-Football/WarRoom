@@ -3411,8 +3411,8 @@
                         {workspaceViews.map(view => <button type="button" key={view.tab} aria-current={viewTab === view.tab ? 'page' : undefined} onClick={() => setActiveTab(view.tab)}>{view.label}</button>)}
                     </nav>}
                 </header>
-                {/* The Wire stays a desktop ticker and becomes an inline launcher on phones. */}
-                <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
+                {/* Keep the overview focused on immediate league decisions; The Wire remains available from League and its dedicated view. */}
+                {viewTab !== 'dashboard' && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}
@@ -3424,7 +3424,7 @@
                         getOwnerName={getOwnerName}
                         getPlayerName={getPlayerName}
                     />
-                )}</div>
+                )}</div>}
 
                 {/* Existing deep links render in their owning workspace. */}
                 <div className="wr-content-frame">
