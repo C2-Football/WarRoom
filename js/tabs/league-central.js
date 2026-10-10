@@ -383,6 +383,24 @@ function LeagueCentralTab({
     // game — standings/W-L barely mean anything with the field shrinking
     // every week), matching Chopped's survival framing elsewhere in the app.
     const cupEnabled = true;
+    // The Cup is optional personal navigation. It remains available to every
+    // league, but a manager can remove it from their phone's League tab strip
+    // without changing the shared competition for anyone else.
+    const cupVisibilityKey = 'wr_league_cup_hidden_' + (leagueId || 'default');
+    const [phoneCupHidden, setPhoneCupHidden] = React.useState(() => {
+        try { return window.App?.WrStorage?.get?.(cupVisibilityKey, false) === true; } catch (_) { return false; }
+    });
+    const [leagueViewMenuOpen, setLeagueViewMenuOpen] = React.useState(false);
+    const cupVisible = cupEnabled && (!isPhone || !phoneCupHidden);
+    const setCupVisible = visible => {
+        const hidden = !visible;
+        setPhoneCupHidden(hidden);
+        try { window.App?.WrStorage?.set?.(cupVisibilityKey, hidden); } catch (_) { /* browsing still works without local storage */ }
+        if (hidden && innerTab === 'cup') {
+            setInnerTab('league');
+            setPhoneLeagueView('standings');
+        }
+    };
     const dashboardNav = window.App.DashboardLeagueLayout;
     const navigationLeagueId = dashboardNav.leagueId(currentLeague);
     const centralRef = React.useRef(null);
@@ -611,7 +629,17 @@ function LeagueCentralTab({
                 </div>
             </div>}
 
-            {isPhone && <nav className="mc-section-tabs" aria-label="League views">{[['standings', 'Standings'], ['scores', 'Scores'], ['stats', 'Leaders']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}{cupEnabled && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => setInnerTab('cup')}>Cup</button>}</nav>}
+            {isPhone && <React.Fragment>
+                <nav className="mc-section-tabs" aria-label="League views">
+                    {[['standings', 'Standings'], ['scores', 'Scores'], ['stats', 'Leaders']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}
+                    {cupVisible && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => setInnerTab('cup')}>Cup</button>}
+                    <button type="button" className="mc-league-view-menu" aria-label="Customize League views" aria-expanded={leagueViewMenuOpen} onClick={() => setLeagueViewMenuOpen(open => !open)}>•••</button>
+                </nav>
+                {leagueViewMenuOpen && <div className="mc-league-view-options" role="group" aria-label="Customize League views">
+                    <span>League views</span>
+                    <label><input type="checkbox" checked={cupVisible} onChange={event => setCupVisible(event.target.checked)} /> Cup</label>
+                </div>}
+            </React.Fragment>}
             {(!isPhone || (innerTab === 'league' && phoneLeagueView === 'scores')) && renderScoreboard()}
 
             {/* Briefing — always the first thing you see on entry, collapsible
@@ -650,7 +678,10 @@ function LeagueCentralTab({
                 </div>
             )}
 
-            {cupEnabled && innerTab === 'cup' ? React.createElement(window.WoeppelCupPanel, { key: leagueId + ':' + season, league: currentLeague, getOwnerName: _getOwnerName, myRoster }) : homeMerged && innerTab === 'kpis' ? (
+            {cupVisible && innerTab === 'cup' ? <React.Fragment>
+                {isPhone && <div className="mc-cup-view-actions"><button type="button" onClick={() => setCupVisible(false)}>Hide Cup from this device</button></div>}
+                {React.createElement(window.WoeppelCupPanel, { key: leagueId + ':' + season, league: currentLeague, getOwnerName: _getOwnerName, myRoster })}
+            </React.Fragment> : homeMerged && innerTab === 'kpis' ? (
                 <div style={{ margin: isPhone ? '0 -14px' : '0 -24px' }}>{kpiSlot}</div>
             ) : (
             <React.Fragment>

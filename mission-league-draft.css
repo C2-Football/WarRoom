@@ -3,6 +3,13 @@
   .mc-section-tabs { display:flex; gap:3px; padding:4px; margin:0 0 10px; border:1px solid rgba(214,221,235,.13); border-radius:14px; background:linear-gradient(135deg,rgba(255,255,255,.065),rgba(255,255,255,.015)); backdrop-filter:blur(18px); }
   .la-mobile .mc-section-tabs > button { flex:1; min-width:0; min-height:44px!important; padding:6px 3px; border:0; background:transparent; color:var(--silver); font-size:12px!important; font-weight:700; white-space:normal; border-radius:10px; }
   .la-mobile .mc-section-tabs > button[aria-pressed=true] { background:rgba(222,225,232,.13); color:var(--white); box-shadow:inset 0 1px rgba(255,255,255,.13); }
+  .la-mobile .mc-section-tabs > .mc-league-view-menu { flex:0 0 38px; padding-inline:0; letter-spacing:2px; }
+  .mc-league-view-options { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:-4px 0 10px; padding:8px 11px; border:1px solid rgba(214,221,235,.13); border-radius:10px; background:rgba(24,36,57,.82); color:var(--silver); font-size:11px; }
+  .mc-league-view-options > span { font:700 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; }
+  .mc-league-view-options label { display:flex; align-items:center; gap:7px; color:var(--white); font-size:12px; font-weight:700; }
+  .mc-league-view-options input { accent-color:var(--gold); }
+  .mc-cup-view-actions { display:flex; justify-content:flex-end; margin:-2px 0 8px; }
+  .mc-cup-view-actions button { min-height:36px; padding:6px 10px; border:1px solid rgba(214,221,235,.16); border-radius:9px; background:rgba(255,255,255,.04); color:var(--silver); font-size:11px; font-weight:700; }
   .mc-context-actions { display:flex; flex-wrap:wrap; gap:6px; margin:5px 0 10px; min-width:0; }
   .la-mobile .mc-context-actions button { min-height:44px!important; padding:7px 10px; background:rgba(255,255,255,.035); color:var(--silver); border:1px solid rgba(255,255,255,.1); border-radius:9px; font-size:12px!important; flex:1; }
   .mc-league .mc-league-panel { border-radius:14px!important; background:linear-gradient(140deg,rgba(202,210,227,.065),rgba(20,23,30,.82))!important; padding:10px!important; margin-bottom:0!important; }

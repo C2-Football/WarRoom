@@ -1,6 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), Babel = require('@babel/standalone');
 let hooks = [], index = 0, board, liveContext, requestedWeek, renderedComponentTypes = [];
+const storage = new Map();
 const boundary = function ScoreboardBoundary() {};
 const React = {
     Fragment: 'fragment',
@@ -9,7 +10,7 @@ const React = {
     useMemo(fn) { index++; return fn(); }, useCallback(fn) { index++; return fn; }, useEffect() {},
     createElement(type, props, ...children) { if (typeof type === 'function') renderedComponentTypes.push(type); return typeof type === 'function' && type !== boundary ? type({ ...(props || {}), children }) : { type, props: props || {}, children }; }
 };
-const root = { App: { LeagueLiveScores: { currentWeek: () => 2, useScores: opts => { requestedWeek = opts.week; return board; } }, LeagueLiveTable: { useContext: () => liveContext }, DashboardLeagueLayout: { peek: () => null, leagueId: league => String(league.league_id || league.id || "") } }, WR: { useViewport: () => ({ isPhone: true }) }, LeagueLiveScoreboard: boundary };
+const root = { App: { LeagueLiveScores: { currentWeek: () => 2, useScores: opts => { requestedWeek = opts.week; return board; } }, LeagueLiveTable: { useContext: () => liveContext }, DashboardLeagueLayout: { peek: () => null, leagueId: league => String(league.league_id || league.id || "") }, WrStorage: { get: (key, fallback) => storage.has(key) ? storage.get(key) : fallback, set: (key, value) => storage.set(key, value) } }, WR: { useViewport: () => ({ isPhone: true }) }, LeagueLiveScoreboard: boundary };
 const context = { window: root, React, console };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/shared/league-live-standings.js', 'utf8'), context);
@@ -60,6 +61,20 @@ tree = render(); assert(text(tree).includes('Through Week 2')); assert(!text(tre
 reset({ rows: [{ roster_id: 1, matchup_id: 1, points: 0 }, { roster_id: 2, matchup_id: 1, points: 0 }] });
 board.week = 1; liveContext.history.priorWeeks = []; liveContext.currentWeek = 1;
 tree = render(); assert(text(tree).includes('Entering Week 1')); assert(teamRows(tree).every(row => text(row).includes('0-0-0')));
+const cupTab = find(tree, n => n.type === 'button' && text(n) === 'Cup');
+assert(cupTab, 'Cup starts as an optional League view');
+cupTab.props.onClick(); tree = render();
+const hideCup = find(tree, n => n.type === 'button' && text(n) === 'Hide Cup from this device');
+assert(hideCup, 'Cup offers a direct personal hide action');
+hideCup.props.onClick(); tree = render();
+assert(!find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'Hidden Cup is removed from the phone tab strip');
+assert.equal(storage.get('wr_league_cup_hidden_1234567890123456'), true, 'Cup visibility is stored per league and device');
+const viewMenu = find(tree, n => n.type === 'button' && n.props['aria-label'] === 'Customize League views');
+viewMenu.props.onClick(); tree = render();
+const cupToggle = find(tree, n => n.type === 'input' && n.props.type === 'checkbox');
+assert.equal(cupToggle.props.checked, false, 'The view menu accurately reflects hidden Cup state');
+cupToggle.props.onChange({ target: { checked: true } }); tree = render();
+assert(find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'The view menu restores Cup without affecting shared league data');
 console.log('PASS League Central live rendering: unavailable/empty feeds, pregame baselines, reconstructed records, score reorder, source toggle and shared week selection');
 
 // React preserves native disclosure state only when enclosing component types stay
