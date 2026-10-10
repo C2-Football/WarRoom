@@ -79,6 +79,8 @@ assert(button('Build a trade') && button('Set lineup') && button('Ask Alex'), 'P
 assert(!button('Trade Finder') && !button('COLLAPSE') && !button('Back to roster ↑'), 'Mobile detail removes duplicate lower controls');
 assert(!text(tree).includes('Full player profile'), 'Mobile detail renders the player profile directly without a second disclosure');
 assert.equal(find(tree, n => n.type === 'career').props.hideHistoricalTrends, true, 'Mobile career stats hide historical trend charts');
+assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-facts'), 'Mobile detail removes duplicate age and bye facts');
+assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-stats'), 'Mobile detail removes duplicate DHQ and scoring stats');
 const expandedBench = find(tree, n => n.props['data-wr-roster-pid'] === 'bench');
 find(expandedBench, n => n.props.className === 'wr-roster-mobile-player-trigger').props.onClick(); render();
 assert.equal(props.expandedPid, null);

@@ -67,10 +67,6 @@
   .wr-roster-mobile-player-value[data-tone="warn"] strong { color: var(--warn, #f0a500); }
   .wr-roster-mobile-player-chevron { flex-shrink: 0; font-size: 20px; color: var(--silver); }
   .wr-roster-mobile-detail { padding: 16px 12px; border-top: 1px solid var(--ov-5, rgba(255,255,255,.09)); overflow-wrap: anywhere; }
-  .wr-roster-mobile-detail-facts { font-size: 14px; color: var(--silver); margin-bottom: 12px; }
-  .wr-roster-mobile-detail-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 18px; }
-  .wr-roster-mobile-detail-stats span { display: block; font-size: 14px; color: var(--silver); }
-  .wr-roster-mobile-detail-stats strong { display: block; margin-top: 4px; font-size: 18px; color: var(--white); }
   .wr-roster-mobile-detail [style*="font-size: 0."],
   .wr-roster-mobile-planning [style*="font-size: 0."],
   .wr-roster-mobile-byes [style*="font-size: 0."],

@@ -1831,10 +1831,6 @@ function MyTeamTab({
               <button type="button" onClick={() => setActiveTab?.('lineup')}>Set lineup</button>
               <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { prompt: 'Help me decide what to do with ' + getPlayerName(r.pid) + ' on my roster.', pid: r.pid } }))}>Ask Alex</button>
             </div>
-            <div className="wr-roster-mobile-detail-facts">{[r.age ? 'Age ' + r.age : null, !isChoppedRoster ? byeLabel(r.p) : null].filter(Boolean).join(' · ')}</div>
-            <div className="wr-roster-mobile-detail-stats">
-              {_phoneSlotKeys.map(key => { const stat = _phoneSlotFor(key, r); return <div key={key}><span>{stat.label}</span><strong>{stat.value}</strong></div>; })}
-            </div>
             {renderExpandBody(r, { phone: true })}
           </div>}
         </div>
