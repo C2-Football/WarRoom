@@ -2279,8 +2279,8 @@ function MyTeamTab({
           Dashboard's Cut Candidates widget), so a call made here is made
           everywhere. Pro-gated like the rest of the roster call engine, and
           long-horizon-gated by showGmDesk (see above). */}
-      {isPro && showGmDesk && (
-        <section className={_phone ? 'wr-roster-mobile-planning' : undefined} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {isPro && showGmDesk && !_phone && (
+        <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button type="button" aria-expanded={phoneDeskOpen} onClick={() => setPhoneDeskOpen(value => { const next = !value; try { localStorage.setItem('wr_roster_desk_open', String(next)); } catch {} return next; })} style={{ ...controlBtn(false), minHeight: '40px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}><span>GM’s Desk · Roster Review</span><span>{phoneDeskOpen ? 'Minimize ▴' : 'Expand ▾'}</span></button>
           {phoneDeskOpen && <React.Fragment>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

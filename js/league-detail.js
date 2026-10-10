@@ -3394,10 +3394,7 @@
 
                 <header className="wr-workspace-header">
                     <div className="wr-mobile-workspace">
-                        <h1>{workspaceViews.length > 1 ? <select aria-label={'Choose ' + workspace.label + ' view'} value={viewTab} onChange={e => setActiveTab(e.target.value)}>
-                            {!workspaceViews.some(view => view.tab === viewTab) && <option value={viewTab}>{workspaceRoute.label}</option>}
-                            {workspaceViews.map(view => <option key={view.tab} value={view.tab} aria-label={view.label} title={view.label}>{({ central: 'Standings', trophies: 'History', 'research-reports': 'Reports', 'research-players': 'Players', 'gm-settings': 'Preferences', 'team-outlook': 'Outlook', decisions: 'Review' })[view.tab] || view.label}</option>)}
-                        </select> : workspaceRoute.label}</h1>
+                        <h1>{workspaceRoute.label}</h1>
                         {workspace.id !== 'help' && <button type="button" className="wr-mobile-help" onClick={() => { setHelpContext({ tab: viewTab, label: workspaceRoute.label }); setActiveTab('legend'); }} aria-label={'Help with ' + workspaceRoute.label}>Help</button>}
                     </div>
                     <div className="wr-workspace-heading">
@@ -3411,8 +3408,8 @@
                         {workspaceViews.map(view => <button type="button" key={view.tab} aria-current={viewTab === view.tab ? 'page' : undefined} onClick={() => setActiveTab(view.tab)}>{view.label}</button>)}
                     </nav>}
                 </header>
-                {/* Keep the overview focused on immediate league decisions; The Wire remains available from League and its dedicated view. */}
-                {viewTab !== 'dashboard' && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
+                {/* Keep the roster focused on player decisions on phones; The Wire remains available from League, the command menu, and desktop. */}
+                {viewTab !== 'dashboard' && !(alexPhone && viewTab === 'myteam') && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}

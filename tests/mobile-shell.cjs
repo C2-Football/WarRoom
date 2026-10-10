@@ -70,11 +70,10 @@ for (const activeTab of ['myteam', 'alex']) {
         setActiveTab: tab => f.selections.push(tab),
     });
     const header = vm.runInContext(babel.transform('(' + headerSource + ')', { presets: ['react'] }).code, f.context);
-    const select = header.children[0].children[0];
-    const option = select.children.find(node => node && node.props?.value === activeTab);
-    assert.ok(option, `${activeTab} must have a matching title option`);
-    assert.equal(f.text(option), workspaces.resolve(activeTab).label);
-    select.props.onChange({ target: { value: 'lineup' } });
-    assert.deepEqual(f.selections, ['lineup']);
+    const title = header.children[0];
+    assert.equal(title.type, 'h1');
+    assert.equal(f.text(title), workspaces.resolve(activeTab).label);
+    assert.ok(!title.children.some(node => node?.type === 'select'), 'Mobile shows a stable workspace title instead of a route selector');
 }
-console.log('PASS mobile titles: current and legacy routes retain their labels and navigation');
+assert.match(source, /viewTab !== 'dashboard' && !\(alexPhone && viewTab === 'myteam'\)/, 'My Team omits the inline Wire launcher on phones while retaining desktop behavior');
+console.log('PASS mobile titles: stable route labels and My Team phone focus');

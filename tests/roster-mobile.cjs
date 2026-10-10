@@ -66,7 +66,8 @@ playersData.ir.injury_status = 'PUP'; render(); assert(text(find(tree, n => n.pr
 assert(!text(tree).includes('Healthy'), 'Missing injury status is not converted to a health claim');
 const content = find(tree, n => n.props.className === 'wr-roster-mobile-content');
 const contentNodes = walk(content).filter(n => typeof n === 'object');
-assert(contentNodes.findIndex(n => n.props.className === 'wr-roster-mobile-players') < contentNodes.findIndex(n => n.props.className === 'wr-roster-mobile-planning'), 'Player list precedes planning in DOM order');
+assert(contentNodes.some(n => n.props.className === 'wr-roster-mobile-players'), 'Mobile keeps the player list as the roster focus');
+assert(!text(tree).includes('GM’s Desk · Roster Review'), 'Mobile removes the desktop GM desk planning panel');
 for (const [label, pid] of [['Starters1', 'starter'], ['Bench1', 'bench'], ['IR1', 'ir'], ['Taxi1', 'taxi']]) { click(label); assert.deepEqual(rowPids(), [pid], label + ' reflects real roster membership'); }
 click('All4');
 const search = find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster');
@@ -108,6 +109,7 @@ props.myRoster = { ...myRoster, settings: {} }; props.currentLeague = { ...props
 const summary = text(find(tree, n => n.props.className === 'wr-roster-mobile-summary'));
 assert(!summary.includes('record') && !summary.includes('open') && !summary.includes('full'), 'Unknown record and capacity stay unknown');
 width = 1024; render(); assert.equal(tree.props.className, undefined); assert(!find(tree, n => n.props.className === 'wr-roster-mobile-players')); assert(text(tree).includes('Roster Board'), 'Desktop retains the full roster board');
+assert(text(tree).includes('GM’s Desk · Roster Review'), 'Desktop retains the GM desk planning panel');
 console.log('PASS mobile roster: capacity, roster scopes, skin restrictions, search, direct player profile, view controls, unknown facts, and desktop path');
 // Redraft points must never inherit the value rating's units, order, or fallback.
 width = 390; slots = [];
