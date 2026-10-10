@@ -261,7 +261,7 @@
     window.GMMessage = GMMessage;
 
     // ===== INLINE CAREER STATS (for expanded player card) =====
-    function InlineCareerStats({ pid, pos, player, scoringSettings, statsData }) {
+    function InlineCareerStats({ pid, pos, player, scoringSettings, statsData, hideHistoricalTrends = false }) {
         const [html, setHtml] = React.useState(null);
         const [collegeHtml, setCollegeHtml] = React.useState(null);
         const [loading, setLoading] = React.useState(true);
@@ -283,7 +283,7 @@
             if (st && Object.keys(st).length > 1) quickData[curYear] = st;
 
             if (typeof window.fwBuildCareerTable === 'function' && Object.keys(quickData).length) {
-                setHtml(window.fwBuildCareerTable(pid, quickData, pos, sc, player));
+                setHtml(window.fwBuildCareerTable(pid, quickData, pos, sc, player, { includeHistoricalTrends: !hideHistoricalTrends }));
                 setLoading(false);
             }
 
@@ -292,7 +292,7 @@
                 window.fwFetchCareerStats(pid, curYear, exp).then(careerData => {
                     if (cancelled) return;
                     if (Object.keys(careerData).length && typeof window.fwBuildCareerTable === 'function') {
-                        setHtml(window.fwBuildCareerTable(pid, careerData, pos, sc, player));
+                        setHtml(window.fwBuildCareerTable(pid, careerData, pos, sc, player, { includeHistoricalTrends: !hideHistoricalTrends }));
                     }
                     setLoading(false);
                 }).catch(() => setLoading(false));
@@ -300,7 +300,7 @@
                 setLoading(false);
             }
             return () => { cancelled = true; };
-        }, [pid]);
+        }, [pid, hideHistoricalTrends]);
 
         const collegeData = window.COLLEGE_STATS?.[pid];
         const sections = [];

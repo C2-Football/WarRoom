@@ -74,8 +74,14 @@ search.props.onChange({ target: { value: 'Questionable' } }); render(); assert.e
 click('Show all players'); assert.equal(rowPids().length, 4);
 const bench = find(tree, n => n.props['data-wr-roster-pid'] === 'bench');
 find(bench, n => n.props.className === 'wr-roster-mobile-player-trigger').props.onClick(); render();
-assert.equal(props.expandedPid, 'bench'); assert(button('Trade Finder'), 'Existing roster actions are available in expanded detail');
-click('Back to roster ↑'); assert.equal(props.expandedPid, null);
+assert.equal(props.expandedPid, 'bench');
+assert(button('Build a trade') && button('Set lineup') && button('Ask Alex'), 'Primary player actions remain beside the expanded profile');
+assert(!button('Trade Finder') && !button('COLLAPSE') && !button('Back to roster ↑'), 'Mobile detail removes duplicate lower controls');
+assert(!text(tree).includes('Full player profile'), 'Mobile detail renders the player profile directly without a second disclosure');
+assert.equal(find(tree, n => n.type === 'career').props.hideHistoricalTrends, true, 'Mobile career stats hide historical trend charts');
+const expandedBench = find(tree, n => n.props['data-wr-roster-pid'] === 'bench');
+find(expandedBench, n => n.props.className === 'wr-roster-mobile-player-trigger').props.onClick(); render();
+assert.equal(props.expandedPid, null);
 click('View & sort ⌄');
 assert(find(tree, n => n.type === 'filter-sheet' && n.props.title === 'Roster view & sort'));
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster'));
@@ -100,7 +106,7 @@ props.myRoster = { ...myRoster, settings: {} }; props.currentLeague = { ...props
 const summary = text(find(tree, n => n.props.className === 'wr-roster-mobile-summary'));
 assert(!summary.includes('record') && !summary.includes('open') && !summary.includes('full'), 'Unknown record and capacity stay unknown');
 width = 1024; render(); assert.equal(tree.props.className, undefined); assert(!find(tree, n => n.props.className === 'wr-roster-mobile-players')); assert(text(tree).includes('Roster Board'), 'Desktop retains the full roster board');
-console.log('PASS mobile roster: capacity, roster scopes, skin restrictions, search, existing details/actions, view controls, unknown facts, and desktop path');
+console.log('PASS mobile roster: capacity, roster scopes, skin restrictions, search, direct player profile, view controls, unknown facts, and desktop path');
 // Redraft points must never inherit the value rating's units, order, or fallback.
 width = 390; slots = [];
 props.leagueSkin = {type:'redraft',features:{showWeeklyVerdict:true,showTaxi:true},vocabulary:{valueLabel:'Season value',valueShortLabel:'Season value'}};

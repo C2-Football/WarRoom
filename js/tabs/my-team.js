@@ -1333,7 +1333,7 @@ function MyTeamTab({
   // board's inline expand card so the phone AssetRow expansion renders the
   // identical dossier. The desktop boardWidth pinning wrapper stays inside
   // _renderRosterBoard below; the phone card path never mounts it.
-  const renderExpandBody = (r) => (<React.Fragment>
+  const renderExpandBody = (r, { phone = false } = {}) => (<React.Fragment>
                   {/* ── Dossier (02 "clear hierarchy"): identity + roster call → signals strip → read + signals → curve → stats ── */}
                   {(() => {
                     const tier =(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash';
@@ -1464,10 +1464,10 @@ function MyTeamTab({
                   })()}
 
                   {/* Career Stats Table */}
-                  <InlineCareerStats pid={r.pid} pos={r.pos} player={r.p} scoringSettings={currentLeague?.scoring_settings} statsData={statsData} />
+                  <InlineCareerStats pid={r.pid} pos={r.pos} player={r.p} scoringSettings={currentLeague?.scoring_settings} statsData={statsData} hideHistoricalTrends={phone} />
 
-                  {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* Desktop action buttons. Phone controls stay beside the player identity. */}
+                  {!phone && <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {/* Phase 2: News button removed per user feedback (2026-04-18) */}
                     {/* TRADE BLOCK/CUT/UNTOUCHABLE/WATCH buttons removed 2026-07-09 \u2014
                         rolled into the verdict picker (tap the call badge above). */}
@@ -1483,7 +1483,7 @@ function MyTeamTab({
                       } catch (err) { console.warn('[MyTeam] Trade Finder deep-link unavailable', err); }
                     }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 }}>Trade Finder</button>
                     <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>COLLAPSE</button>
-                  </div>
+                  </div>}
   </React.Fragment>);
 
   // ══ PHONE (<768) — Phase 0 pilot (iPhone program) ═══════════════════
@@ -1835,15 +1835,7 @@ function MyTeamTab({
             <div className="wr-roster-mobile-detail-stats">
               {_phoneSlotKeys.map(key => { const stat = _phoneSlotFor(key, r); return <div key={key}><span>{stat.label}</span><strong>{stat.value}</strong></div>; })}
             </div>
-            <window.WR.MobileSection phone={true} title="Full player profile" summary="Trends, career statistics and scouting notes">{renderExpandBody(r)}</window.WR.MobileSection>
-            <button type="button" onClick={() => {
-              setExpandedPid(null);
-              requestAnimationFrame(() => {
-                const row = document.querySelector(`[data-wr-roster-pid="${r.pid}"]`);
-                row?.scrollIntoView({ block: 'nearest' });
-                row?.querySelector('.wr-roster-mobile-player-trigger')?.focus({ preventScroll: true });
-              });
-            }} style={{ ...controlBtn(false), width: '100%', minHeight: '44px', marginTop: '14px' }}>Back to roster ↑</button>
+            {renderExpandBody(r, { phone: true })}
           </div>}
         </div>
       );
