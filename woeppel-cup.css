@@ -28,6 +28,7 @@
 .cup-connection a { color: var(--cup-teal); }
 .cup-plan-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr); gap: 14px; }
 .cup-plan-form, .cup-plan-preview { padding: 20px; background: #11151b; border: 1px solid rgba(189,184,173,.14); border-radius: 10px; display: grid; align-content: start; gap: 15px; min-width: 0; }
+.cup-plan-controls { display: contents; }
 .cup-studio .cup-plan-form h3, .cup-studio .cup-plan-preview h3 { color: var(--white); font: 700 1.2rem var(--font-title); }
 .cup-studio .cup-field { display: flex; flex-direction: column; align-items: stretch; gap: 6px; font-size: .72rem; color: var(--silver); }
 .cup-field input, .cup-field select { width: 100%; min-width: 0; box-sizing: border-box; }
@@ -35,6 +36,12 @@
 .cup-studio summary { font-size: .77rem; }
 .cup-plan-form details > :not(summary) { margin-top: 12px; }
 .cup-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cup-save-actions { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--cup-line); border-radius: 8px; background: var(--cup-ground); }
+.cup-save-actions .cup-note { margin: 0; color: #d2e5e1; overflow-wrap: anywhere; }
+.cup-save-actions .cup-primary { flex: 1; }
+.cup-locked-status { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 14px; border: 1px solid var(--cup-line); border-radius: 8px; background: var(--cup-ground); font-size: .8rem; }
+.cup-locked-status strong { color: var(--cup-teal); }
+.cup-locked-status span { color: #d2e5e1; overflow-wrap: anywhere; }
 .cup-studio .cup-primary { background: var(--cup-teal); color: #102421; font-weight: 700; border-color: var(--cup-teal); }
 .cup-studio .cup-primary:hover { filter: brightness(1.08); }
 .cup-plan-preview { background: radial-gradient(ellipse at 100% 0,rgba(101,222,198,.09),transparent 70%),#101b21; border-color: var(--cup-line); }
@@ -74,3 +81,11 @@
 .cup-survival-rows .is-eliminated span { color: #dc8a78; }
 @media(max-width:1050px) { .cup-format-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .cup-plan-layout { grid-template-columns: 1fr; } .cup-plan-preview { grid-template-columns: 1fr; } }
 @media(max-width:600px) { .cup-studio .cup-hero { padding: 15px; gap: 10px; } .cup-studio-emblem { width: 38px; height: 44px; font-size: 1.85rem; } .cup-format-grid { grid-template-columns: 1fr; gap: 8px; } .cup-studio .cup-format-card { min-height: 0; padding: 13px; } .cup-format-copy small { font-size: .72rem; } .cup-format-copy strong { font-size: 1.1rem; } .cup-plan-form, .cup-plan-preview { padding: 15px; } .cup-plan-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } .cup-participants { grid-template-columns: 1fr; } .cup-connection { align-items: flex-start; flex-direction: column; } .cup-connection > details { margin-left: 0; } .cup-studio-bracket { flex-direction: column; } .cup-studio-bracket > section { min-width: 0; flex-basis: auto; } .cup-survival-rows > div { grid-template-columns: minmax(0,1fr) 55px 70px; gap: 7px; padding: 10px; } }
+@media(max-width:767px) {
+    .cup-studio:has(.cup-save-actions) { padding-bottom: 155px; }
+    .cup-save-actions { position: fixed; bottom: var(--wr-bottom-inset, env(safe-area-inset-bottom, 0px)); left: var(--wr-phone-gutter, 12px); right: var(--wr-phone-gutter, 12px); z-index: var(--wr-z-actionbar, 150); padding: 12px; box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
+    .cup-save-actions .cup-note { max-height: 20vh; overflow-y: auto; font-size: .78rem; }
+    .cup-save-actions .cup-plan-actions { flex-wrap: nowrap; }
+    .cup-save-actions button { min-height: 48px; padding: 10px 12px; }
+    .cup-studio input:not([type=checkbox]), .cup-studio select { font-size: 16px; }
+}
