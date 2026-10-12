@@ -809,7 +809,7 @@ function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, player
         <p className="mc-team-scout-approach"><b>Approach</b>{scouting?.approach || 'Start with a balanced offer and a clear roster benefit.'}</p>
         {intelReady && observedFacts.length > 0 && <ul className="mc-team-scout-evidence">{observedFacts.map(fact => <li key={fact.code}>{fact.detail}</li>)}</ul>}
       </React.Fragment>}
-      {assessment && <dl className="mc-team-scout-fit"><div><dt>Window</dt><dd>{assessment.window || assessment.tier || 'Still evaluating'}</dd></div><div><dt>Strengths</dt><dd>{posRead(assessment.strengths) || 'No clear positional surplus'}</dd></div><div><dt>Needs</dt><dd>{posRead(assessment.needs) || 'No clear positional gap'}</dd></div></dl>}
+      {assessment && <dl className="mc-team-scout-fit"><div className="is-window"><dt>Window</dt><dd>{assessment.window || assessment.tier || 'Still evaluating'}</dd></div><div className="is-strengths" data-available={Boolean(posRead(assessment.strengths))}><dt>Strengths</dt><dd>{posRead(assessment.strengths) || 'No clear positional surplus'}</dd></div><div className="is-needs" data-available={Boolean(posRead(assessment.needs))}><dt>Needs</dt><dd>{posRead(assessment.needs) || 'No clear positional gap'}</dd></div></dl>}
       <button type="button" className="mc-owner-open" onClick={openTradeCenter}>{isMyTeam ? 'Open Trade Center' : 'Trade Center with ' + ownerName} →</button>
     </section>}
   </React.Fragment>;
