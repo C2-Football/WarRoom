@@ -52,6 +52,18 @@ function findAll(tree, pred) {
   walk(tree, n => { if (n.text == null && pred(n)) out.push(n); });
   return out;
 }
+const button = (tree, label) => findAll(tree, n => n.type === 'button' && textOf(n).trim() === label)[0];
+const field = (tree, label) => findAll(tree, n => (n.type === 'input' || n.type === 'select') && n.props['aria-label'] === label)[0];
+function withPanelState(initialProps, fn) {
+  const original = React.useState, slots = []; let cursor = 0;
+  let props = initialProps;
+  React.useState = initial => {
+    const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
+    return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }];
+  };
+  const draw = updates => { props = { ...props, ...updates }; cursor = 0; return render(Panel, props); };
+  try { fn(draw); } finally { React.useState = original; }
+}
 
 // ── Load the panel file ─────────────────────────────────────────────
 global.window = globalThis;
@@ -127,12 +139,12 @@ test('renders one chip per preset, no Clear when nothing staged', () => {
   assert.strictEqual(clears.length, 0);
   assert.ok(textOf(tree).includes('no changes staged — current rules'));
 });
-test('active chip = gold border, value-matched (full PPR lit, half dark)', () => {
+test('preset selection is value-matched and exposed to assistive technology', () => {
   const tree = render(Panel, { status: 'idle', proposal: { rec: 1 }, presets: PRESETS });
   const full = chipFor(tree, 'Full PPR (1.0/rec)');
   const half = chipFor(tree, 'Half PPR (0.5/rec)');
-  assert.ok(String(full.props.style.border).includes('var(--gold'));
-  assert.ok(!String(half.props.style.border).includes('var(--gold'));
+  assert.strictEqual(full.props['aria-pressed'], true);
+  assert.strictEqual(half.props['aria-pressed'], false);
 });
 test('chips COMPOSE: tapping TE premium on top of full PPR merges overrides', () => {
   let got = null;
@@ -152,13 +164,13 @@ test('same-key preset retunes rather than stacking (half → full)', () => {
   chipFor(tree, 'Full PPR (1.0/rec)').props.onClick();
   assert.deepStrictEqual(got, { rec: 1 });
 });
-test('summary line: baseline-aware "rec 0.5 → 1.0" + bonus "+1.0"', () => {
+test('summary line names the rule and shows only a known baseline', () => {
   const t = textOf(render(Panel, { status: 'idle', proposal: { rec: 1, bonus_rec_te: 1 }, presets: PRESETS, baselineScoring: { rec: 0.5 } }));
-  assert.ok(t.includes('rec 0.5 → 1.0 · bonus_rec_te +1.0'));
+  assert.ok(t.includes('Reception (PPR) 0.5 → 1.0 · TE reception premium → 1.0'));
 });
 test('summary line without baseline never invents a "from"', () => {
   const t = textOf(render(Panel, { status: 'idle', proposal: { pass_td: 6 }, presets: PRESETS }));
-  assert.ok(t.includes('pass_td → 6.0'));
+  assert.ok(t.includes('Passing TD → 6.0'));
   assert.ok(!t.includes('4.0 → 6.0'));
 });
 test('Clear button appears with a staged proposal and empties it', () => {
@@ -181,7 +193,7 @@ test('no presets anywhere → honest engine-not-loaded line, no throw', () => {
 });
 test('bare render with no props at all does not throw', () => {
   const t = textOf(render(Panel, {}));
-  assert.ok(t.includes('Scoring proposal'.toUpperCase()) || t.includes('Scoring proposal'));
+  assert.ok(t.includes('Change the scoring') && t.includes('Replay impact'));
 });
 
 // ── Status states ───────────────────────────────────────────────────
@@ -291,9 +303,9 @@ test('wind tunnel: key picker select renders grouped options from the baseline k
     status: 'ready', proposal: {}, presets: PRESETS, results: [],
     baselineScoring: { rec: 0.5, pass_td: 4, fgm_50p: 5 },
   });
-  const selects = findAll(tree, n => n.type === 'select');
-  assert.strictEqual(selects.length, 1, 'exactly one key picker');
-  const opts = findAll(tree, n => n.type === 'option');
+  const selects = findAll(tree, n => n.type === 'select' && n.props['aria-label'] === 'Scoring threshold rule');
+  assert.strictEqual(selects.length, 1, 'the threshold picker is distinctly named');
+  const opts = findAll(selects[0], n => n.type === 'option');
   const values = opts.map(o => o.props.value);
   assert.ok(values.includes('rec') && values.includes('pass_td') && values.includes('fgm_50p'), 'every baseline key is sweepable: ' + values.join(','));
   assert.ok(values.includes('bonus_rec_te'), 'bonus_rec_te addable even when unscored');
@@ -301,18 +313,36 @@ test('wind tunnel: key picker select renders grouped options from the baseline k
   assert.ok(groups.includes('Receiving') && groups.includes('Kicking'), 'grouped: ' + groups.join(','));
 });
 
-test('wind tunnel: Sweep it passes the selected key with null values and the allSeasons flag', () => {
+test('threshold comparison passes the selected key with null values and the allSeasons flag', () => {
   let got = null;
   const tree = render(Panel, {
     status: 'ready', proposal: {}, presets: PRESETS, results: [],
     baselineScoring: { rec: 0.5 }, onSweep: (k, v, o) => { got = { k, v, o }; },
   });
-  const btn = findAll(tree, n => n.type === 'button').find(b => textOf(b).includes('Sweep it'));
-  assert.ok(btn, 'Sweep it button present');
+  const btn = button(tree, 'Compare values');
+  assert.ok(btn, 'Compare values button present');
   btn.props.onClick();
   assert.strictEqual(got.k, 'rec', 'default key is rec');
   assert.strictEqual(got.v, null, 'null values → container builds the ladder');
   assert.strictEqual(got.o.allSeasons, false, 'toggle defaults off');
+});
+
+test('threshold comparisons require previewed rules and never call unavailable data HOLD or NOW', () => {
+  const threshold = tree => findAll(tree, n => n.type === 'details' && findAll(n, c => c.type === 'summary').some(c => textOf(c).startsWith('Find a scoring threshold')))[0];
+  let tree = render(Panel, { status: 'ready', proposal: { rec: 1 }, results: [], hasUnanalyzedChanges: true });
+  assert.ok(button(tree, 'Compare values').props.disabled);
+  assert.ok(button(tree, 'PPR 0 → 1.5').props.disabled);
+  assert.ok(textOf(threshold(tree)).includes('Preview changes before comparing values'));
+  let retries = 0;
+  tree = render(Panel, { status: 'ready', proposal: {}, results: [], onRetryReplay: () => retries++, sweepResult: { key: 'rec', perLeague: [{ leagueName: 'Missing week', firstFlipAt: null, steps: [{ value: 0, empty: true, isCurrent: true }, { value: 1, empty: true }] }] } });
+  const unavailable = threshold(tree), message = textOf(unavailable);
+  assert.ok(message.includes('Scoring threshold unavailable') && message.includes('no movement conclusion is available'));
+  assert.ok(!message.includes('HOLD') && !message.includes('NOW') && !message.includes('No tested value changes'));
+  button(unavailable, 'Retry replay').props.onClick(); assert.strictEqual(retries, 1);
+  tree = render(Panel, { status: 'ready', proposal: {}, results: [], onRetryReplay() {}, sweepResult: { key: 'rec', perLeague: [{ leagueName: 'Partial range', firstFlipAt: null, steps: [{ value: 0, empty: true, isCurrent: true }, { value: 1, ranksMoved: 0, fieldMoves: 0 }] }] } });
+  const partial = threshold(tree);
+  assert.ok(textOf(partial).includes('Some values could not be replayed') && textOf(partial).includes('Available values do not change ranks'));
+  assert.ok(findAll(partial, n => n.props.title === 'Replay data unavailable for this value.').every(n => textOf(n).includes('Data unavailable') && !textOf(n).includes('NOW')));
 });
 
 test('wind tunnel: Every season toggle only appears with 2+ available seasons', () => {
@@ -344,11 +374,21 @@ test('wind tunnel: multi-season result renders the season×value grid and the co
   assert.ok(t.includes('CSL') && t.includes('TE reception premium'), 'league + human key label');
   assert.ok(t.includes('2024') && t.includes('2025'), 'season rows');
   assert.ok(t.includes('SEED') && t.includes('2 MV'), 'per-season cells');
-  assert.ok(t.includes('every replayed season') && t.includes('held in 2 of 2'), 'consensus verdict');
+  assert.ok(t.includes('every replayed season') && t.includes('(2 of 2)'), 'cross-season movement is disclosed without asserting an untested threshold');
   assert.ok(t.includes('no data: 2023'), 'no-data years disclosed');
-  assert.ok(t.includes('No value in this range moves this league in any replayed season'), 'honest null league');
+  assert.ok(t.includes('No tested value changes ranks or playoff qualification in the replayed seasons'), 'honest null league');
   const tables = findAll(tree, n => n.type === 'table');
   assert.ok(tables.length >= 2, 'one grid table per league');
+});
+
+test('every-season threshold with no replayable seasons discloses missing data rather than unchanged rankings', () => {
+  let retries = 0;
+  const tree = render(Panel, { status: 'ready', proposal: {}, results: [], onRetryReplay: () => retries++,
+    sweepResult: { key: 'rec', multi: true, perLeague: [{ leagueName: 'Unavailable history', seasons: [], rows: [], noData: [2024, 2025], consensus: null, minFlip: null, heldIn: 0, of: 0 }] } });
+  assert.ok(textOf(tree).includes('No seasons could be replayed. Season data is unavailable; no movement conclusion is available.'));
+  assert.ok(textOf(tree).includes('no data: 2024, 2025'));
+  assert.ok(!textOf(tree).includes('No tested value changes ranks') && !textOf(tree).includes('every replayed season'));
+  button(tree, 'Retry replay').props.onClick(); assert.strictEqual(retries, 1);
 });
 
 
@@ -419,12 +459,149 @@ test('summary line never invents a "from" value it does not know', () => {
     status: 'ready', proposal: { rec: 1 }, presets: PRESETS, results: [],
     baselineScoring: { rec: 0.5 }, leagues: SCOPE_LEAGUES, selectedLeagueId: 'L1',
   }));
-  assert.ok(scoped.includes('rec 0.5 \u2192 1.0'), 'scoped shows the real from-value: ' + scoped.slice(0, 0));
+  assert.ok(scoped.includes('Reception (PPR) 0.5 \u2192 1.0'), 'scoped shows the real from-value: ' + scoped.slice(0, 0));
   const omni = textOf(render(Panel, {
     status: 'ready', proposal: { rec: 1 }, presets: PRESETS, results: [],
     baselineScoring: null, leagues: SCOPE_LEAGUES, selectedLeagueId: '__all',
   }));
-  assert.ok(omni.includes('rec \u2192 1.0') && !omni.includes('rec 0.5'), 'omnibus omits the from-value');
+  assert.ok(omni.includes('Reception (PPR) \u2192 1.0') && !omni.includes('Reception (PPR) 0.5'), 'omnibus omits the from-value');
+});
+
+test('quick rule input stages negative/fractional values; steps and selected-rule reset commit only their intended override', () => {
+  const staged = [], committed = [];
+  withPanelState({ status: 'ready', results: [], proposal: { pass_td: 6 }, baselineScoring: { rec: 0.5, pass_td: 4 }, selectedLeagueId: 'L1',
+    onProposalStage: next => staged.push(next), onProposalChange: next => committed.push(next) }, draw => {
+    let tree = draw();
+    const input = field(tree, 'Proposed value');
+    assert.strictEqual(input.props.min, undefined, 'negative proposals are allowed');
+    assert.strictEqual(input.props.max, undefined, 'arbitrary valid scoring values are allowed');
+    input.props.onChange({ target: { value: '-0.25' } });
+    assert.deepStrictEqual(staged, [{ pass_td: 6, rec: -0.25 }]);
+    assert.deepStrictEqual(committed, [], 'typing does not run the replay');
+    tree = draw({ proposal: staged[0], hasUnanalyzedChanges: true });
+    assert.strictEqual(field(tree, 'Proposed value').props.value, '-0.25');
+    findAll(tree, n => n.type === 'button' && n.props['aria-label'] === 'Increase Reception (PPR)')[0].props.onClick();
+    assert.deepStrictEqual(committed.at(-1), { pass_td: 6, rec: 0 }, 'a deliberate step commits a zero override without dropping other rules');
+    tree = draw({ proposal: committed.at(-1) });
+    button(tree, 'Reset this rule').props.onClick();
+    assert.deepStrictEqual(committed.at(-1), { pass_td: 6 }, 'reset selected rule preserves the other override');
+    tree = draw({ proposal: { rec: 0.25, pass_td: 6 } });
+    findAll(tree, n => n.type === 'button' && n.props['aria-label'] === 'Increase Reception (PPR)')[0].props.onClick();
+    assert.deepStrictEqual(committed.at(-1), { pass_td: 6 }, 'stepping back to a known baseline removes just that override');
+  });
+});
+
+test('in-progress numeric text stays editable and scope changes discard only its local display draft', () => {
+  let staged;
+  withPanelState({ status: 'ready', results: [], proposal: {}, baselineScoring: { rec: 0.5 }, selectedLeagueId: 'L1', onProposalStage: next => { staged = next; } }, draw => {
+    let tree = draw();
+    for (const raw of ['', '-', '-0.']) {
+      field(tree, 'Proposed value').props.onChange({ target: { value: raw } });
+      tree = draw({ proposal: staged });
+      assert.strictEqual(field(tree, 'Proposed value').props.value, raw, 'the field must retain ' + JSON.stringify(raw));
+    }
+    tree = draw({ selectedLeagueId: 'L2', baselineScoring: { rec: 1 }, proposal: {} });
+    assert.strictEqual(field(tree, 'Proposed value').props.value, 1, 'the old league draft does not follow the new scope');
+  });
+});
+
+test('unknown baseline stays unknown until an explicit number; zero remains a real omnibus override', () => {
+  let staged;
+  withPanelState({ status: 'ready', results: [], proposal: {}, baselineScoring: null, selectedLeagueId: '__all', onProposalStage: next => { staged = next; } }, draw => {
+    let tree = draw();
+    const current = findAll(tree, n => n.props.className === 'co-rulelab-current-value')[0];
+    assert.ok(textOf(current).includes('—') && textOf(current).includes('Varies by league'));
+    assert.strictEqual(field(tree, 'Proposed value').props.value, '');
+    const steps = findAll(tree, n => n.type === 'button' && /^(Increase|Decrease) /.test(n.props['aria-label'] || ''));
+    assert.ok(steps.every(n => n.props.disabled), 'no invented zero is available to increment');
+    field(tree, 'Proposed value').props.onChange({ target: { value: '0' } });
+    assert.deepStrictEqual(staged, { rec: 0 });
+    tree = draw({ proposal: staged });
+    assert.ok(findAll(tree, n => n.type === 'button' && /^(Increase|Decrease) /.test(n.props['aria-label'] || '')).every(n => !n.props.disabled));
+  });
+});
+
+test('Preview changes is explicit and sharing stays disabled while edits await preview', () => {
+  let previews = 0;
+  const props = { status: 'ready', proposal: { rec: 1 }, presets: PRESETS, results: [results[0]], onAnalyze: () => previews++, onCopyBallot() {}, onExportBallot() {} };
+  let tree = render(Panel, { ...props, hasUnanalyzedChanges: false });
+  assert.strictEqual(button(tree, 'Preview changes').props.disabled, true);
+  button(tree, 'Preview changes').props.onClick(); assert.strictEqual(previews, 0);
+  tree = render(Panel, { ...props, hasUnanalyzedChanges: true });
+  assert.strictEqual(button(tree, 'Preview changes').props.disabled, false);
+  assert.ok(textOf(tree).includes('This result still reflects your last preview'));
+  assert.strictEqual(button(tree, 'Copy ballot text').props.disabled, true);
+  assert.strictEqual(button(tree, 'Export PNG').props.disabled, true);
+  button(tree, 'Preview changes').props.onClick(); assert.strictEqual(previews, 1);
+});
+
+test('advanced editors and detailed evidence start collapsed on phone and desktop', () => {
+  for (const phone of [false, true]) {
+    const tree = render(Panel, { status: 'ready', phone, proposal: {}, results: [results[0]], presets: PRESETS });
+    for (const label of ['Starting lineup changes', 'All scoring rules', 'Find a scoring threshold', 'View details']) {
+      const disclosure = findAll(tree, n => n.type === 'details' && findAll(n, c => c.type === 'summary').some(c => textOf(c).startsWith(label)))[0];
+      assert.ok(disclosure, label + ' remains accessible');
+      assert.ok(!disclosure.props.open, label + ' starts collapsed');
+    }
+    assert.ok(findAll(tree, n => n.props['data-testid'] === 'rulelab-controls').length === 1);
+    assert.ok(findAll(tree, n => n.props['data-testid'] === 'rulelab-impact').length === 1);
+    assert.ok(textOf(tree).includes('Teams changing rank10 of 12') && textOf(tree).includes('Largest points change+30.5 ptsTeam A'));
+  }
+});
+
+test('View all teams reveals unchanged standings and middle point changes, then restores the compact evidence', () => {
+  withPanelState({ status: 'ready', proposal: {}, results: [results[0]], presets: PRESETS }, draw => {
+    let tree = draw();
+    assert.ok(!textOf(tree).includes('Team K'));
+    button(tree, 'View all teams').props.onClick(); tree = draw();
+    for (const name of teamNames) assert.ok(textOf(tree).includes(name), name + ' remains available');
+    const standings = findAll(tree, n => n.props['aria-label'] === 'Standings shift. Scroll for all columns.')[0];
+    assert.ok(textOf(standings).includes('Team K1111—'), 'unchanged team is not described as moving');
+    const points = findAll(tree, n => n.props['aria-label'] === 'Season points comparison. Scroll for all columns.')[0];
+    assert.ok(textOf(points).includes('Team D1200.01205.0+5.0') && textOf(points).includes('Team E1100.01102.0+2.0'));
+    button(tree, 'Show biggest changes').props.onClick(); tree = draw();
+    assert.ok(!textOf(tree).includes('Team K'));
+  });
+});
+
+test('replay recovery remains available for failed reads and is disabled during a threshold comparison', () => {
+  let retries = 0;
+  for (const status of ['empty', 'error']) {
+    let tree = render(Panel, { status, proposal: {}, results: [], onRetryReplay: () => retries++ });
+    button(tree, 'Retry replay').props.onClick();
+    tree = render(Panel, { status, proposal: {}, results: [], sweepBusy: 'rec', onRetryReplay: () => retries++ });
+    assert.strictEqual(button(tree, 'Retry replay').props.disabled, true);
+  }
+  const tree = render(Panel, { status: 'ready', proposal: {}, results: [results[2]], onRetryReplay: () => retries++ });
+  button(tree, 'Retry replay').props.onClick();
+  button(tree, 'Reload season data').props.onClick();
+  assert.strictEqual(retries, 4);
+});
+
+test('compact feedback reports actual preview evidence and never invents zero movement for unavailable data', () => {
+  const feedback = tree => findAll(tree, n => n.props.className === 'co-rulelab-feedback')[0];
+  let tree = render(Panel, { status: 'ready', proposal: {}, results: [results[0]], hasUnanalyzedChanges: true });
+  assert.ok(textOf(feedback(tree)).includes('Last preview10 of 12 teams change rank. 1 in, 1 out'));
+  assert.ok(textOf(feedback(tree)).includes('#1 seed: Team A → Team B2025 · 14 weeks replayed'));
+  tree = render(Panel, { status: 'ready', proposal: {}, results: [results[2]] });
+  assert.ok(textOf(feedback(tree)).includes('Replay data is unavailable'));
+  assert.ok(!textOf(feedback(tree)).includes('teams change rank') && !textOf(feedback(tree)).includes('#1 seed holds'));
+  const impact = findAll(tree, n => n.props.id === 'wr-rulelab-impact')[0];
+  assert.strictEqual(impact.props.tabIndex, -1, 'impact area is a focus destination');
+  assert.strictEqual(button(tree, 'See replay impact').props['aria-controls'], impact.props.id);
+  const workspace = findAll(tree, n => n.props.className === 'co-rulelab-workspace')[0];
+  assert.deepStrictEqual(workspace.children.filter(n => n && n.props).map(n => n.props['data-testid'] || n.props.className), ['rulelab-controls', 'rulelab-impact', 'co-rulelab-save'], 'reading order follows controls, evidence, save');
+});
+
+test('a zero-point swing has no arbitrary biggest-gainer name and confirmed saves are announced', () => {
+  const zeroResult = { ...quietResult, teamDeltas: [{ rosterId: 1, name: 'Alphabetical first', baselinePts: 100, proposedPts: 100, delta: 0 }] };
+  const tree = render(Panel, { status: 'ready', proposal: {}, results: [{ leagueId: 'L1', result: zeroResult }], savedNotice: 'Saved “Reviewed rules” in this browser.' });
+  const headline = findAll(tree, n => n.props.className === 'co-rulelab-impact-summary')[0];
+  assert.ok(textOf(headline).includes('Largest points change0.0 pts'));
+  assert.ok(!textOf(headline).includes('Alphabetical first'));
+  const notice = findAll(tree, n => n.props.className === 'co-rulelab-saved-notice')[0];
+  assert.strictEqual(notice.props.role, 'status');
+  assert.strictEqual(textOf(notice), 'Saved “Reviewed rules” in this browser.');
 });
 
 test('proposal name stays available after failed save and clears only after success', () => {
@@ -434,8 +611,8 @@ test('proposal name stays available after failed save and clears only after succ
     return [slots[i], value => slots[i] = typeof value === 'function' ? value(slots[i]) : value];
   };
   const draw = () => { cursor = 0; return render(Panel, { status: 'ready', proposal: { rec: 1 }, presets: [], results: [], saved: [], onSaveProposal: name => { savedNames.push(name); return allowed; } }); };
-  const nameField = tree => findAll(tree, n => n.type === 'input' && n.props.placeholder?.startsWith('Name this proposal'))[0];
-  const saveButton = tree => findAll(tree, n => n.type === 'button' && textOf(n).trim() === 'Save')[0];
+  const nameField = tree => findAll(tree, n => n.type === 'input' && n.props['aria-label'] === 'Proposal name')[0];
+  const saveButton = tree => findAll(tree, n => n.type === 'button' && textOf(n).trim() === 'Save draft')[0];
   try {
     let tree = draw(); nameField(tree).props.onChange({ target: { value: 'Keep this proposal name' } }); tree = draw();
     saveButton(tree).props.onClick(); tree = draw(); assert.strictEqual(nameField(tree).props.value, 'Keep this proposal name');

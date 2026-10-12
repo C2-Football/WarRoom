@@ -1,0 +1,8 @@
+PASS chromium Rule Lab real replay phone-small 320×700
+PASS chromium Rule Lab real replay phone 390×844
+PASS chromium Rule Lab real replay phone-landscape 844×390
+PASS chromium Rule Lab real replay ipad-portrait 768×1024
+PASS chromium Rule Lab real replay ipad-landscape 1024×768
+PASS chromium Rule Lab real replay desktop 1440×1000
+
+All six cases passed against the same frozen candidate. Desktop-only harness correction documented in local-chromium.json.

@@ -9,6 +9,7 @@
 'use strict';
 
 const assert = require('assert');
+const nativeFetch = globalThis.fetch;
 
 // Stub fetch BEFORE any require: a unit test must never touch the network.
 globalThis.fetch = () => Promise.resolve({ ok: false });
@@ -204,6 +205,18 @@ test('runProposal: proposerNote is the honest disclosure, only when myRosterId i
   assert.strictEqual(run({}, { myRosterId: 99 }).proposerNote, null, 'unknown roster → no note');
 });
 
+test('runProposal: unchanged points have no artificial gainer disclosure; tied gains share their true rank', () => {
+  assert.strictEqual(run({}, { myRosterId: 1 }).proposerNote, null);
+  assert.strictEqual(run({ rec: 0 }, { myRosterId: 2 }).proposerNote, null, 'an explicit baseline value also changes no points');
+  const tiedStats = { 1: seasonStats[1], 2: { ...seasonStats[2], 301: { ...seasonStats[2][301], rec: 10 } } };
+  for (const rosterId of [2, 3]) {
+    const r = run({ rec: 1 }, { myRosterId: rosterId, seasonStats: tiedStats });
+    assert.strictEqual(r.proposerNote.myRank, 1, 'equal 18-point gains rank equally regardless of roster id');
+  }
+  const loserOnly = run({ pass_td: 2 }, { myRosterId: 4 });
+  assert.strictEqual(loserOnly.proposerNote.myRank, 1, 'three unchanged rosters tie ahead of the one that loses points');
+});
+
 test('runProposal: empty season is reported honestly, never fabricated', () => {
   const r = RuleLab.runProposal({ league, seasonStats, lineups: {}, proposal: { rec: 1 }, playersData, calcFn: calc });
   assert.strictEqual(r.empty, true);
@@ -214,6 +227,37 @@ test('runProposal: empty season is reported honestly, never fabricated', () => {
   const solo = RuleLab.runProposal({ league, seasonStats, proposal: {}, playersData, calcFn: calc,
     lineups: { 1: [{ rosterId: 1, matchupId: 'a', points: 10, starters: ['101'] }] } });
   assert.strictEqual(solo.empty, true);
+});
+
+test('runProposal: a whole missing or invalid played stat week blocks comparison rather than scoring it zero', () => {
+  for (const missing of [undefined, {}, [], { error: 'provider unavailable' }, { error: { code: 503 } }, { 101: {} }, { 101: { rec: Infinity } }]) {
+    const r = run({ rec: 1 }, { seasonStats: { 1: seasonStats[1], 2: missing } });
+    assert.strictEqual(r.empty, true);
+    assert.deepStrictEqual(r.missingStatWeeks, [2]);
+    assert.strictEqual(r.weeksCounted, 0);
+    assert.match(r.reason, /stats.*unavailable.*played week 2/i);
+    assert.strictEqual(r.teamDeltas, undefined, 'no fabricated zero-stat standings or points');
+  }
+  const partialPlayerWeek = run({ rec: 1 }, { seasonStats: { 1: { 101: { pass_td: 0 } }, 2: seasonStats[2] } });
+  assert.strictEqual(partialPlayerWeek.empty, false, 'a valid zero stat line is sufficient; missing individual players still score zero');
+});
+
+test('runProposal: regular-season cutoff excludes adversarial playoff lineups and invalid week keys', () => {
+  const extraRows = lineupWeek([[1, 2], [3, 4]]);
+  const adversarialStats = { 101: { pass_td: 0 }, 201: { rec: 100000 }, 301: { rec: 0 }, 202: { rec: 0 } };
+  const r = run({ rec: 1 }, {
+    league: { ...league, settings: { ...league.settings, playoff_week_start: '3' } },
+    lineups: { ...lineups, 3: extraRows, 18: extraRows, 19: extraRows, '1.5': extraRows, Infinity: extraRows },
+    seasonStats: { ...seasonStats, 3: adversarialStats, 18: adversarialStats, 19: adversarialStats, 1.5: adversarialStats },
+  });
+  const expected = run({ rec: 1 });
+  assert.strictEqual(r.weeksCounted, 2);
+  assert.deepStrictEqual(r.teamDeltas, expected.teamDeltas);
+  assert.deepStrictEqual(r.standingsShift, expected.standingsShift);
+  const playoffOnly = run({}, { league: { ...league, settings: { playoff_week_start: 1 } } });
+  assert.strictEqual(playoffOnly.empty, true, 'no regular season is not a playoff replay');
+  const noCutoff = run({}, { league: { ...league, settings: { playoff_week_start: 0 } }, lineups: { 18: extraRows, 19: extraRows }, seasonStats: { 18: seasonStats[1] } });
+  assert.strictEqual(noCutoff.weeksCounted, 1, 'week 18 remains eligible without a positive configured cutoff; week 19 never does');
 });
 
 // ── Omnibus ─────────────────────────────────────────────────────────
@@ -255,6 +299,59 @@ test('runOmnibus: each league is diffed against its OWN current scoring', () => 
     assert.strictEqual(a, b, 'second call served from the module cache');
     assert.strictEqual(Object.keys(a).length, 16, 'empty weeks dropped');
     assert.strictEqual(a[3]['101'].pass_td, 3);
+    globalThis.fetch = () => Promise.resolve({ ok: false });
+  });
+
+  await testAsync('loadSeasonStats: HTTP outage and future 404 stay honest; retry recovers missing played data', async () => {
+    const http = require('http');
+    let unavailable = true, calls = 0;
+    const server = http.createServer((req, res) => {
+      calls++;
+      const week = Number(req.url.split('/').pop());
+      if (week === 2 && unavailable) { res.writeHead(503); res.end('temporarily unavailable'); return; }
+      if (week > 2) { res.writeHead(404); res.end('unplayed'); return; }
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(seasonStats[week]));
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const base = 'http://127.0.0.1:' + server.address().port;
+      globalThis.fetch = url => nativeFetch(base + '/' + String(url).split('/').pop());
+      const partial = await RuleLab.loadSeasonStats('2032');
+      assert.deepStrictEqual(Object.keys(partial), ['1']);
+      const missing = run({ rec: 1 }, { seasonStats: partial });
+      assert.deepStrictEqual(missing.missingStatWeeks, [2]);
+      unavailable = false;
+      const recovered = await RuleLab.loadSeasonStats('2032');
+      assert.strictEqual(calls, 36, 'the successful partial response was not retained as a permanent cache hit');
+      assert.deepStrictEqual(Object.keys(recovered), ['1', '2'], 'future 404 responses do not throw or fabricate stats');
+      assert.strictEqual(run({ rec: 1 }, { seasonStats: recovered }).empty, false);
+    } finally {
+      globalThis.fetch = () => Promise.resolve({ ok: false });
+      await new Promise(resolve => server.close(resolve));
+    }
+  });
+
+  await testAsync('loadSeasonStats: forced refresh supersedes cached load; older failure cannot evict newer data', async () => {
+    let firstRelease, calls = 0;
+    globalThis.fetch = url => {
+      calls++;
+      const firstPass = calls <= 18;
+      const week = Number(String(url).split('/').pop());
+      if (firstPass && week === 1) return new Promise(resolve => { firstRelease = () => resolve({ ok: false }); });
+      return Promise.resolve({ ok: true, json: async () => week <= 2 ? seasonStats[week] : {} });
+    };
+    const old = RuleLab.loadSeasonStats('2033');
+    const fresh = await RuleLab.loadSeasonStats('2033', { force: true });
+    assert.strictEqual(calls, 36);
+    firstRelease();
+    await old;
+    const cached = await RuleLab.loadSeasonStats('2033');
+    assert.strictEqual(cached, fresh);
+    assert.strictEqual(calls, 36, 'the old request did not evict the newer complete cache');
+    const refreshed = await RuleLab.loadSeasonStats('2033', { force: true });
+    assert.strictEqual(calls, 54, 'explicit reload bypasses a complete cached response');
+    assert.notStrictEqual(refreshed, fresh);
     globalThis.fetch = () => Promise.resolve({ ok: false });
   });
 

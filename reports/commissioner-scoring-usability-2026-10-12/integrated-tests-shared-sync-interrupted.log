@@ -1,0 +1,29 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 44 test suites…
+
+  ✓ core
+  ✓ design-tokens
+  ✓ landing-content
+  ✓ login-auth
+  ✓ sleeper-connect
+  ✓ sleeper-portfolio
+  ✓ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ game-draft-table
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing

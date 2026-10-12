@@ -1,0 +1,13 @@
+Replay diagnostics {"runs":[{"leagueId":"qa-replay-half","proposal":{},"empty":false,"weeks":14}],"rendered":["qa-replay-half"]}
+AssertionError [ERR_ASSERTION]: Scoring rule picker needs44px touch target: {"width":450,"height":23,"reachable":true,"minHeight":"18px","computedHeight":"23px","appearance":"auto","fontSize":"16px","coarse":true,"maxTouchPoints":0,"touchEvents":true}
+    at reachable (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:91:11)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:194:9 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

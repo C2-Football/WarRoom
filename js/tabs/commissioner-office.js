@@ -393,6 +393,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     const rlChains = React.useRef(null);                    // { [lid]: { [season]: leagueIdForThatSeason } }
     const RL_CHAIN_HOPS = 3;
     const rlRun = React.useRef({ key: null });
+    const rlForceReload = React.useRef(false);
+    const rlRegularWeeks = league => {
+        const playoffStart = Number(league.settings?.playoff_week_start);
+        const end = Number.isFinite(playoffStart) && playoffStart > 0 ? Math.min(18, Math.ceil(playoffStart) - 1) : 18;
+        return Array.from({ length: Math.max(0, end) }, (_, i) => i + 1);
+    };
     React.useEffect(() => {
         if (tab !== 'rulelab' || ruleLab.status !== 'idle' || state.status !== 'ready') return;
         const RL = C && C.RuleLab;
@@ -403,8 +409,11 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const wantSeason = rlSeason != null ? rlSeason : (anyCounted ? curSeason : curSeason - 1);
         const wantKey = runKey + '|' + wantSeason;
         if (rlRun.current.key === wantKey) return;
-        rlRun.current.key = wantKey;
-        const live = () => rlRun.current.key === wantKey;
+        const run = { key: wantKey };
+        rlRun.current = run;
+        const live = () => rlRun.current === run && window.App?.AccountSession?.isCurrent?.() !== false;
+        const forceReload = rlForceReload.current;
+        rlForceReload.current = false;
         setRuleLab({ status: 'loading' });
         (async () => {
             try {
@@ -429,7 +438,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     rlChains.current = chains;
                 }
                 const chains = rlChains.current;
-                const seasonStats = await RL.loadSeasonStats(wantSeason);
+                const seasonStats = await RL.loadSeasonStats(wantSeason, { force: forceReload });
                 const perLeague = {};
                 await Promise.all(state.mine.map(async l => {
                     const lid = String(l.league_id || l.id);
@@ -442,8 +451,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                             nameLeague = { ...l, users: users || l.users, rosters: rosters || l.rosters };
                         } catch (e) { /* fall back to current names */ }
                     }
-                    const weeks = []; for (let w = 1; w <= 18; w++) weeks.push(w);
-                    const lineups = await RL.loadSeasonLineups(lineupLid, weeks);
+                    const lineups = await RL.loadSeasonLineups(lineupLid, rlRegularWeeks(l));
                     perLeague[lid] = { lineups, nameLeague };
                 }));
                 if (live()) {
@@ -460,7 +468,19 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             } catch (e) { window.wrLog?.('commish.rulelab', e); if (live()) setRuleLab({ status: 'error' }); }
         })();
     }, [tab, ruleLab.status, state.status, rlSeason]);
-    const onRlSeason = (s) => { setRlSeason(s); setRuleLab({ status: 'idle' }); };
+    const onRlSeason = (s) => {
+        rlRun.current = { key: null };
+        setRlSeason(s); setRuleLab({ status: 'idle' });
+    };
+    const onRetryRuleLab = () => {
+        if (sweepBusy || window.App?.AccountSession?.isCurrent?.() === false) return false;
+        rlRun.current = { key: null };
+        rlForceReload.current = true;
+        rlSeasonData.current = {};
+        setSweepState(null);
+        setRuleLab({ status: 'idle' });
+        return true;
+    };
 
     // ── Schedule Builder: lazy per-league load (teams + persisted plan) ──
     React.useEffect(() => {
@@ -805,13 +825,23 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // ── Wind Tunnel: sweep one knob across all leagues ───────────────
     const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague, multi? } | null
     const [sweepBusy, setSweepBusy] = React.useState(null);
+    const sweepContext = JSON.stringify([rlActiveId, ruleLab.season, proposal, rosterProposal, committedProposal, committedRosterProposal]);
+    const sweepContextRef = React.useRef(sweepContext);
+    sweepContextRef.current = sweepContext;
+    const sweepRun = React.useRef(null);
+    React.useEffect(() => {
+        sweepRun.current = null;
+        setSweepState(null); setSweepBusy(null);
+    }, [sweepContext, ruleLab.status]);
+    React.useEffect(() => () => { sweepRun.current = null; }, []);
     // Other seasons' data, loaded lazily on the first every-season sweep and
     // kept for the session — {[season]: {seasonStats, perLeague}}. The
     // engine's own loaders are module-cached too; this ref just skips
     // re-fanning the per-league name/roster fetches.
     const rlSeasonData = React.useRef({});
     const loadSeasonPack = async (season) => {
-        if (rlSeasonData.current[season]) return rlSeasonData.current[season];
+        const cache = rlSeasonData.current;
+        if (cache[season]) return cache[season];
         const RL = C.RuleLab;
         const chains = rlChains.current || {};
         const seasonStats = await RL.loadSeasonStats(season);
@@ -827,12 +857,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     nameLeague = { ...l, users: users || l.users, rosters: rosters || l.rosters };
                 } catch (e) { /* fall back to current names */ }
             }
-            const weeks = []; for (let w = 1; w <= 18; w++) weeks.push(w);
-            const lineups = await RL.loadSeasonLineups(lineupLid, weeks);
+            const lineups = await RL.loadSeasonLineups(lineupLid, rlRegularWeeks(l));
             perLeague[lid] = { lineups, nameLeague };
         }));
-        rlSeasonData.current[season] = { seasonStats, perLeague };
-        return rlSeasonData.current[season];
+        const pack = { seasonStats, perLeague };
+        if (rlSeasonData.current === cache) cache[season] = pack;
+        return pack;
     };
     // rlLeagueArgs pinned to the SELECTED season; this variant takes any
     // season's pack. Same baseline law: that year's lineups, scored under
@@ -858,8 +888,11 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         return vals.sort((a, b) => a - b);
     };
     const onSweep = (key, values, opts) => {
-        if (ruleLab.status !== 'ready' || !C?.RuleLab?.sweep) return;
+        if (hasUnanalyzedChanges || sweepBusy || ruleLab.status !== 'ready' || !C?.RuleLab?.sweep || window.App?.AccountSession?.isCurrent?.() === false) return;
         const RL = C.RuleLab;
+        const run = { context: sweepContext };
+        sweepRun.current = run;
+        const live = () => sweepRun.current === run && sweepContextRef.current === run.context && window.App?.AccountSession?.isCurrent?.() !== false;
         const vals = (values && values.length) ? values : buildLadder(key);
         const seasonsToRun = (ruleLab.seasons || []).filter(s => s.available).map(s => s.season);
         const multi = !!(opts && opts.allSeasons) && seasonsToRun.length > 1;
@@ -868,16 +901,17 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             // Rescoring is fast but 7 steps × N leagues deserves a yield so
             // the button repaints before the crunch.
             setTimeout(() => {
+                if (!live()) return;
                 try {
                     const perLeague = rlScoped.map(l => {
                         const args = rlLeagueArgs(l);
                         if (!args) return { leagueName: l.name, steps: [], firstFlipAt: null };
-                        const s = RL.sweep({ ...args, baseProposal: proposal, key, values: vals });
+                        const s = RL.sweep({ ...args, baseProposal: committedProposal, rosterProposal: committedRosterProposal, key, values: vals });
                         return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
                     });
-                    setSweepState({ key, perLeague });
-                } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); setSweepState(null); }
-                setSweepBusy(null);
+                    if (live()) setSweepState({ key, perLeague });
+                } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); if (live()) setSweepState(null); }
+                if (live()) setSweepBusy(null);
             }, 30);
             return;
         }
@@ -891,37 +925,44 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     const packData = season === ruleLab.season
                         ? { seasonStats: ruleLab.seasonStats, perLeague: ruleLab.perLeague }
                         : await loadSeasonPack(season);
+                    if (!live()) return;
                     const perLeague = rlScoped.map(l => {
                         const lid = String(l.league_id || l.id);
                         const args = rlArgsFor(l, packData.perLeague[lid], packData.seasonStats, season);
                         // Unreachable year for this league → an all-empty run,
                         // which mergeSweeps books as "no data", not a veto.
                         if (!args) return { leagueName: l.name, steps: [{ value: vals[0], empty: true }], firstFlipAt: null };
-                        const s = RL.sweep({ ...args, baseProposal: proposal, key, values: vals });
+                        const s = RL.sweep({ ...args, baseProposal: committedProposal, rosterProposal: committedRosterProposal, key, values: vals });
                         return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
                     });
                     seasonSweeps.push({ season, perLeague });
                 }
-                setSweepState({ key, multi: true, perLeague: RL.mergeSweeps(seasonSweeps) });
-            } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); setSweepState(null); }
-            setSweepBusy(null);
+                if (live()) setSweepState({ key, multi: true, perLeague: RL.mergeSweeps(seasonSweeps) });
+            } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); if (live()) setSweepState(null); }
+            if (live()) setSweepBusy(null);
         })();
     };
 
     // ── Saved proposals + ratification ───────────────────────────────
     const [savedTick, setSavedTick] = React.useState(0);
+    const [proposalSaveNotice, setProposalSaveNotice] = React.useState('');
     const proposalRead = React.useMemo(() => C?.Proposals?.read?.() || { list: [], error: 'Saved proposal recovery is still loading. Reload this page to try again.' }, [savedTick]);
     const savedProposals = proposalRead.list;
     const proposalCopies = React.useMemo(() => C?.Proposals?.recoveryCopies?.() || [], [savedTick]);
-    const writeProposals = (change, key = 'proposal-add') => {
+    const writeProposals = (change, key = 'proposal-add', savedName) => {
         const result = localSave.run(key, 'rulelab', () => {
             return C.Proposals.update(change);
-        }, { discard: key === 'proposal-add' ? onResetProposal : undefined });
-        if (result.ok) setSavedTick(t => t + 1);
+        }, { retryLabel: 'Retry save', retry: () => writeProposals(change, key, savedName), discard: key === 'proposal-add' ? onResetProposal : undefined });
+        if (result.ok) {
+            setSavedTick(t => t + 1);
+            if (savedName) setProposalSaveNotice('Saved “' + savedName + '” in this browser.');
+        }
         return result.ok;
     };
     const onSaveProposal = (name) => {
-        return writeProposals(list => [{ id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal, status: 'draft', ts: Date.now() }, ...list].slice(0, 20));
+        setProposalSaveNotice('');
+        const entry = { id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal: rosterProposal ? { ...rosterProposal, rosterPositions: rosterProposal.rosterPositions.slice() } : null, status: 'draft', ts: Date.now() };
+        return writeProposals(list => [entry, ...list.filter(p => p.id !== entry.id)].slice(0, 20), 'proposal-add', name);
     };
     const onLoadProposal = (id) => {
         if (!localSave.canLeave()) return;
@@ -1012,16 +1053,25 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
 
     // ── Ballot handlers ──────────────────────────────────────────────
     const proposalSummaryText = () => {
-        const bits = Object.keys(proposal).map(k => k + ' → ' + proposal[k]);
-        if (rosterProposal) bits.push('slots: ' + rosterProposal.rosterPositions.join('/'));
+        // The ballot describes the same analyzed snapshot as the result.
+        const labels = { rec: 'Reception (PPR)', bonus_rec_te: 'TE reception premium',
+            pass_td: 'Passing TD', pass_yd: 'Passing yards', pass_int: 'Interception thrown',
+            rush_td: 'Rushing TD', rush_yd: 'Rushing yards', rec_td: 'Receiving TD', rec_yd: 'Receiving yards',
+            fum_lost: 'Fumble lost' };
+        const bits = Object.keys(committedProposal).map(k => (labels[k] || k.replace(/_/g, ' ')) + ' → ' + committedProposal[k]);
+        if (committedRosterProposal) bits.push('Lineup: ' + committedRosterProposal.rosterPositions.join('/'));
         return bits.join(', ') || 'current rules';
     };
     const onCopyBallot = (leagueName, result) => {
-        try { onCopy(C.RuleLab.ballotText(leagueName, result, proposalSummaryText())); } catch (e) { /* clipboard */ }
+        if (hasUnanalyzedChanges) return false;
+        try { onCopy(C.RuleLab.ballotText(leagueName, result, proposalSummaryText())); return true; } catch (e) { return false; }
     };
     const onExportBallot = (leagueName) => {
+        if (hasUnanalyzedChanges) return false;
         const el = document.getElementById('wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase());
-        if (el && window.wrExport) window.wrExport.capture(el, 'impact-statement-' + String(leagueName).replace(/\W+/g, '-').toLowerCase());
+        if (!el || !window.wrExport) return false;
+        window.wrExport.capture(el, 'impact-statement-' + String(leagueName).replace(/\W+/g, '-').toLowerCase());
+        return true;
     };
     const rlCurrentSlots = React.useMemo(() => {
         const out = {};
@@ -1694,6 +1744,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                         onReset={onResetProposal}
                         onAnalyze={onAnalyzeProposal}
                         hasUnanalyzedChanges={hasUnanalyzedChanges}
+                        onRetryReplay={onRetryRuleLab}
                         results={ruleLabResults}
                         presets={(C?.RuleLab && C.RuleLab.PRESETS) || []}
                         baselineScoring={rlBaselineScoring}
@@ -1706,6 +1757,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                         onSweep={onSweep}
                         sweepBusy={sweepBusy}
                         saved={savedProposals}
+                        savedNotice={proposalSaveNotice}
                         savedError={proposalRead.error}
                         canRecoverSaved={proposalRead.canRecover}
                         hasRecoveryCopy={proposalCopies.length > 0}
