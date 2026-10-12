@@ -79,7 +79,12 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             if (!alive || fetching || document.visibilityState === 'hidden') return;
             fetching = true;
             try {
-                const games = await context.loadScores(week, currentLeague.season, 2);
+                // Use the same opponent/venue context as Game Day so the two
+                // surfaces do not show different fallback projections.
+                const [games] = await Promise.all([
+                    context.loadScores(week, currentLeague.season, 2),
+                    canOpenGameDay && typeof context.load === 'function' ? Promise.resolve(context.load([Number(week)], currentLeague.season)).catch(() => null) : null,
+                ]);
                 if (alive) setNfl({ key: nflKey, games: games || [] });
             } catch (_) {
                 if (alive) setNfl({ key: nflKey, games: [] });

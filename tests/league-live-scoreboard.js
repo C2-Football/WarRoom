@@ -3,10 +3,10 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const Babel = require('@babel/standalone');
-let hooks = [], index = 0, board, tab;
+let hooks = [], index = 0, board, tab, effects = [];
 const React = {
     useState(initial) { const i = index++; if (!(i in hooks)) hooks[i] = initial; return [hooks[i], value => { hooks[i] = value; }]; },
-    useEffect() {},
+    useEffect(fn) { effects.push(fn); },
     createElement(type, props, ...children) { return { type, props: props || {}, children }; }
 };
 const App = { LeagueLiveScores: {
@@ -25,7 +25,7 @@ const rows = [
 const props = { currentLeague: { league_id: 'A', season: '2026', rosters: rows }, myRoster: rows[2], getOwnerName: id => `Owner ${id}`, getPlayerName: id => id, setActiveTab: key => { tab = key; } };
 function nodes(tree) { return tree == null || typeof tree === 'boolean' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : typeof tree !== 'object' ? [tree] : [tree, ...nodes(tree.children)]; }
 function text(tree) { return nodes(tree).filter(n => typeof n !== 'object').join(''); }
-function render(extra = {}) { index = 0; return scope.window.LeagueLiveScoreboard({ ...props, ...extra }); }
+function render(extra = {}) { index = 0; effects = []; return scope.window.LeagueLiveScoreboard({ ...props, ...extra }); }
 board = { status: 'ready', supported: true, rows, groups: [{ matchupId: 1, teams: rows.slice(0, 2) }, { matchupId: 2, teams: [rows[2]] }], updatedAt: Date.now() };
 let tree = render();
 let cards = nodes(tree).filter(n => n.type === 'article');
@@ -135,3 +135,18 @@ assert(!nodes(pastProgress).some(n=>n.props?.className==='mc-score-projection'),
 board = { supported: false, status: 'unsupported', rows: [], groups: [] };
 assert(text(render()).includes('connected Sleeper leagues'));
 console.log('League scoreboard render checks passed.');
+
+(async () => {
+    const calls=[];
+    scope.document={visibilityState:'visible',addEventListener(){},removeEventListener(){}};
+    scope.setInterval=()=>1; scope.clearInterval=()=>{};
+    App.NflContext.loadScores=async (...args)=>{calls.push(['scores',...args]);return progressGames;};
+    App.NflContext.load=async (...args)=>{calls.push(['context',...args]);return {};};
+    hooks=[]; render({fullBoard:true,selectedWeek:2});
+    const cleanup=effects[0]();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(JSON.parse(JSON.stringify(calls)),[['scores',2,'2026',2],['context',[2],'2026']],'Current scoreboard loads the same week and season matchup context as Game Day');
+    assert(hooks.some(value=>value?.key==='2026|2'&&value.games?.length),'NFL progress updates after context is ready');
+    cleanup();
+    console.log('League scoreboard projection context checks passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
