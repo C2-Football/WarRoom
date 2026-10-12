@@ -235,9 +235,9 @@ function LineupTab({
     }
     const weekNavigator = <div className="gd-week-nav" aria-label="Lineup week navigation">
         <button type="button" aria-label="Previous lineup week" disabled={planningWeek <= liveWeek} onClick={() => setWeekChoice({ scope: leagueScope, week: planningWeek - 1 })}>‹</button>
-        <label><span>Lineup week</span><select aria-label="Lineup week" value={planningWeek} onChange={event => setWeekChoice({ scope: leagueScope, week: Number(event.target.value) })}>
+        <label><span>Lineup week</span><select aria-label="Lineup week" aria-describedby="gd-lineup-week-context" value={planningWeek} onChange={event => setWeekChoice({ scope: leagueScope, week: Number(event.target.value) })}>
             {Array.from({ length: 19 - liveWeek }, (_, index) => liveWeek + index).map(week => <option key={week} value={week}>Week {week}{week === liveWeek ? ' · This week' : ''}</option>)}
-        </select><small>{isFutureWeek ? 'Future lineup · saved on this device' : 'This week’s lineup'}</small></label>
+        </select><small id="gd-lineup-week-context">{isFutureWeek ? 'Future lineup · saved on this device' : 'This week’s lineup'}</small></label>
         <button type="button" aria-label="Next lineup week" disabled={planningWeek >= 18} onClick={() => setWeekChoice({ scope: leagueScope, week: planningWeek + 1 })}>›</button>
     </div>;
     const gradeColor = g => (g === 'A' ? GREEN : g === 'B' ? GOLD : g === 'C' ? SILVER : g === 'D' ? AMBER : RED);

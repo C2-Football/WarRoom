@@ -270,6 +270,13 @@
 .gd-week-nav button:disabled { opacity: .4; cursor: default; }
 .gd-week-nav :is(button, select):focus-visible { outline: 2px solid var(--gold, #d4af37); outline-offset: 2px; }
 .gd-mobile > .gd-week-nav { margin-bottom: 0; }
+@media (max-width: 767px) {
+  .gd-mobile > .gd-week-nav { align-self: flex-start; width: 224px; max-width: 100%; gap: 0; padding: 0; border-radius: 8px; background: transparent; }
+  .gd-mobile > .gd-week-nav > button { flex-basis: 34px; min-height: 34px; padding: 0; border: 0; border-radius: 7px; background: transparent; font-size: 20px; }
+  .gd-mobile > .gd-week-nav > label { margin: 0; }
+  .gd-mobile > .gd-week-nav select { min-height: 34px; padding: 2px 6px; background: transparent !important; font-size: 13px; font-weight: 600; }
+  .gd-mobile > .gd-week-nav small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 
 /* Injury severity is shared by desktop, phone, and roster pickers. */
 .lineup-injury,
