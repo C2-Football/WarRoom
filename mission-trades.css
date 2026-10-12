@@ -59,6 +59,40 @@
 .mc-dna-guide strong { font-size:12px; }
 .mc-dna-guide p,.mc-dna-guide small { font-size:11px; line-height:1.45; color:var(--silver); }
 @media(max-width:767px) {
+ /* Owner dossiers share the phone's slate surfaces; DNA stays in the small identity badge. */
+ .wr-mission-v8 .mc-owner-profile {
+  --off-black:var(--cx-paper); --charcoal:var(--cx-soft); --font-title:var(--font-body,"DM Sans",sans-serif);
+  --acc-fill3:rgba(183,206,255,.16);
+  border:1px solid var(--gx-edge)!important; border-radius:14px!important;
+  background:linear-gradient(135deg,rgba(48,68,101,.84),rgba(28,42,66,.92))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.09),0 10px 28px rgba(0,0,0,.12);
+  color:var(--cx-ink); font-family:var(--font-body,"DM Sans",sans-serif);
+ }
+ .wr-mission-v8 .mc-owner-hero { border-bottom-color:rgba(183,206,255,.18)!important; }
+ .wr-mission-v8 .mc-owner-hero>div+div>div:nth-child(2),
+ .wr-mission-v8 .mc-owner-hero>div+div>div:last-child>span:last-child { opacity:1!important; }
+ .wr-mission-v8 .mc-owner-profile .tc-owner-kpi-grid>div {
+  border-color:rgba(183,206,255,.18)!important; background:rgba(13,24,43,.3)!important; border-radius:10px!important;
+ }
+ .wr-mission-v8 .mc-owner-profile .tc-owner-kpi-grid>div>div+div { color:var(--cx-muted)!important; opacity:1!important; }
+ .wr-mission-v8 .mc-owner-sections button.is-on,
+ .wr-mission-v8 .mc-owner-sections button[aria-current=page] {
+  background:rgba(183,206,255,.2)!important; color:var(--cx-ink)!important; box-shadow:inset 0 1px rgba(255,255,255,.16)!important;
+ }
+ .wr-mission-v8 .mc-owner-profile :is(.mc-owner-needs,.mc-owner-approach,.mc-owner-behavior,.tc-owner-panel,.tc-owner-signal-grid>div,.tc-dhq-dossier-block) {
+  border-color:rgba(183,206,255,.2); border-radius:10px; background:rgba(183,206,255,.045);
+ }
+ .wr-mission-v8 .mc-owner-needs>div+div,
+ .wr-mission-v8 .mc-owner-facts>div,
+ .wr-mission-v8 .tc-owner-panel-head { border-color:rgba(183,206,255,.18); }
+ .wr-mission-v8 .mc-owner-approach>strong { background:rgba(13,24,43,.22); border-left-color:var(--cx-accent); }
+ .wr-mission-v8 .mc-owner-profile .tc-rail-dna-link {
+  min-height:44px; border:1px solid var(--gx-edge); border-radius:10px;
+  background:rgba(183,206,255,.12); color:var(--cx-accent); box-shadow:inset 0 1px rgba(255,255,255,.06);
+ }
+ .wr-mission-v8 .mc-owner-profile :is(.tc-owner-trade-row,.tc-owner-trade-spot) { border-color:rgba(183,206,255,.18); background:rgba(13,24,43,.18); }
+ .wr-mission-v8 .mc-owner-profile :is(.tc-owner-signal-grid strong,.tc-owner-trade-row>strong) { font-family:var(--font-body,"DM Sans",sans-serif); font-variant-numeric:tabular-nums; }
+ .wr-mission-v8 .mc-owner-profile :is(.tc-dhq-dossier-block p,.tc-dhq-dossier-block li,.tc-owner-panel-head em,.tc-owner-trade-row p,.tc-owner-trade-row em,.tc-owner-signal-grid em) { opacity:1; }
  .mc-trades { gap:10px!important; padding-bottom:12px!important; }
  .mc-trade-builder>div { padding:0!important; }
  .mc-trade-builder .tc-ta-side { min-width:0!important; padding:10px!important; }
@@ -85,6 +119,9 @@
  .mc-owner-profile .tc-owner-trade-row { min-width:0; }
  .mc-owner-directory-row { gap:6px!important; }
  .mc-owner-directory-row>div:nth-child(2) { display:none!important; }
+}
+@media(max-width:360px) {
+ .wr-mission-v8 .mc-owner-profile .tc-owner-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media(max-width:350px) {
  .mc-trade-nav button { font-size:10px!important; }

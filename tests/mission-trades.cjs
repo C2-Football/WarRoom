@@ -20,6 +20,46 @@ assert.equal(ctx.tradeOwner.B,'partner');assert.deepEqual([...ctx.tradeIds.B],['
 handler({detail:{pid:'target',returnTab:'myteam'}});assert.deepEqual([...ctx.tradeIds.B],['target'],'Repeated context open does not duplicate assets');
 ctx.window._wrTradeBuilderTarget={pid:'unknown'};handler({detail:ctx.window._wrTradeBuilderTarget});assert.equal(ctx.window._wrTradeBuilderTarget,null);assert.match(ctx.notice,/not on a roster/);
 ctx.leagueId='league';ctx.setExpandedDnaOwner=id=>ctx.ownerId=id;ctx.setOwnerSection=section=>ctx.ownerSection=section;ctx.setTcTab=tab=>ctx.tab=tab;ctx.window._wrOwnerProfileTarget={rosterId:'2',leagueId:'league'};
+ctx.currentLeague={season:2026};ctx.setFinderQuery=value=>ctx.finderQuery=typeof value==='function'?value(ctx.finderQuery):value;ctx.setShowAllDeals=value=>ctx.showAllDeals=value;ctx.autoScanRequestedRef={current:false};
 babel.packages.traverse.default(ast,{CallExpression(p){if(p.node.callee.name==='useEffect'&&source.slice(p.node.start,p.node.end).includes("window.addEventListener('wr:open-owner-profile'"))hook=source.slice(p.node.start,p.node.end)}});
 vm.runInContext(hook,ctx);assert.equal(ctx.ownerId,2);assert.equal(ctx.ownerSection,'scout');assert.equal(ctx.tab,'dna');assert.equal(ctx.window._wrOwnerProfileTarget,null);
-console.log('PASS Mission Control trade handoffs: owner-change package isolation, different teams, taxi player context, repeat/stale seed handling and targeted owner profiles');
+ctx.window.addEventListener=(name,fn)=>{if(name==='wr:open-owner-profile')handler=fn;};vm.runInContext(hook,ctx);
+ctx.autoScanRequestedRef.current=true;
+handler({detail:{rosterId:'2',leagueId:'league',season:2026,view:'finder'}});
+assert.equal(ctx.tab,'desk');assert.equal(ctx.finderQuery.partnerFilter,'partner');assert.equal(ctx.finderQuery.focus.kind,'owner');assert.equal(ctx.finderQuery.focus.id,'partner');assert.equal(ctx.autoScanRequestedRef.current,false,'Pinned owner entry does not leave an all-owner scan queued');assert.equal(ctx.showAllDeals,false);
+ctx.tab='unchanged';handler({detail:{rosterId:'2',leagueId:'other',season:2026,view:'finder'}});assert.equal(ctx.tab,'unchanged','A target from another league is ignored');
+handler({detail:{rosterId:'2',leagueId:'league',season:2025,view:'finder'}});assert.equal(ctx.tab,'unchanged','A target from another season is ignored');
+handler({detail:{rosterId:1,leagueId:'league',season:2026,view:'finder'}});assert.equal(ctx.tab,'unchanged');assert.match(ctx.notice,/another owner/,'Owner-scoped trades never select the user as their own partner');
+// Saved scouting and inferred engine behavior retain separate provenance.
+function initializer(name){let out;babel.packages.traverse.default(ast,{VariableDeclarator(p){if(p.node.id.name===name)out=source.slice(p.node.init.start,p.node.init.end)}});assert(out,name);return out;}
+ctx.partnerBoard=[{assessment:{ownerId:'another'}}];ctx.effPartnerId='missing-pinned-owner';assert.equal(vm.runInContext(initializer('selectedItem'),ctx),null,'A missing pinned owner cannot silently become another trade partner');ctx.effPartnerId=null;assert.equal(vm.runInContext(initializer('selectedItem'),ctx),ctx.partnerBoard[0]);
+let dnaLoadHook;babel.packages.traverse.default(ast,{CallExpression(p){const text=source.slice(p.node.start,p.node.end);if(p.node.callee.name==='useEffect'&&text.includes('window.OD?.loadDNA')&&text.includes('setSavedOwnerDnaState'))dnaLoadHook=text;}});assert(dnaLoadHook);
+const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return{promise,resolve};};
+const savedRequests={},draftRequests={},dnaSaves=[],behaviorCalls=[];
+const dnaCtx=vm.createContext({console,ownerScoutingScope:'',savedOwnerDnaState:{scope:'',map:{}},ownerDraftDnaState:{scope:'',map:{}},useMemo:fn=>fn(),useEffect:fn=>{dnaCtx.cleanup=fn();},loadGrudges:()=>[],setGrudges:()=>{},window:{App:{LI:{},Intelligence:{buildOwnerBehaviorProfile:input=>{behaviorCalls.push(input);return{};}}},OD:{loadDNA:id=>(savedRequests[id]=deferred()).promise,saveDNA:(id,map)=>dnaSaves.push({id,map})},DraftHistory:{loadDraftDNA:id=>({cached:id}),syncDraftDNA:id=>(draftRequests[id]=deferred()).promise}}});
+for(const key of ['savedOwnerDnaState','ownerDraftDnaState'])dnaCtx['set'+key[0].toUpperCase()+key.slice(1)]=update=>dnaCtx[key]=typeof update==='function'?update(dnaCtx[key]):update;
+vm.runInContext(fs.readFileSync('js/shared/owner-scouting.js','utf8'),dnaCtx);dnaCtx.DNA_TYPES=dnaCtx.window.App.OwnerScouting.types;
+vm.runInContext('function loadScouting(leagueId,ownerScoutingScope){'+dnaLoadHook+'}',dnaCtx);
+vm.runInContext('function effectiveDna(savedOwnerDna,savedOwnerDnaState,ownerScoutingScope,allRosters,timeRecomputeTs){const ownerIntelReady=true;return '+initializer('ownerDna')+';}',dnaCtx);
+vm.runInContext(fn('updateDna'),dnaCtx);
+dnaCtx.computeWeightedDNA=rid=>({key:rid===3?'ACCEPTOR':'FLEECER'});
+(async()=>{
+  dnaCtx.loadScouting('old','old:2026');const oldCleanup=dnaCtx.cleanup;oldCleanup();
+  dnaCtx.loadScouting('current','current:2026');
+  assert.equal(dnaCtx.savedOwnerDnaState.scope,'current:2026');assert.deepEqual(Object.keys(dnaCtx.savedOwnerDnaState.map),[],'League change clears saved scouting immediately');assert.equal(dnaCtx.ownerDraftDnaState.map.cached,'current');
+  dnaCtx.leagueId='current';dnaCtx.ownerScoutingScope='current:2026';dnaCtx.savedOwnerDna=dnaCtx.savedOwnerDnaState.map;
+  dnaCtx.updateDna('partner','STALWART');
+  savedRequests.current.resolve({'owner-1':'NONE',partner:'FLEECER'});draftRequests.current.resolve({synced:'current'});await new Promise(setImmediate);
+  assert.equal(dnaCtx.savedOwnerDnaState.map.partner,'STALWART','A manual edit while saved DNA is loading survives that response');assert.equal(dnaCtx.savedOwnerDnaState.map['owner-1'],'NONE');assert.equal(dnaCtx.ownerDraftDnaState.map.synced,'current');
+  savedRequests.old.resolve({partner:'DESPERATE'});draftRequests.old.resolve({synced:'old'});await new Promise(setImmediate);
+  assert.equal(dnaCtx.savedOwnerDnaState.scope,'current:2026');assert.equal(dnaCtx.savedOwnerDnaState.map.partner,'STALWART','Late previous league DNA cannot overwrite current saved reads');assert.equal(dnaCtx.ownerDraftDnaState.map.synced,'current','Late previous league draft DNA cannot overwrite current reads');
+  dnaCtx.savedOwnerDna=dnaCtx.savedOwnerDnaState.map;
+  const rosters=[{roster_id:1,owner_id:'owner-1'},{roster_id:2,owner_id:'partner'},{roster_id:3,owner_id:'derived-owner'}];
+  dnaCtx.ownerDna=dnaCtx.effectiveDna(dnaCtx.savedOwnerDna,dnaCtx.savedOwnerDnaState,'current:2026',rosters,1);
+  assert.equal(dnaCtx.ownerDna['owner-1'],'NONE','Saved NONE suppresses inference');assert.equal(dnaCtx.ownerDna.partner,'STALWART','Saved reads win');assert.equal(dnaCtx.ownerDna['derived-owner'],'ACCEPTOR','Unsaved inference remains available to trade engine');assert(!('derived-owner'in dnaCtx.savedOwnerDna));
+  dnaCtx.updateDna('partner','DOMINATOR');assert(!('derived-owner'in dnaSaves.at(-1).map),'Editing one owner must never save inferred labels for other owners');
+  Object.assign(dnaCtx,{ownerIntelReady:true,ownerIntel:{},assessments:rosters.map(r=>({rosterId:r.roster_id,ownerId:r.owner_id})),behaviorBaselines:{},timeRecomputeTs:1});
+  vm.runInContext(initializer('ownerBehaviorByRosterId'),dnaCtx);
+  assert.equal(behaviorCalls.find(call=>call.ownerId==='owner-1').manualDna,true,'Explicit NONE is a saved choice');assert.equal(behaviorCalls.find(call=>call.ownerId==='partner').manualDna,true);assert.equal(behaviorCalls.find(call=>call.ownerId==='derived-owner').manualDna,false,'Derived read never acquires manual provenance');
+  console.log('PASS Mission Control trade handoffs and scouting: owner-only targets, saved/inferred provenance, manual save isolation and cancelled cross-league DNA responses');
+})().catch(error=>{console.error(error);process.exitCode=1;});

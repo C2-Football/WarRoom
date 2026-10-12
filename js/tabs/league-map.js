@@ -758,9 +758,8 @@ function leagueTeamPlayerMetrics(player, { preference, currentLeague, playersDat
   });
 }
 
-// Team context is a real league read: saved scouting labels and schedule forecasts,
-// with unavailable fields left empty until their corresponding source resolves.
-function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, playersData, statsData, priorData, isPro }) {
+// Team context uses the same saved/observed scouting read as Trade Center.
+function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, playersData, statsData, priorData, isPro, myRosterId }) {
   const roster = team.roster;
   const leagueId = String(league?.league_id || league?.id || '');
   const profileKey = leagueId + ':' + String(league?.season || '') + ':' + String(roster.roster_id);
@@ -768,8 +767,8 @@ function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, player
   React.useEffect(() => {
     let active = true;
     const update = fields => { if (active) setRead(previous => ({ ...(previous.key === profileKey ? previous : {}), key: profileKey, ...fields })); };
-    update({ dna: null, forecast: null });
-    if (window.OD?.loadDNA) Promise.resolve(window.OD.loadDNA(leagueId)).then(map => update({ dna: map?.[roster.owner_id] || null })).catch(() => update({ dna: null }));
+    update({ dna: null, dnaStatus: window.OD?.loadDNA ? 'loading' : 'ready', forecast: null });
+    if (window.OD?.loadDNA) Promise.resolve(window.OD.loadDNA(leagueId)).then(map => update({ dna: map?.[roster.owner_id] ?? null, dnaStatus: 'ready' })).catch(() => update({ dna: null, dnaStatus: 'error' }));
     const phase = leagueSkin?.phase || window.App?.LeagueSkin?.getCurrent?.()?.phase;
     if (team.projWins == null && window.App?.Schedule?.buildSeason && !['complete', 'offseason'].includes(phase)) {
       Promise.resolve(window.App.Schedule.buildSeason({ league, myRoster: roster, playersData, statsData, stats2025Data: priorData })).then(result => update({ forecast: result?.summary?.remainingWeeks > 0 ? result.summary : null })).catch(() => update({ forecast: null }));
@@ -777,14 +776,23 @@ function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, player
     return () => { active = false; };
   }, [profileKey, league, roster, playersData, statsData, priorData, team.projWins, leagueSkin?.phase]);
   const current = read.key === profileKey ? read : {};
-  const dnaLabels = { FLEECER: ['Fleecer', '#e74c3c'], DOMINATOR: ['Dominator', '#e67e22'], STALWART: ['Stalwart', '#5dade2'], ACCEPTOR: ['Acceptor', '#2ecc71'], DESPERATE: ['Desperate', '#bb8fce'] };
-  const dna = dnaLabels[current.dna];
+  const ownerName = team.ownerName || team.displayName || team.name || 'this owner';
+  const intelReady = !!window.App?.LI_LOADED && String(window.App?.LI?.sourceLeagueId || '') === leagueId;
+  const scouting = window.App?.OwnerScouting?.read?.({
+    roster, assessment, league, ownerName,
+    savedDna: current.dna, intel: intelReady ? window.App.LI : {}, intelligence: window.App?.Intelligence,
+  });
+  const scoutingLoading = !current.dnaStatus || current.dnaStatus === 'loading';
+  const observedFacts = (scouting?.facts || []).filter(fact => fact.code !== 'trade_volume').slice(0, 2);
   const forecast = team.projWins != null && team.projLosses != null ? { projWins: team.projWins, projLosses: team.projLosses } : current.forecast;
   const posRead = items => (items || []).map(item => typeof item === 'string' ? item : item.pos || item.position).filter(Boolean).map(leagueMapPosLabel).join(' · ');
-  const openOwner = () => {
-    const detail = { leagueId, rosterId: roster.roster_id };
-    window._wrOwnerProfileTarget = detail;
-    window.dispatchEvent(new CustomEvent('wr:open-owner-profile', { detail }));
+  const isMyTeam = myRosterId != null && String(myRosterId) === String(roster.roster_id);
+  const openTradeCenter = () => {
+    if (!isMyTeam) {
+      const detail = { leagueId, season: league?.season, rosterId: roster.roster_id, view: 'finder' };
+      window._wrOwnerProfileTarget = detail;
+      window.dispatchEvent(new CustomEvent('wr:open-owner-profile', { detail }));
+    }
     window.wrNavigateTab?.('trades');
   };
   return <React.Fragment>
@@ -793,11 +801,17 @@ function LeagueTeamMissionSummary({ team, assessment, league, leagueSkin, player
       <div><small>Projected record</small><strong title="Schedule-based estimate">{forecast ? Number(forecast.projWins).toFixed(1) + '–' + Number(forecast.projLosses).toFixed(1) : '—'}</strong></div>
       <div><small>Roster health</small><strong>{assessment?.healthScore ?? '—'}</strong></div>
     </div>
-    {isPro && <div className="mc-team-scout">
-      <div><b>Owner DNA</b><span>{dna ? <span style={{ color: dna[1] }}>{dna[0]} <small>· saved read</small></span> : 'Open scouting for the current read'}</span></div>
-      {assessment && <React.Fragment><div><b>Window</b><span>{assessment.window || assessment.tier || 'Still evaluating'}</span></div><div><b>Strengths</b><span>{posRead(assessment.strengths) || 'No clear positional surplus'}</span></div><div><b>Needs</b><span>{posRead(assessment.needs) || 'No clear positional gap'}</span></div></React.Fragment>}
-      <button type="button" className="mc-owner-open" onClick={openOwner}>Owner scouting →</button>
-    </div>}
+    {isPro && <section className="mc-team-scout" aria-label="Owner scouting">
+      <header className="mc-team-scout-heading"><b>Owner DNA</b><span className="mc-team-dna" data-dna={scouting?.key || 'NONE'} style={{ color: scouting?.color }}>{scoutingLoading ? 'Loading scouting…' : scouting?.key && scouting.key !== 'NONE' ? scouting.label : 'No established pattern'}</span></header>
+      {!scoutingLoading && <React.Fragment>
+        <p className="mc-team-scout-source">{scouting?.source === 'saved' ? 'Saved owner read' : scouting?.source === 'derived' ? 'Inferred from trade history' : intelReady ? scouting?.tradeCount >= 2 ? 'No clear pattern in trade history' : 'More trade history needed' : 'Trade history is loading'}{intelReady && scouting ? ` · ${scouting.tradeCount} trades on file` : ''}</p>
+        {current.dnaStatus === 'error' && <p className="mc-team-scout-source">Saved owner read unavailable.</p>}
+        <p className="mc-team-scout-approach"><b>Approach</b>{scouting?.approach || 'Start with a balanced offer and a clear roster benefit.'}</p>
+        {intelReady && observedFacts.length > 0 && <ul className="mc-team-scout-evidence">{observedFacts.map(fact => <li key={fact.code}>{fact.detail}</li>)}</ul>}
+      </React.Fragment>}
+      {assessment && <dl className="mc-team-scout-fit"><div><dt>Window</dt><dd>{assessment.window || assessment.tier || 'Still evaluating'}</dd></div><div><dt>Strengths</dt><dd>{posRead(assessment.strengths) || 'No clear positional surplus'}</dd></div><div><dt>Needs</dt><dd>{posRead(assessment.needs) || 'No clear positional gap'}</dd></div></dl>}
+      <button type="button" className="mc-owner-open" onClick={openTradeCenter}>{isMyTeam ? 'Open Trade Center' : 'Trade Center with ' + ownerName} →</button>
+    </section>}
   </React.Fragment>;
 }
 
@@ -2406,7 +2420,7 @@ function LeagueMapTab({
           {' \u00B7 '}{players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players
         </div>
 
-        {_phone && <LeagueTeamMissionSummary team={team} assessment={assessment} league={currentLeague} leagueSkin={resolvedLeagueSkin} playersData={playersData} statsData={statsData} priorData={stats2025Data} isPro={isPro} />}
+        {_phone && <LeagueTeamMissionSummary team={team} assessment={assessment} league={currentLeague} leagueSkin={resolvedLeagueSkin} playersData={playersData} statsData={statsData} priorData={stats2025Data} isPro={isPro} myRosterId={myRoster?.roster_id} />}
 
         {/* Roster / History toggle */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>

@@ -1868,7 +1868,7 @@
                 // Yield to the browser so the render commits before DHQ blocks
                 await new Promise(r => setTimeout(r, 0));
 
-                if (typeof window.App?.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
+                if (typeof window.App?.loadLeagueIntel === 'function' && (!window.App.LI_LOADED || String(window.App.LI?.sourceLeagueId || '') !== String(currentLeague.id || currentLeague.league_id))) {
                     setDhqStatus({ loading: true, step: 'Analyzing league history...', progress: 20 });
                     try {
                         await window.App.loadLeagueIntel();
