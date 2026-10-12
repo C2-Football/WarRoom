@@ -1,0 +1,490 @@
+{
+  "browser": "chromium",
+  "target": "http://127.0.0.1:61598/dist-preview/",
+  "viewOnlyConnection": {
+    "passed": true,
+    "checked": [
+      "public Sleeper username has no app-account save authority",
+      "view-only explanation visible",
+      "sign-in link visible",
+      "view-only public activity retry",
+      "no account-private planning writes"
+    ]
+  },
+  "captureMethod": "Touch journeys use viewport screenshots because current Chromium full-page capture resets touch emulation. Coarse pointer and touch-event capability are asserted after every capture and before touch-target checks; touch points are recorded (macOS WebKit reports zero with touch enabled). Primary controls are activated by touchscreen taps in touch contexts.",
+  "evidence": "Actual chromium browser engine; synthetic provider/session fixtures; external writes blocked. Touch emulation is not physical iPad/phone or real hosted authentication evidence.",
+  "results": [
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 320,
+        "height": 700
+      },
+      "label": "phone-small",
+      "touch": true,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 98.984375,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 320,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 320,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 320,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace menu",
+          "width": 288,
+          "height": 69.1875,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 320,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to Hub",
+          "width": 68.28125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 320,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 28
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "label": "phone",
+      "touch": true,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 98.984375,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 390,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 390,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 390,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace menu",
+          "width": 358,
+          "height": 47.59375,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 390,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to Hub",
+          "width": 68.28125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 390,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 28
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "label": "phone-landscape",
+      "touch": true,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 98.984375,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 844,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 844,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 844,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to Hub",
+          "width": 76.28125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 844,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 21
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "label": "ipad-portrait",
+      "touch": true,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 98.984375,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 768,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 768,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 768,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to Hub",
+          "width": 76.28125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 768,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 21
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "ipad-landscape",
+      "touch": true,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 98.984375,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 1024,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 1024,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 1024,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to Hub",
+          "width": 76.28125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": true,
+          "innerWidth": 1024,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 21
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "label": "desktop",
+      "touch": false,
+      "passed": true,
+      "checked": [
+        "priority filters",
+        "native keyboard task review",
+        "task league scope",
+        "unavailable transaction evidence",
+        "activity retry",
+        "schedule save/reload",
+        "schedule quota failure",
+        "unsaved schedule reload recovery",
+        "schedule save retry",
+        "per-league plan isolation",
+        "workspace navigation",
+        "menu focus recovery",
+        "rule view selection",
+        "hub return",
+        "no horizontal overflow"
+      ],
+      "touchChecks": [
+        {
+          "control": "Retry activity",
+          "width": 85.390625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": false,
+          "innerWidth": 1440,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        },
+        {
+          "control": "Generate schedule",
+          "width": 151.15625,
+          "height": 31,
+          "reachable": true,
+          "minHeight": "auto",
+          "pointerCoarse": false,
+          "innerWidth": 1440,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        },
+        {
+          "control": "Retry schedule save",
+          "width": 105.65625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": false,
+          "innerWidth": 1440,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        },
+        {
+          "control": "Return to Hub",
+          "width": 69.25,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "pointerCoarse": false,
+          "innerWidth": 1440,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedRequests": 21
+    }
+  ]
+}

@@ -33,6 +33,20 @@
 .co-scoring-category > summary small { display:block; margin-top:4px; font-weight:400; }
 @media(min-width:768px) { .co-scoring-category > summary { pointer-events:none; } }
 
+/* Tablets keep the wider workspace while giving fingers full-size controls. */
+@media(min-width:768px) and (pointer:coarse) {
+  .co-office { --co-readable-small:14px; --co-readable-body:16px; }
+  .co-office :is(button,select,input:not([type="checkbox"]):not([type="radio"]),textarea) { box-sizing:border-box; min-height:44px!important; max-width:100%; font-size:16px!important; line-height:1.35!important; }
+  .co-office button { white-space:normal!important; overflow-wrap:anywhere; }
+  .co-office summary { min-height:44px; box-sizing:border-box; }
+  .co-office label { min-width:0; }
+  .co-office label input:is([type="checkbox"],[type="radio"]) { width:22px; height:22px; flex-shrink:0; }
+  .co-office label:has(input:is([type="checkbox"],[type="radio"])) { min-height:44px; align-content:center; }
+}
+.co-office :is(button,select,input,textarea):focus-visible { outline:2px solid var(--co-accent,var(--gold,#d4af37)); outline-offset:3px; }
+.co-recovery-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.co-recovery-actions button { min-height:44px; padding:8px 12px; color:var(--white,#f5f2ea); background:var(--co-surface-2,#1b1b22); border:1px solid var(--co-line,#45434b); border-radius:var(--card-radius-sm,8px); font:inherit; cursor:pointer; }
+
 @media(max-width:767px) {
   .co-office, .co-workspace-dialog { --co-readable-small:14px; --co-readable-body:16px; --text-micro:14px; --text-label:14px; --text-body:16px; font-size:16px; line-height:1.5; }
   .co-office :is(button,select,input:not([type="checkbox"]):not([type="radio"]),textarea), .co-workspace-dialog button { box-sizing:border-box; min-height:44px!important; max-width:100%; font-size:16px!important; line-height:1.35!important; letter-spacing:normal!important; }

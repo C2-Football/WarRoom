@@ -15,6 +15,7 @@
 
     const KEY = (lid, season) => 'dhq_txns_' + lid + '_' + season;
     const TTL_MS = 6 * 60 * 60 * 1000;  // 6h — transactions are append-only within a week
+    const failedRefreshes = new Set();
 
     function store() { return window.App && window.App.DhqStorage; }
 
@@ -34,40 +35,69 @@
         return (c && Array.isArray(c.txns)) ? c.txns : [];
     }
 
-    // Fetch + persist all weekly transactions for one league/season. Returns the txn array.
-    // Serves from cache when fresh (within TTL) unless opts.force.
-    async function fetchLeagueTxns(lid, opts) {
+    // Activity callers need evidence that EVERY requested week was read. Older
+    // cache rows have no such proof (the earlier reader swallowed failures).
+    // Keep those rows as fallback history, but refresh before trusting silence.
+    async function fetchLeagueActivity(lid, opts) {
         opts = opts || {};
         const st = store();
         const c = ctx();
         const season = opts.season || c.season;
         const key = KEY(lid, season);
-        if (st && !opts.force) {
-            const cached = st.get(key, null);
-            if (cached && cached.ts && (Date.now() - cached.ts) < TTL_MS && Array.isArray(cached.txns)) {
-                return cached.txns;
-            }
+        const maxWeek = c.offseason ? 18 : Math.min(18, Math.max(0, c.week || 18));
+        const cached = st?.get(key, null);
+        const hasCache = !!cached && Array.isArray(cached.txns);
+        const result = (status, row, error = null, failedWeeks = []) => ({
+            status, txns: Array.isArray(row?.txns) ? row.txns : [],
+            failedWaivers: Array.isArray(row?.failedWaivers) ? row.failedWaivers : [],
+            fetchedAt: row?.ts || null, error, failedWeeks, hasCache: !!row,
+        });
+        if (!opts.force && !failedRefreshes.has(key) && hasCache && cached.complete === true && cached.maxWeek >= maxWeek
+            && cached.ts > 0 && Date.now() >= cached.ts && (Date.now() - cached.ts) < TTL_MS) {
+            return result('fresh', cached);
         }
-        if (typeof window.fetchTransactions !== 'function') return getCached(lid, season);
+        const unavailable = (error, failedWeeks = []) => {
+            failedRefreshes.add(key);
+            return result(hasCache ? 'stale' : 'unavailable', hasCache ? cached : null, error, failedWeeks);
+        };
+        if (typeof window.fetchTransactions !== 'function') return unavailable('Transaction activity is unavailable. Retry when the league connection is ready.');
         // Offseason: scan all 18 weeks for offseason trades; in-season: up to current week.
-        const maxWeek = c.offseason ? 18 : Math.min(18, c.week || 18);
         const fetches = [];
         for (let w = 0; w <= maxWeek; w++) {
-            fetches.push(Promise.resolve(window.fetchTransactions(lid, w)).catch(() => []));
+            fetches.push(Promise.resolve().then(() => window.fetchTransactions(lid, w)).then(rows => {
+                if (!Array.isArray(rows)) throw new Error('Invalid transaction response');
+                return { rows, week: w };
+            }).catch(() => ({ rows: null, week: w })));
         }
         const results = await Promise.all(fetches);
-        const all = results.flat().filter(t => t && t.type);
+        const failedWeeks = results.filter(r => !r.rows).map(r => r.week);
+        if (failedWeeks.length) return unavailable('Transaction activity could not be refreshed for every week. Retry to check manager activity.', failedWeeks);
+        const all = results.flatMap(r => r.rows).filter(t => t && t.type);
         const txns = all.filter(t => t.status !== 'failed');
         // Failed WAIVER claims are kept separately: a losing FAAB bid is real
         // willingness-to-pay evidence (the FAAB engine's best input), but every
         // existing reader of `txns` assumes completed transactions only — so
         // the main array's contract is unchanged.
         const failedWaivers = all.filter(t => t.status === 'failed' && t.type === 'waiver' && Number(t.settings && t.settings.waiver_bid) > 0);
+        const next = { ts: Date.now(), season, complete: true, maxWeek, txns, failedWaivers };
+        failedRefreshes.delete(key);
         if (st) {
-            try { st.set(key, { ts: Date.now(), season, txns, failedWaivers }); }
+            try { st.set(key, next); }
             catch (e) { if (window.dhqLog) window.dhqLog('txns.cache', e); }
         }
-        return txns;
+        return result('fresh', next);
+    }
+
+    // Preserve the array API for history consumers. Failed refreshes return
+    // earlier history when available, never a newly fabricated empty ledger.
+    async function fetchLeagueTxns(lid, opts) {
+        const activity = await fetchLeagueActivity(lid, opts);
+        if (activity.status !== 'fresh' && (opts?.requireComplete || !activity.hasCache)) {
+            const error = new Error(activity.error);
+            error.code = 'ACTIVITY_UNAVAILABLE'; error.activity = activity;
+            throw error;
+        }
+        return activity.txns;
     }
 
     // Failed FAAB claims (losing bids) for a league — [] until a post-change
@@ -101,5 +131,5 @@
             .slice(0, limit || 10);
     }
 
-    window.WrTxns = { fetchLeagueTxns, hydrateLeagues, getCached, getFailedWaivers, recentTrades };
+    window.WrTxns = { fetchLeagueTxns, fetchLeagueActivity, hydrateLeagues, getCached, getFailedWaivers, recentTrades };
 })();

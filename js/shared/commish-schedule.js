@@ -289,11 +289,12 @@
     }
 
     // ── Actual results (impure, Sleeper only — read never write) ──────
-    async function fetchActualMatchups(leagueId, week) {
+    async function fetchActualMatchups(leagueId, week, options = {}) {
         try {
             const res = await fetch('https://api.sleeper.app/v1/league/' + leagueId + '/matchups/' + week);
-            if (!res.ok) return [];
+            if (!res.ok) throw new Error('Week ' + week + ' results are unavailable.');
             const rows = await res.json();
+            if (!Array.isArray(rows)) throw new Error('Week ' + week + ' results were not a matchup list.');
             const byMatchupId = {};
             (rows || []).forEach(r => {
                 if (r == null || r.matchup_id == null) return;
@@ -303,6 +304,7 @@
             return Object.values(byMatchupId).filter(g => g.length === 2);
         } catch (e) {
             if (root.wrLog) root.wrLog('commish.schedule.actuals', e);
+            if (options.requireComplete) throw e;
             return [];
         }
     }

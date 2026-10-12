@@ -62,7 +62,8 @@ function run(overrides) {
   const g = o.graph || graphOf([person('u1', [team('L1', 1)])]);
   return Radar.buildRadar({
     graph: g,
-    txnsByLeague: o.txnsByLeague || {},
+    txnsByLeague: o.txnsByLeague || { L1: [] },
+    activityByLeague: o.activityByLeague || {},
     rostersByLeague: o.rostersByLeague || {},
     playersData: o.playersData || PLAYERS,
     week: o.week !== undefined ? o.week : 5,
@@ -345,6 +346,51 @@ test('empty inputs: no graph, no txns → empty people, never a throw', () => {
   const res = run({ txnsByLeague: {}, rostersByLeague: {} });
   assert.strictEqual(res.people.length, 1, 'person still listed with honest null/zero signals');
   assert.strictEqual(firstTeam(res).signals.daysSinceTxn, null);
+  assert.strictEqual(res.people[0].status, 'UNKNOWN');
+});
+
+test('unavailable or stale activity never labels a healthy manager inactive', () => {
+  for (const status of ['unavailable', 'stale']) {
+    const res = run({
+      txnsByLeague: { L1: [] }, activityByLeague: { L1: { status, error: 'Retry activity', fetchedAt: 123 } },
+      rostersByLeague: cleanRoster('L1'),
+    });
+    assert.strictEqual(firstTeam(res).status, 'UNKNOWN');
+    assert.strictEqual(firstTeam(res).signals.activityKnown, false);
+    assert.strictEqual(firstTeam(res).activityStatus, status);
+    assert.strictEqual(res.people[0].status, 'UNKNOWN');
+    assert.strictEqual(res.people[0].checkin, null);
+  }
+});
+
+test('fresh empty activity is real silence; current lineup problems survive unavailable activity', () => {
+  const fresh = run({ activityByLeague: { L1: { status: 'fresh' } }, rostersByLeague: brokenRoster('L1') });
+  assert.strictEqual(firstTeam(fresh).status, 'DARK');
+  const unavailable = run({ activityByLeague: { L1: { status: 'unavailable' } }, rostersByLeague: brokenRoster('L1') });
+  assert.strictEqual(firstTeam(unavailable).status, 'WATCH', 'lineup symptom warrants review but does not prove silence');
+  assert.strictEqual(firstTeam(unavailable).signals.outStarters, 1);
+  assert.strictEqual(unavailable.people[0].status, 'FADING');
+});
+
+test('missing league coverage cannot imply that somebody is bored or dark everywhere', () => {
+  const res = run({
+    graph: graphOf([person('u1', [team('L1', 1), team('L2', 1)])]),
+    txnsByLeague: { L1: [], L2: [] },
+    activityByLeague: { L1: { status: 'fresh' }, L2: { status: 'unavailable' } },
+    rostersByLeague: { ...brokenRoster('L1'), ...cleanRoster('L2') },
+  });
+  assert.strictEqual(res.people[0].status, 'UNKNOWN');
+  assert.strictEqual(res.people[0].checkin, null);
+  // An independently visible lineup issue in the unavailable league still
+  // does not prove that the other dark team is the only inactive league.
+  const partial = run({
+    graph: graphOf([person('u1', [team('L1', 1), team('L2', 1)])]),
+    txnsByLeague: { L1: [], L2: [] },
+    activityByLeague: { L1: { status: 'fresh' }, L2: { status: 'unavailable' } },
+    rostersByLeague: { ...brokenRoster('L1'), ...brokenRoster('L2') },
+  });
+  assert.strictEqual(partial.people[0].status, 'FADING');
+  assert.ok(!/stale|off the grid|gone quiet|misses you|autopilot|bored/.test(partial.people[0].checkin));
 });
 
 // ── Fetch helper (stubbed globals, no network) ──────────────────────
@@ -358,6 +404,7 @@ test('empty inputs: no graph, no txns → empty people, never a throw', () => {
       const g = graphOf([person('u1', [team('L1', 1), team('mfl_9', 1)])]);
       const inputs = await Radar.fetchRadarInputs({ graph: g });
       assert.strictEqual(inputs.txnsByLeague.L1.length, 1, 'one real txn kept');
+      assert.strictEqual(inputs.activityByLeague.L1.status, 'fresh');
       assert.ok(!('mfl_9' in inputs.txnsByLeague), 'mfl_ league skipped');
       assert.ok(fetched.rosters.includes('L1') && !fetched.rosters.includes('mfl_9'));
       assert.strictEqual(inputs.playersData.hp1.bye_week, 9, 'players map hydrated');
@@ -372,10 +419,31 @@ test('empty inputs: no graph, no txns → empty people, never a throw', () => {
     assert.deepStrictEqual(inputs.txnsByLeague, { L1: [] });
     assert.deepStrictEqual(inputs.rostersByLeague, { L1: [] });
     assert.deepStrictEqual(inputs.playersData, {});
-    // And the radar downstream stays honest: never-transacted, no lineup data.
+    // Missing coverage is unknown, not evidence that nobody has transacted.
     const res = Radar.buildRadar({ graph: g, ...inputs, week: 5, nowMs: NOW });
     assert.strictEqual(res.people[0].teams[0].signals.daysSinceTxn, null);
     assert.strictEqual(res.people[0].teams[0].inSeason, false);
+    assert.strictEqual(res.people[0].status, 'UNKNOWN');
+    assert.strictEqual(res.people[0].checkin, null);
+  });
+
+  await testAsync('fetchRadarInputs: partial weekly failure produces unknown activity and retries successfully', async () => {
+    let fail = true;
+    globalThis.fetchTransactions = (lid, week) => {
+      if (fail && week === 2) throw Error('Provider unavailable');
+      return [];
+    };
+    globalThis.fetchRosters = async () => [roster(1, ['hp1'])];
+    try {
+      const graph = graphOf([person('u1', [team('L1', 1)])]);
+      const failed = await Radar.fetchRadarInputs({ graph });
+      assert.strictEqual(failed.activityByLeague.L1.status, 'unavailable');
+      assert.strictEqual(Radar.buildRadar({ graph, ...failed, week: 5, nowMs: NOW }).people[0].status, 'UNKNOWN');
+      fail = false;
+      const retried = await Radar.fetchRadarInputs({ graph });
+      assert.strictEqual(retried.activityByLeague.L1.status, 'fresh');
+      assert.deepStrictEqual(retried.txnsByLeague.L1, []);
+    } finally { delete globalThis.fetchTransactions; delete globalThis.fetchRosters; }
   });
 
   console.log('\n' + (failed ? 'FAIL' : 'PASS') + ' ' + (passed + failed) + ' tests — ' + passed + ' passed, ' + failed + ' failed');

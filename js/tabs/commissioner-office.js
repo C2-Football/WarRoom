@@ -25,7 +25,10 @@ function useCommishLocalSave() {
             if (value !== false && value != null && failed.current[key]) { delete failed.current[key]; showFailure(); }
             return { ok: true, value };
         } catch (error) {
-            failed.current[key] = { key, area, retry: recovery.retry, retryLabel: recovery.retryLabel, discard: recovery.discard, message: (recovery.prefix || '') + (error?.message || 'Your change was not saved. Retry after freeing browser storage.') };
+            const missingSession = typeof window.App?.AccountStorage?.owner === 'function' && !window.App.AccountStorage.owner();
+            const message = missingSession ? 'Sign in to Dynasty HQ to save private plans. A connected Sleeper username does not provide a private save account.'
+                : (recovery.prefix || '') + (error?.message || 'Your change was not saved. Retry after freeing browser storage.');
+            failed.current[key] = { key, area, retry: recovery.retry, retryLabel: recovery.retryLabel, discard: recovery.discard, message };
             showFailure();
             return { ok: false, error: failed.current[key].message };
         }
@@ -40,6 +43,117 @@ function useCommishLocalSave() {
     const canLeave = () => Object.keys(failed.current).length === 0;
     const discard = () => { for (const failure of Object.values(failed.current)) failure.discard?.(); failed.current = {}; setFailure(null); setReset(value => value + 1); };
     return { run, failure, canLeave, discard, reset, resolve };
+}
+
+function useCommishSchedulePlans(localSave) {
+    const [schedules, setSchedules] = React.useState({});
+    const plans = React.useRef({});
+    const owner = React.useRef(window.App?.AccountStorage?.owner?.());
+    const scope = React.useRef({ leagueId: null, version: 0 });
+    const requests = React.useRef({});
+    const currentAccount = () => !!owner.current && window.App?.AccountSession?.isCurrent?.() !== false && window.App?.AccountStorage?.owner?.() === owner.current;
+    const key = lid => window.App.WR_KEYS.COMMISH_SCHEDULE(lid);
+    const recoveryKey = lid => 'wr_commish_schedule_pending_v1:' + encodeURIComponent(owner.current) + ':' + encodeURIComponent(lid);
+    const record = plan => ({ config: plan.config, schedule: plan.schedule, mode: plan.mode, seasonYear: plan.seasonYear,
+        priorStandings: plan.priorStandings, priorStandingsFallback: plan.priorStandingsFallback || [], nflMeta: plan.nflMeta });
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const update = (lid, patch) => {
+        if (!currentAccount() || !plans.current[lid]) return false;
+        plans.current = { ...plans.current, [lid]: { ...plans.current[lid], ...patch } };
+        setSchedules(plans.current);
+        return true;
+    };
+    const clearRecovery = lid => { try { window.sessionStorage?.removeItem(recoveryKey(lid)); } catch (e) { /* The confirmed plan remains in account storage. */ } };
+    const preserve = lid => {
+        if (!currentAccount()) return false;
+        const plan = plans.current[lid];
+        const raw = JSON.stringify({ owner: owner.current, leagueId: lid, base: plan.savedRecord, draft: record(plan) });
+        try {
+            window.sessionStorage.setItem(recoveryKey(lid), raw);
+            return window.sessionStorage.getItem(recoveryKey(lid)) === raw;
+        } catch (e) { return false; }
+    };
+    const discard = lid => {
+        if (!currentAccount()) return;
+        const saved = window.App.AccountStorage.get(key(lid), null);
+        const prior = plans.current[lid];
+        update(lid, { ...prior.defaults, ...(saved || {}), savedRecord: saved, revision: prior.revision + 1,
+            saveState: saved ? 'saved' : 'idle', saveError: null, recoverySaved: false,
+            actualsStatus: 'idle', flexStatus: 'idle', priorStandingsStatus: 'idle' });
+        clearRecovery(lid);
+    };
+    const fail = (lid, message, recoverySaved) => {
+        update(lid, { saveState: 'unsaved', saveError: message, recoverySaved });
+        return localSave.run('schedule:' + lid, 'schedule', () => { throw new Error(message); }, {
+            retryLabel: 'Retry save', retry: () => save(lid), discard: () => discard(lid),
+        });
+    };
+    const save = lid => {
+        if (!currentAccount() || scope.current.leagueId !== lid || !plans.current[lid]) return false;
+        const plan = plans.current[lid];
+        const draft = record(plan);
+        try {
+            const saved = window.App.AccountStorage.get(key(lid), null);
+            if (!same(saved, plan.savedRecord) && !same(saved, draft)) throw new Error('The saved schedule changed in another tab. Copy your draft before discarding it and reopening the saved plan.');
+            if (window.App.AccountStorage.set(key(lid), draft) !== true || !same(window.App.AccountStorage.get(key(lid), null), draft)) {
+                throw new Error('Your schedule was not saved. Free browser storage or sign in again, then retry.');
+            }
+            if (!currentAccount()) return false;
+            update(lid, { savedRecord: draft, saveState: 'saved', saveError: null, recoverySaved: false });
+            clearRecovery(lid);
+            localSave.resolve(['schedule:' + lid]);
+            return true;
+        } catch (error) {
+            if (!currentAccount()) return false;
+            const recoverySaved = preserve(lid);
+            fail(lid, error?.message || 'Your schedule was not saved. Retry saving this draft.', recoverySaved);
+            return false;
+        }
+    };
+    const load = (lid, defaults) => {
+        if (!currentAccount() || plans.current[lid]) return false;
+        const saved = window.App.AccountStorage.get(key(lid), null);
+        let pending = null;
+        try { pending = JSON.parse(window.sessionStorage?.getItem(recoveryKey(lid)) || 'null'); } catch (e) { /* Preserve unreadable recovery bytes. */ }
+        const recovered = pending?.owner === owner.current && pending?.leagueId === lid && pending?.draft && typeof pending.draft === 'object';
+        const confirmed = recovered && same(saved, pending.draft);
+        plans.current = { ...plans.current, [lid]: { ...defaults, ...(saved || {}), ...(recovered && !confirmed ? pending.draft : {}),
+            defaults, savedRecord: recovered && !confirmed ? pending.base : saved, revision: 0,
+            saveState: saved ? 'saved' : 'idle', saveError: null, recoverySaved: false } };
+        setSchedules(plans.current);
+        if (confirmed) clearRecovery(lid);
+        if (recovered && !confirmed) fail(lid, 'An unsaved schedule was recovered in this tab. Review the plan, then retry saving.', true);
+        return true;
+    };
+    const persist = (lid, patch) => {
+        if (!currentAccount() || scope.current.leagueId !== lid || !plans.current[lid]) return false;
+        update(lid, { ...patch, revision: plans.current[lid].revision + 1,
+            actualsStatus: patch.actualsStatus || 'idle', flexStatus: patch.flexStatus || 'idle',
+            priorStandingsStatus: patch.priorStandingsStatus || (plans.current[lid].priorStandingsStatus === 'loading' ? 'idle' : plans.current[lid].priorStandingsStatus) });
+        return save(lid);
+    };
+    const setScope = lid => {
+        if (scope.current.leagueId !== lid) scope.current = { leagueId: lid, version: scope.current.version + 1 };
+    };
+    const begin = lid => {
+        if (!currentAccount() || scope.current.leagueId !== lid || !plans.current[lid]) return null;
+        update(lid, { actualsStatus: 'idle', flexStatus: 'idle', priorStandingsStatus: 'idle' });
+        requests.current[lid] = (requests.current[lid] || 0) + 1;
+        return { leagueId: lid, scopeVersion: scope.current.version, revision: plans.current[lid].revision, request: requests.current[lid] };
+    };
+    const isCurrent = token => !!token && currentAccount() && scope.current.leagueId === token.leagueId && scope.current.version === token.scopeVersion
+        && plans.current[token.leagueId]?.revision === token.revision && requests.current[token.leagueId] === token.request;
+    return { schedules, load, persist, save, update, setScope, begin, isCurrent, currentAccount };
+}
+
+async function loadCommishActivity(lid, options) {
+    try {
+        const activity = await window.WrTxns?.fetchLeagueActivity?.(lid, options);
+        if (!activity || !['fresh', 'stale', 'unavailable'].includes(activity.status) || !Array.isArray(activity.txns) || !Array.isArray(activity.failedWaivers)) throw new Error('Activity data is unavailable.');
+        return activity;
+    } catch (error) {
+        return { status: 'unavailable', txns: [], failedWaivers: [], fetchedAt: null, error: error?.message || 'Activity data is unavailable.', failedWeeks: [] };
+    }
 }
 
 function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLeague }) {
@@ -89,7 +203,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // actualsStatus, teams } — loaded lazily on first view of a league and
     // persisted through App.WrStorage so a built plan survives a reload.
     const [scheduleLeagueId, setScheduleLeagueId] = React.useState(null);
-    const [schedules, setSchedules] = React.useState({});
+    const schedulePlans = useCommishSchedulePlans(localSave);
+    const { schedules } = schedulePlans;
     const scheduleActiveId = React.useMemo(() => {
         const list = state.mine || [];
         const ids = new Set(list.map(l => String(l.league_id || l.id)));
@@ -97,6 +212,13 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const first = list[0];
         return first ? String(first.league_id || first.id) : null;
     }, [scheduleLeagueId, state.mine]);
+    schedulePlans.setScope(scheduleActiveId);
+    React.useEffect(() => {
+        const cur = schedules[scheduleActiveId];
+        if (cur && [cur.actualsStatus, cur.flexStatus, cur.priorStandingsStatus].includes('loading')) {
+            schedulePlans.update(scheduleActiveId, { actualsStatus: 'idle', flexStatus: 'idle', priorStandingsStatus: 'idle' });
+        }
+    }, [scheduleActiveId]);
     // Command opens on the work that needs intervention now. Soon/backlog
     // remain one tap away, but they no longer turn the front door into a
     // multi-thousand-pixel audit log before the commissioner has acted today.
@@ -112,6 +234,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         setScopeLeagueId(lid);
         // Arriving from a league-specific row selects that league in the Lab.
         if (lid) setRlLeagueId(lid);
+        if (lid) { schedulePlans.setScope(lid); setScheduleLeagueId(lid); }
         setTab(hub);
         try { window.scrollTo(0, 0); } catch (e) { /* headless */ }
     }, []);
@@ -140,6 +263,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // Run-identity ref, not a cleanup kill switch (see season-odds-panel.js —
     // a status-dependent effect's own setState would orphan the run).
     const runRef = React.useRef({ key: null });
+    const activityReload = React.useRef(false);
     const runKey = (leagues || []).map(l => l.league_id || l.id).join(',');
 
     React.useEffect(() => {
@@ -148,6 +272,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         if (!C || !window.App?.Luck) { setState({ status: 'unavailable' }); return; }
         runRef.current.key = runKey;
         const live = () => runRef.current.key === runKey && window.App?.AccountSession?.isCurrent?.() !== false;
+        const forceActivity = activityReload.current;
+        activityReload.current = false;
         setState({ status: 'loading', step: 'Reading your leagues…' });
         (async () => {
             try {
@@ -163,11 +289,13 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 // 2. Per-league data: txns, weekly scores → ledgers, drift, drafts.
                 const nfl = (window.S && window.S.nflState) || {};
                 const week = Number(nfl.display_week || nfl.week || 0);
-                const txnsByLeague = {}, rostersByLeague = {}, ledgers = {}, weeklyScoresByLeague = {};
+                const txnsByLeague = {}, activityByLeague = {}, rostersByLeague = {}, ledgers = {}, weeklyScoresByLeague = {};
                 await Promise.all(mine.map(async l => {
                     const lid = String(l.league_id || l.id);
                     rostersByLeague[lid] = l.rosters || [];
-                    try { txnsByLeague[lid] = (await window.WrTxns?.fetchLeagueTxns?.(lid)) || []; } catch (e) { txnsByLeague[lid] = []; }
+                    const activity = await loadCommishActivity(lid, { force: forceActivity });
+                    activityByLeague[lid] = activity;
+                    txnsByLeague[lid] = [...activity.txns, ...activity.failedWaivers];
                     try {
                         const built = await window.App.Luck.build({ league: l });
                         ledgers[lid] = built; weeklyScoresByLeague[lid] = built.weeklyScores || {};
@@ -183,7 +311,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 // 3. Engines (each guarded — a failed engine empties its wall, not the office).
                 let coefficient = null, radar = null, drift = [], calendar = { events: [] }, conflicts = [], programmes = [], renewal = null;
                 try { coefficient = C.Coefficient?.buildCoefficient ? C.Coefficient.buildCoefficient({ graph, ledgers }) : null; } catch (e) { window.wrLog?.('commish.coefficient', e); }
-                try { radar = C.Radar?.buildRadar ? C.Radar.buildRadar({ graph, txnsByLeague, rostersByLeague, playersData, week, nowMs: now }) : null; } catch (e) { window.wrLog?.('commish.radar', e); }
+                try { radar = C.Radar?.buildRadar ? C.Radar.buildRadar({ graph, txnsByLeague, activityByLeague, rostersByLeague, playersData, week, nowMs: now }) : null; } catch (e) { window.wrLog?.('commish.radar', e); }
                 try {
                     drift = mine.map(l => ({
                         leagueId: String(l.league_id || l.id), leagueName: l.name,
@@ -236,7 +364,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
 
                 if (live()) setState({
                     status: 'ready',
-                    mine, graph, week, playersData, ledgers, constitutions,
+                    mine, graph, week, playersData, ledgers, constitutions, activityByLeague,
                     coefficient, radar, drift, calendar, conflicts, programmes, renewal,
                     seats, benches, prospectuses: prospectuses.filter(Boolean).length ? prospectuses : prospectuses,
                     folders: folders.filter(Boolean),
@@ -247,6 +375,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             }
         })();
     }, [state.status, runKey]);
+    const onRetryActivity = () => {
+        if (!localSave.canLeave() || window.App?.AccountSession?.isCurrent?.() === false) return;
+        activityReload.current = true;
+        runRef.current.key = null;
+        setState({ status: 'idle' });
+    };
 
     // ── Rule Lab dataset (lazy, first open of the tab) ────────────────
     // Any season the history chain reaches is replayable: Sleeper renews
@@ -335,6 +469,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const lid = scheduleActiveId;
         const league = (state.mine || []).find(l => String(l.league_id || l.id) === lid);
         if (!league) return;
+        const account = window.App?.AccountStorage?.owner?.();
         let cancelled = false;
         (async () => {
             let users = Array.isArray(league.users) && league.users.length ? league.users : null;
@@ -343,7 +478,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 if (!users && typeof window.fetchLeagueUsers === 'function') users = (await window.fetchLeagueUsers(lid)) || [];
                 if (!rosters && typeof window.fetchLeagueRosters === 'function') rosters = (await window.fetchLeagueRosters(lid)) || [];
             } catch (e) { window.wrLog?.('commish.schedule.hydrate', e); }
-            if (cancelled) return;
+            if (cancelled || !schedulePlans.currentAccount() || window.App?.AccountStorage?.owner?.() !== account) return;
             const byOwner = {};
             (users || []).forEach(u => { byOwner[String(u.user_id)] = u; });
             const teams = (rosters || []).map(r => {
@@ -358,21 +493,17 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 const division = r.settings && r.settings.division != null ? String(r.settings.division) : null;
                 return { id: String(r.roster_id), name, division, ownerId: r.owner_id != null ? String(r.owner_id) : null };
             });
-            const saved = window.App?.AccountStorage?.get?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), null);
-            setSchedules(prev => ({
-                ...prev,
-                [lid]: {
+            schedulePlans.load(lid, {
                     teams,
-                    mode: (saved && saved.mode) || 'simple',
-                    seasonYear: (saved && saved.seasonYear) || Number(league.season) || new Date().getFullYear(),
-                    priorStandings: (saved && saved.priorStandings) || null,   // fetched lazily otherwise
+                    mode: 'simple',
+                    seasonYear: Number(league.season) || new Date().getFullYear(),
+                    priorStandings: null,
                     priorStandingsStatus: 'idle',
-                    nflMeta: (saved && saved.nflMeta) || null,
-                    config: (saved && saved.config) || { weeks: Math.max(1, teams.length - 1), doubleRoundRobin: false },
-                    schedule: (saved && saved.schedule) || null,
+                    nflMeta: null,
+                    config: { weeks: Math.max(1, teams.length - 1), doubleRoundRobin: false },
+                    schedule: null,
                     actualsStatus: 'idle',
-                },
-            }));
+            });
         })();
         return () => { cancelled = true; };
     }, [state.status, scheduleActiveId, state.mine, schedules]);
@@ -383,16 +514,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // SEALED prior season, so it never goes stale, and persisting it means
     // reopening the tool doesn't re-fetch the same completed season's
     // rosters every time.
-    const persistSchedule = (lid, patch) => {
-        setSchedules(prev => {
-            const next = { ...(prev[lid] || {}), ...patch };
-            window.App?.AccountStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), {
-                config: next.config, schedule: next.schedule, mode: next.mode,
-                seasonYear: next.seasonYear, priorStandings: next.priorStandings, nflMeta: next.nflMeta,
-            });
-            return { ...prev, [lid]: next };
-        });
-    };
+    const persistSchedule = (lid, patch) => schedulePlans.persist(lid, patch);
     const onScheduleWeeksConfigChange = (nextCfg) => {
         if (!scheduleActiveId) return;
         persistSchedule(scheduleActiveId, { config: nextCfg });
@@ -461,13 +583,15 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         // First time this league has selected NFL mode this session — fetch
         // once, cache on the persisted record (a sealed season never goes
         // stale), never refetch on every mode toggle after.
-        persistSchedule(lid, { mode, priorStandingsStatus: 'loading' });
+        persistSchedule(lid, { mode });
+        const request = schedulePlans.begin(lid);
+        schedulePlans.update(lid, { priorStandingsStatus: 'loading' });
         const league = (state.mine || []).find(l => String(l.league_id || l.id) === lid);
         (async () => {
             const { priorStandings, fallbackTeams } = league
                 ? await fetchPriorStandings(lid, league, cur.teams)
                 : { priorStandings: null, fallbackTeams: [] };
-            persistSchedule(lid, { priorStandings, priorStandingsFallback: fallbackTeams, priorStandingsStatus: 'done' });
+            if (schedulePlans.isCurrent(request)) persistSchedule(lid, { priorStandings, priorStandingsFallback: fallbackTeams, priorStandingsStatus: 'done' });
         })();
     };
     const onScheduleGenerate = () => {
@@ -495,7 +619,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const lid = scheduleActiveId;
         const cur = schedules[lid];
         if (!lid || !cur || !cur.schedule || cur.mode !== 'nfl' || !C?.ScheduleNFL) return;
-        persistSchedule(lid, { flexStatus: 'loading' });
+        const request = schedulePlans.begin(lid);
+        schedulePlans.update(lid, { flexStatus: 'loading' });
         try {
             const rosters = (typeof window.fetchLeagueRosters === 'function' ? await window.fetchLeagueRosters(lid) : null) || [];
             const currentStandings = {};
@@ -504,10 +629,10 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 currentStandings[String(r.roster_id)] = { wins: Number(s.wins) || 0, losses: Number(s.losses) || 0, fpts: Number(s.fpts) || 0 };
             });
             const { schedule, notes } = C.ScheduleNFL.flexFinalWeeks({ schedule: cur.schedule, teams: cur.teams, currentStandings });
-            persistSchedule(lid, { schedule, flexStatus: 'done', flexNotes: notes });
+            if (schedulePlans.isCurrent(request)) persistSchedule(lid, { schedule, flexStatus: 'done', flexNotes: notes });
         } catch (e) {
             window.wrLog?.('commish.schedule.flex', e);
-            persistSchedule(lid, { flexStatus: 'error' });
+            if (schedulePlans.isCurrent(request)) schedulePlans.update(lid, { flexStatus: 'error' });
         }
     };
     const onScheduleForcePairing = (week, teamA, teamB) => {
@@ -517,7 +642,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const wk = cur.schedule.find(w => w.week === Number(week));
         if (wk && wk.source === 'actual') return; // never edit a real, played week
         const { schedule, ok } = C.Schedule.forcePairing(cur.schedule, week, teamA, teamB);
-        if (ok) persistSchedule(lid, { schedule });
+        if (ok) return persistSchedule(lid, { schedule });
+        return false;
     };
     const onScheduleSyncActuals = async () => {
         const lid = scheduleActiveId;
@@ -528,22 +654,23 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         // click during preseason (nowWeek 0/1) produced zero visible change
         // and zero network activity. 'none' is a real status the panel can
         // say something about, not just an absence of 'loading'.
-        if (nowWeek < 2) { persistSchedule(lid, { actualsStatus: 'none' }); return; }
-        persistSchedule(lid, { actualsStatus: 'loading' });
+        if (nowWeek < 2) { schedulePlans.update(lid, { actualsStatus: 'none' }); return; }
+        const request = schedulePlans.begin(lid);
+        schedulePlans.update(lid, { actualsStatus: 'loading' });
         try {
             const actualsByWeek = {};
             await Promise.all(cur.schedule.filter(w => w.week < nowWeek).map(async w => {
-                const pairs = await C.Schedule.fetchActualMatchups(lid, w.week);
+                const pairs = await C.Schedule.fetchActualMatchups(lid, w.week, { requireComplete: true });
                 if (pairs.length) actualsByWeek[w.week] = pairs;
             }));
             const merged = C.Schedule.mergeActuals(cur.schedule, actualsByWeek);
             // 'done' vs 'empty': Sleeper had nothing to report for every played
             // week (offseason data gaps, a bye-heavy early slate) is a
             // different, honestly-labeled outcome from "synced N weeks".
-            persistSchedule(lid, { schedule: merged, actualsStatus: Object.keys(actualsByWeek).length ? 'done' : 'empty', actualsSynced: Object.keys(actualsByWeek).length });
+            if (schedulePlans.isCurrent(request)) persistSchedule(lid, { schedule: merged, actualsStatus: Object.keys(actualsByWeek).length ? 'done' : 'empty', actualsSynced: Object.keys(actualsByWeek).length });
         } catch (e) {
             window.wrLog?.('commish.schedule.sync', e);
-            persistSchedule(lid, { actualsStatus: 'error' });
+            if (schedulePlans.isCurrent(request)) schedulePlans.update(lid, { actualsStatus: 'error' });
         }
     };
     const onScheduleCopyText = () => {
@@ -1453,7 +1580,15 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 </div>
                 <button type="button" className="co-office-back" onClick={onBack}>‹ Hub</button>
             </header>
-            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div>{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry} style={{ marginTop: 8 }}>{localSave.failure.retryLabel || 'Retry save'}</button>}<button type="button" onClick={localSave.discard} style={{ marginTop: 8 }}>Discard unsaved inputs</button></div>}
+            <CommishSessionNotice />
+            {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div><div className="co-recovery-actions">{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry}>{localSave.failure.retryLabel || 'Retry save'}</button>}<button type="button" onClick={localSave.discard}>Discard unsaved inputs</button></div></div>}
+            {state.status === 'ready' && state.mine.some(l => state.activityByLeague?.[String(l.league_id || l.id)]?.status !== 'fresh') ? (
+                <div data-testid="commish-activity-warning" role="status" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-warn)', border: `1px solid ${LINE}`, borderRadius: 12, fontSize: '16px', lineHeight: 1.5 }}>
+                    <strong>Activity data is incomplete</strong>
+                    <div>Manager inactivity checks are paused for {state.mine.filter(l => state.activityByLeague?.[String(l.league_id || l.id)]?.status !== 'fresh').map(l => l.name).join(', ')}. Roster checks remain available.</div>
+                    <button type="button" onClick={onRetryActivity} style={{ marginTop: 8, minHeight: 44 }}>Retry activity</button>
+                </div>
+            ) : null}
             {state.status === 'ready' ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     {!isPhone && window.WrCommishSidebar ? (
@@ -1592,7 +1727,11 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     <window.WrCommishSchedulePanel
                         leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
                         selectedLeagueId={scheduleActiveId}
-                        onSelectLeague={setScheduleLeagueId}
+                        onSelectLeague={id => { if (localSave.canLeave()) { schedulePlans.setScope(String(id)); setScheduleLeagueId(String(id)); } }}
+                        saveState={(schedules[scheduleActiveId] || {}).saveState || 'idle'}
+                        saveError={(schedules[scheduleActiveId] || {}).saveError}
+                        recoverySaved={!!(schedules[scheduleActiveId] || {}).recoverySaved}
+                        onRetrySave={() => schedulePlans.save(scheduleActiveId)}
                         teams={(schedules[scheduleActiveId] || {}).teams || []}
                         weeksConfig={(schedules[scheduleActiveId] || {}).config}
                         onWeeksConfigChange={onScheduleWeeksConfigChange}
@@ -1633,6 +1772,15 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             </div>
         </React.Fragment>
     );
+}
+
+function CommishSessionNotice() {
+    if (window.App?.AccountStorage?.owner?.()) return null;
+    return <div data-testid="commish-session-warning" role="status" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-warn)', border: '1px solid var(--co-line)', borderRadius: 12, fontSize: '16px', lineHeight: 1.5 }}>
+        <strong>View-only Sleeper connection</strong>
+        <div>Your Sleeper leagues are connected, but no active Dynasty HQ sign-in is available. Sign in to save tasks, schedules, dues and private plans.</div>
+        <a href={/\/dist-preview\//.test(window.location?.pathname || '') ? '../login.html' : 'login.html'} style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 8 }}>Sign in to save plans</a>
+    </div>;
 }
 
 window.CommissionerOffice = CommissionerOffice;

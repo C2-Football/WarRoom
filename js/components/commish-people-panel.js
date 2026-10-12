@@ -74,13 +74,15 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
             return { label: 'DARK — ' + (dark ? dark.leagueName : 'ONE LEAGUE'), color: AMBER, border: 'rgba(240,165,0,0.45)' };
         }
         if (p.status === 'FADING') return { label: 'FADING', color: TEXT, border: LINE };
+        if (p.status === 'UNKNOWN') return { label: 'Activity unavailable', color: MUTED, border: LINE };
         return { label: p.status || 'ACTIVE', color: MUTED, border: LINE };
     };
     const dotColor = s => s === 'DARK' ? RED : s === 'WATCH' ? AMBER : MUTED;
     const sigTitle = (t) => {
         const sg = t.signals || {};
-        const bits = [t.leagueName + ': ' + t.status + (t.inSeason ? '' : ' (offseason thresholds)')];
-        bits.push(sg.daysSinceTxn == null ? 'no transactions on record' : sg.daysSinceTxn + 'd since last move');
+        const unknown = sg.activityKnown === false || t.status === 'UNKNOWN';
+        const bits = [t.leagueName + ': ' + (t.status === 'UNKNOWN' ? 'Activity unavailable' : t.status) + (!unknown && !t.inSeason ? ' (offseason thresholds)' : '')];
+        bits.push(unknown ? 'Recent activity could not be verified' : sg.daysSinceTxn == null ? 'no transactions on record' : sg.daysSinceTxn + 'd since last move');
         if (sg.outStarters) bits.push(sg.outStarters + ' OUT in lineup');
         if (sg.byeStarters) bits.push(sg.byeStarters + ' starter(s) on bye');
         if (sg.emptySlots) bits.push(sg.emptySlots + ' empty slot(s)');
@@ -90,7 +92,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
     const seatList = Array.isArray(seats) ? seats : [];
     const folderList = Array.isArray(folders) ? folders : [];
     const matches = (people || []).filter(p => {
-        if (phone && needsOnly && !['DARK_ALL', 'DARK_ONE', 'FADING'].includes(p.status)) return false;
+        if (phone && needsOnly && !['DARK_ALL', 'DARK_ONE', 'FADING', 'UNKNOWN'].includes(p.status)) return false;
         return !phone || !query.trim() || [p.name, ...(p.teams || []).map(t => t.leagueName)].join(' ').toLowerCase().includes(query.trim().toLowerCase());
     });
     const shownPeople = phone ? matches.slice(0, peopleLimit) : people;

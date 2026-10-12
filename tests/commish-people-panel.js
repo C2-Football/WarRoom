@@ -238,6 +238,33 @@ console.log('\nWrCommishPeoplePanel contract');
   });
 })();
 
+(function unavailableActivity() {
+  const Panel = loadPanel(makeCtx());
+  const person = {
+    userId: 'unverified', name: 'Recent manager', status: 'UNKNOWN',
+    checkin: 'Do not send an inactivity check-in for missing data.',
+    teams: [{ leagueId: 'L1', leagueName: 'Dynasty One', rosterId: 1, inSeason: true,
+      status: 'UNKNOWN', signals: { activityKnown: false, daysSinceTxn: null } }],
+  };
+  test('unavailable activity has neutral wording without claiming an empty history', () => {
+    const tree = render(Panel({ radar: { people: [person] }, seats: [] }));
+    const text = textOf(tree).join('|');
+    const titles = findAll(tree, n => typeof n.props?.title === 'string').map(n => n.props.title).join('|');
+    assert.ok(text.includes('Activity unavailable'));
+    assert.ok(titles.includes('Recent activity could not be verified'));
+    assert.ok(!titles.includes('no transactions on record'));
+    assert.ok(!text.includes(person.checkin));
+  });
+  test('phone attention view retains unavailable people with an honest detail explanation', () => {
+    const tree = render(Panel({ phone: true, radar: { people: [person] }, seats: [] }));
+    const text = textOf(tree).join('|');
+    assert.ok(text.includes('Recent manager') && text.includes('Activity unavailable'));
+    assert.ok(text.includes('Recent activity could not be verified'));
+    assert.ok(!text.includes('Nobody needs attention right now.'));
+    assert.ok(!text.includes('no transactions on record'));
+  });
+})();
+
 console.log('\n' + (failed ? 'FAIL' : 'PASS') + ': ' + passed + ' passed, ' + failed + ' failed');
 if (failed) {
   failures.forEach(f => console.error('  ' + f.name + ': ' + (f.e && f.e.stack || f.e)));

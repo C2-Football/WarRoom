@@ -340,6 +340,12 @@
             const leagueCount = Number(gp && gp.leagueCount) || Number(fp && fp.leagueCount) || uniq.length || 1;
 
             const darkTeams = teams.filter(t => t.status === 'DARK');
+            const missingActivity = teams.some(t => t.signals?.activityKnown === false);
+            const lineupOnly = status === 'FADING' && missingActivity;
+            const lineupIssues = teams.reduce((n, t) => {
+                const sig = t.signals || {};
+                return n + (sig.outStarters || 0) + (sig.emptySlots || 0) + (sig.byeStarters >= 2 ? sig.byeStarters : 0);
+            }, 0);
             const worstDays = teams.reduce((m, t) => {
                 const d = t && t.signals ? t.signals.daysSinceTxn : null;
                 return d == null ? m : Math.max(m, Number(d));
@@ -347,12 +353,12 @@
             const name = rec.name || (gp && gp.name) || 'Unknown';
             const first = String(name).split(/\s+/)[0];
 
-            const kicker = status === 'DARK_ALL' ? 'DARK EVERYWHERE'
+            const kicker = lineupOnly ? 'LINEUP CHECK' : status === 'DARK_ALL' ? 'DARK EVERYWHERE'
                 : status === 'DARK_ONE' ? 'DARK IN ' + (darkTeams.length || 1)
                     : status === 'FADING' ? 'FADING'
                         : band === 'AT_RISK' ? 'WON\'T RENEW' : 'RENEWAL WATCH';
 
-            const headline = status === 'DARK_ALL'
+            const headline = lineupOnly ? 'Review ' + first + '\'s lineup — current starter issues need a look.' : status === 'DARK_ALL'
                 ? say('triage:person:' + uid + ':all', [
                     'Check in on ' + first + ' — quiet in all ' + uniq.length + ' of your leagues.',
                     first + ' has gone dark everywhere. That\'s a life thing, not a league thing.',
@@ -380,12 +386,14 @@
             const bits = [];
             if (uniq.length > 1) bits.push('Across ' + plural(uniq.length, 'league'));
             if (darkTeams.length) bits.push(plural(darkTeams.length, 'team') + ' dark');
-            if (worstDays >= 0) bits.push(worstDays + 'd since a move');
+            if (missingActivity) bits.push('transaction activity unavailable');
+            else if (worstDays >= 0) bits.push(worstDays + 'd since a move');
             else if (rp) bits.push('no transactions on record');
+            if (lineupOnly) bits.push(plural(lineupIssues, 'lineup issue'));
             if (prob != null) bits.push(Math.round(prob * 100) + '% renewal odds');
             if (fp && fp.factors && fp.factors.length) bits.push(String(fp.factors[0]));
 
-            const metric = radarWins
+            const metric = radarWins && lineupOnly ? { value: lineupIssues, unit: 'lineup issues', breach: true } : radarWins
                 ? { value: worstDays >= 0 ? worstDays : null, unit: 'days quiet', breach: status !== 'ACTIVE' }
                 : { value: prob == null ? null : Math.round(prob * 100) / 100, unit: 'renewal odds', breach: band === 'AT_RISK' };
 
