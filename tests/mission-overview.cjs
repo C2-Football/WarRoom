@@ -35,6 +35,25 @@ test('scheduled next kickoff requires a future timestamp and excludes postponed 
     assert.equal(h.read({games:[{...game,kickoff:'bad'}]}).next,null);
 });
 
+test('unavailable starters stop being replacement advice once their game starts',()=>{
+    const h=fixture(), upcoming={home:'NYJ',away:'LV',state:'pre',kickoff:'2026-10-08T20:00:00Z'};
+    const onlyOut={starters:['c']};
+    assert.equal(h.read({roster:onlyOut,games:[upcoming]}).flags[0].kind,'out');
+    for (const game of [{...upcoming,completed:true}, {...upcoming,state:'in'}, {...upcoming,kickoff:'2026-10-06T20:00:00Z'}]) {
+        const read=h.read({roster:onlyOut,games:[game]});
+        assert.equal(read.flags.length,0); assert.equal(read.lockedFlags[0].kind,'out');
+    }
+    assert.equal(h.read({games:[{...upcoming,completed:true}]}).flags.length,0,'Completed week cannot recommend a bye replacement');
+    assert.equal(h.read({roster:onlyOut,games:[{...upcoming,statusName:'STATUS_POSTPONED',kickoff:'2026-10-06T20:00:00Z'}]}).lockedFlags.length,0,'Postponed kickoff is not a game lock');
+    const alias=h.read({roster:onlyOut,playersData:{c:{...h.props.playersData.c,team:'WSH'}},games:[{...upcoming,home:'WAS',state:'in'}]});
+    assert.equal(alias.flags.length,0,'Canonical NFL team aliases preserve locks');
+    h.props.myRoster=onlyOut; h.render();
+    h.hooks[0]={key:'l1|2026|6',status:'ready',games:[{...upcoming,completed:true}],now:Date.parse('2026-10-09T12:00:00Z')};
+    const tree=h.render(); assert.doesNotMatch(text(tree),/Replace Listed Out|Check availability for Listed Out/);
+    button(tree,'Ask Alex').props.onClick();
+    assert.match(h.events[0].detail.prompt,/lockedStarterChecks/); assert.match(h.events[0].detail.prompt,/Do not recommend replacing players/);
+});
+
 test('questionable is a monitoring flag and automatic lineup leagues get a clear roster action',()=>{
     const h=fixture(); const players={a:{full_name:'Questionable QB',team:'KC',injury_status:'Questionable'}};
     assert.equal(h.read({roster:{starters:['a']},playersData:players}).flags[0].kind,'monitor');

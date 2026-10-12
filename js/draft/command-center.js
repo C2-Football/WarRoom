@@ -2558,7 +2558,7 @@
                                 update({ customSlotOrder: next });
                             };
                             return (
-                                <div style={{ marginTop: 12 }}>
+                                <div className="draft-setup-team-order" style={{ marginTop: 12 }}>
                                     <div className="draft-setup-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <span>{state.draftMechanic === 'auction' ? 'Nomination Order' : 'Team Order'}{state.customSlotOrder ? ' (custom)' : ''}</span>
                                         <span style={{ display: 'flex', gap: 6 }}>
@@ -2568,13 +2568,13 @@
                                             )}
                                         </span>
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, padding: 4 }}>
+                                    <div className="draft-setup-team-list" style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, padding: 4 }}>
                                         {slotOrder.map((rosterId, i) => {
                                             const slot = i + 1;
                                             const info = draftMeta.slotToRoster?.[slot] || {};
                                             const isMine = slot === draftMeta.mySlot;
                                             return (
-                                                <div key={rosterId ?? ('empty-' + slot)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 4, background: isMine ? 'rgba(212,175,55,0.08)' : 'transparent' }}>
+                                                <div key={rosterId ?? ('empty-' + slot)} className={'draft-setup-team-row' + (isMine ? ' is-mine' : '')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 4, background: isMine ? 'rgba(212,175,55,0.08)' : 'transparent' }}>
                                                     <span style={{ width: 22, flex: 'none', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>{slot}</span>
                                                     <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem', color: isMine ? 'var(--gold)' : 'var(--white)', fontWeight: isMine ? 700 : 400 }}>
                                                         {info.ownerName || 'Team ' + slot}{isMine ? ' (YOU)' : ''}

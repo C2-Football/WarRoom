@@ -6,25 +6,26 @@
         { tab: 'dashboard', workspace: 'home', label: 'Overview' },
         { tab: 'myteam', workspace: 'team', label: 'Roster' },
         { tab: 'lineup', workspace: 'team', label: 'Game Day', capability: 'gameDay' },
-        { tab: 'team-outlook', workspace: 'team', label: 'Team outlook', analysis: 'roster' },
+        { tab: 'team-outlook', workspace: 'team', label: 'Team outlook', analysis: 'roster', phoneHidden: true },
         { tab: 'strategy', workspace: 'team', label: 'GM plan', alex: 'strategy', capability: 'gm' },
         { tab: 'decisions', workspace: 'team', label: 'Decision review', alex: 'history', capability: 'gm' },
         { tab: 'patterns', workspace: 'team', label: 'Patterns', alex: 'patterns', capability: 'patterns' },
         { tab: 'fa', workspace: 'market', label: 'Waivers' },
         { tab: 'trades', workspace: 'market', label: 'Trade Desk', capability: 'trades' },
         { tab: 'targets', workspace: 'market', label: 'Saved targets' },
-        { tab: 'market-review', workspace: 'market', label: 'Market review', analysis: 'trades' },
+        { tab: 'market-review', workspace: 'market', label: 'Market review', analysis: 'trades', phoneHidden: true },
         { tab: 'draft', workspace: 'draft', label: 'Draft room' },
+        { tab: 'mock-draft', workspace: 'draft', label: 'Mock draft', phoneOnly: true },
         { tab: 'draft-review', workspace: 'draft', label: 'Draft analysis', analysis: 'draft' },
         { tab: 'central', workspace: 'league', label: 'Standings & matchups' },
         { tab: 'league-team', workspace: 'league', label: 'Team profile', legacy: true },
-        { tab: 'wire', workspace: 'league', label: 'The Wire' },
+        { tab: 'wire', workspace: 'league', label: 'The Wire', phoneMenuOnly: true },
         { tab: 'calendar', workspace: 'league', label: 'Calendar' },
         { tab: 'trophies', workspace: 'league', label: 'History & trophies' },
-        { tab: 'stats', workspace: 'research', label: 'Research' },
-        { tab: 'research-players', workspace: 'research', label: 'Players & picks', analysis: 'assets' },
+        { tab: 'stats', workspace: 'research', label: 'Research', phoneLabel: 'Stats hub' },
+        { tab: 'research-players', workspace: 'research', label: 'Players & picks', analysis: 'assets', phoneHidden: true },
         { tab: 'compare', workspace: 'research', label: 'Compare' },
-        { tab: 'research-reports', workspace: 'research', label: 'Custom reports', analysis: 'reports' },
+        { tab: 'research-reports', workspace: 'research', label: 'Custom reports', analysis: 'reports', phoneHidden: true },
         { tab: 'settings', workspace: 'settings', label: 'Settings' },
         { tab: 'gm-settings', workspace: 'settings', label: 'Alex preferences', alex: 'settings', capability: 'gm' },
         { tab: 'legend', workspace: 'help', label: 'Help & glossary' },
@@ -37,12 +38,14 @@
         { id: 'market', label: 'Market', tab: 'fa', iconKey: 'fa', description: 'Find an upgrade, compare options, and plan your next move.' },
         { id: 'draft', label: 'Draft', tab: 'draft', iconKey: 'draft', description: 'Prepare your board, follow the draft, and review your picks.' },
         { id: 'league', label: 'League', tab: 'central', iconKey: 'central', description: 'The competition, important dates, and your league history.' },
-        { id: 'research', label: 'Research', tab: 'stats', iconKey: 'analytics', description: 'Explore stats, value, scouting, and comparisons.' },
+        { id: 'research', label: 'Research', phoneLabel: 'Stats hub', tab: 'stats', iconKey: 'analytics', description: 'Explore stats, value, scouting, and comparisons.' },
         { id: 'settings', label: 'Settings', tab: 'settings', iconKey: 'settings', utility: true },
         { id: 'help', label: 'Help', tab: 'legend', iconKey: 'legend', utility: true },
     ];
     function allowed(route, options) {
         const opts = options || {};
+        if (opts.isPhone && route.phoneHidden) return false;
+        if (!opts.isPhone && route.phoneOnly) return false;
         if (route.capability === 'trades') return opts.showTrades !== false;
         if (route.capability === 'gm') return opts.showGmOffice !== false;
         if (route.capability === 'patterns') return opts.showGmOffice !== false && (!opts.leagueType || opts.leagueType === 'dynasty' || opts.leagueType === 'unknown');
@@ -55,19 +58,20 @@
         if (key === 'analytics') key = analysisRoutes[opts.legacyAnalyticsView] || 'team-outlook';
         if (key === 'league') key = 'research-players';
         const route = routes.find(r => r.tab === key) || routes[0];
-        if (allowed(route, opts)) return { ...route };
-        const fallback = route.capability === 'trades' ? 'fa' : route.workspace === 'team' ? 'myteam' : 'dashboard';
-        return { ...routes.find(r => r.tab === fallback) };
+        if (allowed(route, opts)) return present(route, opts);
+        const fallback = route.phoneHidden || route.phoneOnly ? workspaces.find(w => w.id === route.workspace)?.tab : route.capability === 'trades' ? 'fa' : route.workspace === 'team' ? 'myteam' : 'dashboard';
+        return present(routes.find(r => r.tab === fallback) || routes[0], opts);
     }
+    function present(item, options) { return { ...item, label: options?.isPhone && item.phoneLabel ? item.phoneLabel : item.label }; }
     function views(workspace, options) {
-        return routes.filter(r => r.workspace === workspace && !r.legacy && allowed(r, options)).map(r => ({ ...r }));
+        return routes.filter(r => r.workspace === workspace && !r.legacy && allowed(r, options)).map(r => present(r, options));
     }
-    function navigation() {
-        return workspaces.map(w => ({ ...w, workspace: w.id }));
+    function navigation(options) {
+        return workspaces.map(w => ({ ...present(w, options), workspace: w.id }));
     }
     function workspace(tab, options) {
         const current = resolve(tab, options);
-        return { ...workspaces.find(w => w.id === current.workspace) };
+        return present(workspaces.find(w => w.id === current.workspace), options);
     }
     function upgradeStarter(widgets, defaults, leagueDefaults) {
         const legacy = [
@@ -84,7 +88,7 @@
         return untouched ? defaults.map(item => ({ ...item })) : widgets;
     }
     function dockChoices(options) {
-        return routes.filter(r => !r.legacy && allowed(r, options)).map(r => ({ ...r, iconKey: workspaces.find(w => w.id === r.workspace)?.iconKey || 'home' }));
+        return routes.filter(r => !r.legacy && !(options?.isPhone && r.phoneMenuOnly) && allowed(r, options)).map(r => ({ ...present(r, options), iconKey: workspaces.find(w => w.id === r.workspace)?.iconKey || 'home' }));
     }
     function dockDefaults(options) {
         return ['dashboard', 'myteam', 'central', 'lineup'].filter(tab => allowed(routes.find(route => route.tab === tab), options));

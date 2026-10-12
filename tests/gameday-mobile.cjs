@@ -7,10 +7,11 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
+    const projectionWeeks = [], scoreWeeks = [], contextWeeks = [], opponentWeeks = [];
     let cursor = 0, effectCursor = 0, changed = true, out, refresh;
     const h = (type, props, ...children) => typeof type === 'function'
         ? type({ ...(props || {}), children }) : { type, props: props || {}, children: children.flat(Infinity).filter(x => x != null && x !== false) };
@@ -37,15 +38,17 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
             addEventListener: (name, fn) => { events[name] = fn; }, removeEventListener() {},
             wrIsPro: () => pro,
             S: { nflState: { season: 2026 } },
+            localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
             WR: {
                 useViewport: () => ({ width, isPhone: width < 768 }), HeroCard: true, AssetRow: true, CardList: true,
                 Sheet: ({ open, children }) => open ? h('dialog', {}, children) : null,
                 ActionBar: ({ visible, ...props }) => visible ? h('actionbar', props) : null,
             },
             App: {
-                WeeklyProj: { optimalForRoster: () => noProjection ? null : result, formStats: (pid, win) => typeof loadedForm[pid] === 'function' ? loadedForm[pid](win) : loadedForm[pid] || (pid === 'c' ? null : { rollingPPG: pid === 'a' ? 0 : -2.5, high: 0, low: -2.5, games: 2, recentCount: 2 }) },
+                WeeklyProj: { optimalForRoster: (roster, league, options) => { projectionWeeks.push(options.week); return noProjection ? null : { ...result, week: options.week, projections: options.week > 2 ? { ...result.projections, d: projection(30) } : result.projections }; }, formStats: (pid, win) => typeof loadedForm[pid] === 'function' ? loadedForm[pid](win) : loadedForm[pid] || (pid === 'c' ? null : { rollingPPG: pid === 'a' ? 0 : -2.5, high: 0, low: -2.5, games: 2, recentCount: 2 }) },
                 StartSit: { normSlot: s => s, FLEX_ALLOWED: {}, BASE_POSITIONS: new Set(['QB', 'RB', 'WR']) },
-                NflContext: { loadScores: async () => stale ? [] : games, gameStatus: game => game?.state || 'unknown' },
+                NflContext: { loadScores: async week => { scoreWeeks.push(week); return stale ? [] : week > 2 ? games.map(game => ({ ...game, state: 'upcoming', away: 'SEA' })) : games; }, load: async weeks => { contextWeeks.push(...weeks); return {}; }, gameStatus: game => game?.state || 'unknown' },
+                Schedule: seasonData ? { buildSeason: async () => seasonData } : undefined,
                 LeagueLiveScores: {
                     currentWeek: () => 2,
                     useScores: () => ({ supported, status: 'ready', updatedAt: 1789484400000, rows: [
@@ -63,7 +66,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
     vm.runInContext(fs.readFileSync('js/shared/startsit-engine.js', 'utf8'), ctx);
     if (withMatchup) {
         vm.runInContext(fs.readFileSync('js/shared/matchup.js', 'utf8'), ctx);
-        ctx.window.App.Matchup.resolveOpponentRosterId = async () => 2;
+        ctx.window.App.Matchup.resolveOpponentRosterId = async ({ week }) => { opponentWeeks.push(week); return 2; };
     }
     vm.runInContext(source, ctx);
     const props = {
@@ -78,12 +81,13 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
             out = ctx.LineupTab(props);
             pending.splice(0).forEach(fn => fn());
             await Promise.resolve(); await Promise.resolve();
+            await new Promise(setImmediate);
             if (!changed) return out;
         }
         throw Error('Render did not settle');
     }
     await render();
-    return { get out() { return out; }, render, games, props, result, async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
+    return { get out() { return out; }, render, games, props, result, storage, projectionWeeks, scoreWeeks, contextWeeks, opponentWeeks, async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
 }
 const all = node => node && typeof node === 'object' ? [node, ...(node.children || []).flatMap(all)] : [];
 const textOf = node => node == null ? '' : typeof node === 'object' ? (node.children || []).map(textOf).join('') : String(node);
@@ -264,5 +268,49 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     flex.props.myRoster.reserve = []; flex.props.playersData.d.injury_status = 'Out'; await flex.render();
     assert(button(flex.out, 'Apply Optimal').props.disabled, 'out players cannot fill active slots despite strong history');
 
-    console.log('PASS roster and Game Day: pregame priority, signed/missing scores, projection fallback, kickoff reconciliation, per-player locks, later games, PPG, and responsive routes');
+    // Week planning follows the selected NFL week without unlocking the live
+    // lineup. Plans remain independent across weeks, leagues and page reloads.
+    const nextWeek = out => select(out, node => node.type === 'button' && node.props['aria-label'] === 'Next lineup week');
+    const prevWeek = out => select(out, node => node.type === 'button' && node.props['aria-label'] === 'Previous lineup week');
+    const planList = out => select(out, node => node.props.className === 'gd-player-list');
+    const future = await fixture({ withMatchup: true });
+    assert(prevWeek(future.out).props.disabled, 'cannot navigate before the live week');
+    nextWeek(future.out).props.onClick(); await future.render();
+    assert.match(textOf(future.out), /Future lineup · saved on this device/);
+    assert(future.projectionWeeks.includes(3), 'projections request the selected future week');
+    assert(future.scoreWeeks.includes(3), 'kickoff states request the selected future week');
+    assert(future.contextWeeks.includes(3), 'NFL opponents request the selected future week');
+    assert(future.opponentWeeks.includes(3), 'fantasy opponent requests the selected future week');
+    assert(!select(future.out, node => node.props.className === 'gd-scoreboard'), 'future plan never displays this week’s actual scoreboard');
+    select(planList(future.out), node => node.type === 'button' && textOf(node).includes('Zero Starter')).props.onClick(); await future.render();
+    const futurePick = select(future.out, node => node.type === 'button' && textOf(node).includes('Bench Option'));
+    assert(futurePick && !futurePick.props.disabled, 'current-week finals do not lock a future-week replacement');
+    assert.match(textOf(futurePick), /30\.0Proj/, 'replacement uses the future-week projection');
+    futurePick.props.onClick(); await future.render();
+    assert.match(textOf(planList(future.out)), /Bench Option/);
+    nextWeek(future.out).props.onClick(); await future.render();
+    assert.match(textOf(planList(future.out)), /Zero Starter/, 'a different future week has its own starting plan');
+    prevWeek(future.out).props.onClick(); await future.render();
+    assert.match(textOf(planList(future.out)), /Bench Option/, 'switching back restores that week’s plan');
+    prevWeek(future.out).props.onClick(); await future.render();
+    assert.match(textOf(planList(future.out)), /Zero Starter.*Final · 0\.00 pts · Locked/, 'the live week keeps submitted-player locks');
+    const reloaded = await fixture({ storage: future.storage });
+    nextWeek(reloaded.out).props.onClick(); await reloaded.render();
+    assert.match(textOf(planList(reloaded.out)), /Bench Option/, 'the week plan survives a page reload');
+    reloaded.props.currentLeague.league_id = '456'; await reloaded.render();
+    nextWeek(reloaded.out).props.onClick(); await reloaded.render();
+    assert.match(textOf(planList(reloaded.out)), /Zero Starter/, 'saved plans cannot leak into another league');
+    const unverifiedFuture = await fixture({ stale: true });
+    nextWeek(unverifiedFuture.out).props.onClick(); await unverifiedFuture.render();
+    select(planList(unverifiedFuture.out), node => node.type === 'button' && textOf(node).includes('Zero Starter')).props.onClick(); await unverifiedFuture.render();
+    assert(!select(unverifiedFuture.out, node => node.type === 'button' && textOf(node).includes('Bench Option')).props.disabled, 'a local future plan remains editable before the future schedule loads');
+    assert(!button(unverifiedFuture.out, 'Use optimal in my plan'), 'missing schedule evidence cannot enable auto-fill');
+
+    const coverage = await fixture({ upcoming: true, seasonData: { byeWatch: [{ week: 8, count: 2, positions: ['WR', 'WR'] }, { week: 4, count: 1, positions: ['QB'] }, { week: 12, count: 1, positions: ['TE'] }] } });
+    button(coverage.out, 'Season').props.onClick(); await coverage.render();
+    const coverageText = textOf(coverage.out);
+    assert.match(coverageText, /Wk 4.*Wk 8.*Wk 12/, 'all coverage weeks appear directly in chronological order');
+    assert.doesNotMatch(coverageText, /Later coverage weeks|weeks to review/);
+
+    console.log('PASS roster and Game Day: live locks, per-week saved plans, week-aware projections/opponents/kickoffs, direct bye coverage, signed/missing scores, PPG, and responsive routes');
 })().catch(error => { console.error(error); process.exitCode = 1; });

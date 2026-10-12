@@ -189,7 +189,7 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
     const swing = sim && sim.leverage ? Math.abs((sim.leverage.ifWin ?? 0) - (sim.leverage.ifLose ?? 0)) : 0;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="gd-odds-stack" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {sim ? (
                 <Section title="Playoff Odds" meta={sim.simCount.toLocaleString() + ' simulations · record then points-for' + (sim.usedDivisions ? ' · division winners seeded' : '')}>
                     {mine ? (
@@ -231,15 +231,15 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
             {sim && sim.leverage ? (
                 <Section title="This Week's Leverage" meta={'your playoff odds conditioned on the Week ' + sim.leverage.week + ' result'}>
                     {[['If you win', sim.leverage.ifWin, GREEN], ['Current', sim.leverage.current, GOLD], ['If you lose', sim.leverage.ifLose, RED]].map(([lb, v, c]) => (
-                        <div key={lb} style={{ display: 'grid', gridTemplateColumns: '92px 1fr 48px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
-                            <span style={{ ...microHdr }}>{lb}</span>
-                            <div style={{ height: '6px', background: '#0C0E13', border: `1px solid ${LINE}`, borderRadius: '3px', overflow: 'hidden' }}>
+                        <div className="gd-odds-leverage-row" key={lb} style={{ display: 'grid', gridTemplateColumns: '92px 1fr 48px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
+                            <span className="gd-odds-label" style={{ ...microHdr }}>{lb}</span>
+                            <div className="gd-odds-leverage-track" style={{ height: '6px', background: '#0C0E13', border: `1px solid ${LINE}`, borderRadius: '3px', overflow: 'hidden' }}>
                                 <i style={{ display: 'block', height: '100%', width: (v ?? 0) + '%', background: c }} />
                             </div>
-                            <b style={{ ...mono, fontSize: '0.75rem', textAlign: 'right', color: TEXT }}>{v != null ? v + '%' : '—'}</b>
+                            <b className="gd-odds-number" style={{ ...mono, fontSize: '0.75rem', textAlign: 'right', color: TEXT }}>{v != null ? v + '%' : '—'}</b>
                         </div>
                     ))}
-                    <div style={{ color: SILVER, fontSize: '0.76rem', marginTop: '8px', lineHeight: 1.5 }}>
+                    <div className="gd-odds-note" style={{ color: SILVER, fontSize: '0.76rem', marginTop: '8px', lineHeight: 1.5 }}>
                         A {swing}-point playoff-odds swing rides on this week{swing >= 20 ? ' — high leverage favors the ceiling lineup over the safe one' : ''}.
                     </div>
                 </Section>
@@ -247,15 +247,15 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
 
             {sos && sos.coverage > 0 ? (
                 <Section title="Playoff-Weeks Strength of Schedule" meta={'your starters vs Wk ' + so.playoffWeeks[0] + '–' + so.playoffWeeks[so.playoffWeeks.length - 1] + ' defenses'}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(' + so.playoffWeeks.length + ', 1fr)', gap: '6px', maxWidth: '460px' }}>
+                    <div className="gd-odds-sos-grid" style={{ display: 'grid', gridTemplateColumns: '52px repeat(' + so.playoffWeeks.length + ', 1fr)', gap: '6px', maxWidth: '460px' }}>
                         <span />
-                        {so.playoffWeeks.map(w => <span key={w} style={{ ...microHdr, textAlign: 'center' }}>WK {w}</span>)}
+                        {so.playoffWeeks.map(w => <span className="gd-odds-label" key={w} style={{ ...microHdr, textAlign: 'center' }}>WK {w}</span>)}
                         {['QB', 'RB', 'WR', 'TE'].map(p => (<React.Fragment key={p}>
-                            <span style={{ ...microHdr, alignSelf: 'center' }}>{p}</span>
+                            <span className="gd-odds-label" style={{ ...microHdr, alignSelf: 'center' }}>{p}</span>
                             {so.playoffWeeks.map((w, i) => {
                                 const cell = sos.weeks[i]?.byPos?.[p];
                                 return (
-                                    <span key={w} title={cell ? cell.team + ' vs ' + cell.opp + ' — allows rank ' + cell.rank + ' fantasy pts to ' + p : 'No starter / opponent unresolved'}
+                                    <span className={'gd-odds-sos-cell is-' + String(cell?.tag || 'unknown').toLowerCase()} key={w} title={cell ? cell.team + ' vs ' + cell.opp + ' — allows rank ' + cell.rank + ' fantasy pts to ' + p : 'No starter / opponent unresolved'}
                                         style={{ ...mono, fontSize: '0.66rem', fontWeight: 600, textAlign: 'center', padding: '6px 2px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (cell ? (cell.tag === 'EASY' ? 'rgba(46,204,113,0.45)' : cell.tag === 'HARD' ? 'rgba(231,76,60,0.45)' : LINE) : 'rgba(255,255,255,0.07)'), color: cell ? tagColor(cell.tag) : 'var(--text-muted, #8D887E)' }}>
                                         {cell ? cell.tag : '—'}
                                     </span>
@@ -263,54 +263,54 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
                             })}
                         </React.Fragment>))}
                     </div>
-                    {sos.coverage < 0.7 ? <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '8px' }}>Some opponents unresolved — the grid fills in as the NFL schedule context loads.</div> : null}
+                    {sos.coverage < 0.7 ? <div className="gd-odds-note" style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '8px' }}>Some opponents unresolved — the grid fills in as the NFL schedule context loads.</div> : null}
                 </Section>
             ) : null}
 
             <Section title="Luck Ledger" meta={'all-play · expected wins · through ' + playedWeeks + ' week' + (playedWeeks === 1 ? '' : 's')}>
                 {alexRead ? (
-                    <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
+                    <div className="gd-odds-alex" style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
                         <div style={{ ...microHdr, color: GOLD, marginBottom: '4px' }}>Alex Ingram</div>
                         <div style={{ fontSize: '0.8rem', color: '#C9C9D2', lineHeight: 1.5 }}>{alexRead}</div>
                     </div>
                 ) : null}
-                <div id="wr-export-luck" style={{ overflowX: 'auto', background: 'var(--black, #121217)' }}>
-                    <div style={{ minWidth: '460px' }}>
-                        <div style={{ ...luckGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
+                <div id="wr-export-luck" className="gd-odds-luck-table" style={{ overflowX: 'auto', background: 'var(--black, #121217)' }}>
+                    <div className="gd-odds-luck-inner" style={{ minWidth: '460px' }}>
+                        <div className="gd-odds-luck-row gd-odds-luck-head" style={{ ...luckGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
                             <span>Team</span><span style={{ textAlign: 'right' }}>Rec</span><span style={{ textAlign: 'right' }}>All-Play</span>
                             <span style={{ textAlign: 'right' }}>Exp. W</span><span style={{ textAlign: 'right' }}>Luck</span>
                         </div>
                         {luckRows.map(r => (
-                            <div key={r.rosterId} style={{ ...luckGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
+                            <div className={'gd-odds-luck-row' + (String(r.rosterId) === myId ? ' is-mine' : '')} key={r.rosterId} style={{ ...luckGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                                 <span style={{ textAlign: 'right' }}>{r.wins}-{r.losses}{r.ties ? '-' + r.ties : ''}</span>
                                 <span style={{ textAlign: 'right' }}>{r.allPlayW}-{r.allPlayL}</span>
                                 {/* toFixed(1) on both — tabular mono columns, and a bare 3
                                     beside a 3.4 breaks digit alignment. */}
                                 <span style={{ textAlign: 'right' }}>{r.expWins.toFixed(1)}</span>
-                                <span style={{ textAlign: 'right', fontWeight: 700, color: r.luck >= 0.5 ? GREEN : r.luck <= -0.5 ? RED : SILVER }}>{r.luck > 0 ? '+' : ''}{r.luck.toFixed(1)}</span>
+                                <span className={r.luck >= 0.5 ? 'is-positive' : r.luck <= -0.5 ? 'is-negative' : ''} style={{ textAlign: 'right', fontWeight: 700, color: r.luck >= 0.5 ? GREEN : r.luck <= -0.5 ? RED : SILVER }}>{r.luck > 0 ? '+' : ''}{r.luck.toFixed(1)}</span>
                             </div>
                         ))}
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
                     {window.wrExport ? (
-                        <button onClick={() => window.wrExport.capture(document.getElementById('wr-export-luck'), 'luck-ledger')}
+                        <button className="gd-odds-export" onClick={() => window.wrExport.capture(document.getElementById('wr-export-luck'), 'luck-ledger')}
                             style={{ padding: '6px 12px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Export for league chat
                         </button>
                     ) : null}
-                    <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>All-play = your record if you played everyone every week. Luck = actual wins − expected.</span>
+                    <span className="gd-odds-note" style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>All-play = your record if you played everyone every week. Luck = actual wins − expected.</span>
                 </div>
                 {myLuck && myLuck.weekly.length ? (
-                    <div style={{ marginTop: '14px', overflowX: 'auto' }}>
-                        <div style={{ ...microHdr, marginBottom: '6px' }}>Your weekly ledger</div>
-                        <div style={{ minWidth: '380px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '4px 10px', ...microHdr, borderBottom: `1px solid ${LINE}` }}>
+                    <div className="gd-odds-weekly" style={{ marginTop: '14px', overflowX: 'auto' }}>
+                        <div className="gd-odds-label" style={{ ...microHdr, marginBottom: '6px' }}>Your weekly ledger</div>
+                        <div className="gd-odds-weekly-inner" style={{ minWidth: '380px' }}>
+                            <div className="gd-odds-weekly-row gd-odds-luck-head" style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '4px 10px', ...microHdr, borderBottom: `1px solid ${LINE}` }}>
                                 <span>Wk</span><span style={{ textAlign: 'right' }}>PF</span><span style={{ textAlign: 'right' }}>Median</span><span style={{ textAlign: 'right' }}>Result</span><span style={{ textAlign: 'right' }}>All-Play</span>
                             </div>
                             {myLuck.weekly.map(g => (
-                                <div key={g.week} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '5px 10px', ...rowLine }}>
+                                <div className="gd-odds-weekly-row" key={g.week} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '5px 10px', ...rowLine }}>
                                     <span>{g.week}</span>
                                     <span style={{ textAlign: 'right', color: TEXT }}>{g.pts.toFixed(1)}</span>
                                     <span style={{ textAlign: 'right', opacity: 0.7 }}>{g.median.toFixed(1)}</span>

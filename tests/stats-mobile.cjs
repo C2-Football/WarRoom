@@ -4,16 +4,18 @@ const walk = n => n == null || typeof n === 'boolean' ? [] : Array.isArray(n) ? 
 const text = n => walk(n).filter(x => typeof x !== 'object').join('');
 const find = (tree, test) => walk(tree).find(n => typeof n === 'object' && test(n));
 const all = (tree, test) => walk(tree).filter(n => typeof n === 'object' && test(n));
-let slots = [], deps = [], effects = [], index = 0, dirty = true, tree, fullCardCalls = 0, loads = [];
+let slots = [], deps = [], effects = [], cleanups = [], index = 0, dirty = true, tree, fullCardCalls = [], loads = [], aiCalls = [], saves = [], reportSyncs = [];
 const React = {
     Fragment: 'fragment',
     useState(initial) { const i = index++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], value => { const next = typeof value === 'function' ? value(slots[i]) : value; if (next !== slots[i]) { slots[i] = next; dirty = true; } }]; },
     useMemo(fn) { index++; return fn(); },
     useRef(initial) { const i = index++; return slots[i] ||= { current: initial }; },
-    useEffect(fn, next) { const i = index++; if (!deps[i] || next.some((v, n) => deps[i][n] !== v)) { deps[i] = next; effects.push(fn); } },
+    useEffect(fn, next) { const i = index++; if (!deps[i] || next.some((v, n) => deps[i][n] !== v)) { deps[i] = next; effects.push(() => { cleanups[i]?.(); cleanups[i] = fn(); }); } },
     createElement(type, props, ...children) { if (type === context.LeagueStatsMobileSheet) return props.open ? { type: 'sheet', props, children } : null; return { type, props: props || {}, children }; }
 };
-const root = { App: {}, setTimeout, clearTimeout, WR: { useViewport: () => ({ isPhone: true, width: 491, height: 900 }), openPlayerCard: () => fullCardCalls++ } };
+const localReport = { id: 'local', title: 'Device stat report', content: 'Saved local result', kind: 'stats-report' };
+const remoteReport = { id: 'remote', title: 'Remote stat report', content: 'Saved result from another device', kind: 'stats-report' };
+const root = { App: {}, setTimeout, clearTimeout, WR: { useViewport: () => ({ isPhone: true, width: 491, height: 900 }), openPlayerCard: (pid, options) => fullCardCalls.push({ pid, options }), SavedReports: { save: async (leagueId, report) => { saves.push({ leagueId, report }); }, listLocal: () => [localReport], syncFromServer: async leagueId => { reportSyncs.push(leagueId); return [localReport, remoteReport, { id: 'draft', kind: 'draft-report', title: 'Draft-only report' }]; } } } };
 const context = { window: root, React, console, setInterval: () => 1, clearInterval() {}, setTimeout: fn => fn(), document: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} } };
 vm.createContext(context);
 const savedStorage = new Map();
@@ -59,17 +61,9 @@ const search = () => find(tree, n => n.type === 'input' && n.props.placeholder =
     await change(search(), 'Zero Player');
     await click('Stat view'); await change(labelledSelect('Display', sheet()), 'game'); await click('Done', sheet());
     const row = find(tree, n => n.props.className === 'mc-research-row'); row.props.onClick(); await flush();
-    assert.equal(sheet().props.title, 'Player stats'); assert.equal(fullCardCalls, 0, 'Tapping a result only opens the Stats sheet');
-    assert(find(sheet(), n => n.props.className === 'dhs-detail-metrics'), 'Overview is the initial detail');
-    await click('Game log', sheet());
-    assert(text(sheet()).includes('Weekly totals'));
-    const firstWeek = find(sheet(), n => n.type === 'details' && text(n).startsWith('Week 1'));
-    assert(text(find(firstWeek, n => n.type === 'summary')).includes('4.00'), 'Game log uses weekly totals even while main view is per game');
-    assert(text(sheet()).includes('No stats reported'));
-    await click('All stats', sheet());
-    await change(find(sheet(), n => n.type === 'input' && n.props.placeholder?.startsWith('Search yards')), 'complet');
-    const detailStats = all(sheet(), n => n.props.className === 'dhs-detail-stat'); assert(detailStats.length); assert(detailStats.every(n => /complet/i.test(text(n))), 'Player stat search narrows the full breakdown');
-    sheet().props.onClose(); await flush(); assert(!sheet());
+    assert.equal(fullCardCalls.length, 1, 'Tapping a result opens the normal full player card directly');
+    assert.equal(fullCardCalls[0].pid, 'p0'); assert.equal(fullCardCalls[0].options.scoringSettings.fum_lost, -2, 'Player card retains this league’s scoring');
+    assert(!sheet(), 'No alternate stats mini-profile opens over the normal player card');
     await click('Stat view');
     await click('Use 3 columns', sheet());
     await click('Done', sheet());
@@ -92,5 +86,47 @@ const search = () => find(tree, n => n.type === 'input' && n.props.placeholder =
     assert.equal(find(sheet(), n => n.props['aria-label'] === 'Sort players by').props.value, 'name', 'Saved sort column restores');
     assert(find(tree, n => n.props['aria-label'] === 'Sort ascending'), 'Saved descending order restores');
     assert.equal(restored.filters.scope, 'week'); assert.equal(restored.filters.week, 2, 'Saved period is retained with the metric view');
-    console.log('PASS mobile Research: dense 3/4-column results, filtering/scope/sort, pagination, sheets, detail views, scoring semantics and optional full ledger');
+    await click('Done', sheet());
+    await change(search(), '');
+    await click('Filters'); await change(labelledSelect('Availability', sheet()), 'rostered'); await click('Show 1 players', sheet());
+    await click('Ask AI');
+    assert(!find(tree, n => n.props['aria-label'] === 'Player stats results'), 'Ask AI owns its view without a duplicate results ledger');
+    assert(text(tree).includes('Using Rostered players'), 'Ask AI shows the exact inherited player scope');
+    await click('Clear player filters'); assert(text(tree).includes('Using all players in this league’s stat ledger.'), 'Filters can be cleared directly from Ask AI before a free-agent report');
+    assert.equal(reportSyncs.at(-1), '123'); assert(text(tree).includes('Remote stat report'), 'Stats view loads reports saved on other devices through the shared sync API');
+    assert(!text(tree).includes('Draft-only report'), 'Only stat reports appear in the Stats hub saved list');
+    const plan = { title: 'Scoring report', metrics: ['fantasyPoints', 'raw:pass_yd'], sort: { metric: 'fantasyPoints', direction: 'asc' }, perGame: false, limit: 30, filters: {} };
+    let resolveAI;
+    root.OD = { callAI: args => { aiCalls.push(args); return new Promise(resolve => { resolveAI = resolve; }); } };
+    await change(find(tree, n => n.type === 'textarea'), 'Lowest fantasy point totals');
+    find(tree, n => n.type === 'form').props.onSubmit({ preventDefault() {} }); await flush();
+    assert(text(tree).includes('Alex is building your report'), 'Pending report has a visible status');
+    assert(find(tree, n => n.type === 'button' && text(n) === 'Building…').props.disabled, 'Duplicate request is disabled');
+    resolveAI(JSON.stringify(plan)); await flush();
+    assert.equal(aiCalls[0].context.leagueId, '123'); assert.equal(aiCalls[0].context.callType, 'stats-report'); assert.equal(aiCalls[0].context.useWebSearch, false);
+    assert(aiCalls[0].context.messages[0].content.includes('"period":"Week 2"'), 'Report context uses the selected stats period');
+    const report = find(tree, n => n.props['aria-label'] === 'Generated stats report');
+    assert(report); assert(text(report).includes('Negative Player')); assert(text(report).includes('-2.00')); assert(text(report).includes('Zero Player'));
+    assert(text(report).includes('1 without a reported'), 'Missing ranking data stays unavailable instead of becoming a zero');
+    await click('Save report');
+    assert.equal(saves.length, 1); assert.equal(saves[0].leagueId, '123'); assert.equal(saves[0].report.kind, 'stats-report'); assert(saves[0].report.content.includes('-2.00'));
+    assert(text(tree).includes('Saved ✓'));
+    // The report engine executes against every loaded row, beyond the UI page.
+    const topPlan = root.WR.StatsReports.parsePlan(JSON.stringify({ ...plan, sort: { metric: 'raw:rec', direction: 'desc' }, metrics: ['raw:rec', 'fantasyPoints'], limit: 1 }), root.App.LeagueStats.metrics(statsByPid));
+    const computed = root.WR.StatsReports.run(topPlan, { rows: root.App.LeagueStats.buildRows({ statsByPid, playersData, league: props.currentLeague }), metrics: root.App.LeagueStats.metrics(statsByPid), engine: root.App.LeagueStats, myRosterId: 1 });
+    assert.equal(computed.rows[0].pid, 'p52', 'Report ranking uses the full dataset, including players beyond page one');
+    assert.throws(() => root.WR.StatsReports.parsePlan('{"metrics":["madeUp"],"sort":{"metric":"madeUp","direction":"desc"}}', root.App.LeagueStats.metrics(statsByPid)), /not available/);
+    root.OD.callAI = async () => { throw Error('Sign in to use AI.'); };
+    find(tree, n => n.type === 'form').props.onSubmit({ preventDefault() {} }); await flush();
+    assert(text(tree).includes('Sign in to use AI.')); assert.equal(find(tree, n => n.type === 'textarea').props.value, 'Lowest fantasy point totals', 'An error keeps the request editable');
+    root.OD.callAI = async () => ({ analysis: JSON.stringify(plan) }); await click('Try again'); assert(find(tree, n => n.props['aria-label'] === 'Generated stats report'), 'Retry builds actual results');
+    root.OD.callAI = () => new Promise(resolve => { resolveAI = resolve; });
+    find(tree, n => n.type === 'form').props.onSubmit({ preventDefault() {} }); await flush();
+    await change(find(tree, n => n.props['aria-label'] === 'Report stats period'), 'season');
+    resolveAI(JSON.stringify(plan)); await flush();
+    assert(!find(tree, n => n.props['aria-label'] === 'Generated stats report'), 'Late responses cannot appear under a new period');
+    root.WR.SavedReports.syncFromServer = async () => { throw Error('network'); };
+    await click('All players'); await click('Ask AI');
+    assert(text(tree).includes('Saved reports could not sync')); assert(text(tree).includes('Device stat report'), 'Remote sync failure preserves device saves');
+    console.log('PASS mobile Stats hub: full player card, complete ledger/filter/scoring behavior, Ask AI report execution, save, retry and stale-period guard');
 })().catch(error => { console.error(error); process.exitCode = 1; });

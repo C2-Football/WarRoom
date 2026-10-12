@@ -413,7 +413,14 @@
         const draftNavTouchedRef = useRef(false);
         // setDraftView wrapper for click-driven navigation (nav strip, jump-to-board
         // shortcuts). Programmatic view changes keep calling setDraftView directly.
-        const navDraftView = (view) => { draftNavTouchedRef.current = true; setDraftView(view); };
+        const navDraftView = (view) => {
+            draftNavTouchedRef.current = true;
+            if (_phone && view === 'mock' && typeof window.wrNavigateTab === 'function') {
+                window.wrNavigateTab('mock-draft');
+                return;
+            }
+            setDraftView(view);
+        };
 
         useEffect(() => {
             const openPickFocus = (event) => {
@@ -851,7 +858,7 @@
         // of the pick-focus/live-draft effects below that call
         // setDraftView('command')), a league whose format doesn't get the War
         // Room tab never actually lands on it; it clamps to Big Board instead.
-        const rawActiveView = viewMode === 'command' ? 'command' : draftView;
+        const rawActiveView = viewMode === 'mock' ? 'mock' : viewMode === 'command' ? 'command' : draftView;
         const activeView = (!commandTabAllowed && rawActiveView === 'command') ? 'board' : rawActiveView;
         // Draft is over → lock the War Room sub-tab to a results-only view (owner
         // ask): hide every pre-draft planning surface (pick capital, draft plan,
@@ -2764,7 +2771,16 @@
                     strip below — navDraftView / launchLiveDraft / Draft History
                     all preserved; the strip itself never mounts on phone. */}
                 {_phone && (
-                    <div className="mc-draft-navigation"><nav className="mc-section-tabs" aria-label="Draft views">{[...(commandTabAllowed ? [['command', 'War Room']] : []), ['board', 'Big Board'], ['mock', 'Mock Center'], ['live', 'Live']].map(([key, label]) => <button type="button" key={key} aria-pressed={!showDraftHistory && activeView === key} onClick={() => { setShowDraftHistory(false); if (key === 'live') launchLiveDraft(); else navDraftView(key); }}>{label}</button>)}</nav><div className="mc-context-actions"><button type="button" aria-pressed={showDraftHistory} onClick={() => setShowDraftHistory(true)}>History &amp; recaps</button><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft research →</button></div></div>
+                    <div className="mc-draft-navigation">
+                        <nav className="mc-section-tabs mc-draft-workspaces" aria-label="Draft workspaces">
+                            <button type="button" aria-pressed={activeView !== 'mock'} onClick={() => { setShowDraftHistory(false); navDraftView(commandTabAllowed ? 'command' : 'board'); window.wrNavigateTab?.('draft'); }}>Draft room</button>
+                            <button type="button" aria-pressed={activeView === 'mock'} onClick={() => { setShowDraftHistory(false); navDraftView('mock'); }}>Mock draft</button>
+                        </nav>
+                        {activeView !== 'mock' && <>
+                            <nav className="mc-section-tabs" aria-label="Draft views">{[...(commandTabAllowed ? [['command', 'War Room']] : []), ['board', 'Big Board'], ['live', 'Live']].map(([key, label]) => <button type="button" key={key} aria-pressed={!showDraftHistory && activeView === key} onClick={() => { setShowDraftHistory(false); if (key === 'live') launchLiveDraft(); else navDraftView(key); }}>{label}</button>)}</nav>
+                            <div className="mc-context-actions"><button type="button" aria-pressed={showDraftHistory} onClick={() => setShowDraftHistory(true)}>History &amp; recaps</button><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft research →</button></div>
+                        </>}
+                    </div>
                 )}
                 {!_phone && (
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
@@ -3751,52 +3767,21 @@
                             const pos = normPos(r.p.position) || r.p.position;
                             const cs = r.csv || {};
                             const team = cs.nflTeam || r.p?.team || '';
-                            const college = cs.college || r.p.college || r.p.metadata?.college || '';
-                            const age = r.p.age || (cs.age ? parseFloat(cs.age) : null) || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : (r.p.years_exp === 0 ? 21 : null));
-                            const valueRank = valueRankMap.get(String(r.pid)) || null;
-                            const posRankList = posRankMaps[pos] || [];
-                            const posRank = posRankList.indexOf(String(r.pid)) >= 0 ? posRankList.indexOf(String(r.pid)) + 1 : null;
-                            const tierMeta = valueTierMeta(r.dhq, valueRank, posRank);
                             const draftRound = Number(cs.draftRound) || 0;
                             const draftPick = Number(cs.draftPick) || 0;
-                            const draftStr = draftRound ? window.App.formatNFLDraftSlot(draftRound, draftPick) : draftPick ? '#' + draftPick : isTrueUdfa(cs) ? 'UDFA' : 'Capital TBD';
-                            // Rookie boards: rank/tier are CONSENSUS data — when the CSV join
-                            // is missing show '—' instead of leaking the DHQ-order rank or the
-                            // veteran value-tier labels ('Elite' etc.) into the rookie scale.
-                            const rankStr = isRookieDraft
-                                ? ((cs.consensusRank || cs.rank) ? '#' + Math.round(cs.consensusRank || cs.rank) : '—')
-                                : (valueRank ? '#' + valueRank : '-');
-                            const tierStr = isRookieDraft ? (cs.tier || '—') : tierMeta.label;
-                            const summaryBits = String(cs.summary || '').split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean).slice(0, 4);
-                            const reportBits = isSeasonalDraft
-                                ? generatedScoutingBits(r, { pos, team, age, valueRank, posRank, tierMeta })
-                                : (summaryBits.length ? summaryBits : generatedScoutingBits(r, { pos, team, age, valueRank, posRank, tierMeta }));
                             const _fit = (typeof window.App.computeNFLFit === 'function')
-                                ? window.App.computeNFLFit(r.pid, { pos, player: r.p, dhq: r.dhq, isRookie: isRookieDraft, capital: { round: draftRound, pick: draftPick, nflTeam: team, isUDFA: isTrueUdfa(cs) } })
+                                ? window.App.computeNFLFit(r.pid, { pos, player: r.p, dhq: r.dhq, isRookie: isRookieDraft, ...(isRookieDraft ? { capital: { round: draftRound, pick: draftPick, nflTeam: team, isUDFA: isTrueUdfa(cs) } } : {}) })
                                 : null;
                             const fitText = nflFitAI[r.pid] || (_fit && _fit.narrative) || '';
                             const note = boardNotes[r.pid] || '';
                             const tag = boardTags[r.pid];
                             return (
                                 <div style={{ display: 'grid', gap: 8 }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 5 }}>
-                                        {[[valueShortLabel, r.dhq > 0 ? r.dhq.toLocaleString() : '-'], ['Rank', rankStr], ['Tier', tierStr], ...(showDraftCapitalColumn ? [['Draft', draftStr]] : []), ['Team', team || 'TBD'], ['Age', age || '-']].map(([label, value]) => (
-                                            <div key={label} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '6px 7px', background: 'var(--ov-1, rgba(255,255,255,0.02))', minWidth: 0 }}>
-                                                <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.58, fontStyle: 'normal', fontSize: MICRO, textTransform: 'uppercase' }}>{label}</em>
-                                                <strong style={{ display: 'block', color: 'var(--white)', fontSize: MICRO, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</strong>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {reportBits.slice(0, 3).map((bit, bi) => (
-                                        <div key={bi} style={{ color: 'var(--silver)', fontSize: '0.74rem', lineHeight: 1.5, border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '7px 8px', background: 'var(--ov-1, rgba(255,255,255,0.018))' }}>{bit}</div>
-                                    ))}
-                                    {/* fit READ is interpretation → Pro (same boundary as desktop row-expand) */}
-                                    {isPro && fitText && (
-                                        <div style={{ border: '1px solid rgba(46,204,113,0.18)', background: 'rgba(46,204,113,0.045)', borderRadius: 6, padding: '7px 8px' }}>
-                                            <span style={{ display: 'block', color: 'var(--good)', fontSize: MICRO, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Alex NFL Fit{nflFitAI[r.pid] ? ' · Live' : ''}</span>
-                                            <div style={{ color: 'var(--silver)', fontSize: '0.72rem', lineHeight: 1.42 }}>{fitText}</div>
-                                        </div>
-                                    )}
+                                    {typeof window.PlayerCard === 'function' && React.createElement(window.PlayerCard, {
+                                        key: r.pid, pid: r.pid, playersData, statsData,
+                                        scoringSettings: currentLeague?.scoring_settings,
+                                        context: 'draft-board', embedded: true, nflFitText: fitText,
+                                    })}
                                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         {Object.entries(tagDefs).map(([tKey, tDef]) => (
                                             <button key={tKey} type="button" style={phChipBtn(tag === tKey, tDef.color)} onClick={(e) => { e.stopPropagation(); const wasActive = boardTags[r.pid] === tKey; setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); if (!wasActive) { window.wrLogAction?.('TAG', 'Tagged ' + pName(r.p) + ' on draft board', 'draft', { players: [{ name: pName(r.p) }], actionType: 'board-tag' }); } }}>{tDef.label}</button>
@@ -3840,7 +3825,7 @@
                                         <span className="mc-prospect-value">{r.dhq > 0 ? r.dhq.toLocaleString() : '—'}</span>
                                         <span className="mc-prospect-value">{rankStr}</span>
                                     </button>
-                                    {isExp && <div className="mc-prospect-detail"><button type="button" className="mc-player-open" onClick={() => openDraftPlayer(r.pid)}>Full player card →</button>{phDossier(r)}</div>}
+                                    {isExp && <div className="mc-prospect-detail">{phDossier(r)}</div>}
                                 </div>
                             );
                         };

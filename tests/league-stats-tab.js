@@ -4,6 +4,7 @@ let hooks = [], hookIndex = 0, effects = [], effectDeps = [], blobs = [];
 const React = {
     useState(initial) { const i = hookIndex++; if (!(i in hooks)) hooks[i] = typeof initial === 'function' ? initial() : initial; return [hooks[i], v => { hooks[i] = typeof v === 'function' ? v(hooks[i]) : v; }]; },
     useMemo(fn) { hookIndex++; return fn(); },
+    useRef(initial) { const i = hookIndex++; if (!(i in hooks)) hooks[i] = { current: initial }; return hooks[i]; },
     useEffect(fn, deps) { const i = hookIndex++; if (!effectDeps[i] || deps.some((v, n) => v !== effectDeps[i][n])) { effects.push(fn); effectDeps[i] = deps; } },
     createElement(type, props, ...children) { return { type, props: props || {}, children }; }
 };

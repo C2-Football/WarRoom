@@ -1,20 +1,46 @@
 /* Game Day phone layout. All rules are scoped to the phone branch. */
 @media (max-width: 767px) {
   /* Keep the season read natural and compact without changing its data table. */
-  .gd-mobile .gd-season-odds { padding: 12px !important; }
+  .gd-mobile .gd-season-odds { padding: 12px !important; color: var(--text, #e8e8ea); background: var(--mc-surface, var(--panel, #15151b)) !important; border-color: var(--mc-line, var(--ov-4, rgba(255,255,255,.08))) !important; border-radius: 13px !important; font-variant-numeric: tabular-nums; }
+  .gd-mobile .gd-season-odds,
+  .gd-mobile .gd-season-odds * { font-family: var(--font-body, "DM Sans", sans-serif) !important; }
   .gd-mobile .gd-season-odds-heading { align-items: flex-start !important; flex-direction: column; gap: 3px !important; margin-bottom: 9px !important; }
   .gd-mobile .gd-season-odds-title { font-family: var(--font-body, "DM Sans", sans-serif); font-size: 12px !important; font-weight: 700; letter-spacing: .06em; }
-  .gd-mobile .gd-season-odds-meta { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 12px !important; font-weight: 400; line-height: 1.4; letter-spacing: 0 !important; }
+  .gd-mobile .gd-season-odds-meta { font-family: var(--font-body, "DM Sans", sans-serif) !important; color: var(--silver, #9aa0a6) !important; font-size: 12px !important; font-weight: 400; line-height: 1.4; letter-spacing: 0 !important; }
   .gd-mobile .gd-season-odds-kpis { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px !important; margin-bottom: 10px !important; }
-  .gd-mobile .gd-season-odds-kpi { min-width: 0 !important; padding: 8px !important; }
-  .gd-mobile .gd-season-odds-kpi-label, .gd-mobile .gd-season-odds-kpi-sub { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 10px !important; line-height: 1.3; letter-spacing: .03em !important; }
+  .gd-mobile .gd-season-odds-kpi { min-width: 0 !important; padding: 8px !important; background: var(--ov-2, rgba(255,255,255,.03)) !important; border-color: var(--mc-line, var(--ov-4, rgba(255,255,255,.08))) !important; }
+  .gd-mobile .gd-season-odds-kpi-label, .gd-mobile .gd-season-odds-kpi-sub { font-family: var(--font-body, "DM Sans", sans-serif) !important; color: var(--silver, #9aa0a6) !important; font-size: 10px !important; line-height: 1.3; letter-spacing: .03em !important; }
   .gd-mobile .gd-season-odds-kpi-value { font-size: 20px !important; }
   .gd-mobile .gd-season-odds-table { overflow-x: visible !important; }
   .gd-mobile .gd-season-odds-table-inner { min-width: 0 !important; }
   .gd-mobile .gd-season-odds-table-row { grid-template-columns: minmax(0, 1.45fr) .56fr .78fr .65fr !important; gap: 4px !important; padding: 6px 7px !important; font-size: 11px !important; }
-  .gd-mobile .gd-season-odds-table-head { font-family: var(--font-body, "DM Sans", sans-serif) !important; font-size: 10px !important; letter-spacing: .04em !important; }
+  .gd-mobile .gd-season-odds-table-head { font-family: var(--font-body, "DM Sans", sans-serif) !important; color: var(--silver, #9aa0a6) !important; font-size: 10px !important; letter-spacing: .04em !important; }
   .gd-mobile .gd-season-odds-bye,
   .gd-mobile .gd-season-odds-proj { display: none; }
+  .gd-mobile .gd-odds-label { color: var(--silver, #9aa0a6) !important; font-size: 11px !important; font-weight: 600; letter-spacing: .02em !important; line-height: 1.35; }
+  .gd-mobile .gd-odds-number { color: var(--text, #e8e8ea) !important; font-size: 13px !important; }
+  .gd-mobile .gd-odds-note { color: var(--silver, #9aa0a6) !important; font-size: 12px !important; letter-spacing: 0 !important; line-height: 1.5; }
+  .gd-mobile .gd-odds-leverage-row { grid-template-columns: 70px minmax(0, 1fr) 36px !important; gap: 8px !important; padding: 6px 0 !important; }
+  .gd-mobile .gd-odds-leverage-track { background: var(--ov-3, rgba(255,255,255,.05)) !important; }
+  .gd-mobile .gd-odds-sos-grid { max-width: none !important; gap: 5px !important; }
+  .gd-mobile .gd-odds-sos-cell { font-size: 10px !important; line-height: 1.4; background: var(--ov-2, rgba(255,255,255,.03)); }
+  .gd-mobile .gd-odds-sos-cell.is-easy { color: var(--k-2ecc71, #2ecc71) !important; }
+  .gd-mobile .gd-odds-sos-cell.is-hard { color: var(--k-e74c3c, #e74c3c) !important; }
+  .gd-mobile .gd-odds-sos-cell.is-neut,
+  .gd-mobile .gd-odds-sos-cell.is-unknown { color: var(--silver, #9aa0a6) !important; }
+  .gd-mobile .gd-odds-luck-table { overflow-x: visible !important; background: transparent !important; }
+  .gd-mobile .gd-odds-luck-inner { min-width: 0 !important; }
+  .gd-mobile .gd-odds-luck-row { grid-template-columns: minmax(0, 1.6fr) .64fr .8fr .65fr .63fr !important; gap: 4px !important; padding: 7px 3px !important; color: var(--silver, #9aa0a6) !important; font-size: 11px !important; letter-spacing: 0 !important; }
+  .gd-mobile .gd-odds-luck-head { font-size: 10px !important; letter-spacing: .02em !important; }
+  .gd-mobile .gd-odds-luck-row.is-mine { color: var(--text, #e8e8ea) !important; background: var(--acc-fill2, rgba(212,175,55,.1)) !important; }
+  .gd-mobile .gd-odds-luck-row .is-positive { color: var(--k-2ecc71, #2ecc71) !important; }
+  .gd-mobile .gd-odds-luck-row .is-negative { color: var(--k-e74c3c, #e74c3c) !important; }
+  .gd-mobile .gd-odds-weekly { overflow-x: visible !important; }
+  .gd-mobile .gd-odds-weekly-inner { min-width: 0 !important; }
+  .gd-mobile .gd-odds-weekly-row { grid-template-columns: 24px repeat(4, minmax(0, 1fr)) !important; gap: 4px !important; padding: 6px 3px !important; color: var(--silver, #9aa0a6) !important; font-size: 11px !important; letter-spacing: 0 !important; }
+  .gd-mobile .gd-odds-alex { background: var(--ov-2, rgba(255,255,255,.03)) !important; }
+  .gd-mobile .gd-odds-alex > div:last-child { color: var(--text, #e8e8ea) !important; }
+  .gd-mobile .gd-odds-export { min-height: 44px; border-color: var(--mc-line, var(--ov-4, rgba(255,255,255,.08))) !important; font-size: 12px !important; text-transform: none !important; letter-spacing: 0 !important; }
   .gd-mobile {
     --text-micro: 0.875rem;
     display: flex;
@@ -227,11 +253,23 @@
   .wr-mission-control .gd-matchup-compact .gd-matchup-you { grid-area: you; }
   .wr-mission-control .gd-matchup-compact .gd-matchup-them { grid-area: them; }
   .wr-mission-control .gd-matchup-compact .gd-matchup-slot > .gd-matchup-edge { grid-area: edge; align-self: center; }
-  .wr-mission-control .gd-matchup-compact .gd-matchup-player { min-width: 0; gap: 4px; }
-  .wr-mission-control .gd-matchup-compact .gd-matchup-player > small { display: inline; width: 28px; flex-shrink: 0; font-size: 9px; }
-  .wr-mission-control .gd-matchup-compact .gd-matchup-player > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player { display: grid; grid-template-columns: 49px minmax(0, 1fr) 34px; min-width: 0; gap: 5px; align-items: baseline; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player > small { display: block; width: auto; font-size: 9px; white-space: nowrap; }
+  .wr-mission-control .gd-matchup-compact .gd-matchup-player > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wr-mission-control .gd-matchup-compact .gd-matchup-player > strong { font-size: 12px; }
 }
+
+/* The selected week drives the local plan, projections and schedule together. */
+.gd-week-nav { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 8px; color: var(--text, #e8e8ea); border: 1px solid var(--mc-line, var(--ov-4, rgba(255,255,255,.08))); border-radius: 11px; background: var(--mc-surface, var(--panel, #15151b)); }
+.gd-week-nav > button { flex: 0 0 40px; min-height: 44px; border: 1px solid var(--mc-line, var(--ov-4, rgba(255,255,255,.08))); border-radius: 8px; color: var(--gold, #d4af37); background: var(--ov-2, rgba(255,255,255,.03)); font: 500 25px/1 var(--font-body, sans-serif); cursor: pointer; }
+.gd-week-nav > label { flex: 1; min-width: 0; }
+.gd-week-nav label > span { display: none; }
+.gd-week-nav select { display: block; width: 100%; min-height: 32px; padding: 2px 4px; color: var(--text, #e8e8ea); background: transparent; border: 0; font: 700 15px/1.3 var(--font-body, sans-serif); }
+.gd-week-nav option { color: var(--text, #e8e8ea); background: var(--panel, #15151b); }
+.gd-week-nav small { display: block; padding: 0 4px; color: var(--silver, #9aa0a6); font: 400 11px/1.4 var(--font-body, sans-serif); }
+.gd-week-nav button:disabled { opacity: .4; cursor: default; }
+.gd-week-nav :is(button, select):focus-visible { outline: 2px solid var(--gold, #d4af37); outline-offset: 2px; }
+.gd-mobile > .gd-week-nav { margin-bottom: 0; }
 
 /* Injury severity is shared by desktop, phone, and roster pickers. */
 .lineup-injury,

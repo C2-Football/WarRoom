@@ -330,7 +330,7 @@
         );
     }
 
-    function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab, context }) {
+    function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab, context, embedded = false, nflFitText }) {
         const [tab, setTab] = useState(initialTab || 'overview');
         const [tagMenu, setTagMenu] = useState(false);
         const closeRef = useRef(null);
@@ -378,10 +378,11 @@
 
         // ESC closes
         useEffect(() => {
+            if (embedded) return;
             const onKey = (e) => { if (e.key === 'Escape') onClose && onClose(); };
             document.addEventListener('keydown', onKey);
             return () => document.removeEventListener('keydown', onKey);
-        }, [onClose]);
+        }, [onClose, embedded]);
 
         const { rows: historyRows, loading: historyLoading } = useTeamHistory(pid, p);
 
@@ -537,6 +538,8 @@
             try { return window.App?.computeNFLFit?.(pid, { pos, player: p, dhq }) || null; }
             catch (e) { return null; }
         })();
+        const fitNarrative = nflFitText === undefined ? nflFit?.narrative : nflFitText;
+        const inlineDraft = embedded && context === 'draft-board';
 
         // Roster context
         const S = window.S || {};
@@ -619,7 +622,7 @@
             const compressed = compressHistory(historyRows || []);
             return React.createElement(React.Fragment, null,
                 React.createElement(PlayerFantasySummary, { pid, player: p, league: currentLeague, scoring: sc, playersData, dhq }),
-                dhqContext && React.createElement('div', {
+                !inlineDraft && dhqContext && React.createElement('div', {
                     style: {
                         margin: '12px 20px 0',
                         padding: '9px 11px',
@@ -631,7 +634,7 @@
                         lineHeight: 1.45,
                     }
                 }, dhqContext),
-                isPro && nflFit && nflFit.narrative && React.createElement('div', {
+                isPro && fitNarrative && React.createElement('div', {
                     style: {
                         margin: '10px 20px 0',
                         padding: '9px 11px',
@@ -641,10 +644,10 @@
                     }
                 },
                     React.createElement('div', { style: { color: 'var(--k-2ecc71, #2ecc71)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' } }, 'Alex NFL Fit'),
-                    React.createElement('div', { style: { color: 'var(--text-muted)', fontSize: 'var(--text-body, 0.92rem)', lineHeight: 1.45 } }, nflFit.narrative)
+                    React.createElement('div', { style: { color: 'var(--text-muted)', fontSize: 'var(--text-body, 0.92rem)', lineHeight: 1.45 } }, fitNarrative)
                 ),
                 // Rookie Scouting Report — only when a prospect resolves (no regression for vets)
-                prospect && scoutingReportBlock(prospect),
+                !inlineDraft && prospect && scoutingReportBlock(prospect),
                 // Age curve
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
 	                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
@@ -907,7 +910,7 @@
         // Card content is tier-agnostic; only the shell differs (sheet vs modal).
         const cardBody = React.createElement(React.Fragment, null,
                 // Hero
-                React.createElement('div', { style: { padding: '18px 20px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.10)), transparent 60%)', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', gap: '14px', alignItems: 'center' } },
+                React.createElement('div', { className: 'wr-player-card-hero', style: { padding: '18px 20px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.10)), transparent 60%)', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', gap: '14px', alignItems: 'center' } },
                     React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style: { width: '60px', height: '60px', borderRadius: 'var(--card-radius-lg, 14px)', overflow: 'hidden', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } },
                         React.createElement('img', {
                             src: 'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg',
@@ -932,7 +935,7 @@
                             [nPos, team, window.App?.NFLByes?.label(p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —', 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')
                         )
                     ),
-                    React.createElement('button', {
+                    !embedded && React.createElement('button', {
                         ref: closeRef, onClick: onClose,
                         style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
                     }, '✕')
@@ -945,7 +948,7 @@
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, whiteSpace: 'pre-wrap' } }, scoutNote)
                 ),
                 portfolio?.coveredLeagues > 1 && React.createElement('p', { style: { margin: '10px 20px', fontSize: '.78rem', color: 'var(--silver)' }, title: (portfolio.leagues || []).map(l => l.name).join(' · ') }, 'Owned in ' + portfolio.count + ' of ' + portfolio.coveredLeagues + ' synced leagues'),
-                window.WR?.PlayerNotebook?.NotebookEditor && React.createElement('div', { style: { margin: '10px 20px' } }, React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid, leagueId: S.currentLeagueId, leagueName: currentLeague.name || 'This league', compact: true })),
+                !inlineDraft && window.WR?.PlayerNotebook?.NotebookEditor && React.createElement('div', { style: { margin: '10px 20px' } }, React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid, leagueId: S.currentLeagueId, leagueName: currentLeague.name || 'This league', compact: true })),
                 // Tabs. Phone (D4 polish): the shared .wr-seg segmented sub-nav
                 // (P2, index.html ≤767 block) with .is-on active anatomy —
                 // three items distribute evenly (flex:1), no momentum scroll
@@ -1001,9 +1004,13 @@
                             }, 'Tag as ' + t.charAt(0).toUpperCase() + t.slice(1))
                         )
                     ) : null,
-                    React.createElement('button', { onClick: onClose, style: btnStyle('ghost', isPhone ? null : { marginLeft: 'auto' }) }, 'Close')
+                    !embedded && React.createElement('button', { onClick: onClose, style: btnStyle('ghost', isPhone ? null : { marginLeft: 'auto' }) }, 'Close')
                 )
         );
+
+        if (embedded) {
+            return React.createElement('section', { className: 'wr-player-card-embedded', 'aria-label': name + ' player profile' }, cardBody);
+        }
 
         // Phone (<768): full-width bottom sheet via the shared WR.Sheet
         // primitive (plan D4). showClose:false — the hero already carries the

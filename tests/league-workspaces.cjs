@@ -33,6 +33,21 @@ test('callers cannot mutate shared routing metadata', () => {
     assert.equal(W.resolve('calendar').workspace, 'league');
     assert.equal(W.navigation()[0].tab, 'dashboard');
 });
+test('phone navigation has focused destinations and its own mock draft route', () => {
+    const phone={isPhone:true};
+    for (const [tab,fallback] of Object.entries({'team-outlook':'myteam','market-review':'fa','research-players':'stats','research-reports':'stats'})) {
+        assert.equal(W.resolve(tab,phone).tab,fallback);
+        assert(!W.views(W.workspace(tab).id,phone).some(route=>route.tab===tab));
+        assert.equal(W.resolve(tab).tab,tab,'Desktop keeps its full workspace');
+    }
+    assert.equal(W.resolve('mock-draft',phone).tab,'mock-draft');
+    assert(W.views('draft',phone).some(route=>route.tab==='mock-draft'));
+    assert.equal(W.resolve('mock-draft').tab,'draft');
+    assert.equal(W.resolve('stats',phone).label,'Stats hub');
+    assert.equal(W.workspace('stats',phone).label,'Stats hub');
+    assert(W.views('league',phone).some(route=>route.tab==='wire'),'Wire remains in the menu');
+    assert(!W.dockChoices(phone).some(route=>route.tab==='wire'),'Wire is only a menu destination');
+});
 test('only an untouched previous starter layout receives the new defaults', () => {
     const defaults = [{ id: 'brief', key: 'intel-brief', size: 'xl' }];
     const league = [{ id: 'league-kpi', key: 'weekly-matchups', size: 'sm' }];

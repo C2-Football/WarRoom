@@ -65,6 +65,31 @@
   .mc-scoreboard .lls-footer .lls-note { font-size:10px!important; }
   .mc-draft-navigation { margin-bottom:10px; }
   .mc-draft-navigation .mc-context-actions { margin:0; }
+  .mc-draft-workspaces { margin-bottom:8px; }
+  .wr-mission-v8 .la-draft :is(.draft-setup-panel,.draft-setup-head-pro) {
+    padding:12px; border:1px solid var(--gx-edge); border-radius:14px;
+    background:linear-gradient(140deg,rgba(48,69,104,.76),rgba(24,39,62,.87));
+    box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 22px rgba(0,0,0,.13);
+    color:var(--cx-ink); font-family:var(--font-body,"DM Sans",sans-serif);
+  }
+  .wr-mission-v8 .la-draft .draft-setup-panel .draft-hq-panel-head { display:block; padding-bottom:9px; border-bottom:1px solid rgba(183,206,255,.16); }
+  .wr-mission-v8 .la-draft .draft-setup-panel .draft-hq-panel-head em { display:block; margin-top:4px; color:var(--cx-muted); font-size:11px; line-height:1.4; }
+  .wr-mission-v8 .la-draft :is(.draft-setup-label,.draft-hq-panel-head span) { color:var(--cx-muted); font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.07em; }
+  .wr-mission-v8 .la-draft .draft-setup-label { margin:11px 0 5px; }
+  .wr-mission-v8 .la-draft :is(.draft-setup-choice,.draft-setup-speed) { gap:6px; }
+  .wr-mission-v8 .la-draft :is(.draft-setup-choice,.draft-setup-speed) button { min-width:0; min-height:44px; padding:8px; border:1px solid var(--gx-edge); border-radius:10px; background:rgba(255,255,255,.035); color:var(--cx-muted); font:600 12px var(--font-body,"DM Sans",sans-serif); }
+  .wr-mission-v8 .la-draft :is(.draft-setup-choice,.draft-setup-speed) button.is-active { background:rgba(183,206,255,.2); border-color:rgba(183,206,255,.65); color:var(--cx-ink); box-shadow:inset 0 1px rgba(255,255,255,.1); }
+  .wr-mission-v8 .la-draft .draft-setup-choice button span { color:var(--cx-muted); font-size:10px; line-height:1.35; opacity:1; }
+  .wr-mission-v8 .la-draft .draft-setup-field-grid { gap:0 8px; }
+  .wr-mission-v8 .la-draft .draft-setup-field-grid > div { min-width:0; }
+  .wr-mission-v8 .la-draft .draft-setup-field-grid button[aria-haspopup="listbox"] { width:100%; justify-content:space-between; border-color:var(--gx-edge)!important; border-radius:10px!important; background:rgba(12,24,42,.28)!important; color:var(--cx-ink)!important; font-family:var(--font-body,"DM Sans",sans-serif)!important; font-size:13px!important; letter-spacing:0!important; text-transform:none!important; }
+  .wr-mission-v8 .la-draft .draft-setup-team-list { border-color:var(--gx-edge)!important; border-radius:10px!important; background:rgba(12,24,42,.24); padding:3px!important; }
+  .wr-mission-v8 .la-draft .draft-setup-team-row { min-height:44px; padding:3px 6px!important; }
+  .wr-mission-v8 .la-draft .draft-setup-team-row.is-mine { background:rgba(183,206,255,.13)!important; }
+  .wr-mission-v8 .la-draft .draft-setup-team-order button { min-width:36px; min-height:36px; border-color:var(--gx-edge)!important; border-radius:8px!important; color:var(--cx-muted)!important; background:rgba(255,255,255,.035)!important; text-transform:none!important; font:600 11px var(--font-body,"DM Sans",sans-serif)!important; }
+  .wr-mission-v8 .la-draft .draft-setup-team-order button:disabled { opacity:.35; }
+  .wr-mission-v8 .la-draft .draft-setup-start { min-height:46px; border:1px solid var(--cx-accent); border-radius:10px; background:var(--cx-accent); color:var(--cx-on); font:700 14px var(--font-body,"DM Sans",sans-serif); }
+  .wr-mission-v8 .la-draft .draft-setup-other { border-color:var(--gx-edge); border-radius:10px; background:rgba(183,206,255,.035); }
   .mc-draft-brief .wr-kpi-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; gap:4px; }
   .mc-draft-brief .wr-kpi-strip > div { width:auto!important; min-width:0!important; padding:7px!important; }
   .mc-draft-brief .wr-kpi-strip > div > div:first-child { font-size:10px!important; }
@@ -86,7 +111,14 @@
   .mc-prospect-player small { display:block; color:var(--silver); font-size:10px; line-height:1.3; margin-top:3px; overflow-wrap:anywhere; }
   .mc-prospect-value { font:11px var(--font-mono); color:var(--white); font-variant-numeric:tabular-nums; }
   .mc-prospect-detail { padding:10px; background:rgba(255,255,255,.025); border-top:1px solid rgba(255,255,255,.07); }
-  .mc-player-open { width:100%; border:1px solid rgba(212,175,55,.22); color:var(--gold); background:rgba(212,175,55,.04); margin-bottom:8px; }
+  .wr-mission-v8 .la-draft .mc-prospect-detail { padding:8px; background:rgba(12,24,42,.24); }
+  .wr-mission-v8 .la-draft .wr-player-card-embedded { min-width:0; overflow:hidden; border:1px solid var(--gx-edge); border-radius:12px; background:rgba(25,42,66,.7); }
+  .wr-mission-v8 .la-draft .wr-player-card-hero { padding:12px!important; gap:10px!important; }
+  .wr-mission-v8 .la-draft .wr-player-card-hero > div:nth-child(2) > div:first-child > span:first-child { font:700 20px var(--font-body,"DM Sans",sans-serif)!important; letter-spacing:0!important; }
+  .wr-mission-v8 .la-draft .wr-player-card-hero > div:nth-child(2) > div:last-child { font-size:11px!important; line-height:1.5; }
+  .wr-mission-v8 .la-draft .wr-player-card-embedded .wr-seg { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:10px 12px 0!important; }
+  .wr-mission-v8 .la-draft .wr-player-card-embedded .wr-seg button { padding:6px 4px; font-size:11px!important; }
+  .wr-mission-v8 .la-draft .wr-player-card-embedded button { font-family:var(--font-body,"DM Sans",sans-serif)!important; }
   .mc-draft-tools { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:10px 0; }
   .la-draft .mc-draft-tools button { padding:6px 3px; border:1px solid rgba(255,255,255,.12); color:var(--silver); background:rgba(255,255,255,.045); border-radius:10px; font-size:11px!important; }
   .mc-team-profile { padding:0!important; }

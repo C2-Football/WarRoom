@@ -21,8 +21,8 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
     };
     vm.createContext(context);
     vm.runInContext(compiled, context);
-    context.props = { activeTab, workspaceOptions: options, onSelectTab: tab => selections.push(tab) };
-    vm.runInContext('props.navItems = buildLeagueNavItems()', context);
+    context.props = { activeTab, workspaceOptions: { ...options, isPhone: phone }, onSelectTab: tab => selections.push(tab) };
+    vm.runInContext('props.navItems = buildLeagueNavItems(props.workspaceOptions)', context);
     const tree = vm.runInContext('PhoneDockInner(props)', context);
     const nodes = [];
     function walk(node) { if (!node || typeof node !== 'object') return; nodes.push(node); (node.children || []).forEach(walk); }
@@ -39,10 +39,11 @@ closed.events['wr:phone-menu']();
 assert.deepEqual(closed.updates, [false, true]);
 
 const expanded = fixture({ open: true, activeTab: 'stats' });
-for (const tab of ['fa', 'trades', 'draft', 'draft-review', 'wire', 'stats', 'compare', 'settings', 'gm-settings', 'legend']) {
-    const expected = workspaces.resolve(tab).label;
+for (const tab of ['fa', 'trades', 'draft', 'mock-draft', 'draft-review', 'wire', 'stats', 'compare', 'settings', 'gm-settings', 'legend']) {
+    const expected = workspaces.resolve(tab,{isPhone:true}).label;
     assert.ok(expanded.nodes.some(n => n.type === 'button' && expanded.text(n) === expected + '›'), `More must retain ${expected}`);
 }
+for (const label of ['Team outlook','Market review','Players & picks','Custom reports']) assert(!expanded.nodes.some(n=>n.type==='button'&&expanded.text(n)===label+'›'),label+' is removed from phone navigation');
 expanded.nodes.find(n => n.type === 'button' && expanded.text(n) === 'Waivers›').props.onClick();
 assert.deepEqual(expanded.selections, ['fa']);
 assert.deepEqual(expanded.updates, [false, false]);
@@ -75,5 +76,5 @@ for (const activeTab of ['myteam', 'alex']) {
     assert.equal(f.text(title), workspaces.resolve(activeTab).label);
     assert.ok(!title.children.some(node => node?.type === 'select'), 'Mobile shows a stable workspace title instead of a route selector');
 }
-assert.match(source, /viewTab !== 'dashboard' && !\(alexPhone && viewTab === 'myteam'\)/, 'My Team omits the inline Wire launcher on phones while retaining desktop behavior');
+assert.match(source, /viewTab !== 'dashboard' && \(!alexPhone \|\| viewTab === 'wire'\)/, 'Phones only mount Wire on its menu destination');
 console.log('PASS mobile titles: stable route labels and My Team phone focus');

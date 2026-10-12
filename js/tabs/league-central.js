@@ -33,35 +33,46 @@ function buildLeagueOverviewDecision({ league, roster, playersData = {}, skin, w
     const positions = (league?.roster_positions || []).filter(pos => !['BN', 'IR', 'TAXI', 'RESERVE'].includes(String(pos).toUpperCase()));
     const automatic = skin?.type === 'best_ball' || Number(league?.settings?.best_ball) === 1;
     const known = !!roster && Array.isArray(roster.starters);
-    const flags = [];
+    const normalize = team => ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI' })[String(team || '').toUpperCase()] || String(team || '').toUpperCase();
+    const gameStatus = game => {
+        if (!game || /POSTPONED|CANCEL|SUSPEND|DELAY/i.test(game.statusName || '')) return 'unknown';
+        if (game.completed || game.state === 'final') return 'final';
+        if (['in', 'live'].includes(game.state)) return 'live';
+        const start = Date.parse(game.kickoff || '');
+        if (Number.isFinite(start) && start <= now) return 'locked';
+        return ['pre', 'upcoming'].includes(game.state) && Number.isFinite(start) ? 'upcoming' : 'unknown';
+    };
+    const byTeam = new Map();
+    games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
+    const complete = games.length > 0 && games.every(game => gameStatus(game) === 'final');
+    const flags = [], lockedFlags = [];
+    const addFlag = (flag, player) => {
+        const status = gameStatus(byTeam.get(normalize(player?.team)));
+        const check = { ...flag, gameStatus: status };
+        if (complete || ['final', 'live', 'locked'].includes(status)) lockedFlags.push(check);
+        else flags.push(check);
+    };
     if (known && !automatic) {
         const slots = Math.max(positions.length, roster.starters.length);
         for (let index = 0; index < slots; index++) {
             const pid = roster.starters[index], player = playersData[pid];
             const slot = positions[index] || 'Starter';
-            if (!pid || String(pid) === '0') { flags.push({ pid: null, name: slot + ' slot', reason: 'Empty starter', kind: 'empty' }); continue; }
+            if (!pid || String(pid) === '0') { if (!games.length || games.some(game => gameStatus(game) === 'upcoming')) flags.push({ pid: null, name: slot + ' slot', reason: 'Empty starter', kind: 'empty', gameStatus: 'unknown' }); continue; }
             if (!player) continue;
             const name = player.full_name || [player.first_name, player.last_name].filter(Boolean).join(' ') || 'Player ' + pid;
             const injury = String(player.injury_status || '').toLowerCase();
             let bye = null;
             try { bye = window.App?.NFLByes?.weekForPlayer?.(player, league?.season); } catch (_) { /* unavailable */ }
-            if (Number(bye) > 0 && Number(bye) === Number(week)) flags.push({ pid, name, reason: 'Bye this week', kind: 'bye' });
-            else if (['out', 'ir', 'injured reserve', 'suspended', 'pup'].includes(injury)) flags.push({ pid, name, reason: 'Listed ' + player.injury_status, kind: 'out' });
-            else if (['doubtful', 'questionable'].includes(injury)) flags.push({ pid, name, reason: 'Monitor · ' + player.injury_status, kind: 'monitor' });
-            else if (Object.prototype.hasOwnProperty.call(player, 'team') && (!player.team || ['FA', 'FA*'].includes(String(player.team).toUpperCase()))) flags.push({ pid, name, reason: 'No NFL team listed', kind: 'unsigned' });
+            if (Number(bye) > 0 && Number(bye) === Number(week)) addFlag({ pid, name, reason: 'Bye this week', kind: 'bye' }, player);
+            else if (['out', 'ir', 'injured reserve', 'suspended', 'pup'].includes(injury)) addFlag({ pid, name, reason: 'Listed ' + player.injury_status, kind: 'out' }, player);
+            else if (['doubtful', 'questionable'].includes(injury)) addFlag({ pid, name, reason: 'Monitor · ' + player.injury_status, kind: 'monitor' }, player);
+            else if (Object.prototype.hasOwnProperty.call(player, 'team') && (!player.team || ['FA', 'FA*'].includes(String(player.team).toUpperCase()))) addFlag({ pid, name, reason: 'No NFL team listed', kind: 'unsigned' }, player);
         }
     }
-    const gameStatus = game => {
-        if (/POSTPONED|CANCEL|SUSPEND|DELAY/i.test(game.statusName || '')) return 'unknown';
-        if (game.completed) return 'final';
-        if (game.state === 'in') return 'live';
-        const start = Date.parse(game.kickoff || '');
-        return game.state === 'pre' && Number.isFinite(start) && start > now ? 'upcoming' : 'unknown';
-    };
     const upcoming = games.filter(game => gameStatus(game) === 'upcoming').sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
     const next = upcoming[0] || null;
-    const startersInNext = next && known ? roster.starters.filter(pid => [next.home, next.away].includes(playersData[pid]?.team)).length : 0;
-    return { week, known, automatic, flags, next, startersInNext, live: games.some(game => gameStatus(game) === 'live'), complete: games.length > 0 && games.every(game => gameStatus(game) === 'final') };
+    const startersInNext = next && known ? roster.starters.filter(pid => [normalize(next.home), normalize(next.away)].includes(normalize(playersData[pid]?.team))).length : 0;
+    return { week, known, automatic, flags, lockedFlags, next, startersInNext, live: games.some(game => ['live', 'locked'].includes(gameStatus(game))), complete };
 }
 
 function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersData, setActiveTab }) {
@@ -95,7 +106,7 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
     const decision = buildLeagueOverviewDecision({ league: currentLeague, roster: myRoster, playersData, skin: leagueSkin, week, games: current.games, now: current.now });
     const nextLabel = decision.next ? new Date(decision.next.kickoff).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : null;
     const scheduleLabel = nextLabel ? 'Next kickoff · ' + nextLabel : decision.live ? 'NFL games are underway' : decision.complete ? 'This week’s NFL games are complete' : current.status === 'loading' ? 'Checking kickoff times…' : 'Kickoff times unavailable';
-    const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: decision.flags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
+    const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: decision.flags, lockedStarterChecks: decision.lockedFlags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Do not recommend replacing players whose games are live, locked, or final. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
     const primaryFlag = decision.flags[0];
     const primaryMove = (() => {
         if (decision.automatic) return { message: 'Review your roster depth — your league sets the scoring lineup automatically, so check depth and available adds.', action: 'Open roster', tab: 'myteam' };
@@ -107,7 +118,7 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
         }
         if (primaryFlag.kind === 'empty') return { message: 'Fill your ' + primaryFlag.name + ' slot — it is empty.', action: 'Open Game Day', tab: 'lineup' };
         if (primaryFlag.kind === 'bye') return { message: 'Replace ' + primaryFlag.name + ' — they are on bye this week.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'out') return { message: 'Replace ' + primaryFlag.name + ' — they are listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'out') return { message: (primaryFlag.gameStatus === 'upcoming' ? 'Replace ' : 'Check availability for ') + primaryFlag.name + ' — they are listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
         if (primaryFlag.kind === 'unsigned') return { message: 'Replace ' + primaryFlag.name + ' — no NFL team is listed.', action: 'Open Game Day', tab: 'lineup' };
         const status = String(primaryFlag.reason || 'needs monitoring').replace(/^Monitor\s*·\s*/i, '');
         return { message: 'Plan a backup for ' + primaryFlag.name + ' — they are listed ' + status + '.', action: 'Open Game Day', tab: 'lineup' };

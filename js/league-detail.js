@@ -238,8 +238,8 @@
         central: ['m12 14 4-4', 'M3.34 19a10 10 0 1 1 17.32 0'],
     };
     // One stable workspace map owns desktop, phone, search, and deep-link state.
-    function buildLeagueNavItems() {
-        const utilities = window.WR.LeagueWorkspaces.navigation();
+    function buildLeagueNavItems(options) {
+        const utilities = window.WR.LeagueWorkspaces.navigation(options);
         return [...utilities.filter(item => !item.utility), { section: 'UTILITIES' }, ...utilities.filter(item => item.utility)];
     }
     function navItemIsActive(item, activeTab) {
@@ -1138,7 +1138,11 @@
 
         // Home summarizes the owner's decisions; League contains the full competition view.
         // Old tab identifiers are resolved without losing their selected report.
+        // Shared phone tier also controls route visibility and workspace labels.
+        const alexVp = window.WR.useViewport();
+        const alexPhone = alexVp.isPhone;
         const workspaceOptions = {
+            isPhone: alexPhone,
             showGameDay: leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'),
             showTrades: leagueSkin?.features?.showTrades,
             showGmOffice: leagueSkin?.type !== 'chopped',
@@ -1462,11 +1466,6 @@
                 default: return { value: '\u2014', sub: '', color: 'var(--silver)' };
             }
         }
-        // Phone-tier flag — used app-wide beyond the (now-retired) Alex chat
-        // sheet, e.g. the compact one-row phone header below.
-        // WR.useViewport = js/shared/viewport.js (loaded before this file).
-        const alexVp = window.WR.useViewport();
-        const alexPhone = alexVp.isPhone;
         const [showNotifications, setShowNotifications] = useState(false);
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
@@ -2648,7 +2647,7 @@
         // buildLeagueNavItems). The sidebar maps this array below and the
         // SAME array instance feeds the PhoneDock strip at the bottom of
         // this render, so the two surfaces can never drift.
-        const navItems = buildLeagueNavItems();
+        const navItems = buildLeagueNavItems(workspaceOptions);
 
         // One builder for the widget grid so the standalone Home tab (dynasty /
         // keeper) and the merged Command Center's KPIs tab (redraft / chopped)
@@ -2857,7 +2856,7 @@
                                 if (name.toLowerCase().includes(lower)) matches.push({ type: 'player', pid, name, pos: p.position || '?', team: p.team || 'FA' });
                             });
                             // Search tabs
-                            window.WR.LeagueWorkspaces.navigation().flatMap(group => [{ label: group.label, tab: group.tab }, ...window.WR.LeagueWorkspaces.views(group.id, workspaceOptions)]).forEach(t => {
+                            window.WR.LeagueWorkspaces.navigation(workspaceOptions).flatMap(group => [{ label: group.label, tab: group.tab }, ...window.WR.LeagueWorkspaces.views(group.id, workspaceOptions)]).forEach(t => {
                                 if (t.label.toLowerCase().includes(lower)) matches.push({ type: 'tab', label: t.label, tab: t.tab });
                             });
                             setResults(matches.slice(0, 8));
@@ -3408,8 +3407,8 @@
                         {workspaceViews.map(view => <button type="button" key={view.tab} aria-current={viewTab === view.tab ? 'page' : undefined} onClick={() => setActiveTab(view.tab)}>{view.label}</button>)}
                     </nav>}
                 </header>
-                {/* Keep the roster focused on player decisions on phones; The Wire remains available from League, the command menu, and desktop. */}
-                {viewTab !== 'dashboard' && !(alexPhone && viewTab === 'myteam') && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
+                {/* Phones open The Wire from the command menu. */}
+                {viewTab !== 'dashboard' && (!alexPhone || viewTab === 'wire') && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}
@@ -3548,7 +3547,8 @@
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
                     briefDraftInfo={briefDraftInfo}
-                /> : viewTab === 'draft' ? <DraftTabLazy
+                /> : (viewTab === 'draft' || viewTab === 'mock-draft') ? <DraftTabLazy
+                    key={viewTab}
                     playersData={playersData}
                     statsData={statsData}
                     myRoster={myRoster}
@@ -3556,7 +3556,7 @@
                     leagueSkin={leagueSkin}
                     sleeperUserId={sleeperUserId}
                     timeRecomputeTs={timeRecomputeTs}
-                    viewMode={viewMode}
+                    viewMode={viewTab === 'mock-draft' ? 'mock' : viewMode}
                 /> : viewTab === 'calendar' ? <CalendarTabLazy currentLeague={currentLeague} leagueSkin={leagueSkin} myRoster={myRoster} /> : viewTab === 'trophies' ? <TrophyRoomTabLazy
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}

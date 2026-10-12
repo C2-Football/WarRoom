@@ -25,6 +25,38 @@ function leagueScoreboardStarterProgress(row, playersData, games, league, week) 
     return result;
 }
 
+// Completed games contribute their earned total only. Unfinished players use
+// their full-game estimate, with live estimates never below points already earned.
+function leagueScoreboardProjectedFinish(row, playersData, games, league, week, projections, service) {
+    const total = service.rosterPoints(row);
+    if (total == null || !Number.isFinite(Number(total)) || !row?.starters?.length || !games?.length) return null;
+    const normalize = team => { const key = String(team || '').toUpperCase(); return ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[key] || key; };
+    const byTeam = new Map();
+    games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
+    let finish = Number(total);
+    for (const pid of row.starters) {
+        if (!pid || String(pid) === '0') continue;
+        const player = playersData?.[pid], game = byTeam.get(normalize(player?.team));
+        const status = window.App?.NflContext?.gameStatus?.(game) || 'unknown';
+        if (status === 'final') continue;
+        if (!game && Number(window.App?.NFLByes?.weekForPlayer?.(player, Number(league?.season))) === Number(week)) continue;
+        if (!['live', 'upcoming'].includes(status)) return null;
+        const projection = projections?.[pid];
+        const estimate = projection?.points?.median;
+        // A missing baseline also scores as zero in the projection engine; it
+        // must remain unavailable rather than silently predicting zero.
+        const statLine = projection?.statLine?.median;
+        const scoringStat = /^(?:pass_|rush_|rec(?:_|$)|fum_|def_|fg|xp|idp_|tkl|sack|int(?:_|$)|ff$|fr(?:_|$)|safe|blk|st_|pts_allow|yds_allow|bonus_)/;
+        const hasStats = statLine && Object.entries(statLine).some(([key, value]) => scoringStat.test(key) && value != null && value !== '' && Number.isFinite(Number(value)));
+        if (!hasStats || estimate == null || !Number.isFinite(Number(estimate))) return null;
+        const earned = service.playerPoints(row, pid);
+        if (status === 'live' && (earned == null || !Number.isFinite(Number(earned)))) return null;
+        const actual = earned == null ? 0 : Number(earned);
+        finish += Math.max(status === 'live' ? actual : -Infinity, Number(estimate)) - actual;
+    }
+    return finish;
+}
+
 function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab, selectedWeek, onWeekChange, onRefresh, onOpenTeam, fullBoard = false, overview = false }) {
     const service = window.App.LeagueLiveScores;
     const isPhone = !!window.WR?.useViewport?.().isPhone;
@@ -37,6 +69,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     const canOpenGameDay = Number(week) === Number(defaultWeek) && (!Number(currentLeague?.season) || Number(currentLeague.season) === liveSeason);
     const board = service.useScores({ league: currentLeague, week });
     const [nfl, setNfl] = React.useState({ key: '', games: [] });
+    const [, setProjectionRevision] = React.useState(0);
     const nflKey = `${currentLeague?.season || ''}|${week}`;
     React.useEffect(() => {
         const context = window.App?.NflContext;
@@ -57,6 +90,13 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         document.addEventListener('visibilitychange', refresh);
         return () => { alive = false; clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
     }, [nflKey]);
+    React.useEffect(() => {
+        if (!canOpenGameDay) return;
+        const refresh = event => { if (Number(event.detail?.week) === Number(week) && Number(event.detail?.season) === Number(currentLeague?.season)) setProjectionRevision(value => value + 1); };
+        window.addEventListener('wr:projections-loaded', refresh);
+        window.App?.WeeklyProj?.ensureWeekProjections?.(week);
+        return () => window.removeEventListener('wr:projections-loaded', refresh);
+    }, [nflKey, canOpenGameDay]);
     const nflGames = nfl.key === nflKey ? nfl.games.slice().sort((a, b) => (new Date(a.kickoff).getTime() || 0) - (new Date(b.kickoff).getTime() || 0)) : [];
     const chopped = !!window.App?.Chopped?.isChopped?.(currentLeague);
     const own = row => myRoster?.roster_id != null && String(row.roster_id) === String(myRoster.roster_id);
@@ -68,6 +108,14 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     };
     const points = value => value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(2);
     const teamPoints = row => service.rosterPoints(row);
+    let projections = {};
+    if (canOpenGameDay && nflGames.length && window.App?.WeeklyProj?.projectRoster) {
+        try { projections = window.App.WeeklyProj.projectRoster([...new Set((board.rows || []).flatMap(row => row.starters || []).filter(pid => pid && String(pid) !== '0'))], {
+            playersData, statsData: window._wrStatsData || {}, priorData: window.S?.priorData || {}, scoring: currentLeague?.scoring_settings || {}, week,
+        }); } catch (_) { /* Unavailable projections stay a dash. */ }
+    }
+    const projectedFinish = row => leagueScoreboardProjectedFinish(row, playersData, nflGames, currentLeague, week, projections, service);
+    const projectionLine = row => canOpenGameDay && <span className="mc-score-projection" title="Projected finish: earned points from completed games plus full-game estimates for unfinished starters. Live estimates are at least points already earned; a dash means required data is unavailable.">Proj. finish <strong>{points(projectedFinish(row))}</strong></span>;
     const groups = (board.groups || []).slice().sort((a, b) => Number(b.teams.some(own)) - Number(a.teams.some(own)));
     const ladder = (board.rows || []).filter(row => {
         const roster = rosterFor(row);
@@ -94,7 +142,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     </div>;
     const team = row => <div className={`lls-team${own(row) ? ' lls-own' : ''}`} key={row.roster_id}>
         <span className="lls-team-name">{ownerName(row)}{own(row) && <small>YOU</small>}</span>
-        <strong className="lls-score">{points(teamPoints(row))}</strong>
+        <div className="lls-team-total"><strong className="lls-score">{points(teamPoints(row))}</strong>{projectionLine(row)}</div>
     </div>;
     const matchupTeams = rows => rows.slice().sort((a, b) => Number(own(b)) - Number(own(a)));
     const matchupHeader = rows => {
@@ -106,6 +154,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
                     <span className="lls-owner" title={ownerName(row)}>{ownerName(row)}</span>
                     {!fullBoard && <span className="lls-side-label">{own(row) ? 'Your team' : 'Points'}</span>}
                     <strong className="lls-score">{points(teamPoints(row))}</strong>
+                    {projectionLine(row)}
                     {fullBoard && canOpenGameDay && <span className="mc-score-progress" title="NFL game progress for reported starters. Left includes live and scheduled games; scores may still be corrected.">{leagueScoreboardStarterProgress(row, playersData, nflGames, currentLeague, week).text}</span>}
                 </div>
             </React.Fragment>)}
@@ -150,6 +199,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         `}</style>
         <style>{`
             .lls-versus{display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);gap:8px;align-items:stretch}.lls-side{display:grid;grid-template-rows:1fr auto auto;min-width:0;gap:3px}.lls-side-right{text-align:right}.lls-owner{font-size:.82rem;font-weight:600;overflow-wrap:anywhere;line-height:1.4}.lls-side-label{font-size:.53rem;letter-spacing:.06em;color:var(--text-muted,#8d887e)}.lls-own .lls-side-label{color:var(--gold,#d4af37)}.lls-side .lls-score{font-size:1.55rem;margin-top:2px}.lls-vs{align-self:center;text-align:center;color:var(--text-muted,#8d887e);font-size:.6rem;font-weight:600}
+            .mc-score-projection{font:inherit;font-size:.75rem;line-height:1.4;color:var(--text-muted,#aebed3);font-variant-numeric:tabular-nums}.mc-score-projection strong{font:inherit;font-weight:600;color:var(--text-secondary,#c7d6ed)}.lls-team-total{display:grid;gap:3px;text-align:right}
             .lls-expanded .lls-matchups{grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}.lls-expanded .lls-pair:has(details[open]){grid-column:1/-1}.lls-expanded .lls-pair:has(details[open]) .lls-versus{padding:3px 4px 10px}.lls-compact .lls-matchups>.lls-pair{flex-basis:270px}.lls-compact .lls-owner{font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lls-compact .lls-side .lls-score{font-size:1.12rem}.lls-compact .lls-side-label{font-size:.48rem}
             .lls-comparison{margin-top:14px}.lls-comparison-row{display:grid;grid-template-columns:minmax(0,1fr) 58px 50px 58px minmax(0,1fr);gap:8px;align-items:center;padding:10px 4px;border-top:1px solid rgba(189,184,173,.1)}.lls-comparison-row:nth-child(even){background:rgba(255,255,255,.018)}.lls-comparison-head{font-size:.62rem;color:var(--text-muted,#8d887e);padding-top:8px;padding-bottom:8px}.lls-comparison-head>span{overflow-wrap:anywhere}.lls-comparison-head>span:not(:first-child):not(:last-child){text-align:center}.lls-comparison-head>span:last-child{text-align:right}.lls-player{min-width:0;display:flex;flex-direction:column;gap:4px}.lls-player strong{font-size:.8rem;line-height:1.35;overflow-wrap:anywhere}.lls-player small{font-size:.62rem;color:var(--text-muted,#8d887e)}.lls-player-right{text-align:right}.lls-player-points{text-align:center;font-family:var(--font-mono,monospace);font-variant-numeric:tabular-nums;font-size:.87rem}.lls-slot{justify-self:center;max-width:100%;box-sizing:border-box;padding:4px;font-size:.58rem;font-weight:600;text-align:center;color:var(--gold,#d4af37);background:rgba(212,175,55,.09);border-radius:var(--card-radius-xs, 5px);overflow-wrap:anywhere}
             @media(max-width:540px){.lls-comparison-row{grid-template-columns:minmax(0,1fr) 39px 34px 39px minmax(0,1fr);gap:4px;padding:9px 0}.lls-player strong{font-size:.69rem}.lls-player-points{font-size:.69rem}.lls-player small{font-size:.55rem}.lls-comparison-head{font-size:.54rem}.lls-slot{font-size:.5rem;padding:3px}.lls-side .lls-score{font-size:1.3rem}}
@@ -185,7 +235,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
                 {expanded && !fullBoard && <details><summary>{group.teams.length === 2 ? 'Matchup breakdown' : 'Starter scores'}</summary>{group.teams.length === 2 ? matchupStarters(group.teams) : group.teams.map(row => <div key={row.roster_id}>{starters(row)}</div>)}</details>}
             </article>)}
         </div>}
-        {(expanded || fullBoard) && nflGames.length > 0 && <details style={{ marginTop: 16 }}>
+        {!isPhone && (expanded || fullBoard) && nflGames.length > 0 && <details style={{ marginTop: 16 }}>
             <summary>NFL game scores · Week {week}</summary>
             <p className="lls-note">NFL scoreboard · Refreshes every minute. Kickoff times are shown in your local time.</p>
             <div className="lls-grid">{nflGames.map((game, index) => {
