@@ -62,13 +62,22 @@ test('questionable is a monitoring flag and automatic lineup leagues get a clear
 });
 
 test('overview names one primary lineup move and keeps waivers and Alex within reach',()=>{
-    const h=fixture(), tree=h.render();
+    const h=fixture(); h.render(); h.hooks[0]={key:'l1|2026|6',status:'ready',games:[{home:'KC',away:'NYJ',state:'pre',kickoff:'2099-10-08T20:00:00Z'}],now:Date.now()}; const tree=h.render();
     assert.match(text(tree),/Alex Insights/); assert.match(text(tree),/Replace Bye Receiver — they are on bye this week\./); assert.match(text(tree),/\+1 more lineup issue/);
     const primary=walk(tree).find(n=>n.props?.className==='mc-primary-move'); assert.equal(walk(primary).filter(n=>n.type==='p').length,0);
     button(tree,'Open Game Day →').props.onClick(); button(tree,'Explore waivers').props.onClick(); button(tree,'Ask Alex').props.onClick();
     assert.equal(h.events[0],'lineup'); assert.equal(h.events[1],'fa'); assert.equal(h.events[2].type,'wr:mission-alex-open');
     assert.match(h.events[2].detail.prompt,/"week":6/); assert.match(h.events[2].detail.prompt,/"kind":"bye"/); assert.match(h.events[2].detail.prompt,/no move has been submitted/);
     assert.equal(walk(tree).some(n=>n.type==='details'),false);
+});
+
+test('loading or unavailable kickoff data never surfaces stale replacement advice',()=>{
+    const h=fixture(); h.props.myRoster={starters:['c']};
+    assert.doesNotMatch(text(h.render()),/Listed Out|listed unavailable|Replace/);
+    h.hooks[0]={key:'l1|2026|6',status:'unavailable',games:[],now:Date.now()};
+    assert.doesNotMatch(text(h.render()),/Listed Out|listed unavailable|Replace/);
+    button(h.render(),'Ask Alex').props.onClick();
+    assert.match(h.events[0].detail.prompt,/"starterChecks":\[\]/); assert.match(h.events[0].detail.prompt,/unverifiedStarterChecks/);
 });
 
 test('missing lineup and schedule data never claim lineup readiness or an invented deadline',()=>{
