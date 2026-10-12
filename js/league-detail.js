@@ -364,7 +364,14 @@
         const [localActiveTab, setLocalActiveTab] = useState('dashboard');
         const [helpContext, setHelpContext] = useState(null);
         const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
-        const setActiveTab = onTabChange || setLocalActiveTab;
+        const [gameDayEntry, setGameDayEntry] = useState(null);
+        const gameDayScope = [currentLeague?.league_id || currentLeague?.id || '', currentLeague?.season || '', myRoster?.roster_id || ''].join('|');
+        // Keep the entry view in the shell so it survives deferred module loading.
+        // Ordinary navigation clears the intent; it never changes the default dock destination.
+        const setActiveTab = React.useCallback((tab, options) => {
+            setGameDayEntry(tab === 'lineup' && options?.view === 'matchup' ? { scope: gameDayScope, view: 'matchup' } : null);
+            (onTabChange || setLocalActiveTab)(tab);
+        }, [onTabChange, gameDayScope]);
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
         const [selectedPlayerPid, setSelectedPlayerPid] = useState(null);
         const [headerDraftInfo, setHeaderDraftInfo] = useState(null);
@@ -3471,6 +3478,7 @@
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
                 /> : viewTab === 'lineup' ? <LineupTabLazy
+                    initialView={gameDayEntry?.scope === gameDayScope ? gameDayEntry.view : 'week'}
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}

@@ -7,7 +7,7 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week' } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
@@ -70,6 +70,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
     }
     vm.runInContext(source, ctx);
     const props = {
+        initialView,
         rosterView,
         myRoster: { roster_id: 1, starters: ['a', 'b', 'c'], players: ['a', 'b', 'c', 'd'] },
         currentLeague: { league_id: '123', season: 2026, roster_positions: ['QB', 'RB', 'WR'], rosters: [{ roster_id: 2, owner_id: 'owner2' }], users: [{ user_id: 'owner2', display_name: 'Opponent Name' }] },
@@ -96,6 +97,20 @@ const button = (out, label) => select(out, n => n.type === 'button' && textOf(n)
 const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).includes('gd-matchup');
 
 (async () => {
+    const fromOverview = await fixture({ initialView: 'matchup', withMatchup: true });
+    assert.equal(button(fromOverview.out, 'Matchup').props['aria-pressed'], true, 'Overview entry opens the matchup immediately');
+    assert(select(fromOverview.out, matchupPanel));
+    assert(!select(fromOverview.out, n => n.props.id === 'gameday-starting-lineup'), 'Overview entry does not show lineup planning first');
+    assert.match(textOf(fromOverview.out), /vs Opponent Name/, 'The selected league opponent is retained');
+    button(fromOverview.out, 'Lineup').props.onClick(); await fromOverview.render();
+    assert(select(fromOverview.out, n => n.props.id === 'gameday-starting-lineup'), 'Lineup remains available from the matchup');
+    button(fromOverview.out, 'Odds').props.onClick(); await fromOverview.render();
+    fromOverview.props.initialView = 'week'; await fromOverview.render();
+    assert.equal(button(fromOverview.out, 'Lineup').props['aria-pressed'], true, 'Ordinary entry resets a mounted destination to Lineup');
+    const withoutOpponent = await fixture({ initialView: 'matchup' });
+    assert.equal(button(withoutOpponent.out, 'Matchup').props['aria-pressed'], true);
+    assert.match(textOf(withoutOpponent.out), /The matchup appears when an opponent and projections are available/, 'Missing opponent context stays in the requested view');
+
     const active = await fixture();
     assert.equal(all(active.out).filter(n => n.props.className === 'gd-scoreboard').length, 1, 'one scoreboard in the existing lineup');
     assert.doesNotMatch(textOf(active.out), /FOLLOW YOUR LINEUP|Submitted starters/);

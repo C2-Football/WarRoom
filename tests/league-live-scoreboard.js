@@ -3,7 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const Babel = require('@babel/standalone');
-let hooks = [], index = 0, board, tab, effects = [];
+let hooks = [], index = 0, board, tab, tabOptions, effects = [];
 const React = {
     useState(initial) { const i = index++; if (!(i in hooks)) hooks[i] = initial; return [hooks[i], value => { hooks[i] = value; }]; },
     useEffect(fn) { effects.push(fn); },
@@ -22,7 +22,7 @@ const rows = [
     { roster_id: 2, matchup_id: 1, points: -2, starters: ['p2'], players_points: { p2: -2 } },
     { roster_id: 3, matchup_id: 2, points: null, starters: ['p3'] },
 ];
-const props = { currentLeague: { league_id: 'A', season: '2026', rosters: rows }, myRoster: rows[2], getOwnerName: id => `Owner ${id}`, getPlayerName: id => id, setActiveTab: key => { tab = key; } };
+const props = { currentLeague: { league_id: 'A', season: '2026', rosters: rows }, myRoster: rows[2], getOwnerName: id => `Owner ${id}`, getPlayerName: id => id, setActiveTab: (key, options) => { tab = key; tabOptions = options; } };
 function nodes(tree) { return tree == null || typeof tree === 'boolean' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : typeof tree !== 'object' ? [tree] : [tree, ...nodes(tree.children)]; }
 function text(tree) { return nodes(tree).filter(n => typeof n !== 'object').join(''); }
 function render(extra = {}) { index = 0; effects = []; return scope.window.LeagueLiveScoreboard({ ...props, ...extra }); }
@@ -35,6 +35,7 @@ assert(text(cards[0]).includes('—'), 'Missing score stays missing');
 assert(text(cards[0]).includes('No opponent reported'), 'Unpaired team does not invent opponent');
 nodes(tree).find(n => n.type === 'button' && text(n).includes('My Game Plan')).props.onClick();
 assert.equal(tab, 'lineup');
+assert.equal(tabOptions, undefined, 'My Game Plan retains ordinary lineup entry');
 nodes(tree).find(n => n.type === 'select').props.onChange({ target: { value: '7' } });
 assert.equal(nodes(render()).find(n => n.type === 'select').props.value, 7);
 assert.equal(nodes(render({ currentLeague: { ...props.currentLeague, league_id: 'B' } })).find(n => n.type === 'select').props.value, 2, 'Switching league resets week');
@@ -68,6 +69,7 @@ assert(!nodes(tree).some(n => n.type === 'button' && text(n).startsWith('All '))
 assert(text(tree).includes('League scoreboard'));
 nodes(tree).find(n => n.props?.['aria-label'] === 'Open your matchup in Game Day').props.onClick();
 assert.equal(tab, 'lineup');
+assert.equal(tabOptions?.view, 'matchup', 'Overview matchup cards request the Matchup view');
 const rival = nodes(tree).find(n => n.type === 'details' && n.props.className === 'mc-matchup-details');
 assert(rival && text(rival).includes('p1') && text(rival).includes('-2.00'), 'Rival disclosure retains starter score evidence');
 nodes(rival).find(n => n.type === 'button' && text(n) === 'Owner 2 →').props.onClick();

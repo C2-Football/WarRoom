@@ -85,7 +85,7 @@ function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false 
 
 function LineupTab({
     myRoster, currentLeague, leagueSkin, playersData, statsData, stats2025Data,
-    sleeperUserId, gmStrategy, setActiveTab, timeRecomputeTs, rosterView = false,
+    sleeperUserId, gmStrategy, setActiveTab, timeRecomputeTs, rosterView = false, initialView = 'week',
 }) {
     const metricPreference = window.WR?.PlayerMetrics?.useMetrics(sleeperUserId, currentLeague?.league_id || currentLeague?.id);
     const WP = window.App && window.App.WeeklyProj;
@@ -193,13 +193,18 @@ function LineupTab({
     const [formWindow, setFormWindow] = React.useState(5); // rolling-PPG window: 3 | 5 | 8 | 'season'
     const [openSlot, setOpenSlot] = React.useState(null);  // slot idx whose picker is expanded
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
-    const [phoneView, setPhoneView] = React.useState('week');     // phone Game Day: 'week' (matchup + lineup) | 'season' (outlook + schedule)
+    const [phoneView, setPhoneView] = React.useState(initialView === 'matchup' ? 'matchup' : 'week');
     const [appliedMoves, setAppliedMoves] = React.useState(null); // phone: swap list shown after Apply Optimal ({sl,cur,opt,gain}[])
     const [explainPid, setExplainPid] = React.useState(null);     // "why this number" ledger target (Pro; tap a projection)
     // Game Day view (owner ruling 2026-07-30: Season Odds belongs here, not in
     // Analytics). Phone: This Week | Season | Odds. Desktop already shows the
     // season rail alongside the lineup, so it only needs This Week | Odds.
     const [gdView, setGdView] = React.useState('week');           // 'week' | 'odds' (desktop) — phone adds 'season' via phoneView
+    React.useEffect(() => {
+        setPhoneView(initialView === 'matchup' ? 'matchup' : 'week');
+        setGdView('week');
+        if (initialView === 'matchup') window.scrollTo?.({ top: 0, left: 0, behavior: 'instant' });
+    }, [initialView, leagueScope]);
     // Projected record from the Season Odds simulation, when it has run. The
     // rail prefers this over schedule-engine's per-week sum so Game Day never
     // prints two different projected records on one screen.
