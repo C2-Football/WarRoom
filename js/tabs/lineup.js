@@ -83,7 +83,14 @@ function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false 
     </section>;
 }
 
-function LineupTab({
+// Viewing another game never mounts the planner or changes the managed roster.
+function LineupTab(props) {
+    return props.matchupTarget
+        ? <window.LeagueMatchupView {...props} key={[props.matchupTarget.leagueId, props.matchupTarget.season, props.matchupTarget.week, ...(Array.isArray(props.matchupTarget.rosterIds) ? props.matchupTarget.rosterIds : [])].join('|')} />
+        : <MyLineupTab {...props} />;
+}
+
+function MyLineupTab({
     myRoster, currentLeague, leagueSkin, playersData, statsData, stats2025Data,
     sleeperUserId, gmStrategy, setActiveTab, timeRecomputeTs, rosterView = false, initialView = 'week',
 }) {

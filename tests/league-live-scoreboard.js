@@ -16,6 +16,9 @@ const App = { LeagueLiveScores: {
 }, Chopped: { isChopped: league => league.settings?.type === 3, isAliveInWeek: (row, week) => !row.settings?.eliminated || week <= row.settings.eliminated } };
 const scope = { React, window: { App, S: { nflState: { season: 2026 } } } };
 vm.createContext(scope);
+const scoreStubs = App.LeagueLiveScores;
+vm.runInContext(fs.readFileSync(require('path').join(__dirname, '../js/shared/league-live-scores.js'), 'utf8'), scope);
+Object.assign(App.LeagueLiveScores, scoreStubs);
 vm.runInContext(Babel.transform(fs.readFileSync(require('path').join(__dirname, '../js/components/league-live-scoreboard.js'), 'utf8'), { presets: ['react'] }).code, scope);
 const rows = [
     { roster_id: 1, matchup_id: 1, points: 0, starters: ['p1'], players_points: { p1: 0 } },
@@ -70,21 +73,26 @@ assert(text(tree).includes('League scoreboard'));
 nodes(tree).find(n => n.props?.['aria-label'] === 'Open your matchup in Game Day').props.onClick();
 assert.equal(tab, 'lineup');
 assert.equal(tabOptions?.view, 'matchup', 'Overview matchup cards request the Matchup view');
-const rival = nodes(tree).find(n => n.type === 'details' && n.props.className === 'mc-matchup-details');
-assert(rival && text(rival).includes('p1') && text(rival).includes('-2.00'), 'Rival disclosure retains starter score evidence');
-nodes(rival).find(n => n.type === 'button' && text(n) === 'Owner 2 →').props.onClick();
-assert.equal(teamTarget, 2, 'Team action preserves selected roster');
+const rival = nodes(tree).find(n => n.props?.['aria-label'] === 'Open Owner 1 vs Owner 2 matchup in Game Day');
+assert(rival && text(rival).includes('0.00') && text(rival).includes('-2.00'), 'Rival card retains actual score evidence');
+rival.props.onClick();
+assert.equal(tab, 'lineup');
+assert.deepEqual(JSON.parse(JSON.stringify(tabOptions)), { view: 'matchup', matchup: { leagueId: 'A', season: '2026', week: 2, rosterIds: ['1', '2'] } }, 'Rival entry carries the exact displayed pair and scoring context');
 // Past weeks and archived seasons stay in the selected score context, even for our own game.
 for (const extra of [
     { selectedWeek: 1 },
     { selectedWeek: 2, currentLeague: { ...props.currentLeague, season: '2025' } },
 ]) {
     hooks = []; tab = null;
-    const historic = render({ fullBoard: true, ...extra });
+    const historic = render({ fullBoard: true, onOpenTeam: id => { teamTarget = id; }, ...extra });
     assert(!nodes(historic).some(n => n.props?.['aria-label'] === 'Open your matchup in Game Day'), 'Historical own matchup does not jump to current lineup');
     const ownCard = nodes(historic).find(n => n.type === 'article' && n.props.className.includes('lls-card-own'));
     const ownDetails = nodes(ownCard).find(n => n.type === 'details' && n.props.className === 'mc-matchup-details');
     assert(ownDetails && text(ownDetails).includes('p3'), 'Historical own matchup exposes the selected week starter details');
+    const rivalDetails = nodes(historic).find(n => n.type === 'details' && text(n).includes('Owner 1'));
+    assert(rivalDetails && text(rivalDetails).includes('p1'), 'Historical rival matchup retains the selected week details');
+    nodes(rivalDetails).find(n => n.type === 'button' && text(n) === 'Owner 2 →').props.onClick();
+    assert.equal(teamTarget, 2, 'Historical team action retains its selected roster');
     assert.equal(tab, null);
 }
 hooks = [];

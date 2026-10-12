@@ -28,7 +28,7 @@ assert.equal(parsed[0].kickoff, future.kickoff);
 assert.equal(NC.gameStatus(parsed[0], now), 'upcoming');
 // Render the no-projection branch: actual scoring must remain available when
 // projections haven't loaded; don't substitute working lineups or invent zero.
-const h = (type, props, ...children) => ({ type, props, children });
+const h = (type, props, ...children) => typeof type === 'function' ? type({ ...props, children }) : ({ type, props, children });
 ctx.React = { createElement: h, Fragment: 'fragment', useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}], useMemo: fn => fn(), useCallback: fn => fn, useEffect: () => {} };
 ctx.window.WR = { useViewport: () => ({ width: 375, isPhone: true }) };
 ctx.window.App.WeeklyProj = { optimalForRoster: () => null };

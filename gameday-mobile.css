@@ -304,3 +304,48 @@
 
 .gd-planning-focus a.gd-primary { display: block; box-sizing: border-box; text-align: center; text-decoration: none; }
 #gameday-starting-lineup { scroll-margin-top: 80px; }
+
+/* League games use submitted starters and never mount the local planner. */
+.gd-league-matchup { display: grid; gap: 12px; min-width: 0; color: var(--text, #e8e8ea); font-family: var(--font-body, "DM Sans", sans-serif); }
+.gd-league-matchup .gd-view-nav { margin: 0; }
+.wr-mission-control .gd-league-matchup .gd-view-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wr-mission-control .gd-league-matchup .gd-view-nav button { min-height: 44px; font: 600 14px/1.2 var(--font-body, "DM Sans", sans-serif); }
+.gd-league-matchup .gd-league-game { margin: 0; background: var(--mc-surface, var(--panel, #15151b)); border-color: var(--mc-line, rgba(173,194,226,.2)); }
+.gd-league-game-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gd-league-game-heading button { padding: 7px 10px; min-height: 34px; border: 1px solid var(--mc-line, rgba(173,194,226,.2)); border-radius: 8px; background: var(--ov-2, rgba(255,255,255,.03)); color: var(--silver, #aebed3); font: inherit; font-size: 12px; cursor: pointer; }
+.gd-league-game-heading button:disabled { opacity: .55; cursor: default; }
+.gd-league-game-scores { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 10px; padding: 16px 0 12px; }
+.gd-league-game-side { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.gd-league-game-side.is-right { align-items: flex-end; text-align: right; }
+.gd-league-game .gd-league-game-side h2 { width: 100%; margin: 0 0 3px; color: var(--text, #e8e8ea); font: 700 16px/1.3 var(--font-body, "DM Sans", sans-serif); overflow-wrap: anywhere; }
+.gd-league-game-total { font-size: 32px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.gd-league-game-actual, .gd-league-game-side > small { font-size: 11px; line-height: 1.4; color: var(--silver, #aebed3); }
+.gd-league-game-finish { margin-top: 4px; color: var(--silver, #aebed3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.gd-league-game-finish > strong { color: #bfd3ff; font-weight: 600; }
+.gd-league-game-versus { align-self: center; color: var(--silver, #aebed3); font-size: 11px; font-weight: 600; text-align: center; }
+.gd-league-game-update, .gd-league-game-help { margin: 0; color: var(--silver, #aebed3); font-size: 12px; line-height: 1.5; }
+.gd-league-game-update { padding: 8px 0 12px; border-bottom: 1px solid var(--mc-line, rgba(173,194,226,.2)); }
+.gd-league-game-update.is-stale { color: #ffd18c; }
+.gd-league-slots { display: grid; gap: 6px; margin: 7px 0 12px; }
+.gd-league-slot { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 8px; padding: 0 10px 0 7px; border: 1px solid var(--mc-line, rgba(173,194,226,.16)); border-radius: 9px; background: var(--ov-2, rgba(255,255,255,.025)); }
+.gd-league-slot-label { align-self: center; color: #bfd3ff; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
+.gd-league-starter { display: grid; grid-template-columns: minmax(0, 1fr) 50px 50px; align-items: center; gap: 8px; padding: 9px 0; }
+.gd-league-starter + .gd-league-starter { border-top: 1px solid var(--mc-line, rgba(173,194,226,.12)); }
+.gd-league-starter-person { display: grid; gap: 2px; min-width: 0; }
+.gd-league-starter-person > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #bfd3ff; font-size: 11px; line-height: 1.35; }
+.gd-league-starter.is-right .gd-league-starter-person > small { color: #cebfff; }
+.gd-league-starter-person > strong { font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.gd-league-starter-person > span { color: var(--silver, #aebed3); font-size: 11px; line-height: 1.4; }
+.gd-league-starter-points { display: grid; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
+.gd-league-starter-points > strong { font-size: 14px; font-weight: 600; }
+.gd-league-starter-points > small { color: var(--silver, #aebed3); font-size: 11px; line-height: 1.3; }
+.gd-league-starter-points.is-finish > strong { color: #bfd3ff; }
+.gd-league-matchup button:focus-visible { outline: 2px solid #bfd3ff; outline-offset: 3px; }
+@media (max-width: 370px) {
+  .gd-league-game-scores { gap: 5px; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); }
+  .gd-league-game-total { font-size: 27px; }
+  .gd-league-game .gd-league-game-side h2 { font-size: 14px; }
+  .gd-league-slot { grid-template-columns: 27px minmax(0, 1fr); gap: 5px; padding-right: 6px; padding-left: 5px; }
+  .gd-league-starter { grid-template-columns: minmax(0, 1fr) 40px 40px; gap: 5px; }
+  .gd-league-game-heading button { padding: 6px 7px; font-size: 11px; }
+}

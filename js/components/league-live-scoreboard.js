@@ -2,59 +2,11 @@
 // never inferred game completion or recomputed from a league's current roster.
 // Progress describes NFL games for the reported starters, never fantasy-point totals.
 // Caller limits this to the current week because the player directory has current NFL teams.
-function leagueScoreboardStarterProgress(row, playersData, games, league, week) {
-    const App = window.App;
-    const starters = row?.starters || [];
-    const result = { finished: 0, remaining: 0, bye: 0, unknown: 0, empty: 0, text: 'Game status unavailable' };
-    if (!starters.length || !games?.length || typeof App?.NflContext?.gameStatus !== 'function') return result;
-    const normalize = team => { const key = String(team || '').trim().toUpperCase(); return ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[key] || key; };
-    const byTeam = new Map();
-    games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
-    starters.forEach(pid => {
-        if (!pid || String(pid) === '0') { result.empty++; return; }
-        const player = playersData?.[pid];
-        const game = player?.team ? byTeam.get(normalize(player.team)) : null;
-        const status = App.NflContext.gameStatus(game);
-        if (status === 'final') result.finished++;
-        else if (status === 'live' || status === 'upcoming') result.remaining++;
-        else if (!game && Number(App.NFLByes?.weekForPlayer?.(player, App.NFLByes?.seasonFor?.(league))) === Number(week)) result.bye++;
-        else result.unknown++;
-    });
-    if (!result.finished && !result.remaining && !result.bye && !result.empty) return result;
-    result.text = [`${result.finished} final`, `${result.remaining} left`, result.bye ? `${result.bye} bye` : null, result.unknown ? `${result.unknown} unknown` : null, result.empty ? `${result.empty} empty` : null].filter(Boolean).join(' · ');
-    return result;
+function leagueScoreboardStarterProgress(...args) {
+    return window.App.LeagueLiveScores.starterProgress(...args);
 }
-
-// Completed games contribute their earned total only. Unfinished players use
-// their full-game estimate, with live estimates never below points already earned.
-function leagueScoreboardProjectedFinish(row, playersData, games, league, week, projections, service) {
-    const total = service.rosterPoints(row);
-    if (total == null || !Number.isFinite(Number(total)) || !row?.starters?.length || !games?.length) return null;
-    const normalize = team => { const key = String(team || '').toUpperCase(); return ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[key] || key; };
-    const byTeam = new Map();
-    games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
-    let finish = Number(total);
-    for (const pid of row.starters) {
-        if (!pid || String(pid) === '0') continue;
-        const player = playersData?.[pid], game = byTeam.get(normalize(player?.team));
-        const status = window.App?.NflContext?.gameStatus?.(game) || 'unknown';
-        if (status === 'final') continue;
-        if (!game && Number(window.App?.NFLByes?.weekForPlayer?.(player, Number(league?.season))) === Number(week)) continue;
-        if (!['live', 'upcoming'].includes(status)) return null;
-        const projection = projections?.[pid];
-        const estimate = projection?.points?.median;
-        // A missing baseline also scores as zero in the projection engine; it
-        // must remain unavailable rather than silently predicting zero.
-        const statLine = projection?.statLine?.median;
-        const scoringStat = /^(?:pass_|rush_|rec(?:_|$)|fum_|def_|fg|xp|idp_|tkl|sack|int(?:_|$)|ff$|fr(?:_|$)|safe|blk|st_|pts_allow|yds_allow|bonus_)/;
-        const hasStats = statLine && Object.entries(statLine).some(([key, value]) => scoringStat.test(key) && value != null && value !== '' && Number.isFinite(Number(value)));
-        if (!hasStats || estimate == null || !Number.isFinite(Number(estimate))) return null;
-        const earned = service.playerPoints(row, pid);
-        if (status === 'live' && (earned == null || !Number.isFinite(Number(earned)))) return null;
-        const actual = earned == null ? 0 : Number(earned);
-        finish += Math.max(status === 'live' ? actual : -Infinity, Number(estimate)) - actual;
-    }
-    return finish;
+function leagueScoreboardProjectedFinish(...args) {
+    return window.App.LeagueLiveScores.projectedFinish(...args);
 }
 
 function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab, selectedWeek, onWeekChange, onRefresh, onOpenTeam, fullBoard = false, overview = false }) {
@@ -235,7 +187,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
                 <div className="lls-rank">{teamPoints(row) == null ? 'Awaiting score' : `Position ${ladder.findIndex(r => teamPoints(r) === teamPoints(row)) + 1}`}</div>
                 {team(row)}{(expanded || fullBoard) && <details><summary>Starter scores</summary>{starters(row)}{onOpenTeam && <button type="button" onClick={() => onOpenTeam(row.roster_id)}>Team profile →</button>}</details>}
             </article>) : visibleGroups.map((group, i) => <article className={`lls-card${group.teams.length === 2 ? ' lls-pair' : ''}${group.teams.some(own) ? ' lls-card-own' : ''}`} key={`${group.matchupId ?? 'unpaired'}-${i}`}>
-                {fullBoard && canOpenGameDay && group.teams.some(own) && setActiveTab ? <button type="button" className="mc-score-open" onClick={() => setActiveTab('lineup', { view: 'matchup' })} aria-label="Open your matchup in Game Day">{group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}<span className="mc-score-destination">Game Day →</span></button> : fullBoard ? <details className="mc-matchup-details"><summary>{group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}<span className="mc-score-destination">Players &amp; teams <span aria-hidden="true">⌄</span></span></summary>{group.teams.length === 2 ? matchupStarters(group.teams) : group.teams.map(row => <div key={row.roster_id}>{starters(row)}</div>)}{onOpenTeam && <div className="mc-context-actions">{group.teams.map(row => <button type="button" key={row.roster_id} onClick={() => onOpenTeam(row.roster_id)}>{ownerName(row)} →</button>)}</div>}</details> : group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}
+                {fullBoard && canOpenGameDay && (group.teams.some(own) || (group.teams.length === 2 && group.matchupId != null)) && setActiveTab ? <button type="button" className="mc-score-open" onClick={() => setActiveTab('lineup', { view: 'matchup', ...(group.teams.some(own) ? {} : { matchup: { leagueId: String(leagueId), season: String(currentLeague.season), week: Number(week), rosterIds: matchupTeams(group.teams).map(row => String(row.roster_id)) } }) })} aria-label={group.teams.some(own) ? 'Open your matchup in Game Day' : `Open ${matchupTeams(group.teams).map(ownerName).join(' vs ')} matchup in Game Day`}>{group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}<span className="mc-score-destination">Matchup →</span></button> : fullBoard ? <details className="mc-matchup-details"><summary>{group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}<span className="mc-score-destination">Players &amp; teams <span aria-hidden="true">⌄</span></span></summary>{group.teams.length === 2 ? matchupStarters(group.teams) : group.teams.map(row => <div key={row.roster_id}>{starters(row)}</div>)}{onOpenTeam && <div className="mc-context-actions">{group.teams.map(row => <button type="button" key={row.roster_id} onClick={() => onOpenTeam(row.roster_id)}>{ownerName(row)} →</button>)}</div>}</details> : group.teams.length === 2 ? matchupHeader(group.teams) : group.teams.map(team)}
                 {group.teams.length === 1 && <p className="lls-note">No opponent reported this week.</p>}
                 {expanded && !fullBoard && <details><summary>{group.teams.length === 2 ? 'Matchup breakdown' : 'Starter scores'}</summary>{group.teams.length === 2 ? matchupStarters(group.teams) : group.teams.map(row => <div key={row.roster_id}>{starters(row)}</div>)}</details>}
             </article>)}

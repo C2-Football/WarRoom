@@ -28,6 +28,61 @@
     function playerPoints(row, pid) {
         return number(row?.players_points?.[String(pid)]);
     }
+    function starterProgress(row, playersData, games, league, week) {
+        const App = root.App;
+        const starters = row?.starters || [];
+        const result = { finished: 0, remaining: 0, bye: 0, unknown: 0, empty: 0, text: 'Game status unavailable' };
+        if (!starters.length || !games?.length || typeof App?.NflContext?.gameStatus !== 'function') return result;
+        const normalize = team => { const key = String(team || '').trim().toUpperCase(); return ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[key] || key; };
+        const byTeam = new Map();
+        games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
+        starters.forEach(pid => {
+            if (!pid || String(pid) === '0') { result.empty++; return; }
+            const player = playersData?.[pid];
+            const game = player?.team ? byTeam.get(normalize(player.team)) : null;
+            const status = App.NflContext.gameStatus(game);
+            if (status === 'final') result.finished++;
+            else if (status === 'live' || status === 'upcoming') result.remaining++;
+            else if (!game && Number(App.NFLByes?.weekForPlayer?.(player, App.NFLByes?.seasonFor?.(league))) === Number(week)) result.bye++;
+            else result.unknown++;
+        });
+        if (!result.finished && !result.remaining && !result.bye && !result.empty) return result;
+        result.text = [`${result.finished} final`, `${result.remaining} left`, result.bye ? `${result.bye} bye` : null, result.unknown ? `${result.unknown} unknown` : null, result.empty ? `${result.empty} empty` : null].filter(Boolean).join(' · ');
+        return result;
+    }
+
+    // Completed games contribute their earned total only. Unfinished players use
+    // their full-game estimate, with live estimates never below points already earned.
+    function projectedFinish(row, playersData, games, league, week, projections, service = { rosterPoints, playerPoints }) {
+        const total = service.rosterPoints(row);
+        if (total == null || !Number.isFinite(Number(total)) || !row?.starters?.length || !games?.length) return null;
+        const normalize = team => { const key = String(team || '').toUpperCase(); return ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[key] || key; };
+        const byTeam = new Map();
+        games.forEach(game => { byTeam.set(normalize(game.home), game); byTeam.set(normalize(game.away), game); });
+        let finish = Number(total);
+        for (const pid of row.starters) {
+            if (!pid || String(pid) === '0') continue;
+            const player = playersData?.[pid], game = byTeam.get(normalize(player?.team));
+            const status = root.App?.NflContext?.gameStatus?.(game) || 'unknown';
+            if (status === 'final') continue;
+            if (!game && Number(root.App?.NFLByes?.weekForPlayer?.(player, Number(league?.season))) === Number(week)) continue;
+            if (!['live', 'upcoming'].includes(status)) return null;
+            const projection = projections?.[pid];
+            const estimate = projection?.points?.median;
+            // A missing baseline also scores as zero in the projection engine; it
+            // must remain unavailable rather than silently predicting zero.
+            const statLine = projection?.statLine?.median;
+            const scoringStat = /^(?:pass_|rush_|rec(?:_|$)|fum_|def_|fg|xp|idp_|tkl|sack|int(?:_|$)|ff$|fr(?:_|$)|safe|blk|st_|pts_allow|yds_allow|bonus_)/;
+            const hasStats = statLine && Object.entries(statLine).some(([key, value]) => scoringStat.test(key) && value != null && value !== '' && Number.isFinite(Number(value)));
+            if (!hasStats || estimate == null || !Number.isFinite(Number(estimate))) return null;
+            const earned = service.playerPoints(row, pid);
+            if (status === 'live' && (earned == null || !Number.isFinite(Number(earned)))) return null;
+            const actual = earned == null ? 0 : Number(earned);
+            finish += Math.max(status === 'live' ? actual : -Infinity, Number(estimate)) - actual;
+        }
+        return finish;
+    }
+
     function groupRows(rows) {
         const groups = new Map();
         (rows || []).forEach(row => {
@@ -126,5 +181,5 @@
         }, [key]);
         return { ...(result.key === key ? result.state : empty(week, isSupported)), refresh };
     }
-    App.LeagueLiveScores = { INTERVAL, supported, currentWeek, rosterPoints, playerPoints, groupRows, createClient, useScores };
+    App.LeagueLiveScores = { INTERVAL, supported, currentWeek, rosterPoints, playerPoints, starterProgress, projectedFinish, groupRows, createClient, useScores };
 })(typeof window !== 'undefined' ? window : globalThis);

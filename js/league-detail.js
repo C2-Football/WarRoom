@@ -369,9 +369,13 @@
         // Keep the entry view in the shell so it survives deferred module loading.
         // Ordinary navigation clears the intent; it never changes the default dock destination.
         const setActiveTab = React.useCallback((tab, options) => {
-            setGameDayEntry(tab === 'lineup' && options?.view === 'matchup' ? { scope: gameDayScope, view: 'matchup' } : null);
+            setGameDayEntry(tab === 'lineup' && options?.view === 'matchup' ? { scope: gameDayScope, view: 'matchup', matchup: options.matchup || null } : null);
             (onTabChange || setLocalActiveTab)(tab);
         }, [onTabChange, gameDayScope]);
+        // Browser history changes the controlled tab without calling the wrapper.
+        React.useEffect(() => {
+            setGameDayEntry(entry => activeTab !== 'lineup' || entry?.scope !== gameDayScope ? null : entry);
+        }, [activeTab, gameDayScope]);
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
         const [selectedPlayerPid, setSelectedPlayerPid] = useState(null);
         const [headerDraftInfo, setHeaderDraftInfo] = useState(null);
@@ -3479,6 +3483,8 @@
                     getAcquisitionInfo={getAcquisitionInfo}
                 /> : viewTab === 'lineup' ? <LineupTabLazy
                     initialView={gameDayEntry?.scope === gameDayScope ? gameDayEntry.view : 'week'}
+                    matchupTarget={gameDayEntry?.scope === gameDayScope ? gameDayEntry.matchup : null}
+                    getOwnerName={getOwnerName}
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
