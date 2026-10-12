@@ -55,6 +55,7 @@ function MyTeamTab({
   const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function' ? getAcquisitionInfoProp : () => ({ method: 'Unknown', date: '', cost: '' });
   const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
   const isChoppedRoster = resolvedLeagueSkin?.type === 'chopped' || !!window.App?.Chopped?.isChopped(currentLeague);
+  const seasonalRoster = isChoppedRoster || ['redraft', 'best_ball', 'dfs'].includes(resolvedLeagueSkin?.type);
   const byeSeason = window.App?.NFLByes?.seasonFor(currentLeague);
   const byeWeekNow = window.App?.WeeklyProj?.currentWeek?.() || 1;
   const byeLabel = p => window.App?.NFLByes?.label(p, byeSeason) || 'Bye —';
@@ -515,12 +516,12 @@ function MyTeamTab({
     // Pro-only (Q8): it marks/steers the app's verdict, unlike passive accents.
     const gmIsUntouchable = gmUntouchable.has(String(pid));
     const gmEngineNudge = !!(pa && /^GM plan/i.test(pa.reason || '') && /SELL/i.test(pa.action || ''));
-    const gmSellNudge = isPro && !gmIsUntouchable && (gmEngineNudge || (!/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age })));
+    const gmSellNudge = isPro && !gmIsUntouchable && (gmEngineNudge || (!pa && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age })));
     if (gmSellNudge && !/sell/i.test(rec)) { rec = 'Sell'; recAction = 'SELL'; }
     const gmIsTarget = gmTargetPositions.has(String(pos));
     const gmIsSellPos = gmSellPositions.has(String(pos));
 
-    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, recAction, curGP, meta, injury: p.injury_status, gmIsUntouchable, gmSellNudge, gmIsTarget, gmIsSellPos };
+    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, recAction, recReason: pa?.reason || (gmSellNudge ? 'Matches your GM plan’s position or age sell rule. Compare trade options before making a move.' : null), curGP, meta, injury: p.injury_status, gmIsUntouchable, gmSellNudge, gmIsTarget, gmIsSellPos };
   }).filter(Boolean);
 
   // Position-level PPG percentiles for color coding
@@ -613,14 +614,6 @@ function MyTeamTab({
     return { rule, status: rosterStatus, rosterCount, over, activeOver, taxiOver };
   }, [cutdownLeagueId, rows, cutdownTick]);
 
-  // Sleeper's taxi_years league setting caps who's taxi-eligible by years_exp;
-  // most leagues never touch it, so fall back to rookies + 2nd-year (<=1) —
-  // the common default dynasty leagues actually run.
-  const taxiEligibleCap = React.useMemo(() => {
-    const configured = Number(currentLeague?.settings?.taxi_years);
-    return Number.isFinite(configured) ? configured : 1;
-  }, [currentLeague]);
-
   // Real taxi-squad capacity from the league's own roster shape — distinct
   // from the GM's Office Cutdown Day rule (a separate, opt-in pending-limit
   // concept below). This is what lets the standing (no-cutdown-pending) taxi
@@ -631,43 +624,14 @@ function MyTeamTab({
     return (currentLeague?.roster_positions || []).filter(p => p === 'TAXI').length;
   }, [currentLeague]);
 
-  // Drop/taxi candidate PIDs: non-starters ranked by strategy-adjusted DHQ
-  // (_adjustedDhq — see GM Strategy scoring above), so a rebuild pushes aging
-  // vets to the top of the cut list even over a slightly-higher-DHQ prospect,
-  // and Win Now does the reverse. Untouchable players never enter the pool.
-  // Once a Cutdown rule is set, bench and taxi are ranked separately against
-  // cutdownInfo's per-pool overage; otherwise this is a standing "3 weakest
-  // bench spots" advisory that runs every time. Either way, a taxi-eligible
-  // active-side candidate is routed to taxiCandidatePids instead of a cut
-  // whenever real taxi room exists — he's still on your roster, just off the
-  // active cap.
-  const { dropCandidatePids, taxiCandidatePids } = React.useMemo(() => {
-    const benchPlayers = rows
-      .filter(r => !r.isStarter && !r.isIR && !r.isTaxi && !r.gmIsUntouchable)
-      .sort((a, b) => _adjustedDhq(a) - _adjustedDhq(b));
-    const taxiPlayers = rows.filter(r => r.isTaxi && !r.isIR).sort((a, b) => a.dhq - b.dhq);
-    const routeToTaxiOrCut = (candidates, roomStart) => {
-      let taxiRoomLeft = roomStart;
-      const cutPicks = [], taxiPicks = [];
-      candidates.forEach(r => {
-        const eligible = (r.p?.years_exp ?? 99) <= taxiEligibleCap;
-        if (eligible && taxiRoomLeft > 0) { taxiPicks.push(r.pid); taxiRoomLeft--; }
-        else cutPicks.push(r.pid);
-      });
-      return { cutPicks, taxiPicks };
-    };
-    if (cutdownInfo) {
-      const activeCandidates = benchPlayers.slice(0, cutdownInfo.activeOver > 0 ? cutdownInfo.activeOver : 3);
-      const roomStart = cutdownInfo.activeOver > 0 ? Math.max(0, (cutdownInfo.rule.taxiSlots || 0) - taxiPlayers.length) : 0;
-      const { cutPicks, taxiPicks } = routeToTaxiOrCut(activeCandidates, roomStart);
-      return {
-        dropCandidatePids: new Set([...cutPicks, ...taxiPlayers.slice(0, cutdownInfo.taxiOver).map(r => r.pid)]),
-        taxiCandidatePids: new Set(taxiPicks),
-      };
-    }
-    const { cutPicks, taxiPicks } = routeToTaxiOrCut(benchPlayers.slice(0, 3), Math.max(0, taxiSlotsCap - taxiPlayers.length));
-    return { dropCandidatePids: new Set(cutPicks), taxiCandidatePids: new Set(taxiPicks) };
-  }, [rows, cutdownInfo, taxiEligibleCap, taxiSlotsCap, _adjustedDhq]);
+  // Capacity creates a decision; being one of the lowest bench values does not.
+  const rosterReview = React.useMemo(() => window.App?.RosterReview?.candidates({
+    rows, league: currentLeague, roster: myRoster, leagueType: isChoppedRoster ? 'chopped' : resolvedLeagueSkin?.type,
+    cutdownInfo, showTaxi: skinFeatures.showTaxi,
+    adjustedValue: seasonalRoster ? r => r.dhq : _adjustedDhq,
+  }) || { dropCandidatePids: new Set(), taxiCandidatePids: new Set(), reasons: {}, activeOver: null, taxiOver: null },
+  [rows, currentLeague, myRoster, resolvedLeagueSkin?.type, isChoppedRoster, cutdownInfo, skinFeatures.showTaxi, seasonalRoster, _adjustedDhq]);
+  const { dropCandidatePids, taxiCandidatePids } = rosterReview;
 
   // Keeper recommendations — rows.dhq is already the keeper-blended value for
   // keeper leagues (see the dhq computation above), so ranking by it here
@@ -1064,13 +1028,14 @@ function MyTeamTab({
   // The user's own call for a player (manual verdict or synced tag), IGNORING
   // the engine's r.rec — null when they haven't weighed in.
   const _manualCall = (r) => verdictOverrides[r.pid] || _TAG_TO_LABEL[window._playerTags && window._playerTags[r.pid]] || null;
+  const _isPlannedDrop = r => isPro && /^(drop|cut)$/i.test(_manualCall(r) || '');
   // Owner ask 2026-07-12: the Review-roster drop list is a to-do of the app's
   // drop flags. Once the user tags a flagged player as anything that ISN'T
   // Drop/Cut (Hold/Stash/Untouchable/Watch…), they've decided to keep him —
   // the flag is resolved, so he leaves the list. No manual call = flag stands.
   // (SELL CALLS already self-resolves because its filter reads _effRec.)
   const _isActiveDrop = (r) => {
-    if (!isPro || !dropCandidatePids.has(r.pid) || dismissedDrops.has(r.pid)) return false;
+    if (!isPro || _isPlannedDrop(r) || !dropCandidatePids.has(r.pid) || dismissedDrops.has(r.pid)) return false;
     const manual = _manualCall(r);
     return !(manual && !/drop|cut/i.test(manual));
   };
@@ -1078,9 +1043,10 @@ function MyTeamTab({
   // (toggleTaxiTag), so the only other resolution to check for here is the
   // user overriding the suggestion by marking the player 'cut' instead.
   const _isActiveTaxiSuggestion = (r) => {
-    if (!isPro || !taxiCandidatePids.has(r.pid) || dismissedTaxiSuggestions.has(r.pid)) return false;
+    if (!isPro || _isPlannedDrop(r) || !taxiCandidatePids.has(r.pid) || dismissedTaxiSuggestions.has(r.pid)) return false;
     return window._playerTags?.[r.pid] !== 'cut';
   };
+  const _isActiveSell = r => isPro && !r.gmIsUntouchable && /sell/i.test(_effRec(r) || '') && !!(_manualCall(r) || r.recReason);
   // GM's Desk is a MULTI-YEAR roster-construction memo: its calls are framed by
   // the GM Strategy window (rebuild / compete / win-now) and it advises stashing
   // youth on taxi. None of that exists in a league that resets every season, so
@@ -1096,8 +1062,8 @@ function MyTeamTab({
   // definition as the chips and Review Roster strip so a mark or dismiss
   // anywhere resolves it everywhere.
   const gmDeskCalls = !isPro ? [] : [
-    ...rows.filter(_isActiveDrop).map(r => ({ r, verdict: 'CUT' })),
-    ...rows.filter(_isActiveTaxiSuggestion).map(r => ({ r, verdict: 'STASH' })),
+    ...rows.filter(_isActiveDrop).map(r => ({ r, verdict: 'CUT', reason: rosterReview.reasons[r.pid] })),
+    ...rows.filter(_isActiveTaxiSuggestion).map(r => ({ r, verdict: 'STASH', reason: rosterReview.reasons[r.pid] })),
   ].sort((a, b) => _adjustedDhq(a.r) - _adjustedDhq(b.r)).slice(0, 3);
   // Call → accent color, shared by chip + badge + picker + desktop action col.
   const _recColor = (rec) => {
@@ -1463,8 +1429,8 @@ function MyTeamTab({
                     </div>;
                   })()}
 
-                  {/* Career Stats Table */}
-                  <InlineCareerStats pid={r.pid} pos={r.pos} player={r.p} scoringSettings={currentLeague?.scoring_settings} statsData={statsData} hideHistoricalTrends={phone} />
+                  {/* The selected format determines the starting stat view. */}
+                  {window.RosterPlayerStats && <window.RosterPlayerStats pid={r.pid} pos={r.pos} player={r.p} playersData={playersData} currentLeague={currentLeague} statsData={statsData} leagueType={isChoppedRoster ? 'chopped' : resolvedLeagueSkin?.type} phone={phone} />}
 
                   {/* Desktop action buttons. Phone controls stay beside the player identity. */}
                   {!phone && <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1600,30 +1566,15 @@ function MyTeamTab({
     const injury = String(r.injury || '').trim();
     return [r.pos, r.p.team || 'FA', slot, injury.toLowerCase() === slot.toLowerCase() ? null : injury].filter(Boolean).join(' · ');
   };
-  // Verdict chip (Move-column analog) — Pro-only, exactly mirroring the
-  // desktop `delete ROSTER_COLUMNS.action` gate: free rows carry rec=null
-  // and render no chip even if a gate upstream is ever missed. Tones per
-  // the approved mockup: SELL amber / CORE-BUILD gold / rest calm blue.
-  const _phoneVerdictChip = (r) => {
-    const rec = _effRec(r);
-    if (!isPro || !rec) return null;
-    const isManual = !!verdictOverrides[r.pid];
-    const col = _recColor(rec);
-    return (
-      <span title={isManual ? 'Your call (tap the badge in the player card to change)' : (r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '')} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
-        {rec}{isManual ? ' *' : (r.gmSellNudge ? ' ·GM' : '')}
-      </span>
-    );
-  };
-
   // Compact roster facts, direct scope controls, and the existing view sheet.
   let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null, _reviewSheetEl = null;
   if (_phone) {
     const dropAlerts = isPro ? rows.filter(_isActiveDrop) : [];
     const taxiAlerts = isPro ? rows.filter(_isActiveTaxiSuggestion) : [];
+    const plannedDrops = rows.filter(_isPlannedDrop);
     const totalRosterAlerts = new Set([
-      ...dropAlerts, ...taxiAlerts,
-      ...(isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '')) : []),
+      ...dropAlerts, ...taxiAlerts, ...plannedDrops,
+      ...rows.filter(_isActiveSell),
     ].map(r => r.pid)).size;
     const activeCount = allPlayers.filter(pid => !reserve.has(pid) && !taxi.has(pid)).length;
     const activeCapacity = (currentLeague?.roster_positions || []).filter(slot => !['IR', 'RES', 'TAXI'].includes(slot)).length;
@@ -1650,7 +1601,7 @@ function MyTeamTab({
           <div><h2>Your roster</h2><span>{[recordLabel && recordLabel + ' record', allPlayers.length + ' players'].filter(Boolean).join(' · ')}</span></div>
           <div className="wr-roster-mobile-capacity"><strong>{activeCapacity > 0 ? activeCount + ' / ' + activeCapacity : activeCount}</strong><span>{openSpots === null ? 'Active players' : openSpots > 0 ? openSpots + ' open' : openSpots < 0 ? Math.abs(openSpots) + ' over limit' : 'Active roster full'}</span></div>
         </div>
-        {totalRosterAlerts > 0 && <button type="button" className="wr-roster-mobile-review" onClick={() => setReviewOpen(true)}><span>{totalRosterAlerts} roster {totalRosterAlerts === 1 ? 'decision' : 'decisions'}</span><span>Review <span aria-hidden="true">›</span></span></button>}
+        {(totalRosterAlerts > 0 || (isPro && seasonalRoster)) && <button type="button" className="wr-roster-mobile-review" onClick={() => setReviewOpen(true)}><span>{totalRosterAlerts > 0 ? totalRosterAlerts + ' roster ' + (totalRosterAlerts === 1 ? 'decision' : 'decisions') : 'Roster review'}</span><span>Review <span aria-hidden="true">›</span></span></button>}
       </section>
     );
     _phonePillsEl = (
@@ -1754,17 +1705,22 @@ function MyTeamTab({
       ),
     });
 
-    // Review sheet — the flagged players (drop alerts + sell calls) as a
-    // tappable list; tapping jumps to that player's dossier. Opened by the
-    // hero's Review CTA.
-    const _reviewRow = (r) => React.createElement(window.WR.AssetRow, {
+    // Each item shows the decision that put it here, rather than an unrelated
+    // weekly START/DEPTH badge. The explanation stays visible in the review.
+    const _reviewRow = (r, kind) => {
+      const label = { room: 'Compare', taxi: 'Taxi', planned: 'Your drop', sell: 'Review trade' }[kind];
+      const reason = kind === 'planned' ? 'You marked this player for a drop.'
+        : kind === 'sell' ? (_manualCall(r) ? 'You marked this player for a trade review.' : r.recReason)
+        : rosterReview.reasons[r.pid];
+      return React.createElement(window.WR.AssetRow, {
       key: 'rv-' + r.pid,
       pos: r.pos,
       pid: r.pid,
       name: getPlayerName(r.pid),
       tag: _phoneTagFor(r),
       slots: [_phoneSlotFor('dhq', r)],
-      verdict: _phoneVerdictChip(r),
+      verdict: React.createElement('span', { style: { fontSize: '.7rem', fontWeight: 700, color: 'var(--gold)' } }, label),
+      details: React.createElement('p', { style: { margin: 0, color: 'var(--silver)', fontSize: '.8rem', lineHeight: 1.45 } }, reason),
       title: 'Open ' + getPlayerName(r.pid),
       onClick: () => {
         setReviewOpen(false);
@@ -1774,18 +1730,22 @@ function MyTeamTab({
         setExpandedPid(r.pid);
         setTimeout(() => { try { const el = document.querySelector('[data-wr-roster-pid="' + r.pid + '"]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }, 90);
       },
-    });
+      });
+    };
     const _dropPidSet = new Set(dropAlerts.map(r => r.pid));
-    const _sellRows = isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '') && !_dropPidSet.has(r.pid)) : [];
+    const _sellRows = rows.filter(r => _isActiveSell(r) && !_dropPidSet.has(r.pid));
     const _reviewGroups = [];
-    if (dropAlerts.length) _reviewGroups.push({ label: 'Drop alerts', sub: String(dropAlerts.length), rows: dropAlerts.map(_reviewRow) });
-    if (taxiAlerts.length) _reviewGroups.push({ label: 'Taxi suggestions', sub: String(taxiAlerts.length), rows: taxiAlerts.map(_reviewRow) });
-    if (_sellRows.length) _reviewGroups.push({ label: 'Sell calls', sub: String(_sellRows.length), rows: _sellRows.map(_reviewRow) });
-    if (_reviewGroups.length) {
+    if (dropAlerts.length) _reviewGroups.push({ label: 'Make room', sub: String(dropAlerts.length), rows: dropAlerts.map(r => _reviewRow(r, 'room')) });
+    if (plannedDrops.length) _reviewGroups.push({ label: 'Your planned drops', sub: String(plannedDrops.length), rows: plannedDrops.map(r => _reviewRow(r, 'planned')) });
+    if (taxiAlerts.length) _reviewGroups.push({ label: 'Taxi moves', sub: String(taxiAlerts.length), rows: taxiAlerts.map(r => _reviewRow(r, 'taxi')) });
+    if (_sellRows.length) _reviewGroups.push({ label: 'Trade reviews', sub: String(_sellRows.length), rows: _sellRows.map(r => _reviewRow(r, 'sell')) });
+    if (_reviewGroups.length || (isPro && seasonalRoster)) {
       _reviewSheetEl = React.createElement(window.WR.Sheet, { open: reviewOpen, onClose: () => setReviewOpen(false), title: 'Review roster' },
         React.createElement('div', { style: { padding: '2px 12px 8px', display: 'flex', flexDirection: 'column', gap: '12px' } },
-          React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1.4 } }, 'Players flagged to move or cut. Tap one to open its full read.'),
-          React.createElement(window.WR.CardList, { groups: _reviewGroups })
+          React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1.4 } }, 'Roster limits and your saved calls. Tap a player to review the options.'),
+          _reviewGroups.length ? React.createElement(window.WR.CardList, { groups: _reviewGroups })
+            : React.createElement('p', { className: 'wr-roster-review-empty', style: { margin: 0, fontSize: '.9rem', color: 'var(--white)', lineHeight: 1.5 } }, rosterReview.activeOver === 0 && (!rows.some(r => r.isTaxi) || rosterReview.taxiOver === 0) ? 'No roster reductions are required. A low bench ranking alone is not a reason to drop a player.' : 'No drop recommendations are supported by the available roster information.'),
+          seasonalRoster && React.createElement('button', { type: 'button', className: 'gd-primary', onClick: () => { setReviewOpen(false); setActiveTab?.('fa'); }, style: { minHeight: 42, padding: '8px 12px', border: '1px solid var(--gold)', borderRadius: 8, color: 'var(--gold)', background: 'var(--acc-fill2)', font: 'inherit' } }, 'Compare waiver upgrades')
         )
       );
     }
@@ -1805,7 +1765,7 @@ function MyTeamTab({
         groups.push(g);
       }
       const isExpanded = expandedPid === r.pid;
-      const isDropFlag = isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid);
+      const isDropFlag = _isActiveDrop(r);
       const primaryStat = isChoppedRoster ? {
         label: 'Bye',
         value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
@@ -1949,8 +1909,8 @@ function MyTeamTab({
                       {/* GM Strategy: acquisition-focus / sell-candidate position accents */}
                       {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
-                      {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
-                      {isPro && taxiCandidatePids.has(r.pid) && !dismissedTaxiSuggestions.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissTaxiSuggestion(r.pid); }} title={(cutdownInfo ? 'Better stashed than cut — room on taxi under the pending cutdown' : 'Better stashed than cut — real taxi room open on your roster') + ' (click to dismiss)'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(52,152,219,0.2)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>TAXI?</span>}
+                      {_isActiveDrop(r) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title={(rosterReview.reasons[r.pid] || 'Compare this option to make required roster room.') + ' (click to dismiss)'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>ROOM?</span>}
+                      {_isActiveTaxiSuggestion(r) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissTaxiSuggestion(r.pid); }} title={(cutdownInfo ? 'Better stashed than cut — room on taxi under the pending cutdown' : 'Better stashed than cut — real taxi room open on your roster') + ' (click to dismiss)'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(52,152,219,0.2)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>TAXI?</span>}
                       </React.Fragment>}
                     </div>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'} · {byeLabel(r.p)}{!_phone && r.injury ? ' \u00B7 '+r.injury : ''}</div>
@@ -1986,7 +1946,7 @@ function MyTeamTab({
   const renderRosterReview = () => (() => {
         const dropAlerts = rows.filter(_isActiveDrop);
         const taxiAlerts = rows.filter(_isActiveTaxiSuggestion);
-        const sellCalls = rows.filter(r => /sell/i.test(_effRec(r) || '') && !dropAlerts.some(d => d.pid === r.pid));
+        const sellCalls = rows.filter(r => _isActiveSell(r) && !dropAlerts.some(d => d.pid === r.pid));
         if (!dropAlerts.length && !taxiAlerts.length && !sellCalls.length) return null;
         const chipColor = { DROP: 'var(--bad)', STASH: 'var(--k-3498db, #3498db)', SELL: 'var(--warn)' };
         const chipBorder = { DROP: 'rgba(231,76,60,0.4)', STASH: 'rgba(52,152,219,0.4)', SELL: 'rgba(240,165,0,0.35)' };
@@ -2289,12 +2249,12 @@ function MyTeamTab({
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.75, fontStyle: 'italic', marginTop: '-4px' }}>{window.WR.GmMode.getPreset(gm?.mode)?.tagline || ''}</div>
           {gmDeskCalls.length === 0 ? (
-            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.7, padding: '4px 0' }}>Bench is settled — no cuts or stashes flagged under {(gm?.modeLabel || 'Compete').toUpperCase()} mode.</div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.7, padding: '4px 0' }}>No capacity-based cuts or verified taxi moves to review.</div>
           ) : React.createElement(window.WR.CardList, {
             groups: [{
               label: 'Recommended Moves',
               sub: gmDeskCalls.length + ' call' + (gmDeskCalls.length === 1 ? '' : 's'),
-              rows: gmDeskCalls.map(({ r, verdict }) => {
+              rows: gmDeskCalls.map(({ r, verdict, reason }) => {
                 const col = verdict === 'CUT' ? 'var(--bad)' : 'var(--k-3498db, #3498db)';
                 return React.createElement(window.WR.AssetRow, {
                   key: 'desk-' + r.pid,
@@ -2309,7 +2269,7 @@ function MyTeamTab({
                   expanded: true,
                 }, (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>{_gmDeskReason(r, verdict)}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>{reason || _gmDeskReason(r, verdict)}</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => verdict === 'CUT' ? toggleCutTag(r.pid) : toggleTaxiTag(r.pid)} style={{ padding: '5px 11px', fontSize: '0.76rem', fontWeight: 700, fontFamily: 'var(--font-body)', background: wrAlpha(col, '14'), color: col, border: '1px solid ' + wrAlpha(col, '55'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>
                         {'✓ Confirm ' + (verdict === 'CUT' ? 'cut' : 'stash')}

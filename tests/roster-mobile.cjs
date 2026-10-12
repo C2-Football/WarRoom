@@ -33,12 +33,14 @@ const playersData = {
 const myRoster = { roster_id: 1, players: Object.keys(playersData), starters: ['starter'], reserve: ['ir'], taxi: ['taxi'], settings: { wins: 0, losses: 0, ties: 0 } };
 const root = {
   innerWidth: 390, addEventListener: noop, removeEventListener: noop,
+  RosterPlayerStats: 'roster-stats',
   wrIsPro: () => true,
   WR: { useViewport: () => ({ width, isPhone: width < 768 }), GmMode: { useGmEffects: () => ({ mode: 'compete', modeLabel: 'Compete' }), getPreset: () => ({}) }, AssetRow: 'asset-row', CardList: 'card-list', FilterSheet: 'filter-sheet', Sheet: 'sheet' },
   App: { calcRawPts: s => s.pts || 0, normPos: p => p, POS_COLORS: {}, LI: { playerScores: { starter: 8000, bench: 100, ir: 4000, taxi: 2000 } }, NFLByes: { seasonFor: () => 2026, label: () => 'Bye 7', rosterWeeks: () => ({ weeks: [], unknown: [] }) } },
 };
 const context = { window: root, React, console, InlineCareerStats: 'career', getPlayerAnnotation: () => null, wrAlpha: color => color, setTimeout: fn => fn(), requestAnimationFrame: noop, document: { querySelector: () => null }, localStorage: { getItem: () => null, setItem: noop } };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('js/shared/roster-review.js','utf8'),context);
 vm.runInContext(Babel.transform(fs.readFileSync('js/tabs/my-team.js', 'utf8'), { presets: ['react'] }).code, context);
 const props = {
   myRoster,
@@ -68,6 +70,7 @@ const content = find(tree, n => n.props.className === 'wr-roster-mobile-content'
 const contentNodes = walk(content).filter(n => typeof n === 'object');
 assert(contentNodes.some(n => n.props.className === 'wr-roster-mobile-players'), 'Mobile keeps the player list as the roster focus');
 assert(!text(tree).includes('GM’s Desk · Roster Review'), 'Mobile removes the desktop GM desk planning panel');
+assert(!find(tree,n=>n.props['data-wr-drop-flag']==='1'),'Under-capacity bench players do not become automatic drops');
 for (const [label, pid] of [['Starters1', 'starter'], ['Bench1', 'bench'], ['IR1', 'ir'], ['Taxi1', 'taxi']]) { click(label); assert.deepEqual(rowPids(), [pid], label + ' reflects real roster membership'); }
 click('All4');
 const search = find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster');
@@ -79,7 +82,8 @@ assert.equal(props.expandedPid, 'bench');
 assert(button('Build a trade') && button('Set lineup') && button('Ask Alex'), 'Primary player actions remain beside the expanded profile');
 assert(!button('Trade Finder') && !button('COLLAPSE') && !button('Back to roster ↑'), 'Mobile detail removes duplicate lower controls');
 assert(!text(tree).includes('Full player profile'), 'Mobile detail renders the player profile directly without a second disclosure');
-assert.equal(find(tree, n => n.type === 'career').props.hideHistoricalTrends, true, 'Mobile career stats hide historical trend charts');
+assert.equal(find(tree, n => n.type === 'roster-stats').props.phone, true, 'Mobile mounts the compact stats views');
+assert.equal(find(tree, n => n.type === 'roster-stats').props.leagueType, 'dynasty');
 assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-facts'), 'Mobile detail removes duplicate age and bye facts');
 assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-stats'), 'Mobile detail removes duplicate DHQ and scoring stats');
 const expandedBench = find(tree, n => n.props['data-wr-roster-pid'] === 'bench');
@@ -98,6 +102,7 @@ assert(find(tree, n => n.type === 'select' && n.props.title === 'Column preset')
 click('Full table'); click('Apply');
 assert.equal(rowPids().length, 0); assert(text(tree).includes('Roster Board'), 'Full table remains an explicit reachable layout');
 click('View & sort ⌄'); click('Player list'); click('Apply');
+root._playerTags={bench:'cut'}; render();
 click('Starters1');
 find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.onChange({ target: { value: 'missing' } }); render();
 const review = find(tree, n => n.props.className === 'wr-roster-mobile-review'); assert(review); review.props.onClick(); render();
@@ -114,11 +119,19 @@ console.log('PASS mobile roster: capacity, roster scopes, skin restrictions, sea
 // Redraft points must never inherit the value rating's units, order, or fallback.
 width = 390; slots = [];
 props.leagueSkin = {type:'redraft',features:{showWeeklyVerdict:true,showTaxi:true},vocabulary:{valueLabel:'Season value',valueShortLabel:'Season value'}};
+root._playerTags={};
+root.getPlayerAction=pid=>({label:pid==='bench'?'Start':'Depth',action:'START',reason:'Weekly lineup role'});
 props.myRoster = myRoster;
 props.currentLeague.roster_positions = ['WR','RB','BN'];
 props.rosterFilter = 'All'; props.rosterSort = {key:'dhq',dir:1}; props.visibleCols = ['dhq'];
 root.App.PlayerValue = {getRosPoints: pid => ({starter:180,bench:240,ir:0})[pid] ?? null};
 render();
+assert(!find(tree,n=>n.props['data-wr-drop-flag']==='1'),'Redraft START and DEPTH bench roles are not drop evidence');
+find(tree,n=>n.props.className==='wr-roster-mobile-review').props.onClick(); render();
+assert(text(tree).includes('No roster reductions are required'));
+assert(!find(tree,n=>n.type==='asset-row'&&n.props.key?.startsWith('rv-')),'No invented drop rows when no reduction is required');
+assert(button('Compare waiver upgrades'));
+const activeReview=find(tree,n=>n.type==='sheet'&&n.props.title==='Review roster'); activeReview.props.onClose(); render();
 click('View & sort ⌄');
 find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.onChange({target:{value:'none'}}); render();
 click('Apply');
@@ -132,3 +145,39 @@ assert.equal(pointCells.length,4);
 assert.deepEqual(pointCells.map(text),['240','180','0','—']);
 assert(pointCells.every(n=>!n.props.style.background),'point cells do not use rating tier colors');
 console.log('PASS redraft ROS point labels, point sorting, neutral colors, zero, and missing evidence');
+
+// Manual decisions keep their own reason and never compete with taxi advice.
+width=390; slots=[]; props.expandedPid='bench'; props.rosterFilter='All';
+props.leagueSkin={type:'dynasty',features:{showWeeklyVerdict:false,showTaxi:true,showFuturePicks:true}};
+props.currentLeague={...props.currentLeague,roster_positions:['WR','RB','BN'],settings:{taxi_slots:2,taxi_years:1}};
+playersData.bench.years_exp=0;
+root._playerTags={}; render();
+find(tree,n=>n.type==='button'&&n.props.title==='Tap to set your own call').props.onClick({stopPropagation:noop}); render();
+button('Drop').props.onClick({stopPropagation:noop}); render();
+find(tree,n=>n.props.className==='wr-roster-mobile-review').props.onClick(); render();
+const plannedList=find(tree,n=>n.type==='card-list');
+assert(plannedList.props.groups.some(group=>group.label==='Your planned drops'));
+assert(!plannedList.props.groups.some(group=>group.label==='Taxi moves'),'Manual Drop overrides a taxi suggestion even after the cut tag clears');
+const plannedRow=find(plannedList,n=>n.type==='asset-row');
+assert.equal(text(plannedRow.props.verdict),'Your drop');
+assert.equal(text(plannedRow.props.details),'You marked this player for a drop.');
+assert(!text(plannedRow.props.verdict).includes('Start'),'Review badge describes its decision rather than a weekly role');
+console.log('PASS roster review: no fabricated drops, manual decision reasons, and no contradictory taxi advice');
+
+slots=[]; props.expandedPid=null; root._playerTags={};
+props.currentLeague={...props.currentLeague,roster_positions:['WR'],settings:{taxi_slots:1,taxi_years:1}};
+render(); find(tree,n=>n.props.className==='wr-roster-mobile-review').props.onClick(); render();
+const roomList=find(tree,n=>n.type==='card-list');
+assert(roomList.props.groups.some(group=>group.label==='Make room'));
+const roomRow=find(roomList,n=>n.type==='asset-row');
+assert.equal(text(roomRow.props.verdict),'Compare');
+assert.match(text(roomRow.props.details),/Active roster is 1 over its 1-player limit/);
+assert(!text(roomRow.props.verdict).includes('Start'));
+console.log('PASS roster room-making review: action and visible reason match the real capacity requirement');
+
+slots=[]; props.currentLeague.roster_positions=['WR','RB','BN']; props.currentLeague.settings={taxi_slots:1};
+root.getPlayerAction=()=>({label:'Hold',action:'HOLD',reason:'Keep this player for lineup coverage.'});
+root.WR.GmMode.useGmEffects=()=>({mode:'compete',sellPositions:vm.runInContext('new Set(["RB"])',context)});
+props.leagueSkin={type:'redraft',features:{showWeeklyVerdict:true,showTaxi:false,showFuturePicks:false}};
+render(); find(tree,n=>n.props.className==='wr-roster-mobile-review').props.onClick(); render();
+assert(!find(tree,n=>n.type==='card-list'),'Local GM fallback cannot turn a real Hold read into a Sell badge with a Hold reason');

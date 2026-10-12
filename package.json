@@ -40,7 +40,7 @@
     "test:dashboard-league": "node tests/dashboard-league-layout.cjs && node tests/dashboard-league-data.cjs && node tests/dashboard-league-widgets.cjs",
     "test:fa-market": "node tests/fa-market-data.cjs && node tests/free-agency-roster.js && node tests/waiver-qb-role.cjs && node tests/waiver-evidence.cjs",
     "test:stats": "node tests/league-stats.js && node tests/league-stats-review.cjs && node tests/league-stats-tab.js && node tests/stats-mobile.cjs",
-    "test:mobile": "node tests/mission-overview.cjs && node tests/mobile-shell.cjs && node tests/mobile-dock-customization.cjs && node tests/gameday-mobile.cjs && node tests/season-odds-mobile.cjs && node tests/draft-phone-layout.cjs && node tests/draft-mobile-profile.cjs && node tests/player-card-fantasy.cjs && node tests/stats-mobile.cjs && node tests/league-live-scoreboard.js",
+    "test:mobile": "node tests/mission-overview.cjs && node tests/mobile-shell.cjs && node tests/mobile-dock-customization.cjs && node tests/gameday-mobile.cjs && node tests/roster-mobile.cjs && node --test tests/roster-review.cjs && node tests/roster-player-stats.cjs && node tests/season-odds-mobile.cjs && node tests/draft-phone-layout.cjs && node tests/draft-mobile-profile.cjs && node tests/player-card-fantasy.cjs && node tests/stats-mobile.cjs && node tests/league-live-scoreboard.js",
     "test:forecast-ledger": "node tests/forecast-ledger.cjs && node tests/forecast-archive.cjs && node tests/forecast-evaluation.cjs",
     "test:chopped": "node tests/chopped.js && node tests/chop-odds.js",
     "test:first-class": "node tests/first-class-modes.js",
