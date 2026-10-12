@@ -407,7 +407,7 @@
     // One side of the manual builder: owner select, added players/picks with value bars, a roster
     // picker, FAAB input, and a side total. ~29 deps (state, setters, helper closures, value fns)
     // passed via a tradeSideDeps bag. The new persistent-builder layout will refine this contract.
-    function TcTradeSide({ side, color, label, tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab, playerMetrics, changeOwner }) {
+    function TcTradeSide({ side, color, label, tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab, playerMetrics, changeOwner, compact = false }) {
                 const ids = tradeIds[side];
                 const pickIds = tradePickIds[side];
                 const faab = tradeFaab[side] || 0;
@@ -479,8 +479,8 @@
 
                         {/* Roster picker */}
                         {tradeOwner[side] && rosterPlayers !== null ? (
-                            <div>
-                                <input aria-label={'Filter ' + label.toLowerCase() + ' players and picks'} className="tc-ta-roster-filter" placeholder={`Filter ${rosterPlayers.length} players & ${ownerPicksList.length} picks...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
+                            <div className="tc-ta-roster-picker">
+                                <input aria-label={'Filter ' + label.toLowerCase() + ' players and picks'} className="tc-ta-roster-filter" placeholder={compact ? 'Find player or pick' : `Filter ${rosterPlayers.length} players & ${ownerPicksList.length} picks...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
                                 <div className="tc-ta-roster-list-tall">
                                     {rosterPlayers.length > 0 && (() => {
                                         const grouped = {};
@@ -493,7 +493,7 @@
                                                     return (
                                                         <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} role="button" tabIndex={added ? -1 : 0} aria-disabled={added} aria-label={'Add ' + r.name + ' to ' + label.toLowerCase()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!added) addPlayer(side, r.id); } }} onClick={() => !added && addPlayer(side, r.id)}>
                                                             <span className="tc-ta-pos-dot" style={{ background: posColor(r.pos) }} />
-                                                            <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
+                                                            <span className="tc-ta-asset-name" style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
                                                             {playerMetrics ? <span className="mc-trade-row-metrics">{playerMetrics(r.id).map(m => <span key={m.key} title={m.label}><small>{m.label}</small><b>{m.value}</b></span>)}</span> : <><span className="tc-ta-player-meta">{r.team}{r.usage ? ' · ' + r.usage : ''}</span><span className="tc-ta-player-val">{r.value > 0 ? r.value.toLocaleString() : '--'}</span></>}
                                                         </div>
                                                     );
@@ -527,15 +527,15 @@
                                     )}
                                 </div>
                             </div>
-                        ) : <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
+                        ) : <div className="tc-ta-owner-empty" style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
 
                         {/* FAAB */}
-                        <div style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
+                        <div className="tc-ta-faab" style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
                                 <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
                                 <input aria-label={label + ' FAAB amount'} type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
                                     style={{ width:70, background:'rgba(0,0,0,0.3)', border:'1px solid rgba(46,204,113,0.35)', color:'var(--win-green)', padding:'0.2rem 0.4rem', borderRadius:4, fontSize:'0.75rem', fontWeight:700, minHeight:'44px' }} />
-                                {faab > 0 && <button className="tc-ta-remove" onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>X</button>}
+                                {faab > 0 && <button type="button" className="tc-ta-remove" aria-label={'Remove FAAB from ' + label.toLowerCase()} onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>×</button>}
                             </div>
                             {faab > 0 && <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6, marginTop:'0.2rem' }}>= {Math.round(faab * FAAB_RATE).toLocaleString()} dynasty pts</div>}
                         </div>
@@ -2381,8 +2381,11 @@
             return (
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     {/* Left pane: PR-sorted owner list (phone: the whole surface until a pick) */}
-                    {showList && <div style={{ flex: phone ? '1 1 100%' : '0 0 240px', minWidth: phone ? 0 : '200px', maxHeight: phone ? 'none' : '78vh', overflowY: phone ? 'visible' : 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius, 10px)', padding: '6px' }}>
-                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>
+                    {showList && <div className={phone ? 'mc-owner-directory' : undefined} style={{ flex: phone ? '1 1 100%' : '0 0 240px', minWidth: phone ? 0 : '200px', maxHeight: phone ? 'none' : '78vh', overflowY: phone ? 'visible' : 'auto', background: phone ? 'rgba(15,27,46,.45)' : 'var(--off-black)', border: phone ? '1px solid var(--gx-edge, rgba(183,206,255,.24))' : '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius, 10px)', padding: phone ? 0 : '6px' }}>
+                        {phone ? <>
+                            <header className="mc-owner-directory-title"><h2>Owners</h2><span>Sorted by power · {sortedAssessments.length} teams</span></header>
+                            <div className="mc-owner-directory-head mc-owner-directory-grid" aria-hidden="true"><span>#</span><span>Owner / scouting</span><span>Record</span><span>Health</span></div>
+                        </> : <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>}
                         {sortedAssessments.map((a, idx) => {
                             const rid = a.rosterId;
                             const dnaKey = ownerDna[a.ownerId] || 'NONE';
@@ -2392,6 +2395,21 @@
                             const aiDna = typeof computeWeightedDNA === 'function' ? computeWeightedDNA(rid) : null;
                             const shownDnaKey = ownerDna[a.ownerId] || aiDna?.key || 'NONE';
                             const shownDna = DNA_TYPES[shownDnaKey] || DNA_TYPES.NONE;
+                            if (phone) {
+                                const hasSavedRead = Object.prototype.hasOwnProperty.call(savedOwnerDna, a.ownerId) && Object.prototype.hasOwnProperty.call(DNA_TYPES, savedOwnerDna[a.ownerId]);
+                                const dnaLabel = shownDnaKey === 'NONE' ? (hasSavedRead ? 'No label saved' : 'No read yet') : shownDna.label;
+                                const dnaSource = hasSavedRead ? 'Saved scouting' : shownDnaKey === 'NONE' ? 'Scouting unavailable' : 'Inferred from trade history';
+                                const record = a.wins != null && a.losses != null ? `${a.wins}–${a.losses}${a.ties ? '–' + a.ties : ''}` : '—';
+                                return <button type="button" className={'mc-owner-directory-row mc-owner-directory-grid' + (isMe ? ' is-my-team' : '')} data-dna={shownDnaKey} key={rid} onClick={() => setExpandedDnaOwner(rid)}>
+                                    <span className="mc-owner-directory-rank"><span className="mc-trade-sr-only">Power rank </span>{idx + 1}</span>
+                                    <span className="mc-owner-directory-identity">
+                                        <span className="mc-owner-directory-name"><strong>{a.ownerName}</strong>{isMe && <em>My team</em>}<span className="mc-owner-directory-dna" title={dnaSource}><span className="mc-trade-sr-only">{dnaSource}: </span>{dnaLabel}</span></span>
+                                        {a.teamName && a.teamName !== a.ownerName && <span className="mc-owner-directory-team">{a.teamName}</span>}
+                                    </span>
+                                    <span className="mc-owner-directory-stat"><span className="mc-trade-sr-only">Record </span>{record}</span>
+                                    <span className="mc-owner-directory-stat mc-owner-directory-health" style={{ color: a.healthScore == null ? undefined : a.tierColor }}><span className="mc-trade-sr-only">Roster health </span>{a.healthScore ?? '—'}</span>
+                                </button>;
+                            }
                             return (
                                 <button type="button" className="mc-owner-directory-row" data-dna={shownDnaKey} key={rid} onClick={() => setExpandedDnaOwner(rid)} style={{
                                     display: 'flex', alignItems: 'center', gap: '8px',
@@ -4793,16 +4811,15 @@
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '8px 14px 4px' }}>
                         {builderPlayerContext && <button className="mc-trade-player-back" type="button" onClick={() => { window.wrNavigateTab?.(builderPlayerContext.returnTab || 'myteam'); window.setTimeout(() => (window._wrSelectPlayer || window.openPlayerModal)?.(builderPlayerContext.pid), 100); }}>‹ {playersData[builderPlayerContext.pid]?.full_name || 'Player details'}</button>}
                         <div className="mc-trade-packages">{['A', 'B'].map(side => <div key={side}><header><span>{side === 'A' ? 'YOU SEND' : 'YOU GET'}</span><b>{(side === 'A' ? _verdict.totalA : _verdict.totalB).toLocaleString()}</b></header>{tradeIds[side].map(pid => <div key={pid}><span>{playersData[pid]?.full_name || String(pid)}</span><button type="button" aria-label={'Remove ' + (playersData[pid]?.full_name || pid) + ' from ' + side} onClick={() => _tsDeps.removePlayer(side, pid)}>×</button></div>)}{tradePickIds[side].map(id => { const p = id.split('-'); return <div key={id}><span>{formatPickLabel(p[1], Number(p[2]), p[3], p[4]?.startsWith('s') ? Number(p[4].slice(1)) : null)}</span><button type="button" aria-label={'Remove pick from ' + side} onClick={() => _tsDeps.removePick(side, id)}>×</button></div>; })}{tradeFaab[side] > 0 && <p>${tradeFaab[side]} FAAB</p>}{!tradeIds[side].length && !tradePickIds[side].length && !tradeFaab[side] && <p>Add players, picks or FAAB</p>}</div>)}</div>
-                        {window.WR?.PlayerMetrics?.Picker && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.5 }}>
-                            Values sourced from <strong style={{ color: 'var(--gold)' }}>{skinVocabulary.valueShortLabel || 'DHQ'} Engine</strong> ({valueSourceLabel}).
+                        <div className="mc-trade-builder-toolbar">
+                            {window.WR?.PlayerMetrics?.Picker && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}
+                            <small><strong>{skinVocabulary.valueShortLabel || 'DHQ'} Engine</strong> · {valueSourceLabel}</small>
                         </div>
-                        <nav className="wr-seg tc-phone-builder-nav" aria-label="Trade sides">
-                            <button type="button" aria-pressed={phBuilderSide === 'A'} className={phBuilderSide === 'A' ? 'is-on' : ''} onClick={() => setPhBuilderSide('A')}>You send · {_verdict.totalA.toLocaleString()}</button>
-                            <button type="button" aria-pressed={phBuilderSide === 'B'} className={phBuilderSide === 'B' ? 'is-on' : ''} onClick={() => setPhBuilderSide('B')}>You get · {_verdict.totalB.toLocaleString()}</button>
-                        </nav>
-                        <div className="tc-phone-builder-side">
-                            {TcTradeSide({ side: phBuilderSide, color: phBuilderSide === 'A' ? 'var(--k-5dade2, #5dade2)' : 'var(--k-e74c3c, #e74c3c)', label: phBuilderSide === 'A' ? 'YOU SEND' : 'YOU GET', ..._tsDeps })}
+                        <div className="mc-trade-builder-sides" aria-label="Both trade sides">
+                            {['A', 'B'].map(side => <section key={side} className={'mc-trade-builder-side mc-trade-builder-side-' + side.toLowerCase()} aria-label={side === 'A' ? 'Assets you send' : 'Assets you receive'}>
+                                <h3>{side === 'A' ? 'Add to send' : 'Add to receive'}</h3>
+                                {TcTradeSide({ side, color: side === 'A' ? 'var(--cx-accent, #b7ceff)' : 'var(--good)', label: side === 'A' ? 'YOU SEND' : 'YOU GET', ..._tsDeps, compact: true })}
+                            </section>)}
                         </div>
                         {_verdict.hasTrade
                             ? <React.Fragment>
