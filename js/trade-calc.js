@@ -997,7 +997,7 @@
         const [phFiltersOpen, setPhFiltersOpen] = useState(false);
         const [ownerSection, setOwnerSection] = useState('scout');
         const [phBuilderSide, setPhBuilderSide] = useState('A');   // WR.ActionBar → builder + verdict WR.Sheet
-        const [phFinderPanel, setPhFinderPanel] = useState(null);    // inline finder-control disclosure: null|'intent'|'partner'|'pos'|'sort'
+        const [phFinderPanel, setPhFinderPanel] = useState(null);    // inline finder-control disclosure: null|'search'|'intent'|'partner'|'pos'|'sort'
         const [phLogRowId, setPhLogRowId] = useState(null);          // Trade Log row → deal WR.Sheet
         // Rookie/prospect join — name→prospect index rebuilt when the rookie CSV lands
         // (timeRecomputeTs). getProspects/findProspect are defined eagerly at boot
@@ -4434,7 +4434,7 @@
 
             // ── Focus typeahead (sheet-inline list, not a dropdown) — same sources
             // and caps as the desktop typeahead: owners, my/league players, picks.
-            const phTypeQ = phFinderPanel === 'partner' ? finderSearch.trim().toLowerCase() : '';
+            const phTypeQ = phFinderPanel === 'search' ? finderSearch.trim().toLowerCase() : '';
             const phTypeGroups = [];
             if (phTypeQ.length >= 2) {
                 const matches = s => String(s || '').toLowerCase().includes(phTypeQ);
@@ -4474,6 +4474,21 @@
                 if (leaguePlayerRows.length) phTypeGroups.push({ label: 'League players', rows: leaguePlayerRows.slice(0, 6) });
                 if (pickRows.length) phTypeGroups.push({ label: 'Picks', rows: pickRows.slice(0, 5) });
             }
+            const phSearchResults = phTypeQ.length >= 2 && (
+                <div className="mc-trade-search-results" aria-label="Trade focus results">
+                    {phTypeGroups.length ? phTypeGroups.map(group => (
+                        <section key={group.label} aria-label={group.label}>
+                            <h3>{group.label}</h3>
+                            {group.rows.map(row => (
+                                <button key={row.key} type="button" onClick={() => phSelectFocus(row)}>
+                                    <span><strong>{row.label}</strong><small>{row.sub}</small></span>
+                                    {row.value != null && <b>{row.value.toLocaleString()}</b>}
+                                </button>
+                            ))}
+                        </section>
+                    )) : <p role="status">No players, picks or owners match “{finderSearch}”.</p>}
+                </div>
+            );
 
             // ── Asset browser (the min-width:720px desktop grid — the single worst
             // phone surface) re-poured as WR.AssetRows. Pro-only, exactly like the
@@ -4575,60 +4590,70 @@
                     }} />
             );
 
-            // ── Finder deal cards — TcDealCard re-poured for phone: send/receive
-            // as the approved two-column card, decision chips, same Load/Save/Why
-            // handlers (loadDealIntoBuilder / saveDeal / expandedDealId).
+            // Compact Mission Control target rows. Complete packages and evidence
+            // stay available without repeating the owner as each idea's headline.
             const phAssetLine = (asset) => {
                 const isPick = asset.type === 'pick';
                 return (
-                    <div key={isPick ? asset.id : (asset.pid || asset.id)} style={{ marginTop: '6px', minWidth: 0 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isPick ? asset.label : asset.name}</div>
-                        <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)' }}>{isPick ? 'PICK' : asset.pos} · {asset.value.toLocaleString()}</div>
+                    <div key={isPick ? asset.id : (asset.pid || asset.id)} className="mc-trade-value-asset">
+                        <strong>{isPick ? asset.label : asset.name}</strong>
+                        <small>{isPick ? 'Pick' : asset.pos} · {asset.value.toLocaleString()} DHQ</small>
                     </div>
                 );
             };
             const phDealSide = (label, players, picks, faab, total) => (
-                <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 600, color: 'var(--silver)', opacity: 0.65, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label} · {total.toLocaleString()}</div>
+                <div>
+                    <header>{label}<b>{total.toLocaleString()} DHQ</b></header>
                     {(players || []).map(phAssetLine)}
                     {(picks || []).map(phAssetLine)}
                     {faab > 0 ? (
-                        <div style={{ marginTop: '6px' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--win-green, #2ecc71)' }}>${faab} FAAB</div>
-                        </div>
+                        <div className="mc-trade-value-asset"><strong>${faab} FAAB</strong></div>
                     ) : null}
                 </div>
             );
-            const phDealCard = (deal, idx) => {
+            const phPackageNames = (players, picks, faab) => [
+                ...(players || []).map(asset => asset.name),
+                ...(picks || []).map(asset => asset.label),
+                ...(faab > 0 ? [`$${faab} FAAB`] : []),
+            ].join(' + ');
+            const phDealCard = (deal) => {
                 const likeColor = deal.likelihood >= finderActionFloor ? 'var(--good)' : deal.likelihood >= Math.max(55, finderActionFloor - 15) ? 'var(--warn)' : 'var(--bad)';
                 const deltaColor = deal.userGain >= 0 ? 'var(--good)' : 'var(--bad)';
                 const expanded = expandedDealId === deal.id;
+                const receiveLabel = phPackageNames(deal.receivePlayers, deal.receivePicks, deal.receiveFaab);
+                const detailId = 'mc-trade-why-' + encodeURIComponent(deal.id);
+                const receivePositions = [...new Set((deal.receivePlayers || []).map(asset => asset.pos))].filter(Boolean).join(' / ');
                 return (
-                    <div key={deal.id} style={{ background: 'var(--black, #121217)', border: '1px solid ' + (idx === 0 ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.07)'), borderRadius: 'var(--card-radius, 10px)', padding: '11px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto' }}>{deal.partnerName}</strong>
-                            {chip(deal.grade, deal.gradeColor || 'var(--gold)')}
-                            {chip(deal.likelihood + '%', likeColor)}
-                            {chip((deal.userGain >= 0 ? '+' : '') + Math.round(deal.userGain).toLocaleString(), deltaColor)}
+                    <article key={deal.id} className={'mc-trade-idea' + (expanded ? ' is-expanded' : '')} aria-label={'Trade for ' + receiveLabel + ' with ' + deal.partnerName}>
+                        <div className="mc-trade-target-grid">
+                            <div className="mc-trade-target-name">
+                                <strong>{receiveLabel}</strong>
+                                <small>{[receivePositions || ((deal.receivePicks || []).length ? 'Draft picks' : 'FAAB'), deal.partnerName].filter(Boolean).join(' · ')}</small>
+                            </div>
+                            <b className="mc-trade-grade" style={{ color: deal.gradeColor || 'var(--gold)' }}><span className="mc-trade-sr-only">Grade </span>{deal.grade}</b>
+                            <b style={{ color: likeColor }}><span className="mc-trade-sr-only">Estimated acceptance </span>{deal.likelihood}%</b>
+                            <b style={{ color: deltaColor }}><span className="mc-trade-sr-only">Value change </span>{(deal.userGain >= 0 ? '+' : '') + Math.round(deal.userGain).toLocaleString()}<span className="mc-trade-sr-only"> DHQ</span></b>
                         </div>
-                        <div style={{ display: 'flex', marginTop: '9px' }}>
-                            <div style={{ flex: 1, minWidth: 0, paddingRight: '11px' }}>{phDealSide('You get', deal.receivePlayers, deal.receivePicks, deal.receiveFaab, deal.totals.receive.total)}</div>
-                            <div style={{ flex: 1, minWidth: 0, paddingLeft: '11px', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>{phDealSide('You send', deal.givePlayers, deal.givePicks, deal.giveFaab, deal.totals.give.total)}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
-                            <button type="button" style={actBtn(true)} onClick={() => { loadDealIntoBuilder(deal); setPhBuilderOpen(true); }}>Load in Builder</button>
-                            <button type="button" style={actBtn(false)} onClick={() => saveDeal(deal)}>Save</button>
-                            <button type="button" style={{ ...actBtn(false), marginLeft: 'auto', border: 'none' }} onClick={() => setExpandedDealId(expanded ? null : deal.id)}>{expanded ? 'Why ▴' : 'Why ▾'}</button>
+                        <p className="mc-trade-send-line"><span>You send</span> {phPackageNames(deal.givePlayers, deal.givePicks, deal.giveFaab)}</p>
+                        <div className="mc-trade-idea-actions">
+                            <button type="button" className="mc-trade-build" aria-label={'Build trade for ' + receiveLabel} onClick={() => { loadDealIntoBuilder(deal); setPhBuilderOpen(true); }}>Build trade <span aria-hidden="true">↗</span></button>
+                            <button type="button" aria-label={'Save trade for ' + receiveLabel} onClick={() => saveDeal(deal)}>Save</button>
+                            <button type="button" aria-label={'Why trade ' + phPackageNames(deal.givePlayers, deal.givePicks, deal.giveFaab) + ' for ' + receiveLabel} aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedDealId(expanded ? null : deal.id)}>Why <span aria-hidden="true">{expanded ? '−' : '+'}</span></button>
                         </div>
                         {expanded && (
-                            <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 }}><b style={{ color: 'var(--white)' }}>Accept:</b> {deal.whyAccept}</div>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 }}><b style={{ color: 'var(--white)' }}>You:</b> {deal.whyYou}</div>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 }}><b style={{ color: 'var(--white)' }}>Swing:</b> {deal.swing}</div>
-                                {(deal.caution || []).length > 0 && <div style={{ fontSize: MICRO, color: 'var(--warn)', fontFamily: MONO }}>{deal.caution.slice(0, 3).join(' · ')}</div>}
+                            <div id={detailId} className="mc-trade-idea-detail">
+                                <p><b>Your roster:</b> {deal.whyYou}</p>
+                                <p><b>Owner fit:</b> {deal.whyAccept}</p>
+                                <p><b>Value read:</b> {deal.swing}</p>
+                                <div className="mc-trade-idea-values">
+                                    {phDealSide('You receive', deal.receivePlayers, deal.receivePicks, deal.receiveFaab, deal.totals.receive.total)}
+                                    {phDealSide('You send', deal.givePlayers, deal.givePicks, deal.giveFaab, deal.totals.give.total)}
+                                </div>
+                                {(deal.caution || []).length > 0 && <p className="mc-trade-caution">{deal.caution.slice(0, 3).join(' · ')}</p>}
+                                <small>Acceptance is an estimate based on roster fit and owner history.</small>
                             </div>
                         )}
-                    </div>
+                    </article>
                 );
             };
 
@@ -4735,36 +4760,6 @@
                                 );
                             })}
                         </div>
-                        <div>
-                            <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6, marginBottom: '5px' }}>Or target a player / pick</div>
-                            {focusR && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
-                                        <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
-                                        <strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusR.label}</strong>
-                                    </span>
-                                    <button type="button" onClick={phClearFocus} aria-label="Clear focus" style={{ ...actBtn(false), padding: '6px 12px' }}>✕ Clear</button>
-                                </div>
-                            )}
-                            <input type="text" value={finderSearch}
-                                onChange={e => setFinderSearch(e.target.value)}
-                                placeholder="Search players, picks, owners"
-                                aria-label="Finder focus search"
-                                style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
-                            {phTypeGroups.map(group => (
-                                <div key={group.label}>
-                                    <div style={{ padding: '8px 2px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
-                                    {group.rows.map(row => (
-                                        <button key={row.key} type="button" onClick={() => phSelectFocus(row)}
-                                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'transparent', color: 'var(--silver)', textAlign: 'left', padding: '7px 2px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
-                                            <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
-                                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
-                                            {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
-                                        </button>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 );
             } else if (_pro && rosterState.isUsable && phFinderPanel === 'pos') {
@@ -4861,8 +4856,16 @@
                             actionLabel: rosterState.isPreDraftRosterEmpty ? null : 'Refresh Data',
                             style: { minHeight: '180px' },
                         })}
-                        <div className="mc-trade-filter-bar"><span>{intentLabel} · {pinnedPartnerName}</span><button type="button" aria-expanded={phFiltersOpen} onClick={() => { setPhFiltersOpen(v => !v); setPhFinderPanel(null); }}>Filters</button></div>
+                        <div className="mc-trade-filter-bar">
+                            {_pro && rosterState.isUsable ? <input type="search" value={finderSearch} placeholder="Find a player, pick or owner" aria-label="Find a player, pick or owner"
+                                onFocus={() => { setPhFinderPanel('search'); setPhFiltersOpen(false); }}
+                                onChange={e => { setFinderSearch(e.target.value); setPhFinderPanel('search'); }}
+                                onKeyDown={e => { if (e.key === 'Escape') { setFinderSearch(''); setPhFinderPanel(null); } }} /> : <span>{intentLabel} · {pinnedPartnerName}</span>}
+                            <button type="button" aria-expanded={phFiltersOpen} onClick={() => { setPhFiltersOpen(v => !v); setPhFinderPanel(null); }}>Filters</button>
+                        </div>
+                        {_pro && rosterState.isUsable && phSearchResults}
                         {phFiltersOpen && <div className="mc-trade-filter-panel">{pillsEl}{finderPanelEl}</div>}
+                        {_pro && rosterState.isUsable && <div className="mc-trade-scope"><span>{intentLabel} · <b>{pinnedPartnerName}</b>{focusR && focusR.kind !== 'owner' ? ' · ' + focusR.label : ''}</span>{focusR && <button type="button" onClick={phClearFocus} aria-label="Clear trade focus">Clear ×</button>}</div>}
                         {_pro && rosterState.isUsable && (
                             (finderPoolOn && !scanArmed)
                                 ? <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -4871,14 +4874,16 @@
                                 </div>
                                 : finderDeals.length
                                 ? <React.Fragment>
-                                    {goldDiv('Trade ideas', finderPoolOn ? 'league-wide' : (selectedPartner ? 'vs ' + selectedPartner.ownerName : null))}
-                                    <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{finderActionable.length} actionable · {finderMoonshotCount} moonshot{finderMoonshotCount === 1 ? '' : 's'}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
+                                    <div className="mc-trade-finder-heading"><h2>Trade ideas</h2><span>{finderActionable.length} actionable · {finderMoonshotCount} moonshot{finderMoonshotCount === 1 ? '' : 's'}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</span></div>
                                 </React.Fragment>
                                 : (scanArmed && !finderPool.done
                                     ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>Scanning partner {finderPool.scanned}/{finderPool.total} — moves appear as the league scan runs.</div>
                                     : <div className="tc-dhq-empty">No package found for this intent — change the partner or focus in the finder controls.</div>)
                         )}
-                        {_pro && rosterState.isUsable && finderVisibleDeals.map(phDealCard)}
+                        {_pro && rosterState.isUsable && finderVisibleDeals.length > 0 && <div className="mc-trade-board" aria-label="Trade ideas">
+                            <div className="mc-trade-target-grid mc-trade-board-head" aria-hidden="true"><span>You receive</span><span>Grade</span><span>Est.<br />accept</span><span>Δ DHQ</span></div>
+                            {finderVisibleDeals.map(phDealCard)}
+                        </div>}
                         {_pro && rosterState.isUsable && (finderDeals.length > finderVisibleDeals.length || showAllDeals) && (
                             <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Hide moonshots' : finderMoonshotCount ? `Show ${finderMoonshotCount} moonshot${finderMoonshotCount === 1 ? '' : 's'}` : `Show ${finderDeals.length - finderVisibleDeals.length} more`}</button>
                         )}
