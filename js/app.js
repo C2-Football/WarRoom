@@ -1367,14 +1367,16 @@
                         key={selectedLeague.id}
                         league={selectedLeague}
                         onOpenAllWire={() => setAllWireOpen(true)}
-                        onBack={() => {
+                        onBack={(navigation) => {
                             if (window.App.NavigationGuard?.canNavigate() === false) return;
+                            const leagueSelector = navigation?.leagueSelector === true;
                             cancelLinkedLeagueRoute();
                             setSelectedLeague(null);
                             setActiveTab('dashboard');
+                            if (leagueSelector) setProMode(false);
                             // Return to Empire Dashboard if Pro mode was active, otherwise hub
                             if (!isNavigatingRef.current) {
-                                history.pushState({ view: proMode ? 'pro' : 'hub' }, '', routeUrl(''));
+                                history.pushState({ view: proMode && !leagueSelector ? 'pro' : 'hub' }, '', routeUrl(''));
                             }
                         }}
                         activeTab={activeTab}

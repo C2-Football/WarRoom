@@ -21,7 +21,7 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
     };
     vm.createContext(context);
     vm.runInContext(compiled, context);
-    context.props = { activeTab, workspaceOptions: { ...options, isPhone: phone }, onSelectTab: tab => selections.push(tab) };
+    context.props = { activeTab, workspaceOptions: { ...options, isPhone: phone }, onSelectTab: tab => selections.push(tab), onOpenLeagueOptions: () => selections.push('league-options') };
     vm.runInContext('props.navItems = buildLeagueNavItems(props.workspaceOptions)', context);
     const tree = vm.runInContext('PhoneDockInner(props)', context);
     const nodes = [];
@@ -78,3 +78,43 @@ for (const activeTab of ['myteam', 'alex']) {
 }
 assert.match(source, /viewTab !== 'dashboard' && \(!alexPhone \|\| viewTab === 'wire'\)/, 'Phones only mount Wire on its menu destination');
 console.log('PASS mobile titles: stable route labels and My Team phone focus');
+
+const leagueOptions = fixture({ open: true });
+leagueOptions.nodes.find(node => node.type === 'button' && leagueOptions.text(node) === 'League options').props.onClick();
+assert.deepEqual(leagueOptions.selections, ['league-options']);
+assert.equal(leagueOptions.updates.at(-1), false, 'Menu closes before the secondary league options sheet opens');
+
+const switchStart = source.indexOf('<button type="button" className="mc-league-switch"');
+const switchEnd = source.indexOf('</button>', switchStart) + '</button>'.length;
+const switchFixture = fixture();
+let switchOptions;
+Object.assign(switchFixture.context, { currentLeague: { name: 'Shootout League' }, phaseColor: 'green', onBack: options => { switchOptions = options; } });
+const switchButton = vm.runInContext(babel.transform('(' + source.slice(switchStart, switchEnd) + ')', { presets: ['react'] }).code, switchFixture.context);
+assert.equal(switchButton.type, 'button', 'Native button supports tap, Enter, and Space');
+assert.equal(switchButton.props['aria-label'], 'Switch league');
+switchButton.props.onClick();
+assert.equal(switchOptions.leagueSelector, true, 'Header directly requests the league selector');
+assert.doesNotMatch(source.slice(switchStart, switchEnd), /setPhHdrSheetOpen/);
+
+const appSource = fs.readFileSync('js/app.js', 'utf8');
+const backStart = appSource.indexOf('onBack={(navigation) => {') + 'onBack={'.length;
+const backEnd = appSource.indexOf('}}\n                        activeTab', backStart);
+assert(backStart > 0 && backEnd > backStart);
+for (const proMode of [false, true]) {
+    const actions = [], routes = [];
+    let allowed = true;
+    const navigationContext = vm.createContext({ window: { App: { NavigationGuard: { canNavigate: () => allowed } } }, proMode,
+        cancelLinkedLeagueRoute: () => actions.push('cancel'), setSelectedLeague: league => actions.push(['league', league]),
+        setActiveTab: tab => actions.push(['tab', tab]), setProMode: value => actions.push(['pro', value]),
+        isNavigatingRef: { current: false }, routeUrl: () => '/', history: { pushState: state => routes.push(state.view) },
+    });
+    const leaveLeague = vm.runInContext('(' + appSource.slice(backStart, backEnd + 1) + ')', navigationContext);
+    leaveLeague({ leagueSelector: true });
+    assert.deepEqual(routes, ['hub'], 'Explicit league switching opens the selector even from Empire mode');
+    assert(actions.some(action => Array.isArray(action) && action[0] === 'pro' && action[1] === false));
+    actions.length = 0; routes.length = 0; allowed = false;
+    leaveLeague({ leagueSelector: true });
+    assert.equal(actions.length, 0, 'League switching retains the existing unsaved-work guard');
+    assert.equal(routes.length, 0);
+}
+console.log('PASS phone league switch: direct selector, native keyboard control, retained options, and navigation guard');

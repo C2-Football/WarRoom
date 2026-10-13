@@ -257,7 +257,7 @@
         if (!vp.isPhone || vp.kbOpen) return null;
         return <PhoneDockInner {...props} />;
     }
-    function PhoneDockInner({ activeTab, navItems, onSelectTab, workspaceOptions }) {
+    function PhoneDockInner({ activeTab, navItems, onSelectTab, workspaceOptions, onOpenLeagueOptions }) {
         const [moreOpen, setMoreOpen] = useState(false);
         const W = window.WR.LeagueWorkspaces;
         const preferenceKey = 'wr-phone-dock-v1:' + (workspaceOptions?.accountId || 'local') + ':' + (workspaceOptions?.leagueType || 'unknown');
@@ -316,6 +316,7 @@
             {moreOpen && <window.WR.Sheet open={true} title="Your command center" onClose={() => setMoreOpen(false)}>
                 <div id="wr-phone-more-menu" className="wr-phone-more-menu">
                     <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('wr:mission-alex-open')); }}>Chat with Alex</button>
+                    {onOpenLeagueOptions && <button type="button" onClick={() => { setMoreOpen(false); onOpenLeagueOptions(); }}>League options</button>}
                     <button type="button" onClick={() => setEditingDock(v => !v)} aria-expanded={editingDock}>Customize bottom menu</button>
                     {editingDock && <section aria-label="Customize bottom menu">
                         <p>Choose up to four destinations. The top-left menu always opens every view. Saved for this account and league format.</p>
@@ -1481,8 +1482,8 @@
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
         const [sidebarOpen, setSidebarOpen] = useState(false);
-        // One-row phone header (owner ruling 2026-07-09): title + SWITCH only;
-        // the badges/draft-clock/refresh demote into this sheet. The compact
+        // The league title opens the selector directly. Season, status, and
+        // refresh controls remain in League options in the phone menu. The compact
         // header (and the hamburger removal that rides with it) engages only
         // while the sheet primitive is actually live, so a kit-load failure
         // falls back to the stacked header + hamburger instead of stranding nav.
@@ -3040,8 +3041,8 @@
                     // bar in installed-PWA. env()=0 off-device → desktop identical.
                     : { position: 'relative', marginBottom: '0', paddingTop: 'calc(0.6rem + var(--sat, 0px))', paddingBottom: '0.6rem' }}>
                     {phoneHdrKit ? (() => {
-                        // ── ONE-ROW PHONE HEADER ── phase dot + name (tap = league
-                        // sheet) + SWITCH. Everything else lives in the sheet below.
+                        // ── ONE-ROW PHONE HEADER ── tap the name to switch leagues.
+                        // Secondary controls live in the menu's League options.
                         const gm = (leagueSkin?.type !== 'redraft') ? window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete') : null;
                         const phaseColor = (leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown') ? leagueSkin.phaseMeta.color : 'var(--text-muted)';
                         const rowSt = { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '48px', padding: '2px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', background: 'transparent', border: 'none', width: '100%', textAlign: 'left' };
@@ -3070,18 +3071,18 @@
                                     <button type="button" className="mc-menu-trigger" aria-label="Open all views" aria-haspopup="dialog" onClick={() => window.dispatchEvent(new CustomEvent('wr:phone-menu'))}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                                     </button>
-                                    <div role="button" tabIndex={0} aria-label="League status and actions"
-                                        onClick={() => setPhHdrSheetOpen(true)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhHdrSheetOpen(true); } }}
-                                        style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
+                                    <button type="button" className="mc-league-switch" aria-label="Switch league"
+                                        onClick={() => onBack({ leagueSelector: true })}
+                                        style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px', padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit' }}>
                                         <span aria-hidden="true" className="mc-v8-phase-dot" style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: phaseColor }} />
                                         <span className="mc-v8-league-identity"><small>DYNASTY HQ</small><strong>{currentLeague.name}</strong></span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
-                                    </div>
+                                    </button>
                                     <button type="button" className="mc-alex-trigger" onClick={() => window.dispatchEvent(new CustomEvent('wr:mission-alex-open'))} aria-label="Chat with Alex"><span aria-hidden="true">✦</span> Alex</button>
                                 </div>
-                                {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
+                                {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title="League options">
                                     <div style={{ padding: '2px 16px 8px' }}>
+                                        <p style={{ margin: '0 0 8px', color: 'var(--silver)', fontSize: '.875rem' }}>{currentLeague.name}</p>
                                         {gm && leagueSkin?.type !== 'chopped' && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); if (setActiveTab) setActiveTab('strategy'); }}>
                                             <span style={rowLbl}>GM mode</span>
                                             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor, flex: 'none' }} />
@@ -3114,7 +3115,7 @@
                                             <span style={rowLbl}>Phase</span>
                                             <span style={{ ...rowVal, color: leagueSkin.phaseMeta.color }}>{leagueSkin.phaseMeta.label}</span>
                                         </div>}
-                                        <button style={rowSt} onClick={onBack}><span style={rowVal}>Switch league</span></button>
+                                        <button style={rowSt} onClick={() => onBack({ leagueSelector: true })}><span style={rowVal}>Switch league</span></button>
                                         <button style={rowSt} onClick={doRefresh} disabled={!!loadStage}><span style={rowVal}>{loadStage ? 'Refreshing…' : 'Refresh data'}</span></button>
                                         {window.WR?.Feedback?.reportBug && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.reportBug(); }}><span style={rowVal}>Report a bug</span></button>}
                                         {window.WR?.Feedback?.openBoard && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); window.WR.Feedback.openBoard(); }}><span style={rowVal}>Feature requests</span></button>}
@@ -3629,6 +3630,7 @@
                 activeTab={viewTab}
                 navItems={navItems}
                 workspaceOptions={workspaceOptions}
+                onOpenLeagueOptions={() => setPhHdrSheetOpen(true)}
                 onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
             />
 

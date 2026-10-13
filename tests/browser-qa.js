@@ -197,7 +197,7 @@ async function main() {
     }, USER);
     await page.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
     // One-row phone header (owner ruling 2026-07-09): at ≤767 the hamburger is
-    // REMOVED (dock covers nav; Refresh lives in the header sheet) and the
+    // REMOVED (dock covers nav; Refresh lives in Menu > League options) and the
     // compact .wr-phone-lhdr row renders instead. The drawer + hamburger remain
     // the contract for the 768-1023 tablet tier only.
     await page.locator('.wr-phone-lhdr').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
@@ -210,13 +210,18 @@ async function main() {
       failures.push('dashboard-shell@390: one-row phone header not found');
     } else {
       await page.waitForFunction(() => window.App?.LI_LOADED === true, null, { timeout: 60000 });
-      await page.getByRole('button', { name: 'League status and actions', exact: true }).click({ timeout: 15000 }).catch(async err => {
+      await page.getByRole('button', { name: 'Switch league', exact: true }).click({ timeout: 15000 }).catch(async err => {
         const diagnostic = await page.evaluate(() => ({ url: location.href, viewport: window.WR?.viewport?.(), sheet: typeof window.WR?.Sheet, header: document.querySelector('.wr-phone-lhdr')?.outerHTML, text: document.body.innerText.slice(0, 1200) }));
         failures.push(`dashboard-shell@390: phone header tap failed (${err.message}); ${JSON.stringify(diagnostic)}`);
       });
-      await page.waitForTimeout(250);
+      await page.locator('.hub-franchise-picker').waitFor({ state: 'visible', timeout: 15000 });
+      await page.locator('.hub-league-card').first().waitFor({ state: 'visible', timeout: 15000 });
+      if (await page.locator('.wr-sheet').count()) failures.push('dashboard-shell@390: league title must open selector without a status sheet');
+      await page.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await page.getByRole('button', { name: 'Open all views', exact: true }).click({ timeout: 15000 });
+      await page.locator('#wr-phone-more-menu').getByRole('button', { name: 'League options', exact: true }).click({ timeout: 15000 });
       const sheet = await page.locator('.wr-sheet').count();
-      if (sheet !== 1) failures.push('dashboard-shell@390: header league sheet did not open');
+      if (sheet !== 1) failures.push('dashboard-shell@390: league options sheet did not open from menu');
       const closeBtn = page.locator('.wr-sheet [aria-label="Close"]');
       if (await closeBtn.count()) await closeBtn.click({ timeout: 4000 }).catch(() => {});
       await page.waitForTimeout(150);

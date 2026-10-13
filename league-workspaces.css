@@ -35,7 +35,7 @@
     .wr-mobile-workspace option { background: var(--black); color: var(--white); font-size: 16px; }
     .wr-mobile-help { min-height: 44px; min-width: 44px; padding: 8px 0 8px 8px; color: var(--silver); background: transparent; border: 0; font: 500 14px var(--font-body); cursor: pointer; }
     .wr-phone-lhdr .wr-league-switch { min-height: 44px !important; font: 500 14px var(--font-body) !important; letter-spacing: 0 !important; text-transform: none !important; }
-    .wr-phone-lhdr [aria-label="League status and actions"] > span:nth-child(2) { font-family: var(--font-body) !important; font-size: 16px !important; letter-spacing: 0 !important; }
+    .wr-phone-lhdr .mc-league-switch > span:nth-child(2) { font-family: var(--font-body) !important; font-size: 16px !important; letter-spacing: 0 !important; }
     .wr-phone-dock { border-top-color: var(--ov-6, rgba(255,255,255,.1)); box-shadow: none; }
     .wr-phone-dock .wr-dock-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; padding-inline: 4px; overflow: visible; mask-image: none; -webkit-mask-image: none; }
     .wr-phone-dock .wr-dock-chip { min-width: 0; width: 100%; padding: 7px 2px; gap: 6px; border-top: 0; letter-spacing: 0; }
