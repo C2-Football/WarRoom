@@ -218,11 +218,14 @@ function WoeppelCupPanel(props) {
         {error && <p className="cup-message" role="alert">{error}</p>}{notice && <p className="cup-message" role="status">{notice}</p>}
         {!sample && (connection || (access && !access.canManage)) && <div className="cup-connection"><strong>{connection ? 'Explore now. Connect to save.' : 'Build a Cup your commissioner can run.'}</strong><span>{connection ? 'Format previews work here. Shared setup needs a verified commissioner account.' : 'Everyone can try the formats. Your commissioner starts the shared league tournament.'}</span>{connection && <details><summary>Connection details</summary><p>{connection}</p><a href={window.location?.pathname?.includes('/dist-preview/') ? '../login.html' : 'login.html'}>Open sign-in</a></details>}</div>}
         {!active && <>
-            <div className="cup-section-heading"><h3>CHOOSE YOUR COMPETITION</h3><span>Uses your league’s weekly fantasy scores</span></div>
-            <div className="cup-format-grid" role="radiogroup" aria-label="Cup format">
-                {formats.map(f => <button type="button" role="radio" aria-checked={draft.format === f.id} className={'cup-format-card' + (draft.format === f.id ? ' is-selected' : '')} key={f.id} onClick={() => chooseFormat(f.id)}>
-                    <span className="cup-format-icon" aria-hidden="true">{icons[f.id]}</span><span className="cup-format-copy"><strong>{f.name}</strong><span>{f.tagline}</span><small>{f.description}</small></span><span className="cup-format-check" aria-hidden="true">{draft.format === f.id ? '✓' : '○'}</span>
-                </button>)}
+            <div className="cup-format-chooser">
+                <div className="cup-section-heading"><h3>CHOOSE YOUR COMPETITION</h3><span>Uses your league’s weekly fantasy scores</span></div>
+                <div className="cup-format-grid" role="radiogroup" aria-label="Cup format">
+                    {formats.map(f => <button type="button" role="radio" aria-checked={draft.format === f.id} className={'cup-format-card' + (draft.format === f.id ? ' is-selected' : '')} key={f.id} onClick={() => chooseFormat(f.id)}>
+                        <span className="cup-format-icon" aria-hidden="true">{icons[f.id]}</span><span className="cup-format-copy"><strong>{f.name}</strong><span>{f.tagline}</span><small>{f.description}</small></span><span className="cup-format-check" aria-hidden="true">{draft.format === f.id ? '✓' : '○'}</span>
+                    </button>)}
+                </div>
+                <div className="cup-format-detail" aria-live="polite"><span className="cup-eyebrow">Selected · {chosen.name}</span><span>{formatWeeks(draft)} · {draft.teams.length} teams</span><p>{chosen.description}</p></div>
             </div>
             <div className="cup-plan-layout">
                 <form className="cup-plan-form" onSubmit={e => { e.preventDefault(); if (!saved?.locked) save({ ...draft, enabled: true, locked: true }); }}>

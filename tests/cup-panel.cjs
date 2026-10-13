@@ -72,6 +72,8 @@ function harness({ canManage = false, saved = null, deny = false } = {}) {
     const commissioner = harness({ canManage: true }); await commissioner.flush();
     await commissioner.choose('knockout');
     assert.equal(writes(commissioner).length, 0, 'Commissioner selection remains a draft');
+    const selectedDetail = find(commissioner.tree, node => node.props?.className === 'cup-format-detail');
+    assert(selectedDetail && text(selectedDetail).includes('seeded elimination bracket'), 'Selected format keeps its explanation available for the compact phone chooser');
     assert(button(commissioner.tree, 'Start league Cup'));
     find(commissioner.tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} }); await commissioner.flush();
     assert.equal(writes(commissioner).length, 1, 'Explicit Start saves once');

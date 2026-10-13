@@ -420,6 +420,13 @@ function LeagueCentralTab({
     const centralRef = React.useRef(null);
     const [innerTab, setInnerTab] = React.useState(() => dashboardNav.peek(navigationLeagueId)?.section || (homeMerged && isChopped ? 'kpis' : 'league'));
     const [phoneLeagueView, setPhoneLeagueView] = React.useState('standings');
+    React.useEffect(() => {
+        let hidden = false;
+        try { hidden = window.App?.WrStorage?.get?.(cupVisibilityKey, false) === true; } catch (_) { /* use the default view */ }
+        setPhoneCupHidden(hidden);
+        setLeagueViewMenuOpen(false);
+        if (isPhone && hidden) { setInnerTab('league'); setPhoneLeagueView('standings'); }
+    }, [cupVisibilityKey, isPhone]);
     const [navigationIntent, setNavigationIntent] = React.useState(null);
     React.useEffect(() => {
         const apply = () => {
@@ -437,7 +444,7 @@ function LeagueCentralTab({
     React.useEffect(() => {
         if (!navigationIntent) return;
         const frame = requestAnimationFrame(() => {
-            const selector = { scoreboard: '[aria-label="League scoreboard"]', standings: '#league-central-standings', cup: '.cup-panel' }[navigationIntent.anchor];
+            const selector = { scoreboard: '.lls', standings: isPhone && isChopped ? '.mc-chop-panel' : '#league-central-standings', cup: '.cup-panel' }[navigationIntent.anchor];
             const target = centralRef.current?.querySelector(selector);
             if (target) {
                 target.style.scrollMarginTop = isPhone ? '150px' : '115px';
@@ -446,7 +453,7 @@ function LeagueCentralTab({
             setNavigationIntent(null);
         });
         return () => cancelAnimationFrame(frame);
-    }, [navigationIntent, innerTab, isPhone]);
+    }, [navigationIntent, innerTab, isPhone, isChopped]);
     const BRIEF_KEY = 'wr_cc_brief_collapsed';
     const [briefCollapsed, setBriefCollapsed] = React.useState(
         () => window.App?.WrStorage?.get?.(BRIEF_KEY, false) === true
@@ -647,7 +654,7 @@ function LeagueCentralTab({
 
             {isPhone && <React.Fragment>
                 <nav className="mc-section-tabs" aria-label="League views">
-                    {[['standings', 'Standings'], ['scores', 'Scores'], ['stats', 'Leaders']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}
+                    {[['standings', 'Standings'], ['scores', 'Scores']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}
                     {cupVisible && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => setInnerTab('cup')}>Cup</button>}
                     <button type="button" className="mc-league-view-menu" aria-label="Customize League views" aria-expanded={leagueViewMenuOpen} onClick={() => setLeagueViewMenuOpen(open => !open)}>•••</button>
                 </nav>
@@ -695,17 +702,16 @@ function LeagueCentralTab({
             )}
 
             {cupVisible && innerTab === 'cup' ? <React.Fragment>
-                {isPhone && <div className="mc-cup-view-actions"><button type="button" onClick={() => setCupVisible(false)}>Hide Cup from this device</button></div>}
                 {React.createElement(window.WoeppelCupPanel, { key: leagueId + ':' + season, league: currentLeague, getOwnerName: _getOwnerName, myRoster })}
             </React.Fragment> : homeMerged && innerTab === 'kpis' ? (
                 <div style={{ margin: isPhone ? '0 -14px' : '0 -24px' }}>{kpiSlot}</div>
             ) : (
             <React.Fragment>
-            {isChopped && window.WrChopBlock && <window.WrChopBlock active currentLeague={currentLeague} myRoster={myRoster} />}
+            {isChopped && (!isPhone || phoneLeagueView === 'standings') && window.WrChopBlock && <window.WrChopBlock active phone={isPhone} currentLeague={currentLeague} myRoster={myRoster} />}
             {/* The two things that matter: Standings | Stats */}
             <div id="league-central-standings" className={isPhone ? `mc-league-content mc-league-${phoneLeagueView}` : undefined} style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0,1fr)' : 'minmax(0,1.32fr) minmax(0,1fr)', gap: '14px', alignItems: 'start' }}>
 
-                {renderPanel({ title: "Standings", meta: stMode === 'odds' ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools">{!noPlayoffs && <select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select>}{hasDivisions && stMode === 'table' && <select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">Overall</option><option value="division">By division</option></select>}</div> :
+                {(!isPhone || !isChopped) && renderPanel({ title: "Standings", meta: stMode === 'odds' ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools">{!noPlayoffs && <select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select>}{hasDivisions && stMode === 'table' && <select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">Overall</option><option value="division">By division</option></select>}</div> :
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {hasDivisions && stMode === 'table' && (
                                 <div style={segWrap} role="group" aria-label="Standings grouping">
@@ -790,7 +796,7 @@ function LeagueCentralTab({
                     </div>
                 </> })}
 
-                <div className="mc-league-leaders">
+                {!isPhone && <div className="mc-league-leaders">
                 {renderPanel({ title: "Stat leaders", right: <div style={segWrap}>
                             <button aria-pressed={statScope === 'week'} onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
                                 {leaders.week ? 'Week ' + leaders.week : 'Week'}
@@ -847,7 +853,7 @@ function LeagueCentralTab({
                         </div>
                     )}
                 </> })}
-                </div>
+                </div>}
             </div>
             </React.Fragment>
             )}

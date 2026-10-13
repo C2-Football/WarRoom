@@ -16,6 +16,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     const defaultWeek = service.currentWeek(currentLeague);
     const [selection, setSelection] = React.useState(null);
     const [expanded, setExpanded] = React.useState(false);
+    const [starterSelection, setStarterSelection] = React.useState(null);
     const week = selectedWeek != null ? selectedWeek : selection?.leagueId === leagueId ? selection.week : defaultWeek;
     const liveSeason = Number(window.S?.nflState?.season) || new Date().getFullYear();
     const canOpenGameDay = Number(week) === Number(defaultWeek) && (!Number(currentLeague?.season) || Number(currentLeague.season) === liveSeason);
@@ -78,7 +79,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         const roster = rosterFor(row);
         return !roster || !window.App?.Chopped?.isAliveInWeek || window.App.Chopped.isAliveInWeek(roster, week);
     }).sort((a, b) => (teamPoints(b) ?? -Infinity) - (teamPoints(a) ?? -Infinity));
-    const compactChop = chopped && overview && isPhone;
+    const compactChop = chopped && isPhone;
     // A missing weekly row stays unknown; current roster contents cannot stand
     // in for the provider's selected-week score or starters.
     const raceRows = compactChop ? [
@@ -92,10 +93,10 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     };
     raceRows.sort((a, b) => {
         const left = racePoints(a), right = racePoints(b);
-        return left == null ? right == null ? 0 : 1 : right == null ? -1 : left - right;
+        return left == null ? right == null ? 0 : 1 : right == null ? -1 : right - left;
     });
     const scoredRaceRows = raceRows.filter(row => racePoints(row) != null);
-    const lowestRaceScore = scoredRaceRows.length ? racePoints(scoredRaceRows[0]) : null;
+    const lowestRaceScore = scoredRaceRows.length ? racePoints(scoredRaceRows[scoredRaceRows.length - 1]) : null;
     const lowestRaceCount = scoredRaceRows.filter(row => racePoints(row) === lowestRaceScore).length;
     const raceScoresComplete = raceRows.length > 0 && scoredRaceRows.length === raceRows.length;
     const ownRaceRow = raceRows.find(own);
@@ -217,14 +218,17 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             </div>
             <p className="mc-chop-race-note">{lowestRaceScore == null ? 'Scores and risk are unavailable; official results decide the chop.' : raceScoresComplete ? 'Lowest score is provisionally at risk; official results decide the chop.' : 'Scores are missing; lowest reported is provisionally at risk, pending official results.'}</p>
             <table className="mc-chop-race-table">
-                <caption>Week {week} survival race, lowest actual scores first. Projected finish uses earned points and estimates for unfinished starters; a dash means data is unavailable.</caption>
-                <thead><tr><th scope="col">Team · {raceRows.length} alive this week</th><th scope="col">Actual</th><th scope="col">Proj.<br />finish</th></tr></thead>
+                <caption>Week {week} survival race, highest actual scores first. Projected finish uses earned points and estimates for unfinished starters; a dash means data is unavailable.</caption>
+                <thead><tr><th scope="col">Team · {raceRows.length} alive · High to low</th><th scope="col">Actual</th><th scope="col">Proj.<br />finish</th></tr></thead>
                 <tbody>{raceRows.map(row => {
                     const score = racePoints(row), atRisk = score != null && score === lowestRaceScore;
                     const riskLabel = !raceScoresComplete ? 'Lowest reported' : lowestRaceCount > 1 ? 'Tied low · at risk' : 'At risk';
                     const identity = <><span title={ownerName(row)}>{ownerName(row)}</span><small>{own(row) && <span>You{atRisk || score == null ? ' · ' : ''}</span>}{atRisk ? <span className="mc-chop-risk-label" title="Provisional; official league results determine eliminations">{riskLabel} · provisional</span> : score == null ? 'Awaiting score' : null}</small></>;
-                    const teamActionLabel = `Open ${ownerName(row)} team profile${own(row) ? '. Your team' : ''}${atRisk ? '. ' + riskLabel + '; provisional' : score == null ? '. Awaiting score' : ''}`;
-                    return <tr key={row.roster_id} className={`${own(row) ? 'is-own' : ''}${atRisk ? ' is-risk' : ''}`}><td>{onOpenTeam ? <button type="button" className="mc-chop-race-team" aria-label={teamActionLabel} onClick={() => onOpenTeam(row.roster_id)}>{identity}</button> : <div className="mc-chop-race-team">{identity}</div>}</td><td>{points(score)}</td><td>{points(canOpenGameDay ? projectedFinish(row) : null)}</td></tr>;
+                    const detailKey = `${leagueId}|${week}|${row.roster_id}`;
+                    const showStarters = !overview && starterSelection === detailKey;
+                    const detailId = `${boardId}-starters-${row.roster_id}`;
+                    const teamActionLabel = `${overview ? 'Open ' + ownerName(row) + ' team profile' : 'View ' + ownerName(row) + ' Week ' + week + ' starter scores'}${own(row) ? '. Your team' : ''}${atRisk ? '. ' + riskLabel + '; provisional' : score == null ? '. Awaiting score' : ''}`;
+                    return <React.Fragment key={row.roster_id}><tr className={`${own(row) ? 'is-own' : ''}${atRisk ? ' is-risk' : ''}`}><td>{!overview || onOpenTeam ? <button type="button" className="mc-chop-race-team" aria-label={teamActionLabel} aria-expanded={overview ? undefined : showStarters} aria-controls={overview ? undefined : detailId} onClick={() => overview ? onOpenTeam(row.roster_id) : setStarterSelection(showStarters ? null : detailKey)}>{identity}</button> : <div className="mc-chop-race-team">{identity}</div>}</td><td>{points(score)}</td><td>{points(canOpenGameDay ? projectedFinish(row) : null)}</td></tr>{showStarters && <tr className="mc-chop-race-detail"><td colSpan={3}><div id={detailId} role="region" aria-label={`${ownerName(row)} Week ${week} starter scores`}>{starters(row)}{onOpenTeam && <button type="button" onClick={() => onOpenTeam(row.roster_id)}>Team profile →</button>}</div></td></tr>}</React.Fragment>;
                 })}</tbody>
             </table>
         </div>}

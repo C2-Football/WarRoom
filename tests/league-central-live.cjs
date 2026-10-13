@@ -1,13 +1,13 @@
 'use strict';
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), Babel = require('@babel/standalone');
-let hooks = [], index = 0, board, liveContext, requestedWeek, renderedComponentTypes = [];
+let hooks = [], index = 0, board, liveContext, requestedWeek, renderedComponentTypes = [], effects = [];
 const storage = new Map();
 const boundary = function ScoreboardBoundary() {};
 const React = {
     Fragment: 'fragment',
     useState(initial) { const i = index++; if (!(i in hooks)) hooks[i] = typeof initial === 'function' ? initial() : initial; return [hooks[i], value => { hooks[i] = typeof value === 'function' ? value(hooks[i]) : value; }]; },
     useRef(initial) { const i = index++; return hooks[i] ||= { current: initial }; },
-    useMemo(fn) { index++; return fn(); }, useCallback(fn) { index++; return fn; }, useEffect() {},
+    useMemo(fn) { index++; return fn(); }, useCallback(fn) { index++; return fn; }, useEffect(fn) { effects.push(fn); },
     createElement(type, props, ...children) { if (typeof type === 'function') renderedComponentTypes.push(type); return typeof type === 'function' && type !== boundary ? type({ ...(props || {}), children }) : { type, props: props || {}, children }; }
 };
 const root = { App: { LeagueLiveScores: { currentWeek: () => 2, useScores: opts => { requestedWeek = opts.week; return board; } }, LeagueLiveTable: { useContext: () => liveContext }, DashboardLeagueLayout: { peek: () => null, leagueId: league => String(league.league_id || league.id || "") }, WrStorage: { get: (key, fallback) => storage.has(key) ? storage.get(key) : fallback, set: (key, value) => storage.set(key, value) } }, WR: { useViewport: () => ({ isPhone: true }) }, LeagueLiveScoreboard: boundary };
@@ -23,7 +23,7 @@ const props = { currentLeague: league, leagueSkin: { features: { showPlayoffOdds
 const walk = n => n == null || typeof n === 'boolean' ? [] : Array.isArray(n) ? n.flatMap(walk) : typeof n === 'object' ? [n, ...walk(n.children)] : [n];
 const text = n => walk(n).filter(n => typeof n !== 'object').join('');
 const find = (tree, pred) => walk(tree).find(n => typeof n === 'object' && pred(n));
-function render() { index = 0; renderedComponentTypes = []; return root.LeagueCentralTab(props); }
+function render() { index = 0; renderedComponentTypes = []; effects = []; return root.LeagueCentralTab(props); }
 function reset({ status = 'ready', rows = [], updatedAt = 1000, historical = false, started = [] } = {}) { hooks = []; board = { status, rows, week: 2, updatedAt, supported: true }; liveContext = { enabled: true, historical, currentWeek: historical ? 3 : 2, history: { status: 'ready', priorWeeks: prior, updatedAt: 900 }, startedRosterIds: started, refresh() {} }; }
 function table(tree) { return find(tree, n => (n.type === 'table' || n.props.className === 'la-standings') && /standings/.test(n.props['aria-label'] || '')); }
 function teamRows(tree) { const container = table(tree); if (container.props.className === 'la-standings') return walk(container).filter(n => n.type === 'details' && n.props.className?.includes('la-report-row')); const body = find(container, n => n.type === 'tbody'); return walk(body).filter(n => n.type === 'tr'); }
@@ -63,14 +63,15 @@ board.week = 1; liveContext.history.priorWeeks = []; liveContext.currentWeek = 1
 tree = render(); assert(text(tree).includes('Entering Week 1')); assert(teamRows(tree).every(row => text(row).includes('0-0-0')));
 const cupTab = find(tree, n => n.type === 'button' && text(n) === 'Cup');
 assert(cupTab, 'Cup starts as an optional League view');
+assert(!find(tree, n => n.props.className === 'mc-league-leaders'), 'Mobile omits the extra stat leaders panel');
+assert(!find(tree, n => n.type === 'button' && text(n) === 'Leaders'), 'Mobile tab strip only includes available views');
 cupTab.props.onClick(); tree = render();
-const hideCup = find(tree, n => n.type === 'button' && text(n) === 'Hide Cup from this device');
-assert(hideCup, 'Cup offers a direct personal hide action');
-hideCup.props.onClick(); tree = render();
+const cupViewMenu = find(tree, n => n.type === 'button' && n.props['aria-label'] === 'Customize League views');
+cupViewMenu.props.onClick(); tree = render();
+find(tree, n => n.type === 'input' && n.props.type === 'checkbox').props.onChange({ target: { checked: false } }); tree = render();
 assert(!find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'Hidden Cup is removed from the phone tab strip');
 assert.equal(storage.get('wr_league_cup_hidden_1234567890123456'), true, 'Cup visibility is stored per league and device');
 const viewMenu = find(tree, n => n.type === 'button' && n.props['aria-label'] === 'Customize League views');
-viewMenu.props.onClick(); tree = render();
 const cupToggle = find(tree, n => n.type === 'input' && n.props.type === 'checkbox');
 assert.equal(cupToggle.props.checked, false, 'The view menu accurately reflects hidden Cup state');
 cupToggle.props.onChange({ target: { checked: true } }); tree = render();
@@ -116,8 +117,26 @@ find(tree, n => n.type === 'button' && text(n) === 'Explore waivers →').props.
 assert.deepEqual(destinations, ['central', 'fa']);
 const topLevel = tree.children.flat(Infinity).filter(Boolean);
 assert(topLevel.indexOf(find(tree, n => n.type === boundary)) > topLevel.indexOf(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone')), 'Survival outlook leads the live field');
+props.overview = false;
+reset(); tree = render();
+assert(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
+assert.equal(survivalProps.phone, true, 'Full survival panel receives phone branding');
+assert(!table(tree), 'Chopped standings avoids a meaningless head-to-head table');
+find(tree, n => n.type === 'button' && text(n) === 'Scores').props.onClick(); tree = render();
+assert(find(tree, n => n.type === boundary), 'Scores opens the weekly scoreboard');
+assert(!find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'), 'Scores does not append the full simulation panels');
+props.overview = true;
 league.settings.type = 1;
 reset(); tree = render();
 assert(find(tree, n => n.props.className === 'mc-overview-summary'), 'Head-to-head Home retains its record and standing');
 assert(!find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
 console.log('PASS Chopped mobile Home reuses desktop survival, hides head-to-head summary, and preserves league and waiver navigation');
+
+// Personal Cup visibility must follow the selected league even when React reuses Central.
+props.overview = false;
+storage.set('wr_league_cup_hidden_' + league.league_id, true);
+render(); effects.find(fn => fn.toString().includes('cupVisibilityKey'))(); tree = render();
+assert(!find(tree, n => n.type === 'button' && text(n) === 'Cup'));
+props.currentLeague = { ...league, league_id: '9876543210123456' };
+render(); effects.find(fn => fn.toString().includes('cupVisibilityKey'))(); tree = render();
+assert(find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'A league with visible Cup does not inherit another league’s hidden state');
