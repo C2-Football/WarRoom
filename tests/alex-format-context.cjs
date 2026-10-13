@@ -29,7 +29,7 @@ assert.notEqual(h, api.stateHashFor({ ...league, scoring_settings: { rec: 0 } },
 assert.notEqual(h, api.stateHashFor(league, { ...roster, starters: ['two'] }));
 assert.notEqual(h, api.stateHashFor(league, { ...roster, settings: { ...roster.settings, waiver_budget_used: 20 } }));
 assert.equal(api.buildStructuredBase(league, {}, roster).leagueType, 'redraft');
-const c = load('supabase/functions/ai-analyze/index.ts', {}, ['adviceLeagueType','buildDecisionRules','buildTeamModeBlock','buildQualityThresholdBlock','buildLeagueFormatBlock','detectLeagueFormat','buildScarcityBlock','buildSystemPrompt']).context;
+const c = load('supabase/functions/ai-analyze/index.ts', {}, ['adviceLeagueType','buildDecisionRules','buildTeamModeBlock','buildPartnerModeBlock','buildQualityThresholdBlock','buildLeagueFormatBlock','detectLeagueFormat','buildScarcityBlock','buildSystemPrompt','formatDealSide','buildTradeVerdictPrompt']).context;
 for (const type of ['redraft','keeper','chopped','best_ball','unknown','dynasty']) {
   const context = { decisionContext: { leagueType: type, canTrade: type !== 'chopped' }, teamTier: 'REBUILDING', rosterPositions: league.roster_positions };
   const rules = c.buildDecisionRules(context);
@@ -42,6 +42,46 @@ assert.match(c.buildDecisionRules({ decisionContext: { leagueType: 'keeper' } })
 assert.match(c.buildDecisionRules({ decisionContext: { leagueType: 'redraft' } }), /No multi-year rebuild/);
 assert.match(c.buildDecisionRules({ decisionContext: { leagueType: 'chopped' } }), /Trades are disabled/);
 console.log('PASS format resolution, unknown keeper rules, cache invalidation, and server advice constraints');
+
+const redraftVerdict = { leagueType: 'redraft', phase: 'in_season', leagueName: 'Season League', rosterPositions: league.roster_positions,
+  scoringSettings: league.scoring_settings, myTeam: { tier: 'REBUILDING', record: '2-5' }, partnerTeam: { tier: 'REBUILDING', owner: 'Other owner' },
+  iSend: { players: [{ name: 'Veteran', pos: 'WR', age: 37, value: 0 }], picks: [{ year: 2027, round: 1, value: 5000 }] },
+  iReceive: { players: [{ name: 'Starter', pos: 'RB', age: 21, value: 4000 }] },
+  verdict: { verdictText: 'A value grade', diffDisplay: '+20%', likelihood: 75 },
+  seasonImpact: { status: 'limited', reason: null, effectiveWeek: 8,
+    powerRank: { before: 6, after: 7, total: 12, beforePoints: 110, afterPoints: 108, delta: -1 },
+    wins: { beforeRemaining: 3.4, afterRemaining: 3.1, delta: -0.3, beforeFinal: 5.4, afterFinal: 5.1 },
+    playoffs: { available: true, beforePct: 0, afterPct: 0, delta: 0, byeBeforePct: null, byeAfterPct: null, byeDelta: null },
+    weeks: [{ week: 8, opponentName: 'Rival', beforePoints: 110, afterPoints: 105, pointsDelta: -5, beforeWinPct: 50, afterWinPct: 45, winDelta: -5 }],
+    assumptions: ['Current week held unchanged; no live scores included.'], warnings: ['Injury status held fixed.'] } };
+const verdictPrompt = c.buildTradeVerdictPrompt(redraftVerdict);
+assert.match(verdictPrompt, /this redraft trade/);
+assert.match(verdictPrompt, /Phase: in_season/);
+assert.match(verdictPrompt, /SUPPLIED SEASON IMPACT/);
+assert.match(verdictPrompt, /"effectiveWeek":8/);
+assert.match(verdictPrompt, /"beforePct":0/);
+assert.match(verdictPrompt, /"delta":-0\.3/);
+assert.match(verdictPrompt, /"opponentName":"Rival"/);
+assert.match(verdictPrompt, /Injury status held fixed/);
+assert.match(verdictPrompt, /favorable value grade must not override negative season impact/);
+assert.match(verdictPrompt, /percentage-point changes as percentage points/);
+assert.match(verdictPrompt, /null, missing or unavailable metric is unknown, never zero/);
+assert.doesNotMatch(verdictPrompt, /Age 37|Age 21|PICK 2027|1\.8x|1\.5x|is REBUILDING\. They value:|PRIORITIZE YOUTH/);
+assert.match(verdictPrompt, /\*\*SEASON IMPACT\*\* — Explain/);
+const unavailableVerdict = c.buildTradeVerdictPrompt({ ...redraftVerdict,
+  seasonImpact: { ...redraftVerdict.seasonImpact, status: 'unavailable', reason: 'Schedule missing' } });
+assert.match(unavailableVerdict, /Schedule missing/);
+assert.doesNotMatch(unavailableVerdict, /"beforePct"|"beforeFinal"|"opponentName"/, 'unavailable snapshots cannot leak stale numeric estimates');
+const unavailableOdds = c.buildTradeVerdictPrompt({ ...redraftVerdict, seasonImpact: { ...redraftVerdict.seasonImpact,
+  playoffs: { available: false, reason: 'Division rules unknown', beforePct: 88, afterPct: 99 } } });
+assert.match(unavailableOdds, /Division rules unknown/);
+assert.doesNotMatch(unavailableOdds, /"beforePct":88|"afterPct":99/, 'unavailable odds cannot leak stale percentages');
+const dynastyVerdict = c.buildTradeVerdictPrompt({ ...redraftVerdict, leagueType: 'dynasty', seasonImpact: undefined });
+assert.match(dynastyVerdict, /this dynasty trade/);
+assert.match(dynastyVerdict, /Age 37/);
+assert.match(dynastyVerdict, /PICK 2027/);
+assert.doesNotMatch(dynastyVerdict, /SUPPLIED SEASON IMPACT|\*\*SEASON IMPACT\*\* — Explain/);
+console.log('PASS trade second opinion uses deterministic season estimates, preserves zero and downside, and respects missing odds and redraft horizon');
 
 vm.runInNewContext(fs.readFileSync('js/draft/context.js','utf8'), { window, console });
 for (const [settings, expected] of [[{type:1}, true], [{type:0,max_keepers:3}, false], [{type:3,max_keepers:3}, false], [{max_keepers:2}, true]]) {

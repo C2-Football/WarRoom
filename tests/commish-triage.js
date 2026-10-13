@@ -252,6 +252,25 @@ test('person rollup: ACTIVE + SAFE produces no row at all', () => {
   assert.strictEqual(q.items.filter(i => i.domain === 'people').length, 0, 'a healthy human is not an obligation');
 });
 
+test('unavailable transaction activity creates no inactivity task; lineup symptoms keep factual copy', () => {
+  const unknownTeam = team('L1', 'Dynasty Warlords', 'UNKNOWN', null);
+  unknownTeam.signals.activityKnown = false;
+  const options = {
+    graph: graphOf([{ userId: 'u1', name: 'Dave Kohl', leagueIds: ['L1'] }]),
+    mine: [L3[0]], week: 5, nowMs: NOW,
+  };
+  const unknown = Triage.buildQueue({ ...options, radar: { people: [radarPerson('u1', 'Dave Kohl', 'UNKNOWN', [unknownTeam])] } });
+  assert.strictEqual(unknown.items.filter(i => i.domain === 'people').length, 0);
+  const issueTeam = { ...unknownTeam, status: 'WATCH', signals: { ...unknownTeam.signals, outStarters: 1 } };
+  const lineup = Triage.buildQueue({ ...options, radar: { people: [radarPerson('u1', 'Dave Kohl', 'FADING', [issueTeam])] } });
+  const row = lineup.items.find(i => i.domain === 'people');
+  assert.strictEqual(row.kicker, 'LINEUP CHECK');
+  assert.strictEqual(row.metric.unit, 'lineup issues');
+  assert.strictEqual(row.metric.value, 1);
+  assert.ok(row.detail.includes('transaction activity unavailable'));
+  assert.ok(!/no transactions|quiet|silence|drifting|activity line/.test(row.headline + row.detail));
+});
+
 // ── Rollup shape across the other domains ───────────────────────────
 test('rollup: one row per league for genesis / drift / dues / constitution', () => {
   const q = Triage.buildQueue({

@@ -1,0 +1,245 @@
+From c036f5fd1c988f70bab077e94b850e69c86a3910 Mon Sep 17 00:00:00 2001
+From: jcc100218 <jacobcrusinberry@gmail.com>
+Date: Mon, 12 Oct 2026 18:58:13 -0500
+Subject: [PATCH] Add account-backed commissioner ignored tasks
+
+---
+ .../functions/fw-commish-ignored/index.ts     |  95 +++++++++++++
+ .../20261012030000_commish_ignored_tasks.sql  | 126 ++++++++++++++++++
+ 2 files changed, 221 insertions(+)
+ create mode 100644 supabase/functions/fw-commish-ignored/index.ts
+ create mode 100644 supabase/migrations/20261012030000_commish_ignored_tasks.sql
+
+diff --git a/supabase/functions/fw-commish-ignored/index.ts b/supabase/functions/fw-commish-ignored/index.ts
+new file mode 100644
+index 0000000..a3b5fc0
+--- /dev/null
++++ b/supabase/functions/fw-commish-ignored/index.ts
+@@ -0,0 +1,95 @@
++// Private account-owned ignored tasks. All mutations use a service-only atomic
++// compare-and-swap routine; local client caches never establish authority.
++import { createClient } from 'npm:@supabase/supabase-js@2';
++import { handleOptions, json, requireActiveAppSession } from '../_shared/security.ts';
++
++const URL_VALUE = Deno.env.get('SUPABASE_URL')!;
++const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++const validId = (value: unknown): value is string => typeof value === 'string' && new TextEncoder().encode(value).length >= 1
++  && new TextEncoder().encode(value).length <= 512 && !/[\u0000-\u001f\u007f]/.test(value);
++const fields = new Set(['taskId', 'state', 'expectedRevision', 'operationId', 'snapshot']);
++const snapshotFields = new Set(['id', 'headline', 'detail', 'kind', 'hub', 'domain', 'leagueIds', 'leagueNames']);
++
++function reply(req: Request, body: unknown, status = 200): Response {
++  const response = json(req, body, status);
++  response.headers.set('Cache-Control', 'no-store');
++  return response;
++}
++function validSnapshot(value: unknown, taskId: string): boolean {
++  if (value == null) return true;
++  if (typeof value !== 'object' || Array.isArray(value)) return false;
++  const row = value as Record<string, unknown>;
++  if (row.id !== taskId || Object.keys(row).some(key => !snapshotFields.has(key))) return false;
++  for (const [key, limit] of [['id', 512], ['headline', 500], ['detail', 2000], ['kind', 100], ['hub', 60], ['domain', 60]] as const) {
++    if (row[key] != null && (typeof row[key] !== 'string' || (row[key] as string).length > limit)) return false;
++  }
++  for (const key of ['leagueIds', 'leagueNames']) {
++    const values = row[key];
++    if (values != null && (!Array.isArray(values) || values.length > 50 || values.some(value => typeof value !== 'string' || value.length > 200))) return false;
++  }
++  return new TextEncoder().encode(JSON.stringify(value)).length <= 8192;
++}
++
++Deno.serve(async (req: Request) => {
++  const options = handleOptions(req);
++  if (options) return options;
++  if (!['GET', 'POST'].includes(req.method)) return reply(req, { ok: false, error: 'Method not allowed.' }, 405);
++  try {
++    const admin = createClient(URL_VALUE, SERVICE_KEY, { auth: { persistSession: false } });
++    const session = await requireActiveAppSession(admin, req);
++    if (!session) return reply(req, { ok: false, code: 'invalid_session', error: 'Sign in again to sync ignored tasks.' }, 401);
++    // The owner repo retains an older convenience rate helper. Use the already
++    // deployed atomic primitive without changing any existing auth endpoint.
++    const rateResult = await admin.rpc('consume_auth_rate_limit', {
++      p_scope: 'commish_ignored_' + req.method.toLowerCase(), p_identifier: session.userId,
++      p_limit: req.method === 'GET' ? 120 : 60, p_window_seconds: 60, p_lockout_seconds: 0,
++    });
++    const rate = rateResult.data;
++    if (rateResult.error || !rate || typeof rate.allowed !== 'boolean' || !Number.isFinite(rate.count)) {
++      return reply(req, { ok: false, error: 'Ignored task choices could not be confirmed. Try again.' }, 503);
++    }
++    if (!rate.allowed) {
++      const response = reply(req, { ok: false, error: 'Too many requests. Try again shortly.' }, 429);
++      response.headers.set('Retry-After', String(rate.retryAfterSeconds || 60));
++      return response;
++    }
++    let result;
++    if (req.method === 'GET') {
++      const url = new URL(req.url), cursor = url.searchParams.get('cursor'), rawLimit = url.searchParams.get('limit');
++      const limit = rawLimit == null ? 200 : Number(rawLimit);
++      if ((cursor != null && !validId(cursor)) || !Number.isInteger(limit) || limit < 1 || limit > 200) {
++        return reply(req, { ok: false, code: 'invalid_request', error: 'Invalid page request.' }, 400);
++      }
++      result = await admin.rpc('read_commish_ignored_tasks', {
++        p_user_id: session.userId, p_session_version: session.sessionVersion, p_cursor: cursor, p_limit: limit,
++      });
++    } else {
++      if (Number(req.headers.get('content-length') || 0) > 12000) return reply(req, { ok: false, error: 'Task change is too large.' }, 413);
++      const raw = await req.text();
++      if (new TextEncoder().encode(raw).length > 12000) return reply(req, { ok: false, error: 'Task change is too large.' }, 413);
++      let body: Record<string, unknown>;
++      try { body = JSON.parse(raw); } catch { return reply(req, { ok: false, code: 'invalid_request', error: 'Invalid task change.' }, 400); }
++      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !fields.has(key))
++        || !validId(body.taskId) || typeof body.state !== 'string' || !['ignored', 'restored'].includes(body.state)
++        || typeof body.operationId !== 'string' || !UUID.test(body.operationId)
++        || !Number.isInteger(body.expectedRevision) || Number(body.expectedRevision) < 0 || Number(body.expectedRevision) > 2000000000
++        || !validSnapshot(body.snapshot, body.taskId)) {
++        return reply(req, { ok: false, code: 'invalid_request', error: 'Invalid task change.' }, 400);
++      }
++      result = await admin.rpc('change_commish_ignored_task', {
++        p_user_id: session.userId, p_session_version: session.sessionVersion,
++        p_task_id: body.taskId, p_state: body.state, p_expected_revision: body.expectedRevision,
++        p_operation_id: body.operationId, p_snapshot: body.snapshot ?? null,
++      });
++    }
++    if (result.error || !result.data || typeof result.data.ok !== 'boolean') {
++      return reply(req, { ok: false, error: 'Ignored task choices could not be confirmed. Try again.' }, 503);
++    }
++    const status = result.data.ok ? 200 : result.data.code === 'invalid_session' ? 401
++      : ['revision_conflict', 'operation_conflict'].includes(result.data.code) ? 409 : result.data.code === 'invalid_request' ? 400 : 503;
++    return reply(req, result.data, status);
++  } catch {
++    return reply(req, { ok: false, error: 'Ignored task choices could not be confirmed. Try again.' }, 503);
++  }
++});
+diff --git a/supabase/migrations/20261012030000_commish_ignored_tasks.sql b/supabase/migrations/20261012030000_commish_ignored_tasks.sql
+new file mode 100644
+index 0000000..a9c4a12
+--- /dev/null
++++ b/supabase/migrations/20261012030000_commish_ignored_tasks.sql
+@@ -0,0 +1,126 @@
++-- Account-owned Commissioner choices. Restoring writes a tombstone rather than
++-- deleting the record: an older device must not resurrect an ignored task.
++-- Apply through the account backend's reviewed release lane, never C2 games.
++begin;
++
++create table if not exists public.commish_ignored_tasks (
++  user_id uuid not null references public.app_users(id) on delete cascade,
++  task_id text not null check (octet_length(task_id) between 1 and 512),
++  state text not null check (state in ('ignored', 'restored')),
++  revision integer not null check (revision > 0),
++  snapshot jsonb check (snapshot is null or (jsonb_typeof(snapshot) = 'object' and octet_length(snapshot::text) <= 8192)),
++  updated_at timestamptz not null default now(),
++  primary key (user_id, task_id)
++);
++
++create table if not exists public.commish_ignored_operations (
++  user_id uuid not null references public.app_users(id) on delete cascade,
++  operation_id uuid not null,
++  task_id text not null,
++  state text not null,
++  expected_revision integer not null,
++  snapshot jsonb,
++  applied_revision integer not null,
++  created_at timestamptz not null default now(),
++  primary key (user_id, operation_id)
++);
++
++alter table public.commish_ignored_tasks enable row level security;
++alter table public.commish_ignored_tasks force row level security;
++alter table public.commish_ignored_operations enable row level security;
++alter table public.commish_ignored_operations force row level security;
++-- No client policies or direct table grants. Edge authenticates the account;
++-- service-only routines also recheck its session under the account row lock.
++revoke all on public.commish_ignored_tasks, public.commish_ignored_operations from public, anon, authenticated, service_role;
++
++create or replace function public.commish_ignored_record_json(p_record public.commish_ignored_tasks)
++returns jsonb language sql immutable set search_path = public
++as $$ select case when p_record.task_id is null then null else jsonb_build_object(
++  'taskId', p_record.task_id, 'state', p_record.state, 'revision', p_record.revision,
++  'updatedAt', p_record.updated_at, 'snapshot', p_record.snapshot) end $$;
++revoke all on function public.commish_ignored_record_json(public.commish_ignored_tasks) from public, anon, authenticated, service_role;
++
++create or replace function public.read_commish_ignored_tasks(
++  p_user_id uuid, p_session_version integer, p_cursor text default null, p_limit integer default 200
++) returns jsonb language plpgsql security definer set search_path = public
++as $$
++declare
++  v_rows jsonb;
++  v_cursor text := null;
++begin
++  if p_limit is null or p_limit < 1 or p_limit > 200 or (p_cursor is not null and octet_length(p_cursor) > 512) then
++    return jsonb_build_object('ok', false, 'code', 'invalid_request', 'error', 'Invalid page request.');
++  end if;
++  perform 1 from public.app_users where id = p_user_id and session_version = p_session_version for share;
++  if not found then return jsonb_build_object('ok', false, 'code', 'invalid_session', 'error', 'Sign in again.'); end if;
++  select coalesce(jsonb_agg(page.record order by page.task_id collate "C"), '[]'::jsonb) into v_rows from (
++    select t.task_id, public.commish_ignored_record_json(t) as record
++    from public.commish_ignored_tasks t
++    where t.user_id = p_user_id and (p_cursor is null or t.task_id collate "C" > p_cursor collate "C")
++    order by t.task_id collate "C" limit p_limit + 1
++  ) page;
++  if jsonb_array_length(v_rows) > p_limit then
++    v_cursor := v_rows -> (p_limit - 1) ->> 'taskId';
++    v_rows := v_rows - p_limit;
++  end if;
++  return jsonb_build_object('ok', true, 'accountId', p_user_id, 'records', v_rows, 'nextCursor', v_cursor);
++end;
++$$;
++
++create or replace function public.change_commish_ignored_task(
++  p_user_id uuid, p_session_version integer, p_task_id text, p_state text,
++  p_expected_revision integer, p_operation_id uuid, p_snapshot jsonb default null
++) returns jsonb language plpgsql security definer set search_path = public
++as $$
++declare
++  v_current public.commish_ignored_tasks;
++  v_operation public.commish_ignored_operations;
++begin
++  if p_task_id is null or octet_length(p_task_id) not between 1 and 512 or p_task_id ~ '[[:cntrl:]]'
++    or p_state is null or p_state not in ('ignored', 'restored') or p_operation_id is null
++    or p_expected_revision is null or p_expected_revision not between 0 and 2000000000
++    or (p_snapshot is not null and (jsonb_typeof(p_snapshot) <> 'object' or octet_length(p_snapshot::text) > 8192
++      or p_snapshot ->> 'id' is distinct from p_task_id)) then
++    return jsonb_build_object('ok', false, 'code', 'invalid_request', 'error', 'Invalid task change.');
++  end if;
++  -- Serialize small per-account writes, including operation IDs reused across
++  -- different tasks. This also closes the auth-check/revocation race.
++  perform 1 from public.app_users where id = p_user_id and session_version = p_session_version for update;
++  if not found then return jsonb_build_object('ok', false, 'code', 'invalid_session', 'error', 'Sign in again.'); end if;
++  select * into v_current from public.commish_ignored_tasks where user_id = p_user_id and task_id = p_task_id;
++  select * into v_operation from public.commish_ignored_operations where user_id = p_user_id and operation_id = p_operation_id;
++  if found then
++    if v_operation.task_id <> p_task_id or v_operation.state <> p_state
++      or v_operation.expected_revision <> p_expected_revision or v_operation.snapshot is distinct from p_snapshot then
++      return jsonb_build_object('ok', false, 'accountId', p_user_id, 'code', 'operation_conflict',
++        'error', 'This operation ID was already used for another change.', 'record', public.commish_ignored_record_json(v_current));
++    end if;
++    -- Return current truth, even when the original successful change has since
++    -- been restored elsewhere. A lost-response retry never rewrites it.
++    return jsonb_build_object('ok', true, 'accountId', p_user_id, 'record', public.commish_ignored_record_json(v_current),
++      'appliedRevision', v_operation.applied_revision, 'duplicate', true);
++  end if;
++  if coalesce(v_current.revision, 0) <> p_expected_revision then
++    return jsonb_build_object('ok', false, 'accountId', p_user_id, 'code', 'revision_conflict',
++      'error', 'This task changed on another device. Reload your choices before trying again.',
++      'record', public.commish_ignored_record_json(v_current));
++  end if;
++  insert into public.commish_ignored_tasks(user_id, task_id, state, revision, snapshot, updated_at)
++  values (p_user_id, p_task_id, p_state, p_expected_revision + 1,
++    case when p_state = 'restored' then coalesce(v_current.snapshot, p_snapshot) else p_snapshot end, clock_timestamp())
++  on conflict (user_id, task_id) do update set state = excluded.state, revision = excluded.revision,
++    snapshot = excluded.snapshot, updated_at = excluded.updated_at
++  returning * into v_current;
++  insert into public.commish_ignored_operations(user_id, operation_id, task_id, state, expected_revision, snapshot, applied_revision)
++  values (p_user_id, p_operation_id, p_task_id, p_state, p_expected_revision, p_snapshot, v_current.revision);
++  return jsonb_build_object('ok', true, 'accountId', p_user_id, 'record', public.commish_ignored_record_json(v_current),
++    'appliedRevision', v_current.revision, 'duplicate', false);
++end;
++$$;
++
++revoke all on function public.read_commish_ignored_tasks(uuid, integer, text, integer) from public, anon, authenticated;
++revoke all on function public.change_commish_ignored_task(uuid, integer, text, text, integer, uuid, jsonb) from public, anon, authenticated;
++grant execute on function public.read_commish_ignored_tasks(uuid, integer, text, integer) to service_role;
++grant execute on function public.change_commish_ignored_task(uuid, integer, text, text, integer, uuid, jsonb) to service_role;
++
++commit;

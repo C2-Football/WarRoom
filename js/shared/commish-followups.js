@@ -53,7 +53,7 @@
         if (p.message != null) out.message = String(p.message).slice(0, 6000);
         if (p.note != null) out.note = String(p.note).slice(0, 6000);
         if (p.dueAt != null) out.dueAt = String(p.dueAt).slice(0, 32);
-        if (p.status != null) out.status = String(p.status).toUpperCase() === 'DONE' ? 'DONE' : 'OPEN';
+        if (p.status != null) out.status = ['DONE', 'IGNORED'].includes(String(p.status).toUpperCase()) ? String(p.status).toUpperCase() : 'OPEN';
         return out;
     }
     function get(id) { return read()[String(id)] || null; }
@@ -75,6 +75,7 @@
         const event = { type: String(type || 'UPDATED').toUpperCase(), detail: String(detail || '').slice(0, 1000), ts: now };
         rec.history = (rec.history || []).concat([event]).slice(-HISTORY_CAP);
         if (event.type === 'DONE' || event.type === 'HIDDEN') rec.status = 'DONE';
+        if (event.type === 'IGNORED') rec.status = 'IGNORED';
         if (event.type === 'RESTORED' || event.type === 'SKIPPED' || event.type === 'OPENED') rec.status = 'OPEN';
         rec.updatedAt = now; all[id] = rec; write(all); return rec;
     }
@@ -88,10 +89,10 @@
         const today = new Date().toISOString().slice(0, 10);
         return rs.reduce((s, r) => {
             s.total++;
-            if (r.status === 'DONE') s.done++; else s.open++;
-            if (r.status !== 'DONE' && r.dueAt && r.dueAt <= today) s.due++;
+            if (r.status === 'DONE') s.done++; else if (r.status === 'IGNORED') s.ignored++; else s.open++;
+            if (!['DONE', 'IGNORED'].includes(r.status) && r.dueAt && r.dueAt <= today) s.due++;
             return s;
-        }, { total:0, open:0, done:0, due:0 });
+        }, { total:0, open:0, done:0, ignored:0, due:0 });
     }
 
     const api = { defaultMessage, get, list, save, record, remove, summary, _mem, _reset: () => write({}) };

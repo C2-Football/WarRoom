@@ -1,0 +1,190 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:63872/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Completed2025 / 18provider weeks / 14regular-season replay weeks / 10teams / 40players / real engines",
+  "capabilityBoundary": "Browser touch/viewport emulation; physical iPad and authenticated hosted persistence are not asserted.",
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": false,
+      "error": "locator.waitFor: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('.hub-experience-card.commish-hero') to be visible\u001b[22m\n\n    at open (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:109:65)\n    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:270:69",
+      "checks": [
+        "compact preview preserves season and moves focus directly to full impact",
+        "18 provider weeks,14 regular-season replay weeks and honest half-PPR baseline",
+        "actual preset and +/- taps update scoped real engine result immediately",
+        "manual decimal retains focus and stages until preview",
+        "search exposes custom and catalog rules; negative decimals and per-rule reset",
+        "single league scope and all-league baseline truthfulness",
+        "details and all10 teams reachable without page overflow"
+      ],
+      "errors": [],
+      "touchChecks": [
+        {
+          "control": "Scoring rule picker",
+          "width": 254,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Replay season",
+          "width": 63.953125,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "See replay impact",
+          "width": 161.5625,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Full PPR preset",
+          "width": 123,
+          "height": 65.1875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Increase PPR",
+          "width": 44,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Decrease PPR",
+          "width": 44,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Proposed value",
+          "width": 158,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Preview changes",
+          "width": 154.453125,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Scoring search",
+          "width": 254,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Proposed value",
+          "width": 158,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Proposed value",
+          "width": 158,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Reset selected rule",
+          "width": 134.390625,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Reset all changes",
+          "width": 156.71875,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "View replay details",
+          "width": 194,
+          "height": 78,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "View all teams",
+          "width": 134.90625,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Proposal name",
+          "width": 254,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Save draft",
+          "width": 103.546875,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry proposal save",
+          "width": 101.796875,
+          "height": 44,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "replayDiagnostics": null,
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 11
+    }
+  ]
+}

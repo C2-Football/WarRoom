@@ -16,6 +16,90 @@
         return TC_TAB_ALIASES[v] || 'desk';
     }
 
+    // Content identity, rather than React object identity or the global render
+    // heartbeat, determines when a season forecast needs new provider reads.
+    function tcSeasonInputKey({ league = {}, playersData = {}, statsData = {}, priorData = {}, projectionsData = {}, currentWeek, weeklyPlayerPoints = {}, weeklyPlayerPlayed = {}, weeklyScores = {}, nflContext = {}, nflSchedule = {}, defenseRankings = {}, nflSeason }) {
+        const rosters = (league.rosters || []).map(roster => ({
+            roster_id: roster.roster_id, owner_id: roster.owner_id,
+            players: [...(roster.players || [])].map(String).sort(),
+            reserve: [...(roster.reserve || [])].map(String).sort(),
+            taxi: [...(roster.taxi || [])].map(String).sort(),
+            settings: roster.settings, metadata: roster.metadata, _team_name: roster._team_name,
+        })).sort((a, b) => String(a.roster_id).localeCompare(String(b.roster_id)));
+        const pids = [...new Set(rosters.flatMap(roster => roster.players))].sort();
+        const select = map => Object.fromEntries(pids.filter(pid => map?.[pid] !== undefined).map(pid => [pid, map[pid]]));
+        const playerFields = ['position', 'fantasy_positions', 'team', 'injury_status', 'status', 'active', 'bye_week', 'full_name', 'name'];
+        const players = Object.fromEntries(pids.map(pid => [pid, Object.fromEntries(playerFields.filter(field => playersData[pid]?.[field] !== undefined).map(field => [field, playersData[pid][field]]))]));
+        const teams = [...new Set(pids.map(pid => String(playersData[pid]?.team || '').toUpperCase()).filter(Boolean))].sort();
+        const from = Number(currentWeek) || 1, last = Math.min(18, (Number(league.settings?.playoff_week_start) || 19) - 1);
+        const context = {}, schedule = {}, opponents = new Set();
+        for (let week = from; week <= last; week++) {
+            const weekSchedule = {};
+            for (const team of teams) {
+                const row = nflContext?.[team + '|' + week];
+                if (row) {
+                    context[team + '|' + week] = { ...row, injury: select(row.injury) };
+                    if (row.opp) opponents.add(String(row.opp).toUpperCase());
+                }
+                if (nflSchedule?.[week]?.[team] !== undefined) {
+                    weekSchedule[team] = nflSchedule[week][team];
+                    opponents.add(String(nflSchedule[week][team]).toUpperCase());
+                }
+            }
+            if (Object.keys(weekSchedule).length) schedule[week] = weekSchedule;
+        }
+        const defenses = Object.fromEntries([...opponents].sort().filter(team => defenseRankings?.[team] !== undefined).map(team => [team, defenseRankings[team]]));
+        const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
+            ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+        const content = JSON.stringify(canonical({
+            league: { id: league.league_id || league.id, season: league.season, status: league.status,
+                settings: league.settings, scoring_settings: league.scoring_settings, roster_positions: league.roster_positions,
+                _mfl: !!league._mfl, _espn: !!league._espn, _yahoo: !!league._yahoo, bracket_overrides_id: league.bracket_overrides_id,
+                rosters, users: (league.users || []).map(user => ({ user_id: user.user_id, display_name: user.display_name, metadata: user.metadata })).sort((a, b) => String(a.user_id).localeCompare(String(b.user_id))) },
+            currentWeek, nflSeason, players, stats: select(statsData), prior: select(priorData), projections: select(projectionsData),
+            weeklyPlayerPoints: select(weeklyPlayerPoints), weeklyPlayerPlayed: select(weeklyPlayerPlayed), weeklyScores,
+            nflContext: context, nflSchedule: schedule, defenseRankings: defenses,
+        }));
+        // Two independent 32-bit accumulators keep the key compact while the
+        // canonical input preserves zeroes, missing rows and real rule changes.
+        let a = 2166136261, b = 5381;
+        for (let index = 0; index < content.length; index++) { const code = content.charCodeAt(index); a = Math.imul(a ^ code, 16777619); b = Math.imul(b, 33) ^ code; }
+        return [league.league_id || league.id || '', league.season || '', content.length, (a >>> 0).toString(36), (b >>> 0).toString(36)].join(':');
+    }
+
+    function tcTradeVerdictKey({ leagueId, season, owners, tradeIds, tradePickIds, tradeFaab, seasonKey }) {
+        return JSON.stringify([String(leagueId || ''), String(season || ''), owners?.A, owners?.B,
+            [...(tradeIds?.A || [])].map(String).sort(), [...(tradeIds?.B || [])].map(String).sort(),
+            [...(tradePickIds?.A || [])].sort(), [...(tradePickIds?.B || [])].sort(),
+            tradeFaab?.A || 0, tradeFaab?.B || 0, seasonKey || '']);
+    }
+
+    // Alex explains the same model evidence displayed in Trade Analysis. Keep
+    // unavailable probabilities null and send only the relevant game evidence.
+    function tcSeasonVerdictEvidence(controller, deal) {
+        if (!controller?.enabled) return null;
+        if (controller.status !== 'ready') return { status: controller.status || 'unavailable', reason: controller.reason || 'Remaining-season evidence is still loading.' };
+        let data;
+        try { data = controller.analyze(deal); }
+        catch (_) { return { status: 'unavailable', reason: 'Remaining-season evidence could not be calculated.' }; }
+        if (!data || data.status === 'unavailable') return { status: 'unavailable', reason: data?.reason || 'Remaining-season evidence is unavailable.' };
+        const names = list => (list || []).map(player => controller.playerName?.(typeof player === 'object' ? player.pid || player.playerId || player.id : player) || String(typeof player === 'object' ? player.pid || player.playerId || player.id : player));
+        return {
+            status: data.status, effectiveWeek: data.effectiveWeek,
+            powerRank: data.powerRank, wins: data.wins, playoffs: data.playoffs,
+            coverage: data.coverage,
+            weeks: (data.weeks || []).map(row => {
+                const before = names(row.beforeStarters), after = names(row.afterStarters);
+                return { week: row.week, opponentName: row.opponentName, beforePoints: row.beforePoints, afterPoints: row.afterPoints,
+                    opponentBeforePoints: row.opponentBeforePoints, opponentAfterPoints: row.opponentAfterPoints,
+                    beforeWinPct: row.beforeWinPct, afterWinPct: row.afterWinPct, pointsDelta: row.pointsDelta,
+                    startersOut: before.filter(name => !after.includes(name)), startersIn: after.filter(name => !before.includes(name)),
+                    unfilledAfter: row.unfilledAfter };
+            }),
+            assumptions: data.assumptions || [], warnings: data.warnings || [],
+        };
+    }
+
     // ── TcProTeaser — warroom-styled lock card for region-scoped Pro gates ──
     // Wraps pro-gate.js's wrLockCard (vanilla HTML string) for JSX surfaces.
     // Only ever rendered when wrIsPro() is false, which implies pro-gate.js
@@ -195,21 +279,144 @@
     // Tier split (Phase 2, owner ruling): grade/label/diff/side totals + raw roster-impact
     // values stay free; acceptance %, psych taxes, posture/DNA/behavior chips are Pro
     // (wrIsPro() only — never canAccess).
-    function TcVerdictPanel({ verdictColor, diffDisplay, grade, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax, gmFloor, gmModeLabel, gmViability, gmWarnings }) {
+    function TcSeasonImpact({ controller, deal, detailed = false, embedded = false, children, renderLayout }) {
+        const anchor = React.useRef(null);
+        const [visible, setVisible] = React.useState(detailed);
+        const [result, setResult] = React.useState(null);
+        const signature = JSON.stringify([deal?.myRosterId, deal?.partnerRosterId, deal?.givePlayerIds || (deal?.givePlayers || []).map(p => p.pid), deal?.receivePlayerIds || (deal?.receivePlayers || []).map(p => p.pid)]);
+        const key = (controller?.key || '') + '|' + signature;
+        React.useEffect(() => {
+            if (!controller?.enabled || visible) return;
+            if (typeof IntersectionObserver === 'undefined' || !anchor.current) { setVisible(true); return; }
+            const observer = new IntersectionObserver(entries => {
+                if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+            }, { rootMargin: '100px' });
+            observer.observe(anchor.current);
+            return () => observer.disconnect();
+        }, [controller?.enabled, visible]);
+        React.useEffect(() => {
+            if (!controller?.enabled || !(visible || detailed) || controller.status !== 'ready') return;
+            let active = true;
+            // Defer the simulation until after paint; only visible cards request it.
+            const task = window.setTimeout(() => {
+                Promise.resolve().then(() => controller.analyze(deal)).then(data => {
+                    if (active) setResult({ key, data });
+                }).catch(() => {
+                    if (active) setResult({ key, data: { status: 'unavailable', reason: 'Season impact could not be calculated. Refresh league data to retry.' } });
+                });
+            }, 0);
+            return () => { active = false; window.clearTimeout(task); };
+        }, [controller, key, visible, detailed]);
+        if (!controller?.enabled) return null;
+        const data = result?.key === key ? result.data : null;
+        const num = (value, places = 1) => value != null && Number.isFinite(Number(value)) ? Number(value).toFixed(places) : '—';
+        const pct = value => value != null && Number.isFinite(Number(value)) ? num(value, 0) + '%' : '—';
+        const signed = (value, suffix = '', places = 1) => value != null && Number.isFinite(Number(value)) ? (Number(value) > 0 ? '+' : '') + num(value, places) + suffix : 'Unavailable';
+        const displayedPctDelta = (before, after) => before != null && after != null && Number.isFinite(Number(before)) && Number.isFinite(Number(after)) ? Math.round(Number(after)) - Math.round(Number(before)) : null;
+        const ready = data && data.status !== 'unavailable';
+        const delta = ready ? data.wins?.delta : null;
+        const headline = !ready ? 'Season impact' : delta == null ? 'Impact incomplete' : delta >= 0.15 ? 'Helps your season' : delta <= -0.15 ? 'Costs projected wins' : 'No clear gain';
+        const tone = delta == null || Math.abs(delta) < 0.15 ? 'neutral' : delta > 0 ? 'positive' : 'negative';
+        const effectiveWeek = data?.effectiveWeek || controller.fromWeek;
+        const message = controller.status === 'unavailable' ? controller.reason : data?.status === 'unavailable' ? data.reason : 'Calculating the remaining-season impact…';
+        const metric = (label, before, after, change) => <div className="tc-season-metric"><span>{label}</span><strong><span aria-label="Before trade">{before}</span><i aria-hidden="true">→</i><span aria-label="After trade">{after}</span></strong><small>{change}</small></div>;
+        const playerNames = starters => (starters || []).map(player => {
+            const pid = typeof player === 'object' ? player.pid || player.playerId || player.id : player;
+            return controller.playerName?.(pid) || String(pid || 'Open slot');
+        });
+        const content = <section ref={anchor} className={'tc-season-impact is-' + tone + (embedded ? ' is-embedded' : '')} aria-label="Season impact estimate">
+            <header><h4>{headline}</h4><span>Model estimate</span></header>
+            {effectiveWeek && <p className="tc-season-timing">Starts Week {effectiveWeek} · this week's roster unchanged</p>}
+            {ready ? <>
+                <div className="tc-season-metrics">
+                    {metric('Projected power rank', data.powerRank?.before != null ? '#' + data.powerRank.before : '—', data.powerRank?.after != null ? '#' + data.powerRank.after : '—', 'of ' + (data.powerRank?.total || '—') + ' teams')}
+                    {metric(data.wins?.decisionsPerWeek === 2 ? 'Standings wins' : 'Remaining wins', num(data.wins?.beforeRemaining), num(data.wins?.afterRemaining), signed(data.wins?.delta, ' expected wins'))}
+                    {metric('Playoff chance', data.playoffs?.available ? pct(data.playoffs.beforePct) : '—', data.playoffs?.available ? pct(data.playoffs.afterPct) : '—', data.playoffs?.available ? signed(displayedPctDelta(data.playoffs.beforePct, data.playoffs.afterPct), ' percentage points', 0) : 'Unavailable')}
+                </div>
+                <p className="tc-season-lineup">Projected lineup: {num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)} pts/week {data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? '(' + signed(data.powerRank.afterPoints - data.powerRank.beforePoints) + ')' : ''}</p>
+                {data.wins?.decisionsPerWeek === 2 && <p className="tc-season-coverage">Standings wins include your matchup and an extra league-median result each week.</p>}
+                <p className="tc-season-coverage">{data.status === 'limited' ? 'Partial evidence · ' : ''}{data.coverage?.projected ?? 0}/{data.coverage?.total ?? data.remainingWeeks ?? 0} remaining matchups projected{data.playoffs?.available && data.playoffs.simCount ? ' · ' + data.playoffs.simCount.toLocaleString() + ' season simulations' : ''}</p>
+                {!data.playoffs?.available && data.playoffs?.reason && <p className="tc-season-warning">Playoff odds unavailable: {data.playoffs.reason}</p>}
+                {children}
+                {detailed && <div className="tc-season-detail">
+                    {controller.refresh && <button type="button" className="tc-dhq-detail-toggle" onClick={controller.refresh}>Refresh season estimate</button>}
+                    {data.wins?.beforeFinal != null && data.wins?.afterFinal != null && <p>Expected final {data.wins.decisionsPerWeek === 2 ? 'standings wins' : 'wins'}: {num(data.wins.beforeFinal, 2)} → {num(data.wins.afterFinal, 2)}</p>}
+                    {data.playoffs?.available && <p>{data.playoffs.byeBeforePct != null && data.playoffs.byeAfterPct != null ? 'First-round bye chance: ' + pct(data.playoffs.byeBeforePct) + ' → ' + pct(data.playoffs.byeAfterPct) : 'First-round byes: none in this bracket.'}</p>}
+                    <p className="tc-season-method">Before → after trade. Power rank compares average projected starting-lineup points over the remaining regular season. It can differ from Home’s current scoring rank.</p>
+                    <div className="tc-season-weeks-wrap"><table className="tc-season-weeks"><caption>Remaining games</caption><thead><tr><th scope="col">Game</th><th scope="col">Your points</th><th scope="col">Win chance</th></tr></thead><tbody>
+                        {(data.weeks || []).map(row => <tr key={row.week}><th scope="row"><b>Week {row.week}</b><span>{row.opponentName || 'Opponent unavailable'}</span>{row.opponentBeforePoints != null && <small>Opponent {num(row.opponentBeforePoints)}{row.opponentAfterPoints !== row.opponentBeforePoints ? ' → ' + num(row.opponentAfterPoints) : ''} pts</small>}</th><td>{num(row.beforePoints)}<span>→ {num(row.afterPoints)}</span><small>{signed(row.pointsDelta, ' pts')}</small></td><td>{pct(row.beforeWinPct)}<span>→ {pct(row.afterWinPct)}</span><small>{signed(displayedPctDelta(row.beforeWinPct, row.afterWinPct), ' pp', 0)}</small></td></tr>)}
+                    </tbody></table></div>
+                    {(data.weeks || []).some(row => row.beforeStarters?.length || row.afterStarters?.length) && <details className="tc-season-lineup-details"><summary>Which starters change?</summary>{(data.weeks || []).map(row => {
+                        const before = playerNames(row.beforeStarters), after = playerNames(row.afterStarters);
+                        const sent = before.filter(name => !after.includes(name)), received = after.filter(name => !before.includes(name));
+                        return sent.length || received.length || row.unfilledAfter ? <p key={row.week}><b>Week {row.week}:</b> {sent.length ? sent.join(', ') : 'No starters out'} → {received.length ? received.join(', ') : 'No starters in'}{row.unfilledAfter ? ' · ' + row.unfilledAfter + ' open lineup slot(s)' : ''}</p> : null;
+                    })}</details>}
+                    <details className="tc-season-assumptions"><summary>Assumptions and limits</summary><p>Both teams change in the model from Week {effectiveWeek}. This week's roster stays unchanged. A change under 0.15 expected wins is shown as no clear gain. Estimates describe this model’s projection, not a measured prediction-accuracy claim.</p>{(data.assumptions || []).map((line, idx) => <p key={idx}>{line}</p>)}</details>
+                </div>}
+                {(data.warnings || []).map((line, idx) => <p className="tc-season-warning" key={idx}>{line}</p>)}
+                {!detailed && <p className="tc-season-more">Open Why for each remaining matchup and the assumptions.</p>}
+            </> : <><p className="tc-season-status" role="status">{message || 'Season impact unavailable with the current league data.'}</p>{children}</>}
+        </section>;
+        return renderLayout ? renderLayout({ content, ready, data, delta, headline, tone, effectiveWeek, message }) : content;
+    }
+
+    function TcBuilderSummary({ verdict, season }) {
+        const pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+        const delta = season?.delta;
+        const wins = delta != null && Number.isFinite(Number(delta)) ? (delta > 0 ? '+' : '') + Number(delta).toFixed(1) + ' projected wins' : null;
+        const playoffs = season?.data?.playoffs;
+        const playoffDelta = playoffs?.available && playoffs.beforePct != null && playoffs.afterPct != null ? Math.round(playoffs.afterPct) - Math.round(playoffs.beforePct) : null;
+        return <section className={'mc-trade-builder-summary' + (season ? ' has-season' : '')} aria-label="Trade summary" aria-live="polite">
+            <div className="mc-trade-summary-grade"><span>Value grade</span><strong style={{ color: verdict.verdictColor }}>{verdict.grade?.grade || '--'}</strong><small>{verdict.diffDisplay}</small></div>
+            <div className="mc-trade-summary-acceptance"><span>Acceptance</span><strong style={{ color: pro ? verdict.likelihoodColor : undefined }}>{pro ? verdict.likelihood + '%' : 'Pro'}</strong><small>{pro ? 'Owner estimate' : 'Owner acceptance'}</small></div>
+            {season && <div className={'mc-trade-summary-season is-' + season.tone}><span>Season outlook</span><strong>{season.ready ? season.headline : season.message?.startsWith('Calculating') ? 'Calculating…' : 'Unavailable'}</strong><small>{season.ready ? wins || 'Impact incomplete' : 'See analysis below'}</small>{playoffDelta != null && <small>{playoffDelta > 0 ? '+' : ''}{playoffDelta} pp playoff chance</small>}</div>}
+            {season && <p>{season.data?.status === 'limited' ? 'Partial model estimate' : 'Model estimate'}{season.effectiveWeek ? ' · Starts Week ' + season.effectiveWeek : ''} · This week's roster unchanged</p>}
+        </section>;
+    }
+
+    function TcMobileTradeAnalysis({ verdict, FAAB_RATE, secondOpinion, onSave, children }) {
+        const render = (season, seasonImpactContent) => <section className="mc-trade-builder" aria-label="Trade Builder">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '8px 14px 4px' }}>
+                {verdict.hasTrade && <TcBuilderSummary verdict={verdict} season={season} />}
+                {children}
+                {verdict.hasTrade ? <section className="mc-trade-impact" aria-label="Trade analysis">
+                    <TcVerdictPanel {...verdict} FAAB_RATE={FAAB_RATE} secondOpinion={secondOpinion} mobileDetails seasonImpactContent={seasonImpactContent} />
+                    <button type="button" className="tc-phone-open-builder" onClick={onSave}>Save trade idea</button>
+                </section> : <div className="tc-dhq-empty">Add assets to either side — the verdict updates live.</div>}
+            </div>
+        </section>;
+        // One result drives both positions, keeping edits and late responses in sync.
+        return verdict.hasTrade && verdict.seasonImpactController?.enabled
+            ? <TcSeasonImpact controller={verdict.seasonImpactController} deal={verdict.seasonImpactDeal} detailed embedded renderLayout={season => render(season, season.content)} />
+            : render();
+    }
+
+    function TcVerdictPanel({ verdictColor, diffDisplay, grade, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax, gmFloor, gmModeLabel, gmViability, gmWarnings, seasonImpactController, seasonImpactDeal, secondOpinion, mobileDetails = false, seasonImpactContent }) {
         const _pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+        const seasonal = !!seasonImpactController?.enabled;
+        const OwnerReadout = seasonal ? 'details' : React.Fragment;
+        const ownerReadoutProps = seasonal ? { className: 'tc-season-owner-details' } : {};
         // Post-review: the 8-factor psych-tax table + approach line live behind a
         // collapsed-by-default 'Why? ▾' toggle (owner-approved wireframe) so the rail
         // Verdict card stays short enough to keep the DNA-mini card above the fold.
         const [whyOpen, setWhyOpen] = React.useState(false);
         return (
-            <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
-                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
-                <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
+            <div className={'tc-ta-verdict tc-ta-sticky-summary' + (seasonal ? ' tc-unified-analysis' : '')} id="wr-export-trade">
+                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis', mobileDetails ? { prependSelector: '.mc-trade-builder-summary' } : undefined)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
+                {seasonal && (seasonImpactContent || <TcSeasonImpact controller={seasonImpactController} deal={seasonImpactDeal} detailed embedded>
+                    <div className="tc-season-deal-summary" aria-label="Deal value and owner acceptance">
+                        <div><span>Deal value</span><strong style={{ color: verdictColor }}>{grade?.grade || '--'} value grade · {diffDisplay}</strong><small>You send {totalA.toLocaleString()} / receive {totalB.toLocaleString()} season value</small>{faabDelta !== 0 && <small>FAAB {faabDelta > 0 ? '+' : ''}${faabDelta}</small>}</div>
+                        <div><span>Owner acceptance</span>{_pro ? <><strong style={{ color: likelihoodColor }}>{likelihood}% estimate</strong><small>Based on deal price, roster fit and owner history.</small></> : <><strong>Pro</strong><small>Owner acceptance and negotiation reads.</small></>}</div>
+                        <p>Deal value measures the price. The season verdict measures the projected effect on your games.</p>
+                    </div>
+                </TcSeasonImpact>)}
+                {!seasonal && <>
+                {!mobileDetails && <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                     <span className="tc-verdict-diff" style={{ color: verdictColor }}>{grade?.grade || '--'}</span>
                     <span style={{ fontFamily:'var(--font-title)', fontSize:'1.1rem', color: verdictColor }}>{(grade?.label || '').toUpperCase()}</span>
                     <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.05rem', fontWeight:600, color: verdictColor }}>{diffDisplay}</span>
                     <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
-                </div>
+                </div>}
                 <div className="tc-ta-impact-grid">
                     <div>
                         <span>Roster Impact</span>
@@ -226,7 +433,7 @@
                         <strong>{faabDelta >= 0 ? '+' : ''}${faabDelta}</strong>
                         <em>{Math.round(faabDelta * FAAB_RATE).toLocaleString()} DHQ equiv.</em>
                     </div>
-                    {_pro ? (
+                    {!mobileDetails && (_pro ? (
                         <div>
                             <span>Acceptance</span>
                             <strong style={{ color: likelihoodColor }}>{likelihood}%</strong>
@@ -238,8 +445,11 @@
                             <strong style={{ color: 'var(--gold)' }}>{'🔒'} Pro</strong>
                             <em>psych-modeled odds</em>
                         </div>
-                    )}
+                    ))}
                 </div>
+                </>}
+                <OwnerReadout {...ownerReadoutProps}>
+                {seasonal && <summary>Owner fit and negotiation details</summary>}
                 {_pro && otherOwnerId && (
                     <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
                         <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Their posture:</span>
@@ -253,7 +463,7 @@
                 )}
                 {_pro && <div>
                     <button type="button" className="tc-dhq-detail-toggle" onClick={() => setWhyOpen(v => !v)}>
-                        {whyOpen ? 'Hide why ▴' : 'Why? ▾'}
+                        {whyOpen ? 'Hide why ▴' : seasonal ? 'Acceptance factors ▾' : 'Why? ▾'}
                     </button>
                     {whyOpen && <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
                     <div>
@@ -317,6 +527,7 @@
                         </div>
                     )}
                 </div>}
+                </OwnerReadout>
                 {/* GM Strategy warnings are the user's OWN strategy reads (untouchables, target/sell) — free at every tier. */}
                 {gmWarnings && gmWarnings.length > 0 && (
                     <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
@@ -327,6 +538,7 @@
                         ))}
                     </div>
                 )}
+                {secondOpinion && <div className="tc-trade-second-opinion">{secondOpinion}</div>}
             </div>
         );
     }
@@ -334,7 +546,7 @@
     // ── TcDealCard — extracted from renderDealHQ (Step-1 refactor; no behavior change) ──
     // One generated deal package: send/receive summary, decision strip (grade/accept/Δ), and an
     // expandable why-drawer. Closures it used (sideSummary, loadDealIntoBuilder, saveDeal) are props.
-    function TcDealCard({ deal, idx, actionFloor, expandedDealId, setExpandedDealId, loadDealIntoBuilder, saveDeal, sideSummary }) {
+    function TcDealCard({ deal, idx, actionFloor, expandedDealId, setExpandedDealId, loadDealIntoBuilder, saveDeal, sideSummary, seasonImpactController }) {
                 const deltaColor = deal.userGain >= 0 ? 'var(--good)' : 'var(--bad)';
                 const likelihoodColor2 = deal.likelihood >= actionFloor ? 'var(--good)' : deal.likelihood >= Math.max(55, actionFloor - 15) ? 'var(--warn)' : 'var(--bad)';
                 const expanded = expandedDealId === deal.id;
@@ -358,9 +570,10 @@
                         {sideSummary('You Send', deal, 'give')}
                         {sideSummary('You Get', deal, 'receive')}
                     </div>
+                    {seasonImpactController?.enabled && <TcSeasonImpact controller={seasonImpactController} deal={deal} detailed={expanded} />}
                     <div className="tc-dhq-decision-strip">
                         <div className="tc-dhq-decision">
-                            <span>Grade</span>
+                            <span>{seasonImpactController?.enabled ? 'Value grade' : 'Grade'}</span>
                             <strong style={{ color:deal.gradeColor }}>{deal.grade}</strong>
                         </div>
                         <div className="tc-dhq-decision">
@@ -368,7 +581,7 @@
                             <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
                         </div>
                         <div className="tc-dhq-decision">
-                            <span>DHQ Delta</span>
+                            <span>{seasonImpactController?.enabled ? 'Season value Δ' : 'DHQ Delta'}</span>
                             <strong style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()}</strong>
                         </div>
                     </div>
@@ -386,7 +599,7 @@
                                 <strong style={{ color:deal.viability === 'Moonshot' ? 'var(--bad)' : deal.viability === 'Negotiable' ? 'var(--warn)' : 'var(--good)' }}>{deal.viability || deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
                             </div>
                             <div className="tc-dhq-stat">
-                                <span>Window</span>
+                                <span>{seasonImpactController?.enabled ? 'Horizon' : 'Window'}</span>
                                 <strong style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
                             </div>
                         </div>
@@ -1056,6 +1269,9 @@
         const [searchText, setSearchText] = useState({ A:'', B:'' });
         // Alex's AI second opinion on the manual builder's deal: { loading, error, text, dealKey, feedback }
         const [alexVerdict, setAlexVerdict] = useState(null);
+        const activeTradeVerdictKeyRef = useRef('');
+        const alexVerdictRequestRef = useRef(0);
+        useEffect(() => () => { activeTradeVerdictKeyRef.current = ''; alexVerdictRequestRef.current += 1; }, []);
         const lastTradeLogRef = useRef('');
         const tradeStartedRef = useRef(false);
         useEffect(() => {
@@ -1125,6 +1341,102 @@
         const ownerIntelReady = !!window.App?.LI_LOADED && String(window.App?.LI?.sourceLeagueId || '') === String(leagueId);
         const ownerIntel = ownerIntelReady ? window.App.LI : {};
         const ownerScoutingScope = String(leagueId || '') + ':' + String(currentLeague.season || '');
+        const seasonalEnabled = resolvedLeagueSkin?.type === 'redraft'
+            && (resolvedLeagueSkin?.phase === 'in_season' || (!resolvedLeagueSkin?.phase && currentLeague.status === 'in_season'));
+        const seasonalActive = tcTab === 'desk' || tcTab === 'builder';
+        const [seasonalProjectionTick, setSeasonalProjectionTick] = useState(0);
+        const [seasonalRefreshTick, setSeasonalRefreshTick] = useState(0);
+        const [seasonalPrepared, setSeasonalPrepared] = useState({ key: null, status: 'loading' });
+        const seasonalContextRef = useRef(null);
+        const seasonalLoadingRef = useRef(null);
+        const seasonalRefreshTimerRef = useRef(null);
+        const seasonalAnalysisCache = useRef({ key: null, results: new Map() });
+        const seasonalScope = (seasonalEnabled ? tcSeasonInputKey({
+            league: currentLeague, playersData, statsData, priorData: window.S?.priorData, projectionsData: window.S?.projectionsData,
+            currentWeek: window.App?.WeeklyProj?.currentWeek?.(), nflSeason: window.S?.nflState?.season,
+            weeklyPlayerPoints: window.S?.weeklyPlayerPoints, weeklyPlayerPlayed: window.S?.weeklyPlayerPlayed,
+            weeklyScores: window.S?.weeklyScores || currentLeague.weeklyScores,
+            nflContext: window.App?.WeeklyProj?._ctx?.byTeamWeek,
+            nflSchedule: window.App?.SOS?.schedule, defenseRankings: window.App?.SOS?.defenseRankings,
+        }) : ownerScoutingScope) + ':' + seasonalRefreshTick;
+        useEffect(() => {
+            if (!seasonalEnabled) return;
+            const refresh = event => {
+                if (event?.detail?.leagueId && String(event.detail.leagueId) !== String(leagueId)) return;
+                if (event?.type === 'wr:projections-loaded' && seasonalLoadingRef.current) return;
+                window.clearTimeout(seasonalRefreshTimerRef.current);
+                seasonalRefreshTimerRef.current = window.setTimeout(() => {
+                    if (event?.type === 'wr:data-synced') setSeasonalRefreshTick(tick => tick + 1);
+                    else setSeasonalProjectionTick(tick => tick + 1);
+                }, 150);
+            };
+            const events = ['wr:projections-loaded', 'wr:weekly-points-loaded', 'wr:ros-market-loaded', 'wr:data-synced'];
+            events.forEach(name => window.addEventListener(name, refresh));
+            return () => { window.clearTimeout(seasonalRefreshTimerRef.current); events.forEach(name => window.removeEventListener(name, refresh)); };
+        }, [seasonalEnabled, leagueId]);
+        useEffect(() => {
+            if (!seasonalEnabled || !seasonalActive) return;
+            let active = true;
+            const previous = seasonalContextRef.current;
+            if (previous?.key === seasonalScope) { setSeasonalPrepared(previous); return; }
+            window.clearTimeout(seasonalRefreshTimerRef.current);
+            seasonalLoadingRef.current = seasonalScope;
+            setSeasonalPrepared({ key: seasonalScope, status: 'loading' });
+            seasonalAnalysisCache.current = { key: seasonalScope, results: new Map() };
+            const engine = window.App?.TradeSeasonImpact;
+            if (!engine?.prepare || !engine?.analyze) {
+                seasonalLoadingRef.current = null;
+                setSeasonalPrepared({ key: seasonalScope, status: 'unavailable', reason: 'Season impact is unavailable. Refresh the page to load the season model.' });
+                return;
+            }
+            // Hydration can publish several real inputs in one burst. Let that
+            // burst settle before reading every future projection week.
+            const prepareTimer = window.setTimeout(() => Promise.resolve().then(() => engine.prepare({ league: currentLeague, playersData, statsData, priorData: window.S?.priorData })).then(context => {
+                if (!active) return;
+                const prepared = { key: seasonalScope, status: context?.status === 'ready' ? 'ready' : 'unavailable', reason: context?.reason, fromWeek: context?.fromWeek, context, fetchedAt: Date.now() };
+                seasonalContextRef.current = prepared;
+                setSeasonalPrepared(prepared);
+            }).catch(() => {
+                if (active) setSeasonalPrepared({ key: seasonalScope, status: 'unavailable', reason: 'Remaining-season data could not be loaded. Refresh league data to retry.' });
+            }).finally(() => {
+                if (seasonalLoadingRef.current === seasonalScope) seasonalLoadingRef.current = null;
+            }), 180);
+            return () => { active = false; window.clearTimeout(prepareTimer); if (seasonalLoadingRef.current === seasonalScope) seasonalLoadingRef.current = null; };
+        }, [seasonalEnabled, seasonalActive, seasonalScope]);
+        useEffect(() => {
+            if (!seasonalEnabled || !seasonalActive || seasonalPrepared.key !== seasonalScope || !seasonalPrepared.fetchedAt) return;
+            const timer = window.setTimeout(() => setSeasonalRefreshTick(tick => tick + 1), Math.max(1000, seasonalPrepared.fetchedAt + 5 * 60 * 1000 - Date.now()));
+            return () => window.clearTimeout(timer);
+        }, [seasonalEnabled, seasonalActive, seasonalPrepared, seasonalScope]);
+        const seasonImpactController = useMemo(() => {
+            const prepared = seasonalPrepared.key === seasonalScope ? seasonalPrepared : { status: 'loading' };
+            return {
+                enabled: seasonalEnabled && seasonalActive,
+                key: seasonalScope,
+                status: prepared.status,
+                reason: prepared.reason,
+                fromWeek: prepared.fromWeek || ((window.App?.WeeklyProj?.currentWeek?.() || 1) + 1),
+                playerName: pid => playersData[pid]?.full_name || playersData[pid]?.name || String(pid),
+                refresh: () => setSeasonalRefreshTick(tick => tick + 1),
+                analyze: deal => {
+                    const myId = deal?.myRosterId ?? myRoster?.roster_id;
+                    const partnerId = deal?.partnerRosterId;
+                    const give = (deal?.givePlayerIds || (deal?.givePlayers || []).map(player => player.pid)).map(String).sort();
+                    const receive = (deal?.receivePlayerIds || (deal?.receivePlayers || []).map(player => player.pid)).map(String).sort();
+                    const signature = JSON.stringify([myId, partnerId, give, receive]);
+                    const cache = seasonalAnalysisCache.current;
+                    if (cache.key !== seasonalScope) { cache.key = seasonalScope; cache.results.clear(); }
+                    if (!cache.results.has(signature)) {
+                        const result = window.App.TradeSeasonImpact.analyze({ context: prepared.context, myRosterId: myId, partnerRosterId: partnerId, givePlayerIds: give, receivePlayerIds: receive, sims: 3000, seed: 42 });
+                        if (cache.results.size >= 64) cache.results.delete(cache.results.keys().next().value);
+                        cache.results.set(signature, result);
+                    }
+                    return cache.results.get(signature);
+                },
+            };
+        }, [seasonalPrepared, seasonalScope, seasonalEnabled, seasonalActive, myRoster?.roster_id]);
+        activeTradeVerdictKeyRef.current = tcTradeVerdictKey({ leagueId, season: currentLeague.season, owners: tradeOwner,
+            tradeIds, tradePickIds, tradeFaab, seasonKey: seasonalEnabled ? seasonalScope + ':' + seasonImpactController.status : '' });
         const savedOwnerDna = savedOwnerDnaState.scope === ownerScoutingScope ? savedOwnerDnaState.map : {};
         const ownerDraftDna = ownerDraftDnaState.scope === ownerScoutingScope ? ownerDraftDnaState.map : {};
         // Inference remains available to the trade engine without becoming a
@@ -1345,6 +1657,9 @@
         const tcShowFuturePicks = resolvedLeagueSkin?.features?.showFuturePicks !== false;
         const picksByOwner = useMemo(() => {
             if (!allRosters.length) return {};
+            // The redraft board has already been used once the season starts.
+            // Synthetic current-year picks must not become in-season offers.
+            if (seasonalEnabled) return {};
             const leagueSeason = parseInt(currentLeague.season || new Date().getFullYear());
             // MFL builds picks ENTIRELY from real MFL data (never the generic base
             // model, which invents a fixed 7 rounds × every team × N future years):
@@ -1389,7 +1704,7 @@
                 return out;
             }
             return buildPicksByOwner(allRosters, tradedPicks, leagueSeason, tcDraftRounds, tcShowFuturePicks ? PICK_HORIZON : 1);
-        }, [allRosters, tradedPicks, tcDraftRounds, tcShowFuturePicks]);
+        }, [allRosters, tradedPicks, tcDraftRounds, tcShowFuturePicks, seasonalEnabled]);
 
         const assessments = useMemo(() => {
             if (!allRosters.length || !Object.keys(playersData).length) return [];
@@ -1779,6 +2094,7 @@
         }
 
         function dealWindowImpact(givePlayers, receivePlayers) {
+            if (resolvedLeagueSkin?.type === 'redraft') return { label: 'Current season', color: 'var(--silver)' };
             // Player-only read: a pick asset has no pos/age and would be scored as a
             // 25-year-old — filter picks defensively even though callers pass player arrays.
             const playersOnly = list => (list || []).filter(a => a && a.type !== 'pick');
@@ -1866,7 +2182,9 @@
             const whyAccept = input.whyAccept || (partner.needs?.length
                 ? `They need ${partner.needs.slice(0, 2).map(n => n.pos).join('/')} and this gives them usable assets.`
                 : `Their ${posture.label.toLowerCase()} posture keeps them open to a clean value offer.`);
-            const whyYou = input.whyYou || (userGain >= 0
+            const whyYou = resolvedLeagueSkin?.type === 'redraft'
+                ? `Season value changes by ${userGain >= 0 ? '+' : ''}${Math.round(userGain).toLocaleString()}. Check the season impact estimate for starting-lineup and matchup gains.`
+                : input.whyYou || (userGain >= 0
                 ? `You gain ${Math.abs(Math.round(userGain)).toLocaleString()} DHQ while improving deal fit.`
                 : `You pay ${Math.abs(Math.round(userGain)).toLocaleString()} DHQ for a roster or window upgrade.`);
             const dealId = input.id || `deal_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -3657,7 +3975,7 @@
                         </div>
                         <div className="tc-dhq-deal-stage-body">
                             {visibleDeals.length
-                                ? visibleDeals.map((deal, idx) => <TcDealCard key={deal.id} deal={deal} idx={idx} actionFloor={actionFloor} expandedDealId={expandedDealId} setExpandedDealId={setExpandedDealId} loadDealIntoBuilder={loadDealIntoBuilder} saveDeal={saveDeal} sideSummary={sideSummary} />)
+                                ? visibleDeals.map((deal, idx) => <TcDealCard key={deal.id} deal={deal} idx={idx} actionFloor={actionFloor} expandedDealId={expandedDealId} setExpandedDealId={setExpandedDealId} loadDealIntoBuilder={loadDealIntoBuilder} saveDeal={saveDeal} sideSummary={sideSummary} seasonImpactController={seasonImpactController} />)
                                 : <div className="tc-dhq-empty">No ideas meet the {actionFloor}% estimated acceptance threshold. You can still explore the lower-confidence ideas below.</div>}
                         </div>
                         {(deals.length > visibleDeals.length || showAllDeals) && <button className="tc-dhq-show-more" onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Show recommended ideas' : moonshotCount ? `Explore ${moonshotCount} lower-confidence idea${moonshotCount === 1 ? '' : 's'}` : `Show ${deals.length - visibleDeals.length} more`}</button>}
@@ -3741,8 +4059,7 @@
                         <div className="tc-dhq-panel-body tc-dhq-dossier-body">
                             {_verdict.hasTrade
                                 ? <>
-                                    {React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}
-                                    {renderAlexVerdict()}
+                                    {React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE, secondOpinion: renderAlexVerdict() })}
                                 </>
                                 : <div className="tc-dhq-empty">No live deal — load a finder row or open the builder.</div>}
                         </div>
@@ -3976,7 +4293,13 @@
                     .filter(p => _gmTuning.sellPositions?.has(p))
                     .forEach(p => gmWarnings.push({ type: 'sell', text: `Buying ${p} — your strategy says SELL` }));
             }
-            return { totalA, totalB, hasTrade, grade, userGain, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, gmFloor, gmModeLabel, gmViability, gmWarnings };
+            const seasonImpactDeal = {
+                myRosterId: allRosters.find(roster => String(roster.owner_id) === String(tradeOwner.A))?.roster_id ?? myRosterId,
+                partnerRosterId: theirAssessment?.rosterId,
+                givePlayerIds: tradeIds.A,
+                receivePlayerIds: tradeIds.B,
+            };
+            return { totalA, totalB, hasTrade, grade, userGain, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, gmFloor, gmModeLabel, gmViability, gmWarnings, seasonImpactController, seasonImpactDeal };
         }
 
         // ── Alex second opinion on the builder deal ──────────────────────────
@@ -3997,6 +4320,12 @@
             return {
                 leagueName: currentLeague?.name || 'my league',
                 leagueId,
+                leagueType: resolvedLeagueSkin?.type || 'unknown',
+                phase: resolvedLeagueSkin?.phase || currentLeague?.status,
+                season: currentLeague?.season,
+                currentWeek: window.App?.WeeklyProj?.currentWeek?.(),
+                leagueSettings: currentLeague?.settings || {},
+                decisionContext: window.WR?.AIContext?.decisionContext?.(currentLeague) || { leagueType: resolvedLeagueSkin?.type || 'unknown' },
                 rosterPositions: currentLeague?.roster_positions || [],
                 roster_positions: currentLeague?.roster_positions || [],
                 scoringSettings: currentLeague?.scoring_settings || {},
@@ -4020,6 +4349,7 @@
                 } : {},
                 iSend: dealSide('A'),
                 iReceive: dealSide('B'),
+                seasonImpact: tcSeasonVerdictEvidence(v.seasonImpactController, v.seasonImpactDeal),
                 verdict: {
                     verdictText: v.verdictText,
                     diffDisplay: v.diffDisplay,
@@ -4030,15 +4360,18 @@
         }
 
         async function requestAlexVerdict(v, dealKey) {
+            const request = ++alexVerdictRequestRef.current;
             setAlexVerdict({ loading: true, dealKey });
             try {
                 const result = await window.OD.callAI({ type: 'trade_verdict', context: buildTradeVerdictContext(v) });
+                if (activeTradeVerdictKeyRef.current !== dealKey || alexVerdictRequestRef.current !== request) return;
                 setAlexVerdict({ text: result.analysis, dealKey });
                 const partnerName = (assessments.find(a => a.ownerId === v.otherOwnerId) || {}).ownerName;
                 if (typeof window.OD?.saveAIAnalysis === 'function') {
                     window.OD.saveAIAnalysis(leagueId, 'trade_verdict', partnerName ? `Trade Verdict vs ${partnerName}` : 'Trade Verdict', result.analysis).catch?.(() => {});
                 }
             } catch (e) {
+                if (activeTradeVerdictKeyRef.current !== dealKey || alexVerdictRequestRef.current !== request) return;
                 setAlexVerdict({ error: e.message || 'Second opinion failed. Try again in a moment.', dealKey });
             }
         }
@@ -4055,8 +4388,10 @@
             // Free tier: nothing renders here (AI is fully Pro-gated — chat's old
             // free fallback is retired, not replaced, matching insight/waiver-take).
             if (!canAccess('trade-quick-check')) return null;
-            // Key the response to the deal's contents so editing the deal invalidates a stale verdict.
-            const dealKey = [tradeIds.A.join(','), tradeIds.B.join(','), tradePickIds.A.join(','), tradePickIds.B.join(','), tradeFaab.A, tradeFaab.B].join('|');
+            // A refreshed season model or another league must invalidate the read
+            // even when the selected player IDs happen to be unchanged.
+            const dealKey = activeTradeVerdictKeyRef.current;
+            const waitingForSeason = v.seasonImpactController?.enabled && v.seasonImpactController.status === 'loading';
             const current = alexVerdict && alexVerdict.dealKey === dealKey ? alexVerdict : null;
             const ClampedRead = window.WR?.ClampedRead; // guarded — shared primitive, script-order safe
             const verdictHtml = current?.text ? current.text
@@ -4068,9 +4403,9 @@
             return (
                 <div style={{ marginTop: '10px' }}>
                     {!current && (
-                        <button type="button" onClick={() => requestAlexVerdict(v, dealKey)}
+                        <button type="button" disabled={waitingForSeason} onClick={() => requestAlexVerdict(v, dealKey)}
                             style={{ width:'100%', background:'var(--acc-fill2, rgba(212,175,55,0.08))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-sm, 8px)', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
-                            ✨ Ask Alex for a second opinion
+                            {waitingForSeason ? 'Loading season evidence for Alex…' : '✨ Ask Alex for a second opinion'}
                         </button>
                     )}
                     {current?.loading && <GMMessage compact>Reading the deal…</GMMessage>}
@@ -4618,13 +4953,13 @@
                 return (
                     <div key={isPick ? asset.id : (asset.pid || asset.id)} className="mc-trade-value-asset">
                         <strong>{isPick ? asset.label : asset.name}</strong>
-                        <small>{isPick ? 'Pick' : asset.pos} · {asset.value.toLocaleString()} DHQ</small>
+                        <small>{isPick ? 'Pick' : asset.pos} · {asset.value.toLocaleString()} {seasonalEnabled ? 'season value' : 'DHQ'}</small>
                     </div>
                 );
             };
             const phDealSide = (label, players, picks, faab, total) => (
                 <div>
-                    <header>{label}<b>{total.toLocaleString()} DHQ</b></header>
+                    <header>{label}<b>{total.toLocaleString()} {seasonalEnabled ? 'season value' : 'DHQ'}</b></header>
                     {(players || []).map(phAssetLine)}
                     {(picks || []).map(phAssetLine)}
                     {faab > 0 ? (
@@ -4651,11 +4986,12 @@
                                 <strong>{receiveLabel}</strong>
                                 <small>{[receivePositions || ((deal.receivePicks || []).length ? 'Draft picks' : 'FAAB'), deal.partnerName].filter(Boolean).join(' · ')}</small>
                             </div>
-                            <b className="mc-trade-grade" style={{ color: deal.gradeColor || 'var(--gold)' }}><span className="mc-trade-sr-only">Grade </span>{deal.grade}</b>
+                            <b className="mc-trade-grade" style={{ color: deal.gradeColor || 'var(--gold)' }}><span className="mc-trade-sr-only">{seasonalEnabled ? 'Value grade ' : 'Grade '}</span>{deal.grade}</b>
                             <b style={{ color: likeColor }}><span className="mc-trade-sr-only">Estimated acceptance </span>{deal.likelihood}%</b>
                             <b style={{ color: deltaColor }}><span className="mc-trade-sr-only">Value change </span>{(deal.userGain >= 0 ? '+' : '') + Math.round(deal.userGain).toLocaleString()}<span className="mc-trade-sr-only"> DHQ</span></b>
                         </div>
                         <p className="mc-trade-send-line"><span>You send</span> {phPackageNames(deal.givePlayers, deal.givePicks, deal.giveFaab)}</p>
+                        {seasonImpactController.enabled && <TcSeasonImpact controller={seasonImpactController} deal={deal} detailed={expanded} />}
                         <div className="mc-trade-idea-actions">
                             <button type="button" className="mc-trade-build" aria-label={'Build trade for ' + receiveLabel} onClick={() => { loadDealIntoBuilder(deal); setPhBuilderOpen(true); }}>Build trade <span aria-hidden="true">↗</span></button>
                             <button type="button" aria-label={'Save trade for ' + receiveLabel} onClick={() => saveDeal(deal)}>Save</button>
@@ -4806,12 +5142,9 @@
                 );
             }
 
-            // ── P6 builder sheet — the persistent builder strip's content plus the
-            // FULL TcVerdictPanel (its internal free/Pro split unchanged) and the
-            // Alex second opinion (its own trade-quick-check gate, user-initiated).
+            // Phone summary precedes the packages; the full analysis follows the pickers.
             const builderSheetEl = (
-                <section className="mc-trade-builder" aria-label="Trade Builder">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '8px 14px 4px' }}>
+                <TcMobileTradeAnalysis verdict={_verdict} FAAB_RATE={FAAB_RATE} secondOpinion={_verdict.hasTrade ? renderAlexVerdict() : null} onSave={saveManualTrade}>
                         {builderPlayerContext && <button className="mc-trade-player-back" type="button" onClick={() => { window.wrNavigateTab?.(builderPlayerContext.returnTab || 'myteam'); window.setTimeout(() => (window._wrSelectPlayer || window.openPlayerModal)?.(builderPlayerContext.pid), 100); }}>‹ {playersData[builderPlayerContext.pid]?.full_name || 'Player details'}</button>}
                         <div className="mc-trade-packages">{['A', 'B'].map(side => <div key={side}><header><span>{side === 'A' ? 'YOU SEND' : 'YOU GET'}</span><b>{(side === 'A' ? _verdict.totalA : _verdict.totalB).toLocaleString()}</b></header>{tradeIds[side].map(pid => <div key={pid}><span>{playersData[pid]?.full_name || String(pid)}</span><button type="button" aria-label={'Remove ' + (playersData[pid]?.full_name || pid) + ' from ' + side} onClick={() => _tsDeps.removePlayer(side, pid)}>×</button></div>)}{tradePickIds[side].map(id => { const p = id.split('-'); return <div key={id}><span>{formatPickLabel(p[1], Number(p[2]), p[3], p[4]?.startsWith('s') ? Number(p[4].slice(1)) : null)}</span><button type="button" aria-label={'Remove pick from ' + side} onClick={() => _tsDeps.removePick(side, id)}>×</button></div>; })}{tradeFaab[side] > 0 && <p>${tradeFaab[side]} FAAB</p>}{!tradeIds[side].length && !tradePickIds[side].length && !tradeFaab[side] && <p>Add players, picks or FAAB</p>}</div>)}</div>
                         <div className="mc-trade-builder-toolbar">
@@ -4824,13 +5157,7 @@
                                 {TcTradeSide({ side, color: side === 'A' ? 'var(--cx-accent, #b7ceff)' : 'var(--good)', label: side === 'A' ? 'YOU SEND' : 'YOU GET', ..._tsDeps, compact: true })}
                             </section>)}
                         </div>
-                        {_verdict.hasTrade
-                            ? <React.Fragment>
-                                <section className="mc-trade-impact"><h3>Trade impact</h3>{React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}{renderAlexVerdict()}<button type="button" className="tc-phone-open-builder" onClick={saveManualTrade}>Save trade idea</button></section>
-                            </React.Fragment>
-                            : <div className="tc-dhq-empty">Add assets to either side — the verdict updates live.</div>}
-                    </div>
-                </section>
+                </TcMobileTradeAnalysis>
             );
 
             // ── P6 action bar — the canonical live-deal strip (desk only; the Trade
@@ -4901,7 +5228,7 @@
                                     : <div className="tc-dhq-empty">No package found for this intent — change the partner or focus in the finder controls.</div>)
                         )}
                         {_pro && rosterState.isUsable && finderVisibleDeals.length > 0 && <div className="mc-trade-board" aria-label="Trade ideas">
-                            <div className="mc-trade-target-grid mc-trade-board-head" aria-hidden="true"><span>You receive</span><span>Grade</span><span>Est.<br />accept</span><span>Δ DHQ</span></div>
+                            <div className="mc-trade-target-grid mc-trade-board-head" aria-hidden="true"><span>You receive</span><span>{seasonalEnabled ? 'Value grade' : 'Grade'}</span><span>Est.<br />accept</span><span>{seasonalEnabled ? 'Δ value' : 'Δ DHQ'}</span></div>
                             {finderVisibleDeals.map(phDealCard)}
                         </div>}
                         {_pro && rosterState.isUsable && (finderDeals.length > finderVisibleDeals.length || showAllDeals) && (

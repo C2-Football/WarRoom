@@ -1,0 +1,164 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:53022/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Two commissioned public-provider fixtures; actual Office, task queue, Prefs, checklist, AccountStorage and schedule generator.",
+  "capabilityBoundary": "Disposable synthetic browser identities and touch/viewport emulation. No authenticated backend persistence or physical-device claim. External writes are blocked before navigation.",
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": false,
+      "checks": [],
+      "touchChecks": [
+        {
+          "control": "League matrix heading Coefficient",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading People",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Operations",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Programmes",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Rule Lab",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "matrixChecks": [
+        {
+          "heading": "Coefficient",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "People",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Operations",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Programmes",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Rule Lab",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        }
+      ],
+      "blockedExternalMutations": 0,
+      "pageErrors": [],
+      "error": "AssertionError [ERR_ASSERTION]: Native reverse keyboard navigation must reveal the complete heading beside the pinned league column: {\"heading\":\"Season Setup\",\"x\":59,\"right\":171,\"leftEdge\":173,\"rightEdge\":287,\"centerReachable\":false,\"hit\":\"<div style=\\\"position: sticky; left: 0px; z-index: 1; background: var(--co-surface, #121217);\\\"></div>\"}\n    at checkLeagueMatrix (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:236:9)\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:275:9"
+    }
+  ]
+}

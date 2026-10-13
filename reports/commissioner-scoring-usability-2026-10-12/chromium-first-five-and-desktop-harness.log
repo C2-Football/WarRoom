@@ -1,0 +1,14 @@
+PASS chromium Rule Lab real replay phone-small 320×700
+PASS chromium Rule Lab real replay phone 390×844
+PASS chromium Rule Lab real replay phone-landscape 844×390
+PASS chromium Rule Lab real replay ipad-portrait 768×1024
+PASS chromium Rule Lab real replay ipad-landscape 1024×768
+Replay diagnostics {"runs":[{"leagueId":"qa-replay-half","proposal":{},"empty":false,"weeks":14},{"leagueId":"qa-replay-half","proposal":{"rec":1.25},"empty":false,"weeks":14},{"leagueId":"qa-replay-half","proposal":{"rec":1.25},"empty":true,"reason":"Season stats are unavailable for played week 3. Retry the season data before comparing rules.","weeks":0},{"leagueId":"qa-replay-half","proposal":{"rec":1.25},"empty":false,"weeks":14},{"leagueId":"qa-replay-half","proposal":{"rec":1.25},"empty":false,"weeks":14}],"rendered":["qa-replay-half"]}
+locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('summary').filter({ hasText: 'All scoring rules' }).locator('..').getByRole('spinbutton', { name: 'Passing TD', exact: true })[22m
+
+    at activate (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:76:72)
+    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:326:17 {
+  name: 'TimeoutError'
+}

@@ -1,3 +1,4 @@
+/* global module */
 /* Shared, account-scoped mobile player columns. Values always come from the caller's league context. */
 (function (root) {
     'use strict';

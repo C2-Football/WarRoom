@@ -1,0 +1,3 @@
+PASS webkit Rule Lab real replay ipad-portrait 768×1024
+PASS webkit Rule Lab real replay ipad-landscape 1024×768
+PASS webkit Rule Lab real replay desktop 1440×1000

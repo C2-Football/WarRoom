@@ -78,15 +78,20 @@ test('mobile People searches all members and preserves personal evidence inside 
     tree = h.render('WrCommishPeoplePanel', props); assert.equal(byClass(tree, 'co-person').length, 1); assert.match(text(byClass(tree, 'co-person')[0]), /Person 11/); assert.doesNotMatch(text(byClass(tree, 'co-person')[0]), /Check-in 11/);
     click(tree, 'Open seats (0)'); tree = h.render('WrCommishPeoplePanel', props); assert.equal(byClass(tree, 'co-person').length, 0); assert.match(text(tree), /Every seat is filled/);
 });
-test('mobile Rule Lab keeps current results before collapsed scoring without losing callbacks', () => {
+test('mobile Rule Lab keeps replay impact before optional scoring without losing callbacks', () => {
     const h = harness(['js/components/commish-rulelab-panel.js']); let selected; let analyzed = 0; let staged;
     const props = { phone: true, status: 'empty', leagues: [{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }], selectedLeagueId: 'a', onSelectLeague: id => selected = id,
         baselineScoring: { rec: 0.5 }, editorKeys: ['rec'], proposal: { rec: 1 }, hasUnanalyzedChanges: true, onAnalyze: () => analyzed++, onProposalStage: p => staged = p };
     const tree = h.render('WrCommishRuleLabPanel', props);
-    assert.ok(text(tree).indexOf('No completed weeks') < text(tree).indexOf('Wind Tunnel'));
+    const impact = byClass(tree, 'co-rulelab-impact')[0];
+    const optionalScoring = all(tree, n => n.type === 'details' && all(n, child => child.type === 'summary' && text(child).startsWith('All scoring rules')).length > 0)[0];
+    assert.match(text(impact), /No completed weeks/);
+    assert.ok(optionalScoring && !optionalScoring.props.open, 'Optional scoring rules stay collapsed on the phone');
+    const order = all(tree, () => true);
+    assert.ok(order.indexOf(impact) < order.indexOf(optionalScoring), 'Replay impact appears before optional scoring controls');
     assert.equal(byClass(tree, 'co-scoring-category')[0].type, 'details'); assert.ok(!byClass(tree, 'co-scoring-category')[0].props.open);
     const selector = byClass(tree, 'co-scope-select')[0]; all(selector, n => n.type === 'select')[0].props.onChange({ target: { value: 'b' } }); assert.equal(selected, 'b');
-    click(tree, 'Analyze staged changes'); assert.equal(analyzed, 1);
+    click(tree, 'Preview changes'); assert.equal(analyzed, 1);
     const reception = all(tree, n => n.type === 'label' && text(n) === 'Reception (PPR)')[0];
     assert.ok(reception); all(reception, n => n.type === 'input')[0].props.onChange({ target: { value: '1.5' } }); assert.equal(staged.rec, 1.5);
 });

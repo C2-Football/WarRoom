@@ -1,0 +1,9 @@
+{
+  "status": "blocked-before-rulelab-entry",
+  "url": "http://127.0.0.1:51009/dist-deploy/",
+  "observed": "Commissioner hero remained disabled with zero connected leagues; all54local indexed stylesheet hrefs returned404. No Rule Lab engine runs or replay render occurred.",
+  "productFailureConfirmed": false,
+  "runnerExitCode": 1,
+  "runnerAndBrowserClosed": true,
+  "sourceEdits": false
+}

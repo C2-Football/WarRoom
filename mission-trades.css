@@ -1,4 +1,60 @@
 /* Mission Control: compact trade decisions and complete owner dossiers. */
+.tc-season-impact { min-width:0; margin:12px 0; padding:12px; border:1px solid var(--gx-edge,rgba(183,206,255,.24)); border-radius:10px; background:rgba(15,27,46,.5); color:var(--cx-ink,var(--white)); font:400 13px/1.5 var(--font-body,"DM Sans",sans-serif); overflow-wrap:anywhere; }
+.tc-season-impact>header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.tc-season-impact h4 { margin:0; color:var(--cx-ink,var(--white)); font:600 16px/1.3 var(--font-body); }
+.tc-season-impact.is-positive h4 { color:var(--good); }
+.tc-season-impact.is-negative h4 { color:var(--bad); }
+.tc-season-impact>header>span { flex-shrink:0; color:var(--cx-muted,var(--silver)); font-size:11px; }
+.tc-season-impact p { margin:8px 0 0; line-height:1.5; }
+.tc-season-impact .tc-season-timing { margin-top:4px; color:var(--cx-muted,var(--silver)); font-size:12px; }
+.tc-season-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-top:10px; }
+.tc-season-metric { min-width:0; padding:8px 7px; border:1px solid rgba(183,206,255,.14); border-radius:7px; background:rgba(183,206,255,.035); }
+.tc-season-metric>span,.tc-season-metric>small { display:block; color:var(--cx-muted,var(--silver)); font:400 11px/1.4 var(--font-body); }
+.tc-season-metric strong { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; margin:4px 0; font:600 17px/1.3 var(--font-body); font-variant-numeric:tabular-nums; }
+.tc-season-metric strong i { color:var(--cx-muted,var(--silver)); font-style:normal; font-size:13px; }
+.tc-season-metric strong>span:last-child { color:var(--cx-accent,var(--gold)); }
+.tc-season-lineup { font-size:12px; font-variant-numeric:tabular-nums; }
+.tc-season-impact .tc-season-coverage,.tc-season-impact .tc-season-more { color:var(--cx-muted,var(--silver)); font-size:11px; }
+.tc-season-impact .tc-season-warning { padding:7px 8px; border-left:2px solid var(--warn); background:rgba(230,176,40,.055); font-size:12px; }
+.tc-season-status { color:var(--cx-muted,var(--silver)); }
+.tc-season-value-note { margin:8px 0 12px; color:var(--cx-muted,var(--silver)); font:400 12px/1.5 var(--font-body); }
+.tc-season-detail { margin-top:10px; padding-top:3px; border-top:1px solid rgba(183,206,255,.15); }
+.tc-season-method { color:var(--cx-muted,var(--silver)); font-size:12px; }
+.tc-season-weeks-wrap { min-width:0; margin-top:10px; }
+.tc-season-weeks { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; font-variant-numeric:tabular-nums; }
+.tc-season-weeks caption { padding:0 0 8px; text-align:left; color:var(--cx-ink,var(--white)); font-size:14px; font-weight:600; }
+.tc-season-weeks th,.tc-season-weeks td { padding:8px 4px; text-align:left; vertical-align:top; border-bottom:1px solid rgba(183,206,255,.14); overflow-wrap:anywhere; }
+.tc-season-weeks thead th { color:var(--cx-muted,var(--silver)); font-size:11px; font-weight:500; }
+.tc-season-weeks th:first-child { width:42%; padding-left:0; }
+.tc-season-weeks tbody th { font-weight:400; }
+.tc-season-weeks th b,.tc-season-weeks th span,.tc-season-weeks td span,.tc-season-weeks small { display:block; }
+.tc-season-weeks td span { color:var(--cx-accent,var(--gold)); font-weight:600; }
+.tc-season-weeks small { color:var(--cx-muted,var(--silver)); font-size:10px; margin-top:3px; }
+.tc-season-lineup-details,.tc-season-assumptions { margin-top:8px; border-top:1px solid rgba(183,206,255,.14); color:var(--cx-muted,var(--silver)); font-size:12px; }
+.tc-season-impact summary { min-height:44px; box-sizing:border-box; padding:12px 0; color:var(--cx-accent,var(--gold)); cursor:pointer; font-weight:500; }
+.tc-season-impact summary:focus-visible { outline:2px solid var(--cx-accent,var(--gold)); outline-offset:2px; }
+.tc-context-rail .tc-season-metrics { gap:4px; }
+.tc-context-rail .tc-season-metric { padding:7px 5px; }
+.tc-context-rail .tc-season-impact { padding:10px; }
+.tc-ta-verdict .tc-season-impact.is-embedded { margin:0; padding:4px 0 0; border:0; border-radius:0; background:none; }
+.tc-unified-analysis>.tc-section-hdr { margin-bottom:8px; }
+.tc-season-deal-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; padding:11px 0; border-top:1px solid rgba(183,206,255,.18); border-bottom:1px solid rgba(183,206,255,.18); }
+.tc-season-deal-summary>div { min-width:0; }
+.tc-season-deal-summary>div>span,.tc-season-deal-summary small { display:block; color:var(--cx-muted,var(--silver)); font:400 11px/1.45 var(--font-body); }
+.tc-season-deal-summary strong { display:block; margin:3px 0; font:600 14px/1.4 var(--font-body); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.tc-season-deal-summary>p { grid-column:1/-1; margin:0; color:var(--cx-muted,var(--silver)); font-size:11px; }
+.tc-season-owner-details { border-top:1px solid rgba(183,206,255,.18); font:400 12px/1.5 var(--font-body); }
+.tc-season-owner-details>summary { min-height:44px; box-sizing:border-box; padding:12px 0; color:var(--cx-accent,var(--gold)); cursor:pointer; font-weight:500; }
+.tc-season-owner-details>summary:focus-visible { outline:2px solid var(--cx-accent,var(--gold)); outline-offset:2px; }
+.tc-trade-second-opinion { margin-top:12px; padding-top:10px; border-top:1px solid rgba(183,206,255,.18); }
+@media(max-width:360px) {
+ .tc-season-impact { padding:9px; }
+ .tc-season-impact>header { flex-wrap:wrap; gap:3px; }
+ .tc-season-metrics { gap:4px; }
+ .tc-season-metric { padding:7px 4px; }
+ .tc-season-metric strong { font-size:15px; gap:3px; }
+ .tc-season-metric>span,.tc-season-metric>small { font-size:11px; }
+}
 .mc-trade-nav { display:grid!important; grid-template-columns:1.2fr 1.25fr .85fr .8fr; gap:3px!important; overflow:visible!important; padding:4px; border:1px solid rgba(205,220,237,.12); border-radius:14px; background:linear-gradient(120deg,rgba(235,243,252,.09),rgba(235,243,252,.025)); }
 .mc-trade-nav button { min-width:0; min-height:44px; padding:6px 3px!important; font-size:11px!important; letter-spacing:0!important; white-space:normal!important; line-height:1.25; border-radius:10px!important; }
 .mc-trade-filter-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; color:var(--silver); }
@@ -176,6 +232,16 @@
  .wr-mission-v8 .mc-owner-profile :is(.tc-dhq-dossier-block p,.tc-dhq-dossier-block li,.tc-owner-panel-head em,.tc-owner-trade-row p,.tc-owner-trade-row em,.tc-owner-signal-grid em) { opacity:1; }
  .mc-trades { gap:10px!important; padding-bottom:12px!important; }
  .mc-trade-builder>div { padding:0!important; }
+ .mc-trade-builder-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:11px; border:1px solid var(--gx-edge); border-radius:12px; background:linear-gradient(120deg,rgba(183,206,255,.12),rgba(15,27,46,.4)); font-family:var(--font-body,"DM Sans",sans-serif); }
+ .mc-trade-builder-summary.has-season { grid-template-columns:minmax(0,.7fr) minmax(0,.9fr) minmax(0,1.5fr); }
+ .mc-trade-builder-summary>div { min-width:0; }
+ .mc-trade-builder-summary>div+div { border-left:1px solid rgba(183,206,255,.17); padding-left:9px; }
+ .mc-trade-builder-summary span,.mc-trade-builder-summary small { display:block; color:var(--cx-muted,var(--silver)); font:400 11px/1.4 var(--font-body); overflow-wrap:anywhere; }
+ .mc-trade-builder-summary strong { display:block; margin:4px 0 2px; color:var(--cx-ink,var(--white)); font:600 24px/1.2 var(--font-body); font-variant-numeric:tabular-nums; }
+ .mc-trade-builder-summary .mc-trade-summary-season strong { font-size:14px; line-height:1.35; }
+ .mc-trade-summary-season.is-positive strong { color:var(--good); }
+ .mc-trade-summary-season.is-negative strong { color:var(--bad); }
+ .mc-trade-builder-summary>p { grid-column:1/-1; margin:0; padding-top:7px; border-top:1px solid rgba(183,206,255,.14); color:var(--cx-muted,var(--silver)); font:400 10px/1.4 var(--font-body); }
  .mc-trade-builder .tc-ta-side { min-width:0!important; padding:10px!important; }
  .mc-trade-builder .tc-ta-side>span:first-child { display:none; }
  .mc-trade-builder .tc-ta-player-row { display:none; } /* selected packages are always visible above both side selectors */

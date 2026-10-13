@@ -244,11 +244,11 @@ test('Commissioner workspace selection preserves legacy desk routes and settings
 test('Bylaws and Dues reuse authorized controls while rendering only the selected workflow', () => {
     const props = { leagues: [{ id: 'L1', name: 'Alpha' }], constitutions: {}, amendments: {}, treasuries: {} };
     slots = []; cursor = 0; let tree = context.WrCommishGovernancePanel({ ...props, section: 'bylaws' });
-    all(tree, n => n.type === 'div' && n.props.onClick)[0].props.onClick();
+    all(tree, n => n.type === 'button' && n.props['aria-expanded'] === false)[0].props.onClick();
     cursor = 0; tree = context.WrCommishGovernancePanel({ ...props, section: 'bylaws' });
     assert.match(text(tree), /Bylaws desk/); assert.doesNotMatch(text(tree), /Treasury — dues bookkeeping/);
     slots = []; cursor = 0; tree = context.WrCommishGovernancePanel({ ...props, section: 'dues' });
-    all(tree, n => n.type === 'div' && n.props.onClick)[0].props.onClick();
+    all(tree, n => n.type === 'button' && n.props['aria-expanded'] === false)[0].props.onClick();
     cursor = 0; tree = context.WrCommishGovernancePanel({ ...props, section: 'dues' });
     assert.match(text(tree), /Treasury — dues bookkeeping/); assert.doesNotMatch(text(tree), /Bylaws desk/); assert.doesNotMatch(text(tree), /no constitution on file/);
 });

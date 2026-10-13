@@ -1,0 +1,190 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:63872/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Completed2025 / 18provider weeks / 14regular-season replay weeks / 10teams / 40players / real engines",
+  "capabilityBoundary": "Browser touch/viewport emulation; physical iPad and authenticated hosted persistence are not asserted.",
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": true,
+      "geometryOnly": true,
+      "checks": [
+        "44px styled select geometry and actual open/close interaction",
+        "custom selection retains its baseline"
+      ],
+      "touchChecks": [
+        {
+          "control": "Scoring rule picker",
+          "width": 254,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Replay season",
+          "width": 63.953125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "auto",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "See replay impact",
+          "width": 161.5625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "auto",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Selected custom scoring rule",
+          "width": 254,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 0
+    },
+    {
+      "label": "ipad-portrait",
+      "passed": true,
+      "geometryOnly": true,
+      "checks": [
+        "44px styled select geometry and actual open/close interaction",
+        "custom selection retains its baseline"
+      ],
+      "touchChecks": [
+        {
+          "control": "Scoring rule picker",
+          "width": 450,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Replay season",
+          "width": 65.875,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "auto",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "See replay impact",
+          "width": 161.5625,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "auto",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Selected custom scoring rule",
+          "width": 450,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 0
+    },
+    {
+      "label": "desktop",
+      "passed": true,
+      "geometryOnly": true,
+      "checks": [
+        "44px styled select geometry and actual open/close interaction",
+        "custom selection retains its baseline"
+      ],
+      "touchChecks": [
+        {
+          "control": "Scoring rule picker",
+          "width": 365.125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": false,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        },
+        {
+          "control": "Replay season",
+          "width": 61.125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "auto",
+          "fontSize": "14px",
+          "coarse": false,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        },
+        {
+          "control": "Selected custom scoring rule",
+          "width": 365.125,
+          "height": 44,
+          "reachable": true,
+          "minHeight": "44px",
+          "computedHeight": "44px",
+          "appearance": "none",
+          "fontSize": "16px",
+          "coarse": false,
+          "maxTouchPoints": 0,
+          "touchEvents": false
+        }
+      ],
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 0
+    }
+  ]
+}

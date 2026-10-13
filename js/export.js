@@ -6,13 +6,23 @@
   // resolves true on success, false when the element is missing, the lazy
   // html2canvas CDN load fails (offline), or rendering throws.
   window.wrExport = {
-    capture: function (el, name) {
+    capture: function (el, name, options) {
       if (!el) return Promise.resolve(false);
       return window.ensureHtml2Canvas()
         .then(function (html2canvas) {
           // Plain hex (not a CSS var): html2canvas parses this string itself,
           // outside any element context where a var() could resolve.
-          return html2canvas(el, { backgroundColor: '#0a0a0a', scale: 2, useCORS: true, logging: false });
+          return html2canvas(el, {
+            backgroundColor: '#0a0a0a', scale: 2, useCORS: true, logging: false,
+            onclone: function (clonedDocument) {
+              if (!options?.prependSelector || !el.id) return;
+              var target = clonedDocument.getElementById(el.id);
+              var summary = clonedDocument.querySelector(options.prependSelector);
+              // Include a summary moved elsewhere in the UI without the asset pickers
+              // or any temporary changes to the visible React tree.
+              if (target && summary) target.insertBefore(summary.cloneNode(true), target.firstChild);
+            }
+          });
         })
         .then(function (canvas) {
           return new Promise(function (resolve) {

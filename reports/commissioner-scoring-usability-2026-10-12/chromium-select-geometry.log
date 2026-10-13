@@ -1,0 +1,3 @@
+PASS chromium Rule Lab select geometry phone-small
+PASS chromium Rule Lab select geometry ipad-portrait
+PASS chromium Rule Lab select geometry desktop

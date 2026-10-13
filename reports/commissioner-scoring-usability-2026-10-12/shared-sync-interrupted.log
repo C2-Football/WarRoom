@@ -1,0 +1,7 @@
+Replay diagnostics null
+locator.waitFor: Target page, context or browser has been closed
+Call log:
+[2m  - waiting for locator('.hub-experience-card.commish-hero') to be visible[22m
+
+    at open (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:109:65)
+    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:270:69

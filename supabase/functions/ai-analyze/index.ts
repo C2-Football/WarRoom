@@ -1271,13 +1271,13 @@ Remember: Never recommend spending FAAB on replacement-level players. Quality ov
 
 // ── Trade verdict (AI second opinion on a graded deal) ───────────────────────
 
-function formatDealSide(side: any): string {
+function formatDealSide(side: any, redraft = false): string {
     if (!side) return '  (nothing)';
     const parts: string[] = [];
     for (const p of side.players || []) {
-        parts.push(`  ${p.pos || '?'} ${p.name}${p.age ? ` | Age ${p.age}` : ''}${p.value != null ? ` | Value ${p.value}` : ''}`);
+        parts.push(`  ${p.pos || '?'} ${p.name}${!redraft && p.age ? ` | Age ${p.age}` : ''}${p.value != null ? ` | Value ${p.value}` : ''}`);
     }
-    for (const pk of side.picks || []) {
+    for (const pk of redraft ? [] : side.picks || []) {
         parts.push(`  PICK ${pk.year || '?'} Round ${pk.round || '?'}${pk.value != null ? ` | Value ${pk.value}` : ''}`);
     }
     if (side.faab) parts.push(`  FAAB $${side.faab}`);
@@ -1285,21 +1285,38 @@ function formatDealSide(side: any): string {
 }
 
 function buildTradeVerdictPrompt(ctx: any): string {
+    const type = adviceLeagueType(ctx), redraft = type === 'redraft';
     const fmt = detectLeagueFormat(ctx);
     const fmtBlock = buildLeagueFormatBlock(fmt);
     const my = ctx.myTeam || {};
     const partner = ctx.partnerTeam || {};
-    const myModeBlock = buildTeamModeBlock({ teamTier: my.tier, teamWindow: my.window || my.tradeWindow, healthScore: my.healthScore });
-    const partnerBlock = buildPartnerModeBlock(partner);
+    const myModeBlock = buildTeamModeBlock({ ...ctx, teamTier: my.tier, teamWindow: my.window || my.tradeWindow, healthScore: my.healthScore });
+    const partnerBlock = type === 'dynasty' ? buildPartnerModeBlock(partner) : '';
     const v = ctx.verdict || {};
+    const suppliedImpact = ctx.seasonImpact && typeof ctx.seasonImpact === 'object' && !Array.isArray(ctx.seasonImpact) ? ctx.seasonImpact : null;
+    const seasonImpact = suppliedImpact ? {
+        status: suppliedImpact.status, reason: suppliedImpact.reason ?? null, effectiveWeek: suppliedImpact.effectiveWeek ?? null,
+        ...(suppliedImpact.status !== 'unavailable' ? {
+            powerRank: suppliedImpact.powerRank ?? null, wins: suppliedImpact.wins ?? null,
+            playoffs: suppliedImpact.playoffs?.available === true ? suppliedImpact.playoffs
+                : { available: false, reason: suppliedImpact.playoffs?.reason || 'Qualification odds are unavailable.' },
+            weeks: Array.isArray(suppliedImpact.weeks) ? suppliedImpact.weeks.slice(0, 18) : [],
+        } : {}),
+        assumptions: Array.isArray(suppliedImpact.assumptions) ? suppliedImpact.assumptions : [],
+        warnings: Array.isArray(suppliedImpact.warnings) ? suppliedImpact.warnings : [],
+    } : null;
+    const seasonBlock = seasonImpact ? `\n**SUPPLIED SEASON IMPACT (deterministic estimates, before → after):**
+${JSON.stringify(seasonImpact)}
+These figures are evidence to explain, not numbers to recalculate or replace. A null, missing or unavailable metric is unknown, never zero. Only quote qualification/bye odds when playoffs.available is true. Preserve zero gains and negative changes. Respect the effective week and the supplied assumptions, warnings and current-week exclusions.\n` : '';
 
-    return `Give a second opinion on this dynasty trade in **${ctx.leagueName || 'my league'}**. My deterministic trade calculator already graded it — your job is an independent verdict that weighs context the math can't see (mode fit, market psychology, league format leverage). If you disagree with the calculator, SAY SO explicitly and explain why.
+    return `Give a second opinion on this ${type === 'unknown' ? 'fantasy football' : type} trade in **${ctx.leagueName || 'my league'}**. The calculator already graded deal value and estimated owner acceptance. Explain whether the deal serves my team using the supplied season-impact evidence and league context. Value grade, owner acceptance and projected season benefit answer different questions. You may disagree with the calculator's recommendation with a concrete reason; do not invent replacement projection numbers.
+**LEAGUE HORIZON:** ${type} | Phase: ${ctx.phase || ctx.decisionContext?.phase || 'not supplied'}
 ${fmtBlock}${myModeBlock}${partnerBlock}
 **I SEND (leaves my roster):**
-${formatDealSide(ctx.iSend)}
+${formatDealSide(ctx.iSend, redraft)}
 
 **I RECEIVE (joins my roster):**
-${formatDealSide(ctx.iReceive)}
+${formatDealSide(ctx.iReceive, redraft)}
 
 **MY TEAM:** ${my.record || '?'} | ${my.tier || '?'} | Health: ${my.healthScore ?? '?'}/100
 My Needs: ${(my.needs || []).join(', ') || 'none identified'} | My Strengths: ${(my.strengths || []).join(', ') || 'none identified'}
@@ -1307,18 +1324,22 @@ My Needs: ${(my.needs || []).join(', ') || 'none identified'} | My Strengths: ${
 Their Needs: ${(partner.needs || []).join(', ') || 'none identified'}
 
 **CALCULATOR VERDICT:** ${v.verdictText || 'n/a'} | Value diff: ${v.diffDisplay ?? 'n/a'} | Acceptance likelihood: ${v.likelihood ?? 'n/a'}${v.psychNotes ? ` | Behavioral notes: ${v.psychNotes}` : ''}
+${seasonBlock}
 
 VERDICT RULES (strictly enforce):
-1. Judge the deal through MY team mode first — a "fair value" trade that fights my rebuild/contend direction is a BAD trade for me.
-2. Apply league format premiums (superflex QB 1.8x, TEP TE 1.5x) to both sides before comparing.
-3. Factor the partner's mode: if this deal gives them exactly what their mode craves, I should extract more.
-4. Be honest about the calculator: agree, or disagree with a concrete reason. Never hedge with "it depends" as the final answer.
+1. Judge the deal through this league's horizon and actual lineup alternatives. ${redraft ? 'REDRAFT: focus only on the remaining fantasy season. Do not use dynasty age curves, future rookie picks, youth stashes or multi-year rebuild strategy, even when a team carries a REBUILDING label.' : 'Use the supplied team plan where it applies to the retention format; do not assume missing keeper rules.'}
+2. Supplied player values and season projections already reflect league scoring and legal starting slots. Do not add fixed positional multipliers or double-count superflex/TE premiums.
+3. Distinguish deal price and uncertain owner acceptance from expected wins, power rank and playoff chances. A favorable value grade must not override negative season impact. Name a projected downside clearly, including weeks where this trade hurts.
+4. Explain the supplied estimates exactly. Do not invent unavailable playoff/title odds, missing rank changes, live results or injury return dates. Confidence is limited by the supplied model assumptions; simulated gains are not guaranteed wins.
+5. Factor the partner's stated roster needs; behavioral profiles are uncertain negotiation context, not confirmed motives or acceptance probabilities. Counter only with supported assets and legal actions.
+6. Give a direct ACCEPT, REJECT or COUNTER decision and a concrete reason. If essential season data is unavailable, say what is missing and make any decision conditional on that gap.
 
 Respond in under 500 words with exactly these sections:
 **VERDICT** — ACCEPT, REJECT, or COUNTER (one of the three, first word)
 **WHY** — 2-4 sentences, the decisive factors
-**MODE FIT** — How this deal serves or fights my competitive mode and the league format
-**WHAT I'D COUNTER WITH** — Only if COUNTER/REJECT: the specific adjusted package and why the partner's mode/DNA says yes`;
+${seasonImpact ? '**SEASON IMPACT** — Explain the supplied expected wins, projected lineup rank, playoff/bye changes and the most affected remaining matchups. Quote percentage-point changes as percentage points, distinguish estimates from actual results, and state unavailable metrics and key limitations.\n' : ''}
+**MODE FIT** — ${redraft ? 'How this deal serves my remaining-season goal under the league lineup and scoring rules' : 'How this deal serves or fights my competitive mode and the league format'}
+**WHAT I'D COUNTER WITH** — Only if COUNTER/REJECT: a supported adjusted package and why it may fit the partner's stated needs; do not promise acceptance`;
 }
 
 // ── Team diagnosis (League Detail strategic assessment) ──────────────────────

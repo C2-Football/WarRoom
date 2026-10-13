@@ -1,3 +1,4 @@
+/* global module */
 // Evidence for making roster room. A low rank by itself is not a drop reason.
 (function (root) {
     'use strict';

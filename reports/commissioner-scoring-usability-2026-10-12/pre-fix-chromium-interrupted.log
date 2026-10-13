@@ -1,0 +1,8 @@
+PASS chromium Rule Lab real replay phone-small 320×700
+PASS chromium Rule Lab real replay phone 390×844
+PASS chromium Rule Lab real replay phone-landscape 844×390
+PASS chromium Rule Lab real replay ipad-portrait 768×1024
+Replay diagnostics null
+page.evaluate: Target page, context or browser has been closed
+    at capture (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:90:43)
+    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:224:9

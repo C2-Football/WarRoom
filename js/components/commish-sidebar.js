@@ -123,14 +123,22 @@
     // ── Action panel ─────────────────────────────────────────────────
     // Opens on any queue row. Shows the full item (rows truncate) plus the
     // arithmetic behind its rank, then the four things you can do with it.
-    function WrCommishActionPanel({ item, state, followup, onOpen, onDone, onSkip, onHide, onRestore, onClose, onSaveFollowup, onCopyMessage, onDiscard, onDismissFailure, saveFailure, skipDays }) {
+    function WrCommishActionPanel({ item, state, followup, onOpen, onDone, onSkip, onIgnore, onHide, onRestore, onClose, onSaveFollowup, onCopyMessage, onDiscard, onDismissFailure, saveFailure, skipDays, taskSync, onRetrySync }) {
         const [message, setMessage] = React.useState('');
         const [note, setNote] = React.useState('');
         const [dueAt, setDueAt] = React.useState('');
         const [saveNote, setSaveNote] = React.useState(null);
         const [copyBusy, setCopyBusy] = React.useState(false);
+        const [actionBusy, setActionBusy] = React.useState(false);
+        const actionPending = React.useRef(false);
+        const taskSyncRef = React.useRef(taskSync);
+        taskSyncRef.current = taskSync;
+        const actionRun = React.useRef(0);
+        React.useEffect(() => () => { actionRun.current++; }, []);
         const saved = React.useRef({ message: '', note: '', dueAt: '' });
         const latest = React.useRef(saved.current);
+        const dialog = React.useRef(null);
+        const closeButton = React.useRef(null);
         latest.current = { message, note, dueAt };
         React.useEffect(() => {
             const value = { message: followup?.message || '', note: followup?.note || '', dueAt: followup?.dueAt || '' };
@@ -139,15 +147,41 @@
         }, [item?.id]);
         const dirty = () => ['message', 'note', 'dueAt'].some(key => latest.current[key] !== saved.current[key]);
         const canLeave = () => {
+            if (actionPending.current || taskSyncRef.current?.status === 'saving') { setSaveNote({ error: true, text: 'Your task choice is still syncing. Wait for confirmation before leaving.' }); return false; }
             if (!dirty()) return true;
             setSaveNote({ error: true, text: 'Your edits are not saved. Save the follow-up or discard these edits before leaving.' });
             return false;
         };
         React.useEffect(() => window.App?.NavigationGuard?.register(canLeave), [item?.id]);
         React.useEffect(() => {
-            const warn = event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } };
+            const warn = event => { if (dirty() || actionPending.current || taskSyncRef.current?.status === 'saving') { event.preventDefault(); event.returnValue = ''; } };
             window.addEventListener('beforeunload', warn);
             return () => window.removeEventListener('beforeunload', warn);
+        }, [item?.id]);
+        React.useEffect(() => {
+            const node = dialog.current;
+            if (!item || !node) return undefined;
+            const canFocus = target => target?.isConnected && target !== document.body && target !== document.documentElement
+                && !target.disabled && typeof target.focus === 'function' && target.tabIndex >= 0
+                && !target.closest?.('[hidden], [inert]') && target.getClientRects?.().length !== 0;
+            const reviewButtons = () => Array.from(document.querySelectorAll('.co-office [data-testid="commish-task-review"], .co-office button[aria-label^="Review "]')).filter(canFocus);
+            const matchingReview = () => reviewButtons().find(button => button.closest('[data-task-id]')?.getAttribute('data-task-id') === String(item.id));
+            // Safari touch can leave focus on the page body instead of the
+            // tapped button. Capture the task row without interpolating its ID.
+            const opener = canFocus(document.activeElement) ? document.activeElement : matchingReview();
+            const overflow = document.body.style.overflow;
+            node.showModal();
+            document.body.style.overflow = 'hidden';
+            closeButton.current?.focus();
+            return () => {
+                node.close();
+                document.body.style.overflow = overflow;
+                // Done/Ignore can remove the opening row. Keep keyboard users
+                // in the office by returning to the next task or active desk.
+                const target = canFocus(opener) ? opener : (matchingReview() || reviewButtons()[0]
+                    || Array.from(document.querySelectorAll('.co-office .co-workspace-trigger, .co-office [aria-current="page"]')).find(canFocus));
+                target?.focus();
+            };
         }, [item?.id]);
         if (!item) return null;
         const sevColor = item.tier === 'NOW' ? BAD : item.tier === 'SOON' ? WARN : SILVER;
@@ -168,7 +202,31 @@
             setSaveNote(null); onDiscard?.();
         };
         const close = () => { if (canLeave()) onClose?.(); };
-        const finish = handler => { if (commit()) handler?.(); };
+        const finish = handler => {
+            if (actionPending.current) return false;
+            if (!commit()) return false;
+            actionPending.current = true;
+            let result;
+            try { result = handler?.(); }
+            catch { actionPending.current = false; setSaveNote({ error: true, text: 'This task choice could not be confirmed. Your saved follow-up remains here.' }); return false; }
+            if (result && typeof result.then === 'function') {
+                const run = ++actionRun.current;
+                setActionBusy(true);
+                return Promise.resolve(result).then(confirmed => {
+                    if (run === actionRun.current && confirmed !== true) setSaveNote({ error: true, text: 'This task action is incomplete. Your saved follow-up remains here. Review the save or sync message before retrying.' });
+                    return confirmed === true;
+                }).catch(() => {
+                    if (run === actionRun.current) setSaveNote({ error: true, text: 'This task choice could not be confirmed. Your saved follow-up remains here.' });
+                    return false;
+                }).finally(() => { actionPending.current = false; if (run === actionRun.current) setActionBusy(false); });
+            }
+            actionPending.current = false;
+            if (result !== true) {
+                setSaveNote({ error: true, text: 'This task change was not fully saved. Your follow-up remains here. Retry the save before leaving.' });
+                return false;
+            }
+            return true;
+        };
         const copy = async () => {
             if (copyBusy || !commit()) return;
             setCopyBusy(true);
@@ -179,9 +237,9 @@
             finally { setCopyBusy(false); }
         };
         const act = (text, handler, opts) => (
-            <button onClick={handler} disabled={opts?.disabled}
+            <button type="button" onClick={handler} disabled={opts?.disabled || actionBusy || taskSync?.status === 'saving'}
                 style={{
-                    flex: opts && opts.wide ? '1 1 100%' : '1 1 auto', minHeight: '38px', padding: '8px 12px', cursor: 'pointer',
+                    flex: opts && opts.wide ? '1 1 100%' : '1 1 auto', minHeight: '44px', padding: '8px 12px', cursor: 'pointer',
                     background: opts && opts.primary ? ACC_FILL : 'transparent',
                     border: '1px solid ' + (opts && opts.primary ? ACC_LINE : LINE),
                     borderRadius: 'var(--card-radius-sm, 8px)', color: opts && opts.primary ? ACCENT : SILVER,
@@ -189,20 +247,23 @@
                 }}>{text}</button>
         );
         return (
-            <div role="dialog" aria-label="Action" onClick={close}
-                style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(3, 4, 7, 0.6)', display: 'flex', justifyContent: 'flex-end' }}>
+            <dialog ref={dialog} className="co-action-dialog" aria-label="Action" aria-modal="true"
+                onCancel={event => { event.preventDefault(); close(); }}
+                onClick={event => { if (event.target === event.currentTarget) close(); }}
+                style={{ position: 'fixed', inset: '0 0 0 auto', margin: 0, padding: 0, width: 'min(420px, 100vw)', maxWidth: '100vw', height: '100%', maxHeight: '100%', border: 'none', color: TEXT, background: SURF, boxSizing: 'border-box' }}>
+                <style>{'.co-action-dialog::backdrop { background: rgba(3, 4, 7, 0.6); } .co-action-dialog :focus-visible { outline: 2px solid var(--co-accent, #5DADE2); outline-offset: 3px; }'}</style>
                 <div onClick={e => e.stopPropagation()}
-                    style={{ width: 'min(420px, 100%)', height: '100%', background: SURF, borderLeft: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    style={{ width: '100%', height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', background: SURF, borderLeft: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+                    <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                         <span style={{ width: '3px', height: '16px', background: sevColor, borderRadius: '2px', flex: 'none' }} />
                         <span style={{ ...label, color: sevColor }}>{item.tier}</span>
                         <span style={{ ...label }}>{item.kicker}</span>
-                        <button onClick={close} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
+                        <button ref={closeButton} type="button" onClick={close} aria-label="Close" style={{ marginLeft: 'auto', minWidth: '44px', minHeight: '44px', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
                     </div>
 
-                    <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ padding: '16px', overflowY: 'auto', minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div>
-                            <div style={{ font: '600 0.9375rem var(--font-body)', color: TEXT, lineHeight: 1.4 }}>{item.headline}</div>
+                            <h2 style={{ margin: 0, font: '600 0.9375rem var(--font-body)', color: TEXT, lineHeight: 1.4 }}>{item.headline}</h2>
                             {item.detail ? <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55, marginTop: '6px' }}>{item.detail}</div> : null}
                         </div>
 
@@ -236,11 +297,11 @@
 
                         {state ? (
                             <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px' }}>
-                                <div style={{ ...label, color: ACCENT }}>Currently {state.state}</div>
+                                <div style={{ ...label, color: ACCENT }}>Currently {state.state === 'hidden' || state.state === 'ignored' ? 'ignored' : state.state === 'skipped' ? 'snoozed' : state.state}</div>
                                 <div style={{ font: '400 var(--co-readable-small, 0.75rem) var(--font-body)', color: TEXT, marginTop: '4px', lineHeight: 1.5 }}>
                                     {state.state === 'done' ? 'Hidden until the underlying number changes — if it gets worse, this comes back on its own.'
                                         : state.state === 'skipped' ? 'Snoozed. Returns automatically when the timer runs out.'
-                                            : 'Hidden indefinitely. Only Settings brings it back.'}
+                                            : 'Ignored until you restore it in Settings → Ignored tasks. Account choices follow your signed-in devices; older browser choices can be synced in Settings.'}
                                 </div>
                             </div>
                         ) : null}
@@ -251,13 +312,13 @@
                                 <div style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>{followup?.status || 'OPEN'}</div>
                             </div>
                             <label style={{ ...label, display: 'block', marginBottom: '5px' }}>Message draft</label>
-                            <textarea value={message} onChange={e => { latest.current.message = e.target.value; setMessage(e.target.value); setSaveNote(null); }} placeholder="Draft a commissioner message"
+                            <textarea aria-label="Message draft" disabled={actionBusy} value={message} onChange={e => { latest.current.message = e.target.value; setMessage(e.target.value); setSaveNote(null); }} placeholder="Draft a commissioner message"
                                 style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 10px', color: TEXT, font: '400 var(--co-readable-small, 0.8125rem)/1.5 var(--font-body)' }} />
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 132px', gap: '8px', marginTop: '8px' }}>
-                                <input value={note} onChange={e => { latest.current.note = e.target.value; setNote(e.target.value); setSaveNote(null); }} placeholder="Private note"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 var(--co-readable-small, 0.75rem) var(--font-body)' }} />
-                                <input type="date" value={dueAt} onChange={e => { latest.current.dueAt = e.target.value; setDueAt(e.target.value); setSaveNote(null); }} aria-label="Follow-up date"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 var(--co-readable-small, 0.75rem) var(--font-mono)' }} />
+                                <input aria-label="Private note" disabled={actionBusy} value={note} onChange={e => { latest.current.note = e.target.value; setNote(e.target.value); setSaveNote(null); }} placeholder="Private note"
+                                    style={{ minWidth: 0, minHeight: '44px', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 var(--co-readable-small, 0.75rem) var(--font-body)' }} />
+                                <input type="date" disabled={actionBusy} value={dueAt} onChange={e => { latest.current.dueAt = e.target.value; setDueAt(e.target.value); setSaveNote(null); }} aria-label="Follow-up date"
+                                    style={{ minWidth: 0, minHeight: '44px', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 var(--co-readable-small, 0.75rem) var(--font-mono)' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                                 {act('Save follow-up', commit)}
@@ -265,9 +326,23 @@
                                 {dirty() && act('Discard unsaved edits', discard)}
                             </div>
                             {saveNote && !(saveNote.error && saveFailure) && <div role={saveNote.error ? 'alert' : 'status'} style={{ marginTop: 10, color: saveNote.error ? BAD : TEXT, fontSize: 16, lineHeight: 1.5 }}>{saveNote.text}</div>}
+                            {taskSync?.status === 'saving' && <div role="status" style={{ marginTop: 10 }}>Saving task choice…</div>}
+                            {taskSync?.status === 'failed' && <div data-testid="commish-ignore-sync-error" role="alert" style={{ marginTop: 10, color: BAD, fontSize: 16, lineHeight: 1.5 }}>
+                                <div>{taskSync.message}</div>
+                                {act('Retry task sync', () => finish(onRetrySync))}
+                            </div>}
                             {saveFailure && <div role="alert" style={{ marginTop: 10, color: BAD, fontSize: 16, lineHeight: 1.5 }}>
                                 {saveFailure.message}
-                                {saveFailure.retry && act('Retry activity save', saveFailure.retry)}
+                                {saveFailure.retry && act(saveFailure.retryLabel || (saveFailure.key?.startsWith('activity:') ? 'Retry activity save' : 'Retry save'), () => {
+                                    // A preference retry can finish the whole action and
+                                    // close this drawer. Save any edits typed since the
+                                    // original failure before allowing that close.
+                                    const preferenceRetry = saveFailure.area === 'settings' || saveFailure.key?.startsWith('item-state:');
+                                    if (preferenceRetry && !commit()) return false;
+                                    const confirmed = saveFailure.retry() === true;
+                                    if (confirmed) setSaveNote(null);
+                                    return confirmed;
+                                })}
                                 {onDismissFailure && <div style={{ marginTop: 8 }}>
                                     {act(saveFailure.key?.startsWith('activity:') ? 'Leave activity unrecorded' : 'Dismiss save error', onDismissFailure)}
                                     <div style={{ color: TEXT }}>Saved changes remain. Any unsaved edits stay in this form.</div>
@@ -287,22 +362,23 @@
                         </div>
                     </div>
 
-                    <div style={{ borderTop: `1px solid ${LINE}`, background: WELL, padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ borderTop: `1px solid ${LINE}`, background: WELL, padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
                         {item.action && item.action.label ? act('▸ ' + item.action.label, () => finish(onOpen), { primary: true, wide: true }) : null}
                         {state ? act('Restore', () => finish(onRestore), { wide: true })
                             : (<React.Fragment>
                                 {act('✓ Mark done', () => finish(onDone))}
-                                {act('Skip ' + (skipDays || 7) + 'd', () => finish(onSkip))}
-                                {act('Hide', () => finish(onHide))}
+                                {act('Snooze ' + (skipDays || 7) + ' days', () => finish(onSkip))}
+                                {act('Ignore task', () => finish(onIgnore || onHide))}
                             </React.Fragment>)}
+                        {!state && <div style={{ flexBasis: '100%', font: '400 var(--co-readable-small, 0.75rem)/1.45 var(--font-body)', color: MUTED }}>Ignore keeps this task out of your overview across your signed-in devices until you restore it in Settings. Snooze brings it back in this browser after {skipDays || 7} days.</div>}
                     </div>
                 </div>
-            </div>
+            </dialog>
         );
     }
 
     // ── Settings ─────────────────────────────────────────────────────
-    function WrCommishSettingsPanel({ leagues, isManaged, onToggleLeague, alerts, onToggleDomain, onSetFloor, domainLabels, suppressed, onRestore, followups, onRemoveFollowup }) {
+    function WrCommishSettingsPanel({ leagues, isManaged, onToggleLeague, alerts, onToggleDomain, onSetFloor, domainLabels, suppressed, ignored, onRestore, followups, onRemoveFollowup, onSyncChoice, taskSync }) {
         const Section = ({ title, meta, children }) => (
             <div style={{ background: SURF, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' }}>
                 <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -328,6 +404,8 @@
         );
 
         const managedN = (leagues || []).filter(l => isManaged(l.league_id || l.id)).length;
+        const ignoredRows = Array.isArray(ignored) ? ignored : (suppressed || []).filter(s => s.state === 'ignored' || s.state === 'hidden');
+        const dismissedRows = (suppressed || []).filter(s => s.state !== 'ignored' && s.state !== 'hidden');
         const FLOORS = [['BACKLOG', 'Everything', 'Every finding, including low-priority backlog.'], ['SOON', 'This week and up', 'Hide the backlog; keep anything time-sensitive.'], ['NOW', 'Only urgent', 'Just the things that need you before anything else.']];
 
         return (
@@ -358,22 +436,41 @@
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {FLOORS.map(([k, name, sub]) => (
                             <button key={k} onClick={() => onSetFloor(k)} title={sub}
-                                style={{ padding: '8px 12px', minHeight: '38px', cursor: 'pointer', borderRadius: 'var(--card-radius-sm, 8px)', background: alerts.floor === k ? ACC_FILL : 'transparent', border: '1px solid ' + (alerts.floor === k ? ACC_LINE : LINE), color: alerts.floor === k ? ACCENT : SILVER, ...chip }}>
+                                style={{ padding: '8px 12px', minHeight: '44px', cursor: 'pointer', borderRadius: 'var(--card-radius-sm, 8px)', background: alerts.floor === k ? ACC_FILL : 'transparent', border: '1px solid ' + (alerts.floor === k ? ACC_LINE : LINE), color: alerts.floor === k ? ACCENT : SILVER, ...chip }}>
                                 {name}
                             </button>
                         ))}
                     </div>
                 </Section>
 
-                <Section title="Dismissed items" meta={(suppressed || []).length + ' hidden by you'}>
-                    {!(suppressed || []).length ? (
-                        <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55 }}>Nothing dismissed. Items you mark done, skip or hide land here so you can always get them back.</div>
-                    ) : (
-                        (suppressed || []).map(s => (
+                <Section title="Ignored tasks" meta={ignoredRows.length + ' ignored'}>
+                    <div data-testid="commish-ignored-tasks">
+                        <div style={{ font: '400 var(--co-readable-small, 0.8125rem)/1.55 var(--font-body)', color: TEXT, marginBottom: '8px' }}>Account choices follow you across your signed-in devices. Restore a task here to allow it back on every device.</div>
+                        {!ignoredRows.length ? <div style={{ font: '400 var(--co-readable-small, 0.8125rem)/1.55 var(--font-body)', color: MUTED }}>No ignored tasks.</div> : ignoredRows.map(s => (
                             <div key={s.item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
-                                <span style={{ ...chip, color: s.state === 'done' ? GOOD : s.state === 'skipped' ? WARN : MUTED, minWidth: '54px' }}>{s.state}</span>
+                                <span style={{ flex: 1, minWidth: 0 }}>
+                                    <span style={{ display: 'block', font: '400 var(--co-readable-small, 0.8125rem)/1.45 var(--font-body)', color: TEXT, overflowWrap: 'anywhere' }}>{s.item.headline}</span>
+                                    <span style={{ display: 'block', marginTop: '3px', fontSize: 'var(--co-readable-small, 0.75rem)', color: MUTED }}>{s.source === 'cloud' && s.confirmed ? 'Synced to your account' : s.source === 'cache' ? 'Last known account choice · checking sync' : 'Only in this browser'}</span>
+                                    {s.missing && <span style={{ display: 'block', marginTop: '3px', font: '400 var(--co-readable-small, 0.75rem)/1.45 var(--font-body)', color: MUTED }}>Not present in the latest league data. Restore it to allow it back when applicable.</span>}
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                                    {s.source === 'local' && onSyncChoice && <button type="button" disabled={taskSync?.status === 'saving'} onClick={() => onSyncChoice(s.item)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '44px', ...chip }}>Sync choice</button>}
+                                    <button type="button" disabled={taskSync?.status === 'saving'} onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '44px', ...chip }}>Restore</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Section>
+
+                <Section title="Done and snoozed tasks" meta={dismissedRows.length + ' set aside'}>
+                    {!dismissedRows.length ? (
+                        <div style={{ font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, lineHeight: 1.55 }}>Nothing marked done or snoozed. You can restore those tasks here.</div>
+                    ) : (
+                        dismissedRows.map(s => (
+                            <div key={s.item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
+                                <span style={{ ...chip, color: s.state === 'done' ? GOOD : s.state === 'skipped' ? WARN : MUTED, minWidth: '54px' }}>{s.state === 'skipped' ? 'snoozed' : s.state}</span>
                                 <span style={{ flex: 1, minWidth: 0, font: '400 var(--co-readable-small, 0.8125rem) var(--font-body)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
-                                <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
+                                <button type="button" onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '44px', ...chip }}>Restore</button>
                             </div>
                         ))
                     )}
@@ -392,7 +489,7 @@
                                         <span style={{ display: 'block', font: '600 var(--co-readable-small, 0.8125rem)/1.35 var(--font-body)', color: TEXT }}>{f.headline}</span>
                                         <span style={{ display: 'block', marginTop: '3px', font: '400 var(--co-readable-small, 0.72rem)/1.4 var(--font-body)', color: MUTED }}>{f.note || f.message}{f.dueAt ? ' · due ' + f.dueAt : ''}{last ? ' · last ' + last.type.toLowerCase() : ''}</span>
                                     </span>
-                                    <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: MUTED, cursor: 'pointer', padding: '5px 9px', ...chip }}>Remove</button>
+                                    <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: MUTED, cursor: 'pointer', padding: '5px 9px', minHeight: '44px', ...chip }}>Remove</button>
                                 </div>
                             );
                         })

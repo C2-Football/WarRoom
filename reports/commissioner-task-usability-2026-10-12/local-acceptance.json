@@ -1,0 +1,34 @@
+{
+  "url": "http://127.0.0.1:55760/dist-preview/?dev=true&user=readiness-fixture",
+  "sourceHashes": {
+    "js/shared/commish-prefs.js": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+    "js/shared/commish-followups.js": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+    "js/components/commish-sidebar.js": "567f6e1f7e24bef2b32f77afbb1000c2002a5dd06d9153a55c92f1c7ab840707",
+    "js/components/commish-genesis-panel.js": "7c4b58466f85b824ee43486f815237bfeb98248734e60189d0347e30f82fed81",
+    "js/components/commish-governance-panel.js": "554c2bbae8c1f2452ad9b15855bc8be44900144fd9b9eb4ee6f0a2360b6ef3a0",
+    "js/components/commish-people-panel.js": "dc8e194db50db5b02430a0cc56ca64dd33e953318733f4661aa51003e595e555",
+    "js/components/commish-command-panel.js": "e153b3d4cdf068313dc2d621d47de54111abfe24357c6a9d0556a2f0351fd291",
+    "js/components/commish-schedule-panel.js": "69f948029dd27282002a86505b00151eaab3440abdc19d6fa27334f0cbbb1212",
+    "js/tabs/commissioner-office.js": "9dd1bea469f5c46eb0d9351aafcd7e35b6fb5c10e7849a4a401704e508ea8859",
+    "js/shared/commish-ignore-sync.js": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b"
+  },
+  "harnessSha256": "f2c2e8f3cbdacf4407c419964ce32a8e02e15233656da089c061813909a28021",
+  "cases": 9,
+  "passed": true,
+  "journeys": 74,
+  "independentPeerContexts": 2,
+  "blockedExternalMutations": 908,
+  "locallyFulfilledServicePosts": 94,
+  "pageErrors": 0,
+  "processes": {
+    "chromium": {
+      "exitCode": 0,
+      "browserClosed": true
+    },
+    "webkit": {
+      "exitCode": 0,
+      "browserClosed": true
+    }
+  },
+  "boundary": "Frozen local frontend plus isolated service model. No deployed authenticated backend, native Safari, physical-device or canonical hosted-release claim."
+}

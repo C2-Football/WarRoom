@@ -1,0 +1,14 @@
+PASS two independent devices propagate Ignore and Restore only after server confirmation
+PASS all pages load atomically; invalid or failed later pages preserve last-known choices
+PASS cache is unconfirmed; completed GET drops absent cache without overwriting a newer in-flight POST
+PASS lost response retry and reopened module reuse exact operation ID, revision and payload
+PASS retrying an old acknowledged operation cannot resurrect an Ignore restored on another device
+PASS reload exposes a bounded pending snapshot and recovers receipt even when GET already hides the task
+PASS 409 applies current revision, refreshes, and requires explicit new intent with a new operation
+PASS late results after account switch or exact credential rotation cannot populate cache or UI
+PASS double clicks sharing the initial GET start only one POST
+PASS quota failure after a real server receipt remains confirmed with an honest cache warning
+PASS provider snapshots are bounded metadata and never include private follow-up fields
+PASS local choices never upload; cloud tombstones overlay local hides while other local prefs survive
+PASS auth failure and malformed success never report a confirmed mutation
+PASS 13 real sync/preference groups; all service traffic isolated.

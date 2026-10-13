@@ -1,0 +1,12 @@
+(node:17228) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS private records require a valid signed active account; identity cannot be supplied by the client
+PASS lost-response retries are idempotent, and operation IDs cannot be reused for different payloads
+PASS Restore tombstones defeat stale device writes and delayed successful ignore retries
+PASS restoring an absent choice creates a tombstone and same task IDs remain isolated per account
+PASS pagination includes all current choices and tombstones without exposing other accounts
+PASS revocation between Edge authentication and SQL write still rejects the stale session
+PASS competing stale operations have one winner; failures roll back both record and receipt
+PASS malformed requests, oversized metadata, method/rate guards and storage outages never confirm a save
+PASS raw records, receipts and RPCs deny anon/authenticated; service RPCs work and account deletion cascades
+9 isolated authenticated handler/SQL groups passed

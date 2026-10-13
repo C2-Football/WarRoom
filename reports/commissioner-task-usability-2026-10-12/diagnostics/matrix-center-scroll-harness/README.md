@@ -1,0 +1,1 @@
+Initial matrix guard centered a112px header under the140px sticky league column on320px. Browser closed and exited1. Corrected harness aligns grid headings to the available right edge; all hit-testing and readable-size assertions remain. This is a harness scrolling diagnostic, not a source failure or acceptance result.

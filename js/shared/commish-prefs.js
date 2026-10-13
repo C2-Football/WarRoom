@@ -13,13 +13,14 @@
 //     it in the queue and the desk badges — but NEVER in its own hub, because
 //     hiding data from the screen built to show it is a lie, not a preference.
 //
-//   ITEM STATE       markDone / skip / hide / restore / stateOf / applyStates
+//   ITEM STATE       markDone / skip / ignore / restore / stateOf / applyStates
 //     done   — resolved. Stores a SIGNATURE of the item; if the underlying
 //              number moves (2 unratified changes become 5) the signature
 //              breaks and the item returns as new work. Marking something done
 //              must not blind you to it getting worse.
 //     skipped— snoozed until a timestamp (default 7 days).
-//     hidden — dismissed indefinitely; only Settings brings it back.
+//     ignored— dismissed until restored, even when urgency or counts change.
+//              Older hidden choices retain this same meaning.
 //
 // Storage via App.DhqStorage (localStorage-backed) with an in-module Map
 // fallback so this is Node-testable. Pure decision logic is separated from
@@ -117,9 +118,36 @@
         const m = item.metric || {};
         return [item.tier || '', m.value == null ? '' : String(m.value), m.unit || ''].join('|');
     }
+    // Cloud tombstones remove older local Ignore choices without uploading or
+    // deleting that browser's other preferences. Cached choices are labelled
+    // as last-known; only a current server response is confirmed across devices.
+    function effectiveStates(states) {
+        const merged = { ...(states || {}) };
+        const sync = App.Commish?.IgnoreSync?.snapshot?.();
+        if (!sync || sync.owner !== App.AccountStorage?.owner?.()) return merged;
+        Object.values(sync.records || {}).forEach(rec => {
+            if (rec.state === 'restored') {
+                if (['ignored', 'hidden'].includes(merged[rec.taskId]?.state)) delete merged[rec.taskId];
+            } else if (rec.state === 'ignored') {
+                merged[rec.taskId] = { state: 'ignored', ts: Date.parse(rec.updatedAt) || 0,
+                    item: rec.snapshot || merged[rec.taskId]?.item, source: rec.source, confirmed: rec.confirmed === true, revision: rec.revision };
+            }
+        });
+        return merged;
+    }
     function stateOf(id) {
-        const rec = all().items[String(id)];
+        const rec = effectiveStates(all().items)[String(id)];
         return rec && rec.state ? rec : null;
+    }
+    function activeStateOf(item, opts) {
+        if (!item) return null;
+        const rec = opts && opts.states ? effectiveStates(opts.states)[String(item.id)] : stateOf(item.id);
+        if (!rec) return null;
+        if (rec.state === 'ignored' || rec.state === 'hidden') return rec;
+        if (rec.sig !== signatureOf(item)) return null;
+        if (rec.state === 'done') return rec;
+        if (rec.state === 'skipped' && ((opts && opts.nowMs) || 0) < (rec.until || 0)) return rec;
+        return null;
     }
     function _set(id, rec) {
         const p = all();
@@ -138,9 +166,37 @@
     }
     function hide(item, opts) {
         const now = (opts && opts.nowMs) || 0;
-        return _set(item && item.id, { state: 'hidden', sig: signatureOf(item), ts: now });
+        return _set(item && item.id, { state: 'hidden', sig: signatureOf(item), ts: now, item: itemSnapshot(item) });
+    }
+    function itemSnapshot(item) {
+        if (!item || item.id == null || !String(item.id)) throw new Error('Choose a task to ignore.');
+        return {
+            id: String(item.id), headline: String(item.headline || 'Ignored task'),
+            detail: String(item.detail || ''), kind: String(item.kind || ''),
+            hub: String(item.hub || 'command'), domain: String(item.domain || ''),
+            leagueIds: (item.leagueIds || []).map(String),
+            leagueNames: (item.leagueNames || []).map(String),
+        };
+    }
+    function ignore(item, opts) {
+        const snapshot = itemSnapshot(item);
+        return _set(snapshot.id, { state: 'ignored', ts: (opts && opts.nowMs) || 0, item: snapshot });
     }
     function restore(id) { return _set(id, null); }
+
+    // Keep ignored choices recoverable even when the finding temporarily
+    // disappears from the provider data. Restoring removes the saved choice;
+    // it does not manufacture a task that no longer needs attention.
+    function ignoredItems(items, opts) {
+        const current = new Map((items || []).map(item => [String(item.id), item]));
+        const states = effectiveStates(opts && opts.states ? opts.states : all().items);
+        return Object.entries(states).filter(([, rec]) => rec && ['ignored', 'hidden'].includes(rec.state))
+            .map(([id, rec]) => ({
+                item: current.get(id) || { ...(rec.item || {}), id, headline: rec.item?.headline || 'Previously ignored task' },
+                state: 'ignored', missing: !current.has(id), ts: rec.ts || 0,
+                source: rec.source || 'local', confirmed: rec.confirmed === true, revision: rec.revision || null,
+            })).sort((a, b) => b.ts - a.ts || a.item.id.localeCompare(b.item.id));
+    }
 
     // ── The filter (pure — takes state in, returns the split) ────────
     // Returns BOTH halves. The command view renders `visible`, and Settings
@@ -163,16 +219,9 @@
             if (alerts.domains && alerts.domains[it.domain] === false) reasons.push('domain-off');
             if ((TIER_RANK[it.tier] || 0) < floorRank) reasons.push('below-floor');
 
-            const rec = states[String(it.id)];
-            if (rec && rec.state) {
-                // A stale signature means the underlying number moved — the
-                // item is new work again, so the old resolution doesn't apply.
-                const fresh = rec.sig === signatureOf(it);
-                if (rec.state === 'hidden' && fresh) reasons.push('hidden');
-                else if (rec.state === 'done' && fresh) reasons.push('done');
-                else if (rec.state === 'skipped' && fresh && nowMs < (rec.until || 0)) reasons.push('skipped');
-            }
-            if (reasons.length) suppressed.push({ item: it, reasons, state: rec ? rec.state : null });
+            const active = activeStateOf(it, { states, nowMs });
+            if (active) reasons.push(active.state);
+            if (reasons.length) suppressed.push({ item: it, reasons, state: active ? active.state : null });
             else visible.push(it);
         });
         return { visible, suppressed };
@@ -192,8 +241,8 @@
         DOMAINS, SKIP_DAYS,
         isManaged, setManaged, managedFilter,
         getAlerts, setDomainAlert, setFloor,
-        signatureOf, stateOf, markDone, skip, hide, restore,
-        allItemStates: () => all().items,
+        signatureOf, stateOf, activeStateOf, markDone, skip, ignore, hide, restore, ignoredItems,
+        allItemStates: () => effectiveStates(all().items),
         applyStates, countTiers,
         _mem, _all: all, _reset: () => write(defaults()),
     };

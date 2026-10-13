@@ -6,13 +6,13 @@
 // the whole point — the first gets a human check-in, the second gets a
 // league-specific re-engagement nudge, and mixing them up burns goodwill.
 //
-//   buildRadar({ graph, txnsByLeague, rostersByLeague, playersData, week, nowMs })
+//   buildRadar({ graph, txnsByLeague, activityByLeague, rostersByLeague, playersData, week, nowMs })
 //     → { people: [{ userId, name, isMe, leagueCount, status, checkin,
 //          teams: [{ leagueId, leagueName, rosterId, inSeason, status,
 //            signals: { daysSinceTxn, outStarters, byeStarters, emptySlots } }] }] }
 //       people sorted worst-first (DARK_ALL, DARK_ONE, FADING, ACTIVE);
-//       team status ∈ OK|WATCH|DARK; checkin = seeded copy draft (null when
-//       ACTIVE or when the person is me — you don't message yourself).
+//       team status ∈ OK|WATCH|DARK|UNKNOWN; unavailable/stale activity never
+//       proves silence. A fresh, complete empty list still means no moves.
 //
 //   fetchRadarInputs({ graph })
 //     → Promise<{ txnsByLeague, rostersByLeague, playersData }> via the global
@@ -34,7 +34,7 @@
     // roster can emit. Questionable/Doubtful are excluded on purpose — active
     // managers legitimately hold those to game time.
     const OUT_STATUSES = { OUT: 1, IR: 1, PUP: 1, SUS: 1, NA: 1, COV: 1 };
-    const RANK = { DARK_ALL: 0, DARK_ONE: 1, FADING: 2, ACTIVE: 3 };
+    const RANK = { DARK_ALL: 0, DARK_ONE: 1, FADING: 2, UNKNOWN: 3, ACTIVE: 4 };
 
     // ── Transaction recency (pure) ───────────────────────────────────
     // A txn belongs to a roster when roster_ids names it OR any adds/drops
@@ -101,6 +101,12 @@
     // lineup signals are neutral and only the txn clock speaks, with much
     // longer fuses — everyone goes quiet in May.
     function teamStatus(sig) {
+        if (sig.activityKnown === false) {
+            // Current lineup symptoms stand on their own; without transaction
+            // coverage they cannot establish that this manager has gone dark.
+            return sig.inSeason && (sig.outStarters >= 1 || sig.emptySlots >= 1 || sig.byeStarters >= 2)
+                ? 'WATCH' : 'UNKNOWN';
+        }
         if (sig.inSeason) {
             if (exceeds(sig.daysSinceTxn, 21) && (sig.outStarters + sig.emptySlots) >= 1) return 'DARK';
             if (exceeds(sig.daysSinceTxn, 14) || sig.outStarters >= 1 || sig.byeStarters >= 2) return 'WATCH';
@@ -118,7 +124,11 @@
     // dark) also lands DARK_ONE: they're demonstrably alive somewhere, so the
     // dark leagues are the problem, not the person.
     function classifyPerson(teams) {
+        // A missing league read cannot tell us whether someone is quiet in
+        // one league or all of them. Do not draft that personal inference.
+        if (teams.some(t => t.status === 'UNKNOWN')) return 'UNKNOWN';
         const dark = teams.filter(t => t.status === 'DARK').length;
+        if (dark && teams.some(t => t.signals?.activityKnown === false)) return 'FADING';
         if (teams.length >= 2 && dark === teams.length) return 'DARK_ALL';
         if (dark >= 1) return 'DARK_ONE';
         if (teams.some(t => t.status === 'WATCH')) return 'FADING';
@@ -171,6 +181,7 @@
     function buildRadar(opts) {
         const graph = (opts && opts.graph) || {};
         const txnsByLeague = (opts && opts.txnsByLeague) || {};
+        const activityByLeague = (opts && opts.activityByLeague) || {};
         const rostersByLeague = (opts && opts.rostersByLeague) || {};
         const playersData = (opts && opts.playersData) || {};
         const week = Number(opts && opts.week);
@@ -182,10 +193,14 @@
             const teams = (p.teams || []).map(team => {
                 const rosters = rostersByLeague[team.leagueId] || [];
                 const roster = rosters.find(r => String(r.roster_id) === String(team.rosterId)) || null;
-                const days = daysSinceTxn(txnsByLeague[team.leagueId], team.rosterId, nowMs);
+                const activity = activityByLeague[team.leagueId];
+                const activityKnown = Array.isArray(txnsByLeague[team.leagueId])
+                    && (!activity || activity.status === 'fresh');
+                const days = activityKnown ? daysSinceTxn(txnsByLeague[team.leagueId], team.rosterId, nowMs) : null;
                 const lineup = lineupSignals(roster, playersData, week);
                 const signals = {
                     daysSinceTxn: days,
+                    activityKnown,
                     outStarters: lineup ? lineup.outStarters : 0,
                     byeStarters: lineup ? lineup.byeStarters : 0,
                     emptySlots: lineup ? lineup.emptySlots : 0,
@@ -196,9 +211,13 @@
                     leagueName: team.leagueName,
                     rosterId: team.rosterId,
                     inSeason,
+                    activityStatus: activity?.status || (activityKnown ? 'fresh' : 'unavailable'),
+                    activityError: activity?.error || null,
+                    activityFetchedAt: activity?.fetchedAt || null,
                     signals,
                     status: teamStatus({
                         inSeason,
+                        activityKnown,
                         daysSinceTxn: signals.daysSinceTxn,
                         outStarters: signals.outStarters,
                         byeStarters: signals.byeStarters,
@@ -234,9 +253,9 @@
     }
 
     // ── Input hydration (fetch helper — impure, browser-only) ────────
-    // One txn sweep + one rosters call per league, players map once. Failures
-    // degrade to empty inputs — the radar then honestly reports "no txns seen"
-    // rather than fabricating activity. Sleeper only, v1 (mfl_ skipped, same
+    // One txn sweep + one rosters call per league, players map once. Failed
+    // reads carry unavailable metadata, distinct from a valid empty result.
+    // Sleeper only, v1 (mfl_ skipped, same
     // guard as the foundation's hydrateCommissioned).
     async function fetchRadarInputs(opts) {
         const graph = (opts && opts.graph) || {};
@@ -245,25 +264,41 @@
         (graph.seats || []).forEach(s => lids.add(String(s.leagueId)));
 
         const txnsByLeague = {};
+        const activityByLeague = {};
         const rostersByLeague = {};
         await Promise.all([...lids].map(async lid => {
             if (!lid || lid.startsWith('mfl_')) return;
             try {
-                if (App.TxnStore && typeof App.TxnStore.fetchLeagueTxns === 'function') {
+                const txnStore = root.WrTxns || App.TxnStore;
+                if (typeof txnStore?.fetchLeagueActivity === 'function') {
+                    const activity = await txnStore.fetchLeagueActivity(lid);
+                    activityByLeague[lid] = activity;
+                    txnsByLeague[lid] = [...activity.txns, ...(activity.failedWaivers || [])];
+                } else if (txnStore && typeof txnStore.fetchLeagueTxns === 'function') {
                     // Cached season sweep. Note: TxnStore drops failed waiver
                     // claims from its main array, so pure-TxnStore inputs are
                     // slightly conservative on the activity clock.
-                    txnsByLeague[lid] = (await App.TxnStore.fetchLeagueTxns(lid)) || [];
+                    txnsByLeague[lid] = await txnStore.fetchLeagueTxns(lid, { requireComplete: true });
+                    if (!Array.isArray(txnsByLeague[lid])) throw new Error('Invalid transaction response');
+                    activityByLeague[lid] = { status: 'fresh' };
                 } else if (typeof root.fetchTransactions === 'function') {
                     const weeks = [];
                     for (let w = 0; w <= 18; w++) weeks.push(w);
-                    const res = await Promise.all(weeks.map(w =>
-                        Promise.resolve(root.fetchTransactions(lid, w)).catch(() => [])));
+                    const res = await Promise.all(weeks.map(w => Promise.resolve().then(() => root.fetchTransactions(lid, w)).then(rows => {
+                        if (!Array.isArray(rows)) throw new Error('Invalid transaction response');
+                        return rows;
+                    })));
                     txnsByLeague[lid] = res.flat().filter(t => t && t.type);
+                    activityByLeague[lid] = { status: 'fresh' };
                 } else {
                     txnsByLeague[lid] = [];
+                    activityByLeague[lid] = { status: 'unavailable', error: 'Transaction activity is unavailable. Retry the league connection.' };
                 }
-            } catch (e) { txnsByLeague[lid] = []; if (root.wrLog) root.wrLog('commish.radar.txns', e); }
+            } catch (e) {
+                txnsByLeague[lid] = [];
+                activityByLeague[lid] = { status: 'unavailable', error: 'Transaction activity could not be refreshed. Retry to check manager activity.' };
+                if (root.wrLog) root.wrLog('commish.radar.txns', e);
+            }
             try {
                 rostersByLeague[lid] = typeof root.fetchRosters === 'function'
                     ? ((await root.fetchRosters(lid)) || []) : [];
@@ -274,7 +309,7 @@
         if (!playersData && typeof root.fetchAllPlayers === 'function') {
             try { playersData = (await root.fetchAllPlayers()) || {}; } catch (e) { playersData = {}; }
         }
-        return { txnsByLeague, rostersByLeague, playersData: playersData || {} };
+        return { txnsByLeague, activityByLeague, rostersByLeague, playersData: playersData || {} };
     }
 
     const api = {

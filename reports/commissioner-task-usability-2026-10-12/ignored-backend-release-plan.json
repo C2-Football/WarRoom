@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "status": "prepared_not_deployed",
+  "project": "sxshiqyxhhifvtfqawbq",
+  "function": "fw-commish-ignored",
+  "ownerRepository": "skjjcruz/github.com-skjjcruz-owner-dashboard-dev",
+  "ownerBase": "4445de6adf65adeab28a36807c2867f60086d6be",
+  "ownerCheckout": "/Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012",
+  "hashes": {
+    "supabase/functions/fw-commish-ignored/index.ts": "cd4355e4eb693103fc1a5cb4a618d656ba752b2d50a8de12f0a05736172c5c34",
+    "supabase/migrations/20261012030000_commish_ignored_tasks.sql": "580624e8eb63383be34b1a1904ee29a4d9fd0abfa4f8e8f61583cbe467ad9ccc",
+    "supabase/functions/_shared/security.ts": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e",
+    "supabase/config.toml": "a51f4f2d4b988c58778aa71c53f9705a2e956566d2bf6f2a142850e17d29603e"
+  },
+  "ownerHelperUnchanged": true,
+  "ownerTrackedFilesChanged": [],
+  "migrationVersion": "20261012030000",
+  "migrationMethod": "Execute exact idempotent transactional migration file; record its version/name using same separate registry write as owner workflow; verify before function deploy. No other migration application.",
+  "commands": [
+    "supabase --workdir /Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012 db query --linked --file /Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012/supabase/migrations/20261012030000_commish_ignored_tasks.sql",
+    "supabase --workdir /Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012 db query --linked --file /Users/jacobc/Projects/work/warroom-commissioner-readiness/reports/commissioner-task-usability-2026-10-12/ignored-backend-record-migration.sql",
+    "supabase --workdir /Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012 db query --linked --file /Users/jacobc/Projects/work/warroom-commissioner-readiness/reports/commissioner-task-usability-2026-10-12/ignored-backend-verify.sql",
+    "supabase --workdir /Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012 functions deploy fw-commish-ignored --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt"
+  ],
+  "postChecks": [
+    "private schema/RLS/client denials and service-only routines",
+    "function ACTIVE with verify_jwt=false",
+    "all pre-existing function versions/hashes unchanged",
+    "deployed endpoint unauthenticated GET/POST reject401 and supported-origin OPTIONS works",
+    "authenticated cross-device/read/write proof is separate from schema and unauthenticated proof"
+  ],
+  "testLog": "ignored-backend-owner-helper-tests.log",
+  "testGroupsPassed": 9,
+  "evidenceLimit": "Isolated signed-JWT/handler/PGlite integration; hosted account persistence not yet verified. No live writes before root GO."
+}

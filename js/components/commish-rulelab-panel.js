@@ -84,26 +84,31 @@ const swingGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.9fr
 const nameCell = { fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
 // ── Per-league result block ──────────────────────────────────────
-const ReplayDetails = ({ phone, children }) => phone ? <details className="co-disclosure co-replay-details"><summary>Standings, points & player impact</summary>{children}</details> : <React.Fragment>{children}</React.Fragment>;
-const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone }) => {
+const ReplayDetails = ({ children }) => <details className="co-disclosure co-replay-details"><summary>View details<small>Standings, points, players and position balance</small></summary>{children}</details>;
+const LeagueResult = ({ leagueId, leagueName, result, onCopyBallot, onExportBallot, hasUnanalyzedChanges, onRetryReplay, sweepBusy }) => {
+    const [showAllTeams, setShowAllTeams] = React.useState(false);
     if (!result || result.empty) {
         return (
-            <Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
+            <div data-testid="rulelab-result" data-league-id={leagueId}><Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
                     {(result && result.reason) || 'No completed weeks to replay in this league.'}
                 </div>
-            </Section>
+                {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
+            </Section></div>
         );
     }
-    const shift = (result.standingsShift || []).filter(r => r.delta !== 0);
-    const shiftShown = shift.slice(0, 8);
-    const shiftHidden = shift.length - shiftShown.length;
-    const unchangedCount = (result.standingsShift || []).length - shift.length;
+    const allStandings = result.standingsShift || [];
+    const shift = allStandings.filter(r => r.delta !== 0);
+    const shiftShown = showAllTeams ? allStandings : shift.slice(0, 8);
+    const shiftHidden = showAllTeams ? 0 : shift.length - shiftShown.length;
+    const unchangedCount = showAllTeams ? 0 : allStandings.length - shift.length;
     const field = result.playoffField || { in: [], out: [], unchanged: true };
     const seed = result.seedOneChanged;
     const tds = result.teamDeltas || [];
     const topTeams = tds.slice(0, Math.min(3, tds.length));
     const botTeams = tds.length > 3 ? tds.slice(Math.max(3, tds.length - 3)) : [];
+    const shownTeams = showAllTeams ? tds : topTeams.concat(botTeams);
+    const largestSwing = tds.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
     const pds = result.playerDeltas || [];
     const gainers = pds.filter(d => d.delta > 0).slice(0, 8);
     const losers = pds.filter(d => d.delta < 0).slice(0, 8);
@@ -125,10 +130,15 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
     );
 
     return (
-        <div id={'wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase()}>
+        <div data-testid="rulelab-result" data-league-id={leagueId} id={'wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase()}>
         <Section title={leagueName || 'League'}
             meta={(result.seasonUsed ? result.seasonUsed + ' season · ' : '') + result.weeksCounted + ' week' + (result.weeksCounted === 1 ? '' : 's') + ' replayed'
                 + (result.methodology === 'best_lineup' ? ' · BEST-LINEUP REPLAY' : ' · as-played')}>
+
+            <div className="co-rulelab-impact-summary" aria-live="polite" aria-atomic="true">
+                <div><span style={microHdr}>Teams changing rank</span><strong>{shift.length} of {allStandings.length}</strong></div>
+                {largestSwing && <div><span style={microHdr}>Largest points change</span><strong>{signed(largestSwing.delta)} pts</strong>{Number(largestSwing.delta) !== 0 && <span>{largestSwing.name}</span>}</div>}
+            </div>
 
             {/* Verdict card: the seed + the field, before any table */}
             <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${seed ? GOLD : LINE}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
@@ -157,10 +167,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
                 </div>
             </div>
 
-            <ReplayDetails phone={phone}>
+            <ReplayDetails>
+            {(allStandings.length > shift.slice(0, 8).length || tds.length > topTeams.length + botTeams.length) && <button type="button" className="co-rulelab-all-teams" aria-pressed={showAllTeams} onClick={() => setShowAllTeams(!showAllTeams)}>
+                {showAllTeams ? 'Show biggest changes' : 'View all teams'}
+            </button>}
             {/* Standings shift — moved rows only */}
             <div style={{ ...microHdr, marginBottom: '6px' }}>Standings shift</div>
-            {!shift.length ? (
+            {!shiftShown.length ? (
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
             ) : (
                 <div role="region" aria-label="Standings shift. Scroll for all columns." tabIndex={0} style={{ overflowX: 'auto', marginBottom: '10px' }}>
@@ -173,8 +186,8 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
                                 <span style={nameCell}>{r.name}</span>
                                 <span style={{ textAlign: 'right' }}>{r.baselineRank}</span>
                                 <span style={{ textAlign: 'right', color: TEXT }}>{r.proposedRank}</span>
-                                <span style={{ textAlign: 'right', fontWeight: 700, color: r.delta > 0 ? GREEN : RED }}>
-                                    {r.delta > 0 ? '▲' : '▼'}{Math.abs(r.delta)}
+                                <span style={{ textAlign: 'right', fontWeight: 700, color: r.delta > 0 ? GREEN : r.delta < 0 ? RED : MUTED }}>
+                                    {r.delta === 0 ? '—' : (r.delta > 0 ? '▲' : '▼') + Math.abs(r.delta)}
                                 </span>
                             </div>
                         ))}
@@ -196,7 +209,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
                             <div style={{ ...swingGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
                                 <span>Team</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>Proposed</span><span style={{ textAlign: 'right' }}>Δ pts</span>
                             </div>
-                            {topTeams.concat(botTeams).map(t => (
+                            {shownTeams.map(t => (
                                 <div key={t.rosterId} style={{ ...swingGrid, ...rowLine }}>
                                     <span style={nameCell}>{t.name}</span>
                                     <span style={{ textAlign: 'right', opacity: 0.8 }}>{Number(t.baselinePts).toFixed(1)}</span>
@@ -206,7 +219,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
                             ))}
                         </div>
                     </div>
-                    {tds.length > topTeams.length + botTeams.length ? (
+                    {!showAllTeams && tds.length > topTeams.length + botTeams.length ? (
                         <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '-4px', marginBottom: '10px' }}>
                             top 3 and bottom 3 of {tds.length} teams shown
                         </div>
@@ -278,13 +291,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
             {/* The ballot: this league's impact statement, ready to circulate */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {typeof onCopyBallot === 'function' ? (
-                    <button onClick={() => onCopyBallot(leagueName, result)}
+                    <button disabled={hasUnanalyzedChanges} title={hasUnanalyzedChanges ? 'Preview staged changes before sharing this proposal.' : undefined} onClick={() => onCopyBallot(leagueName, result)}
                         style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Copy ballot text
                     </button>
                 ) : null}
                 {typeof onExportBallot === 'function' ? (
-                    <button onClick={() => onExportBallot(leagueName, result)}
+                    <button disabled={hasUnanalyzedChanges} title={hasUnanalyzedChanges ? 'Preview staged changes before sharing this proposal.' : undefined} onClick={() => onExportBallot(leagueName, result)}
                         style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, font: '700 var(--co-readable-small, 0.625rem) ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Export PNG
                     </button>
@@ -298,12 +311,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot, phone 
 function WrCommishRuleLabPanel({
     phone = false,
     status, seasonUsed, seasons, onSeason,
+    onRetryReplay,
     leagues, selectedLeagueId, onSelectLeague,
     proposal, onProposalChange, onProposalStage, rosterProposal, onRosterProposalChange,
     onReset, onAnalyze, hasUnanalyzedChanges,
     results, presets, baselineScoring, editorKeys: editorKeysProp, currentSlotsByLeague,
     sweepResult, onSweep, sweepBusy,
-    saved, savedError, canRecoverSaved, hasRecoveryCopy, onRecoverSaved, onExportRecovery,
+    saved, savedError, savedNotice, canRecoverSaved, hasRecoveryCopy, onRecoverSaved, onExportRecovery,
     onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
     onCopyBallot, onExportBallot,
 }) {
@@ -335,17 +349,11 @@ function WrCommishRuleLabPanel({
         const n = Number(v) || 0;
         return (Math.round(n * 10) === n * 10) ? n.toFixed(1) : String(n);
     };
-    const summaryBits = propKeys.map(k => {
-        const v = prop[k];
-        const base = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
-        if (base != null && base !== Number(v)) return k + ' ' + fmtNum(base) + ' → ' + fmtNum(v);
-        if (k.indexOf('bonus_') === 0) return k + ' ' + (Number(v) >= 0 ? '+' : '') + fmtNum(v);
-        return k + ' → ' + fmtNum(v);
-    });
-
-
     // ── Full scoring editor state ────────────────────────────────────
     const [saveName, setSaveName] = React.useState('');
+    const [quickKey, setQuickKey] = React.useState('rec');
+    const [ruleSearch, setRuleSearch] = React.useState('');
+    const [quickDraft, setQuickDraft] = React.useState(null);
     // Human labels for the common Sleeper scoring keys; anything unknown
     // renders its raw key — honest, and every league has oddballs.
     const KEY_LABELS = {
@@ -385,6 +393,11 @@ function WrCommishRuleLabPanel({
             return KEY_WORD[seg] || (seg.charAt(0).toUpperCase() + seg.slice(1));
         }).join(' ');
     };
+    const summaryBits = propKeys.map(k => {
+        const v = prop[k];
+        const base = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
+        return humanizeKey(k) + ' ' + (base != null ? fmtNum(base) + ' → ' : '→ ') + fmtNum(v);
+    });
     const KEY_GROUPS = [
         ['Passing', k => k.startsWith('pass')],
         ['Rushing', k => k.startsWith('rush') || k === 'bonus_rush_yd_100'],
@@ -433,8 +446,43 @@ function WrCommishRuleLabPanel({
         // OTHER league's value. That was live: the editor was fed league #1's
         // scoring for every league.
         const baseVal = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
-        if (Number.isNaN(v) || (baseVal != null && v === baseVal)) delete next[k]; else next[k] = v;
+        if (!Number.isFinite(v) || (baseVal != null && v === baseVal)) delete next[k]; else next[k] = v;
         stageProposal(next);
+    };
+
+    // Keep the numeric field's raw string while it is being edited. A blank
+    // or an intermediate minus/decimal must not snap back to the baseline.
+    // External preset/scope changes invalidate that draft automatically.
+    const quickBase = baselineScoring && baselineScoring[quickKey] != null ? Number(baselineScoring[quickKey]) : null;
+    const quickOverride = Object.prototype.hasOwnProperty.call(prop, quickKey) ? prop[quickKey] : undefined;
+    const quickValue = quickOverride !== undefined ? Number(quickOverride) : quickBase;
+    const draftIsCurrent = quickDraft && quickDraft.key === quickKey && quickDraft.scope === selectedLeagueId && quickDraft.base === quickBase
+        && quickDraft.expected === quickOverride;
+    const quickShown = draftIsCurrent ? quickDraft.raw : (quickValue != null ? quickValue : '');
+    const quickStep = /^(rec|bonus_rec_te)$/.test(quickKey) ? 0.25 : /_yd$/.test(quickKey) ? 0.01 : (quickBase != null && Number.isInteger(quickBase) ? 1 : 0.05);
+    const canStep = quickValue != null && Number.isFinite(quickValue);
+    const quickLabel = humanizeKey(quickKey);
+    const matchedKeys = editorKeys.filter(k => !ruleSearch.trim() || (humanizeKey(k) + ' ' + k).toLowerCase().includes(ruleSearch.trim().toLowerCase()));
+    const quickOptions = matchedKeys.includes(quickKey) ? matchedKeys : [quickKey, ...matchedKeys];
+    const stageKeyInput = (key, raw) => {
+        const base = baselineScoring && baselineScoring[key] != null ? Number(baselineScoring[key]) : null;
+        const numeric = raw === '' ? NaN : Number(raw);
+        const expected = !Number.isFinite(numeric) || (base != null && numeric === base) ? undefined : numeric;
+        setQuickDraft({ key, scope: selectedLeagueId, base, raw, expected });
+        setKey(key, raw);
+    };
+    const stepQuickValue = direction => {
+        if (!canStep || typeof onProposalChange !== 'function') return;
+        const next = { ...prop };
+        const value = Math.round((quickValue + direction * quickStep) * 1000000) / 1000000;
+        if (quickBase != null && value === quickBase) delete next[quickKey]; else next[quickKey] = value;
+        setQuickDraft(null);
+        onProposalChange(next);
+    };
+    const resetQuickValue = () => {
+        const next = { ...prop }; delete next[quickKey];
+        setQuickDraft(null);
+        onProposalChange?.(next);
     };
 
     // ── Roster structure proposal ────────────────────────────────────
@@ -460,6 +508,16 @@ function WrCommishRuleLabPanel({
 
     // ── Body by status ───────────────────────────────────────────────
     const resultRows = Array.isArray(results) ? results : [];
+    const compactResult = status === 'ready' && resultRows.length === 1 && resultRows[0].result && !resultRows[0].result.empty
+        ? resultRows[0].result : null;
+    const compactMoved = compactResult ? (compactResult.standingsShift || []).filter(r => r.delta !== 0).length : 0;
+    const goToImpact = event => {
+        const target = event.currentTarget.closest('.co-rulelab')?.querySelector('[data-testid="rulelab-impact"]');
+        if (!target) return;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+        target.focus({ preventScroll: true });
+    };
     let body = null;
     if (status === 'loading') {
         body = (
@@ -471,12 +529,14 @@ function WrCommishRuleLabPanel({
         body = (
             <Section title="Replay">
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>No completed weeks to replay — the lab needs at least one finished week of box scores.</div>
+                {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
             </Section>
         );
     } else if (status === 'error') {
         body = (
             <Section title="Replay">
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>The replay could not be run — season stats or lineups failed to load.</div>
+                {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
             </Section>
         );
     } else if (status === 'ready') {
@@ -487,7 +547,7 @@ function WrCommishRuleLabPanel({
         ) : (
             <React.Fragment>
                 {resultRows.map((row, i) => (
-                    <LeagueResult phone={phone} key={row.leagueId || row.leagueName || i} leagueName={row.leagueName} result={row.result} onCopyBallot={onCopyBallot} onExportBallot={onExportBallot} />
+                    <LeagueResult key={row.leagueId || row.leagueName || i} leagueId={row.leagueId} leagueName={row.leagueName} result={row.result} onCopyBallot={onCopyBallot} onExportBallot={onExportBallot} hasUnanalyzedChanges={hasUnanalyzedChanges} onRetryReplay={onRetryReplay} sweepBusy={sweepBusy} />
                 ))}
             </React.Fragment>
         );
@@ -519,6 +579,7 @@ function WrCommishRuleLabPanel({
             {(propKeys.length > 0 || rp) ? (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button onClick={() => {
+                        setQuickDraft(null);
                         if (typeof onReset === 'function') { onReset(); return; }
                         // Fallback for a container that hasn't wired onReset —
                         // clears the live proposal (keeping the committed
@@ -526,7 +587,7 @@ function WrCommishRuleLabPanel({
                         if (typeof onProposalChange === 'function') onProposalChange({});
                         if (typeof onRosterProposalChange === 'function') onRosterProposalChange(null);
                     }} style={chipBtn(false, { color: TEXT })}>
-                        ↺ Reset to current settings
+                        Reset all changes
                     </button>
                 </div>
             ) : null}
@@ -573,7 +634,9 @@ function WrCommishRuleLabPanel({
                 </div>
             ) : null}
 
-            <Section title="Scoring proposal" meta="Combine presets to compare scoring changes.">
+            <div className="co-rulelab-workspace">
+            <div className="co-rulelab-controls" data-testid="rulelab-controls">
+            <Section title="Change the scoring" meta="Pick a preset for an immediate replay, or edit one rule below.">
                 {!presetList.length ? (
                     <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
                 ) : (
@@ -581,7 +644,7 @@ function WrCommishRuleLabPanel({
                         {presetList.map(p => {
                             const on = isActive(p);
                             return (
-                                <button key={p.key} onClick={() => toggle(p)}
+                                <button key={p.key} type="button" aria-pressed={on} onClick={() => { setQuickDraft(null); toggle(p); }}
                                     style={{
                                         padding: '6px 11px', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)',
                                         font: '600 var(--co-readable-small, 0.7rem) ' + MONO, letterSpacing: '0.03em',
@@ -602,17 +665,66 @@ function WrCommishRuleLabPanel({
                         <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.76rem)', color: MUTED }}>no changes staged — current rules</span>
                     )}
                     {propKeys.length ? (
-                        <button onClick={() => { if (typeof onProposalChange === 'function') onProposalChange({}); }}
+                        <button onClick={() => { setQuickDraft(null); if (typeof onProposalChange === 'function') onProposalChange({}); }}
                             style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.62rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Clear
                         </button>
                     ) : null}
                 </div>
+                <div className="co-rulelab-quick-editor" data-testid="rulelab-quick-editor">
+                    <label className="co-rulelab-search">Find a scoring rule
+                        <input type="search" aria-label="Find a scoring rule" placeholder="Search receptions, passing, tackles…" value={ruleSearch} onChange={e => setRuleSearch(e.target.value)} />
+                    </label>
+                    <label>Scoring rule
+                        <select aria-label="Scoring rule" value={quickKey} onChange={e => { setQuickKey(e.target.value); setQuickDraft(null); }}>
+                            {quickOptions.map(k => <option key={k} value={k}>{humanizeKey(k)}</option>)}
+                        </select>
+                    </label>
+                    {ruleSearch.trim() && <small role="status">{matchedKeys.length ? matchedKeys.length + ' matching rules' : 'No matching rules. Your current selection is still shown.'}</small>}
+                    <div className="co-rulelab-current-value"><span>Current</span><strong>{quickBase != null ? fmtNum(quickBase) : '—'}</strong><small>{quickBase == null ? (baselineScoring ? 'No current value available' : 'Varies by league') : quickLabel}</small></div>
+                    <label className="co-rulelab-proposed-value">Proposed
+                        <div className="co-rulelab-stepper">
+                            <button type="button" aria-label={'Decrease ' + quickLabel} disabled={!canStep} onClick={() => stepQuickValue(-1)}>−</button>
+                            <input type="number" aria-label="Proposed value" step={quickStep} inputMode="decimal" value={quickShown} placeholder="Enter a value" onChange={e => stageKeyInput(quickKey, e.target.value)} />
+                            <button type="button" aria-label={'Increase ' + quickLabel} disabled={!canStep} onClick={() => stepQuickValue(1)}>+</button>
+                        </div>
+                    </label>
+                    <small>+ / − updates the replay immediately{canStep ? ' (' + quickStep + ' points per step)' : ' once you enter a value'}. Type a value, then preview it.</small>
+                    <div className="co-rulelab-edit-actions">
+                        <button type="button" onClick={() => { if (hasUnanalyzedChanges) { setQuickDraft(null); onAnalyze?.(); } }} disabled={!hasUnanalyzedChanges}>Preview changes</button>
+                        <button type="button" onClick={resetQuickValue} disabled={quickOverride === undefined && !draftIsCurrent}>Reset this rule</button>
+                    </div>
+                    {hasUnanalyzedChanges && <p className="co-rulelab-staged" role="status">Changes staged. The impact still reflects your last preview.</p>}
+                    <div className="co-rulelab-feedback" aria-live="polite" aria-atomic="true">
+                        <strong>{hasUnanalyzedChanges ? 'Last preview' : 'Current preview'}</strong>
+                        {compactResult ? <>
+                            <p>{compactMoved} of {(compactResult.standingsShift || []).length} teams change rank. {compactResult.playoffField?.unchanged
+                                ? 'Playoff field unchanged.'
+                                : compactResult.playoffField ? (compactResult.playoffField.in || []).length + ' in, ' + (compactResult.playoffField.out || []).length + ' out of the playoff field.' : ''}</p>
+                            <p>{compactResult.seedOneChanged ? '#1 seed: ' + compactResult.seedOneChanged.from + ' → ' + compactResult.seedOneChanged.to : '#1 seed holds.'}</p>
+                            <small>{compactResult.seasonUsed || seasonUsed} · {compactResult.weeksCounted} weeks replayed</small>
+                        </> : <p>{status === 'loading' ? 'Loading season data…' : resultRows.length > 1 ? 'View each league’s replay below.' : 'Replay data is unavailable. See the impact area for details and retry options.'}</p>}
+                        <button type="button" className="co-rulelab-impact-jump" aria-controls="wr-rulelab-impact" onClick={goToImpact} style={{ minHeight: 44 }}>See replay impact</button>
+                    </div>
+                </div>
             </Section>
-
-            {phone && <section className="co-rulelab-result" aria-label="Current replay"><div className="co-analysis-state"><p>{hasUnanalyzedChanges ? 'Changes staged. This result still reflects your last analysis.' : 'Current replay for the selected rules.'}</p>{hasUnanalyzedChanges && <button type="button" onClick={() => onAnalyze?.()}>Analyze staged changes</button>}</div>{body}</section>}
+            </div>
+            <section id="wr-rulelab-impact" tabIndex={-1} className="co-rulelab-impact co-rulelab-result" data-testid="rulelab-impact" aria-label="Replay impact">
+                <div className="co-rulelab-impact-heading"><h3>Replay impact</h3>{onRetryReplay && status === 'ready' && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Reload season data</button>}</div>
+                <p className="co-rulelab-context">Historical lineups, replayed under current league rules and your proposal.</p>
+                <div className="co-analysis-state"><p>{hasUnanalyzedChanges ? 'Changes staged. This result still reflects your last preview. Preview changes before sharing.' : 'Current rules compared with your proposed rules.'}</p></div>
+                {body}
+            </section>
+            <div className="co-rulelab-save">
+                <label>Proposal name<input aria-label="Proposal name" value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="e.g. TE premium for next season" /></label>
+                <button type="button" disabled={!!savedError || !saveName.trim() || (!propKeys.length && !rp)} onClick={() => { if (onSaveProposal?.(saveName.trim()) === true) setSaveName(''); }}>Save draft</button>
+                {savedNotice && <p role="status" className="co-rulelab-saved-notice">{savedNotice}</p>}
+                <small>Saves these settings in your browser. Reopening the draft runs a new replay. League settings stay unchanged.</small>
+                {savedError && <p role="alert">{savedError} Open Manage saved proposals below for recovery options.</p>}
+            </div>
+            </div>
             {/* ── Roster Bench: structure proposals ─────────────────────── */}
-            <Section folded={phone} title="Roster Bench" meta="Compare changes to your starting lineup slots.">
+            <Section folded title="Starting lineup changes" meta="Optional · add or remove starting slots">
                 {currentStructures.length ? (
                     <div style={{ marginBottom: '10px' }}>
                         {currentStructures.map((cs, i) => (
@@ -658,7 +770,7 @@ function WrCommishRuleLabPanel({
             </Section>
 
             {/* ── The Wind Tunnel: threshold sweep ──────────────────────── */}
-            <Section folded={phone} title="Wind Tunnel" meta="Edit scoring by category or find a threshold">
+            <Section folded title="All scoring rules" meta="Optional · edit several stats before previewing">
                 {/* Dial in exact numbers — every stat this league tracks,
                     plus the full catalog for every position this app knows
                     how to score (so a rule the league has never turned on
@@ -685,7 +797,9 @@ function WrCommishRuleLabPanel({
                                     // shows blank + "—". No min/max on the field either — a
                                     // proposal can go as high or as negative as you type or tick.
                                     const step = (cur != null && Number.isInteger(cur)) ? 1 : 0.05;
-                                    const shownValue = overridden ? prop[k] : (cur != null ? cur : '');
+                                    const activeDraft = quickDraft && quickDraft.key === k && quickDraft.scope === selectedLeagueId && quickDraft.base === cur
+                                        && quickDraft.expected === (overridden ? prop[k] : undefined);
+                                    const shownValue = activeDraft ? quickDraft.raw : overridden ? prop[k] : (cur != null ? cur : '');
                                     return (
                                         <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
                                             <span title={k} style={{ fontSize: 'var(--co-readable-small, 0.72rem)', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -694,7 +808,7 @@ function WrCommishRuleLabPanel({
                                             <input type="number" step={step} inputMode="decimal"
                                                 value={shownValue}
                                                 placeholder={cur == null ? '—' : undefined}
-                                                onChange={e => setKey(k, e.target.value)}
+                                                onChange={e => stageKeyInput(k, e.target.value)}
                                                 style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: 'var(--card-radius-xs, 5px)', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
                                         </label>
                                     );
@@ -704,7 +818,7 @@ function WrCommishRuleLabPanel({
                     ))}
                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
                         {baselineScoring
-                            ? 'Placeholders show this league\u2019s current rule \u2014 every position\u2019s full stat catalog is listed, not just what\u2019s already turned on. Type a number to stage it; blank the field \u2014 or retype the current value \u2014 to drop the override.'
+                            ? 'Values show this league’s current rules. Type a number to stage a change, then preview it. Clear an override by entering its current value.'
                             : 'No single current rule across leagues, so fields show \u201C\u2014\u201D. Blank a field to drop the override.'}
                     </div>
                 </div>
@@ -726,7 +840,7 @@ function WrCommishRuleLabPanel({
                             cursor: hasUnanalyzedChanges ? 'pointer' : 'default',
                             opacity: hasUnanalyzedChanges ? 1 : 0.55,
                         })}>
-                        {hasUnanalyzedChanges ? '\u25B8 Analyze staged changes' : 'Nothing to analyze yet'}
+                        {hasUnanalyzedChanges ? 'Preview changes' : 'No changes to preview'}
                     </button>
                     {hasUnanalyzedChanges ? (
                         <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, color: AMBER }}>
@@ -734,11 +848,13 @@ function WrCommishRuleLabPanel({
                         </span>
                     ) : null}
                 </div>
+            </Section>
 
-                <div style={{ ...microHdr, marginBottom: '8px', paddingTop: '12px', borderTop: `1px solid ${LINE}` }}>Or find the exact threshold for one stat</div>
+            <Section folded title="Find a scoring threshold" meta="Optional · compare several values and seasons">
+                <p style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', lineHeight: 1.5 }}>Test a range of values to see where rankings or playoff qualification change.</p>
                 {/* Any-key picker: every rule the editor knows is sweepable. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <select value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
+                    <select aria-label="Scoring threshold rule" value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
                         style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 8px', fontSize: 'var(--co-readable-body, 0.78rem)', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
                         {groupKeys(editorKeys).map(g => (
                             <optgroup key={g.name} label={g.name}>
@@ -746,24 +862,25 @@ function WrCommishRuleLabPanel({
                             </optgroup>
                         ))}
                     </select>
-                    <button disabled={!!sweepBusy} onClick={() => onSweep && onSweep(swKey, null, { allSeasons: swAll })} style={chipBtn(true, sweepBusy ? { opacity: 0.5 } : null)}>
-                        {sweepBusy ? 'Sweeping…' : 'Sweep it'}
+                    <button disabled={!!sweepBusy || hasUnanalyzedChanges} onClick={() => onSweep && onSweep(swKey, null, { allSeasons: swAll })} style={chipBtn(true, sweepBusy ? { opacity: 0.5 } : null)}>
+                        {sweepBusy ? 'Comparing…' : 'Compare values'}
                     </button>
                     {multiSeasonOk ? (
                         <button onClick={() => setSwAll(!swAll)} disabled={!!sweepBusy}
-                            title="Replay the sweep through every season the chain reaches — a threshold that holds across seasons is close to unarguable."
+                            title="Compare the tested values in every available historical season."
                             style={chipBtn(swAll, sweepBusy ? { opacity: 0.5 } : null)}>
                             {swAll ? '✓ ' : ''}Every season
                         </button>
                     ) : null}
                 </div>
+                {hasUnanalyzedChanges && <p role="status" style={{ fontSize: 'var(--co-readable-small, 0.76rem)', color: AMBER }}>Preview changes before comparing values.</p>}
                 {/* The three classic arguments stay one click away. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
                     <span style={{ ...microHdr }}>Quick:</span>
                     {[['rec', 'PPR 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
                       ['bonus_rec_te', 'TE premium 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
                       ['pass_td', 'Pass TD 4 → 6', [4, 5, 6]]].map(([key, label, values]) => (
-                        <button key={key} disabled={!!sweepBusy} onClick={() => onSweep && onSweep(key, values, { allSeasons: swAll })}
+                        <button key={key} disabled={!!sweepBusy || hasUnanalyzedChanges} onClick={() => onSweep && onSweep(key, values, { allSeasons: swAll })}
                             style={chipBtn(sweepResult && sweepResult.key === key, sweepBusy ? { opacity: 0.5 } : null)}>
                             {sweepBusy === key ? 'Sweeping…' : label}
                         </button>
@@ -802,12 +919,17 @@ function WrCommishRuleLabPanel({
                                     </table>
                                 </div>
                                 <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '5px' }}>
-                                    {pl.consensus != null ? (
-                                        <span>Moves <b style={{ color: TEXT }}>every replayed season</b> from <span style={{ ...mono, color: ACCENT, fontWeight: 700 }}>{pl.consensus}</span> — held in {pl.heldIn} of {pl.of} season{pl.of === 1 ? '' : 's'}. Close to unarguable.</span>
+                                    {Number(pl.of) === 0 ? (
+                                        <div role="status">
+                                            <p>No seasons could be replayed. Season data is unavailable; no movement conclusion is available.</p>
+                                            {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
+                                        </div>
+                                    ) : pl.consensus != null ? (
+                                        <span>At least one tested value changes ranks or playoff qualification in <b style={{ color: TEXT }}>every replayed season</b> ({pl.heldIn} of {pl.of}). Compare the grid to see which values change each year.</span>
                                     ) : pl.heldIn > 0 ? (
-                                        <span>Movement in {pl.heldIn} of {pl.of} seasons (earliest at <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.minFlip}</span>) — no value in range moves them all, so the case rests on one year.</span>
+                                        <span>Rank or playoff changes in {pl.heldIn} of {pl.of} seasons. First tested movement: <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.minFlip}</span>. The other seasons hold their rankings in this range.</span>
                                     ) : (
-                                        <span>No value in this range moves this league in any replayed season.</span>
+                                        <span>No tested value changes ranks or playoff qualification in the replayed seasons.</span>
                                     )}
                                     {pl.noData && pl.noData.length ? <span style={{ color: MUTED }}> · no data: {pl.noData.join(', ')}</span> : null}
                                 </div>
@@ -816,46 +938,50 @@ function WrCommishRuleLabPanel({
                     </div>
                 ) : sweepResult && sweepResult.perLeague && sweepResult.perLeague.length ? (
                     <div style={{ marginTop: '12px' }}>
-                        {sweepResult.perLeague.map(pl => (
+                        {sweepResult.perLeague.map(pl => {
+                            const steps = Array.isArray(pl.steps) ? pl.steps : [];
+                            const hasData = steps.some(step => !step.empty);
+                            const hasUnavailable = steps.some(step => step.empty);
+                            return (
                             <div key={pl.leagueName} style={{ marginBottom: '10px' }}>
                                 <div style={{ ...microHdr, marginBottom: '4px' }}>{pl.leagueName}</div>
                                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                    {pl.steps.filter(s => !s.empty).map(s => (
-                                        <div key={s.value} title={s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
+                                    {steps.map(s => (
+                                        <div key={s.value} title={s.empty ? 'Replay data unavailable for this value.' : s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
                                             style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
                                             <div style={{ ...mono, fontSize: 'var(--co-readable-body, 0.78rem)', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
-                                            <div style={{ ...microHdr, fontSize: 'var(--co-readable-small, 0.575rem)' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
+                                            <div style={{ ...microHdr, fontSize: 'var(--co-readable-small, 0.575rem)' }}>{s.empty ? 'Data unavailable' : s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
                                         </div>
                                     ))}
                                 </div>
-                                {pl.firstFlipAt != null ? (
+                                {!hasData ? <div role="status" style={{ fontSize: 'var(--co-readable-small, 0.76rem)', lineHeight: 1.5 }}>
+                                    <p>Scoring threshold unavailable. Season data could not be replayed; no movement conclusion is available.</p>
+                                    {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
+                                </div> : pl.firstFlipAt != null ? (
                                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>
-                                        First movement at <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.firstFlipAt}</span> — below that, this rule change is cosmetic here.
+                                        First tested rank or playoff change: <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.firstFlipAt}</span>. Other values may still change points.
                                     </div>
-                                ) : <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>No value in this range moves this league at all.</div>}
+                                ) : <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>{hasUnavailable ? 'Available values do not change ranks or playoff qualification.' : 'No tested value changes ranks or playoff qualification.'} Points may still change.</div>}
+                                {hasData && hasUnavailable && <div role="status" style={{ fontSize: 'var(--co-readable-small, 0.76rem)', lineHeight: 1.5 }}>
+                                    <p>Some values could not be replayed. Retry before comparing the full range.</p>
+                                    {onRetryReplay && <button type="button" disabled={!!sweepBusy} onClick={onRetryReplay}>Retry replay</button>}
+                                </div>}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : null}
             </Section>
 
             {/* ── Saved proposals ───────────────────────────────────────── */}
-            <Section folded={phone} title="Saved Proposals" meta="Save, compare and record approved changes.">
+            <Section folded title="Manage saved proposals" meta="Load a draft or record an approved change locally">
                 {savedError && <div role="alert" style={{ fontSize: '16px', lineHeight: 1.5, marginBottom: 12 }}>
                     <p>{savedError}</p>
                     {canRecoverSaved && <><button type="button" style={{ ...chipBtn(false), minHeight: 44 }} onClick={onExportRecovery}>Download original data</button>{' '}
                         <button type="button" style={{ ...chipBtn(true), minHeight: 44 }} onClick={onRecoverSaved}>Preserve a copy &amp; start a new list</button></>}
                 </div>}
                 {hasRecoveryCopy && <div role="status" style={{ fontSize: '16px', lineHeight: 1.5, marginBottom: 12 }}>Your previous proposal data is preserved in this browser. <button type="button" style={{ ...chipBtn(false), minHeight: 44 }} onClick={onExportRecovery}>Download recovery copy</button></div>}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: (saved || []).length ? '10px' : 0 }}>
-                    <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
-                        style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
-                    <button disabled={!!savedError || !saveName.trim() || (!propKeys.length && !rp)}
-                        onClick={() => { if (onSaveProposal?.(saveName.trim()) === true) setSaveName(''); }}
-                        style={chipBtn(true, (!saveName.trim() || (!propKeys.length && !rp)) ? { opacity: 0.45, cursor: 'default' } : null)}>
-                        Save
-                    </button>
-                </div>
+                {!(saved || []).length && !savedError && <p>No saved proposals yet. Name and save your draft above.</p>}
                 {(saved || []).map(sp => (
                     <div key={sp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)`, flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.8rem)', color: sp.status === 'ratified' ? MUTED : TEXT }}>{sp.name}</span>
@@ -873,8 +999,6 @@ function WrCommishRuleLabPanel({
                     </div>
                 ))}
             </Section>
-
-            {!phone && body}
 
             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5, padding: '0 2px' }}>
                 {rp

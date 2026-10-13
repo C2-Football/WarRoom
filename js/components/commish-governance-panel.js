@@ -39,7 +39,7 @@ function WrCommishGovernanceSection({ title, meta, children }) {
     );
 }
 
-function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amendments, treasuries, onMarkPaid, onSetLeagueSafe, onSetSheet, onFetchSheet, onPasteCsv, onAsk }) {
+function WrCommishGovernancePanel({ section, leagues, graph, selectedLeagueId, constitutions, amendments, treasuries, onMarkPaid, onSetLeagueSafe, onSetSheet, onFetchSheet, onPasteCsv, onAsk }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--warn, #F0A500)';
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
@@ -54,6 +54,9 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
     const [csvDraft, setCsvDraft] = React.useState('');
     const [csvNote, setCsvNote] = React.useState({});     // lid -> result line
     const [sheetBusy, setSheetBusy] = React.useState(null);
+    React.useEffect(() => {
+        if (selectedLeagueId != null && (leagues || []).some(league => String(league.league_id || league.id) === String(selectedLeagueId))) setOpenLid(String(selectedLeagueId));
+    }, [selectedLeagueId]);
 
 
     const btn = (label, onClick, opts) => (
@@ -84,14 +87,14 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                         const rul = ruling[lid];
                         return (
                             <div key={lid} style={{ border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)' }}>
-                                <div onClick={() => setOpenLid(open ? null : lid)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }}>
+                                <button type="button" aria-expanded={open} onClick={() => setOpenLid(open ? null : lid)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', minHeight: 44, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', flexWrap: 'wrap' }}>
                                     <span style={{ color: TEXT, fontWeight: 700, fontSize: 'var(--co-readable-body, 0.85rem)' }}>{l.name}</span>
                                     {section !== 'dues' && <span style={{ ...microHdr, color: con && con.clauses.length ? GREEN : AMBER }}>
                                         {con && con.clauses.length ? con.clauses.length + ' clauses on file' : 'no constitution on file'}
                                     </span>}
                                     {section !== 'bylaws' && tre ? <span style={{ ...microHdr }}>dues {tre.summary.paid}/{tre.summary.total}</span> : null}
                                     <span style={{ marginLeft: 'auto', color: TEXT }}>{open ? '▾' : '▸'}</span>
-                                </div>
+                                </button>
                                 {open ? (
                                     <div style={{ borderTop: `1px solid ${LINE}`, padding: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
@@ -100,7 +103,7 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                             <div style={{ ...microHdr, marginBottom: '6px' }}>Bylaws desk</div>
                                             {!con || !con.clauses.length ? (
                                                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
-                                                    Upload this league's constitution under Settings → League documents and the desk lights up: clause search, grounded rulings, amendment history.
+                                                    No constitution is connected for this league. Clause search and rulings become available when constitution text is supplied by the league document connection. Amendment history remains available below.
                                                 </div>
                                             ) : (
                                                 <React.Fragment>
@@ -117,7 +120,9 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '6px' }}>Answers only from quoted clauses — when the constitution is silent, the ruling says so.</div>
                                                         </div>
                                                     ) : rul && rul.err ? <div style={{ marginTop: '8px', color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)' }}>No ruling available — AI is Pro-gated or the call failed.</div> : null}
-                                                    {amd.length ? (
+                                                </React.Fragment>
+                                            )}
+                                            {amd.length ? (
                                                         <div style={{ marginTop: '10px' }}>
                                                             <div style={{ ...microHdr, marginBottom: '4px' }}>Amendment ledger</div>
                                                             {amd.slice(0, 5).map((a, i) => (
@@ -127,8 +132,6 @@ function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amen
                                                             ))}
                                                         </div>
                                                     ) : <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '8px' }}>No amendments recorded yet — acknowledged Drift changes land here as constitutional history.</div>}
-                                                </React.Fragment>
-                                            )}
                                         </div>}
 
                                         {/* ── TREASURY DESK ── */}

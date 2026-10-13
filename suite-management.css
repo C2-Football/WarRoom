@@ -31,7 +31,88 @@
 .co-analysis-state p { margin:0 0 10px; }
 .co-scoring-category > summary { list-style:none; }
 .co-scoring-category > summary small { display:block; margin-top:4px; font-weight:400; }
-@media(min-width:768px) { .co-scoring-category > summary { pointer-events:none; } }
+.co-scoring-category > summary { cursor:pointer; }
+
+/* Keep the experiment and its consequence in the same workspace. */
+.co-rulelab { --co-readable-small:14px; --co-readable-body:16px; }
+.co-rulelab-workspace { display:grid; grid-template-columns:minmax(0,1fr); align-items:start; gap:16px; }
+.co-rulelab-controls, .co-rulelab-impact { min-width:0; }
+.co-rulelab :is(button,input,select) { box-sizing:border-box; min-height:44px; max-width:100%; }
+.co-rulelab button { cursor:pointer; }
+.co-rulelab button:disabled { opacity:.5; cursor:default; }
+.co-rulelab :is(input,select) { font:400 16px/1.4 var(--font-body); }
+.co-rulelab select { -webkit-appearance:none!important; appearance:none!important; height:44px!important; padding-right:34px!important; background-image:linear-gradient(45deg,transparent 50%,#bdb8ad 50%),linear-gradient(135deg,#bdb8ad 50%,transparent 50%)!important; background-position:calc(100% - 19px) 50%,calc(100% - 14px) 50%!important; background-size:5px 5px!important; background-repeat:no-repeat!important; }
+.co-rulelab-workspace :is(button,input,select) { border:1px solid var(--co-line,#45434b); border-radius:var(--card-radius-sm,8px); color:var(--white,#f5f2ea); background:var(--co-page,#08080b); padding:10px 12px; }
+.co-rulelab-workspace button { font:600 14px/1.4 var(--font-body); }
+.co-rulelab-workspace button:focus-visible, .co-rulelab summary:focus-visible { outline:2px solid var(--co-accent,#5dade2); outline-offset:3px; }
+.co-rulelab .co-rule-presets { display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px!important; }
+.co-rulelab .co-rule-presets button { text-align:left; font:500 14px/1.4 var(--font-body)!important; letter-spacing:normal!important; padding:10px 12px!important; }
+.co-rulelab-quick-editor { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-top:18px; padding-top:18px; border-top:1px solid var(--co-line,#27262e); }
+.co-rulelab-quick-editor > label, .co-rulelab-save label { display:grid; align-content:start; gap:8px; min-width:0; font:500 14px/1.4 var(--font-body); }
+.co-rulelab-quick-editor > label:not(.co-rulelab-proposed-value), .co-rulelab-quick-editor > small, .co-rulelab-edit-actions, .co-rulelab-staged { grid-column:1/-1; }
+.co-rulelab-quick-editor :is(input,select), .co-rulelab-save input { width:100%; min-width:0; }
+.co-rulelab-quick-editor > small, .co-rulelab-save > small { color:var(--silver,#bdb8ad); font:400 14px/1.5 var(--font-body); }
+.co-rulelab-current-value { display:grid; align-content:start; gap:8px; padding:0 10px 0 0; min-width:0; }
+.co-rulelab-current-value > span { font:500 14px/1.4 var(--font-body); }
+.co-rulelab-current-value strong { min-height:44px; display:flex; align-items:center; font:500 24px/1.2 var(--font-body); font-variant-numeric:tabular-nums; }
+.co-rulelab-current-value small { color:var(--silver,#bdb8ad); font:400 14px/1.5 var(--font-body); overflow-wrap:anywhere; }
+.co-rulelab-proposed-value { grid-column:2; }
+.co-rulelab-stepper { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; gap:4px; }
+.co-rulelab-stepper button { padding:8px 0; font-size:22px; color:var(--co-accent,#5dade2); }
+.co-rulelab-stepper input { padding:8px 2px; text-align:center; appearance:textfield; -moz-appearance:textfield; font-variant-numeric:tabular-nums; }
+.co-rulelab-stepper input::-webkit-inner-spin-button, .co-rulelab-stepper input::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.co-rulelab-edit-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.co-rulelab-edit-actions button:first-child { color:var(--co-accent,#5dade2); border-color:var(--co-accent,#5dade2); background:var(--co-accent-fill,#12212b); }
+.co-rulelab-staged { margin:0; padding:12px; border-left:3px solid var(--co-accent,#5dade2); background:var(--co-accent-fill,#12212b); font:400 14px/1.5 var(--font-body); }
+.co-rulelab-feedback { grid-column:1/-1; display:grid; gap:8px; padding-top:12px; border-top:1px solid var(--co-line,#27262e); font:400 14px/1.5 var(--font-body); }
+.co-rulelab-feedback p { margin:0; }
+.co-rulelab-feedback button { justify-self:start; }
+.co-rulelab-save { display:grid; gap:10px; padding:16px; border:1px solid var(--co-line,#27262e); border-radius:var(--card-radius,10px); background:var(--co-surface,#121217); }
+.co-rulelab-save > button { justify-self:start; }
+.co-rulelab-save p { margin:0; font:400 14px/1.5 var(--font-body); }
+.co-rulelab-impact { padding:16px; border:1px solid var(--co-line,#27262e); border-top:2px solid var(--co-accent,#5dade2); border-radius:var(--card-radius,10px); background:var(--co-surface,#121217); }
+.co-rulelab-impact-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.co-rulelab-impact-heading h3 { margin:0; font:600 20px/1.3 var(--font-body); }
+.co-rulelab-impact-heading button { background:transparent; padding:8px; font-weight:400; }
+.co-rulelab-context, .co-rulelab-impact .co-analysis-state { font:400 14px/1.5 var(--font-body); color:var(--silver,#bdb8ad); }
+.co-rulelab-impact .co-analysis-state { padding:0; }
+.co-rulelab-impact-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:0 0 16px; }
+.co-rulelab-impact-summary > div { display:grid; align-content:start; gap:6px; padding:12px; background:var(--co-page,#08080b); border-radius:var(--card-radius-sm,8px); min-width:0; }
+.co-rulelab-impact-summary strong { font:500 24px/1.2 var(--font-body); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.co-rulelab-impact-summary span { font:400 14px/1.5 var(--font-body)!important; letter-spacing:normal!important; text-transform:none!important; overflow-wrap:anywhere; }
+.co-rulelab-all-teams { margin-bottom:14px; }
+@media(min-width:1200px) {
+  .co-rulelab-workspace { grid-template-columns:minmax(310px,.9fr) minmax(0,1.4fr); grid-template-areas:'controls impact' 'save impact'; }
+  .co-rulelab-controls { grid-area:controls; }
+  .co-rulelab-save { grid-area:save; }
+  .co-rulelab-impact { grid-area:impact; position:sticky; top:16px; }
+  .co-rulelab-feedback { display:none; }
+}
+@media(max-width:400px) {
+  .co-rulelab-quick-editor { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .co-rulelab-current-value { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; }
+  .co-rulelab-current-value strong { min-height:32px; }
+  .co-rulelab-current-value small { flex-basis:100%; }
+  .co-rulelab-proposed-value { grid-column:1; }
+  .co-rulelab-workspace > .co-rulelab-impact { padding:12px; }
+  .co-rulelab-impact-summary { gap:8px; }
+  .co-rulelab-impact-summary > div { padding:10px; }
+  .co-rulelab-impact-summary strong { font-size:21px; }
+}
+
+/* Tablets keep the wider workspace while giving fingers full-size controls. */
+@media(min-width:768px) and (pointer:coarse) {
+  .co-office { --co-readable-small:14px; --co-readable-body:16px; }
+  .co-office :is(button,select,input:not([type="checkbox"]):not([type="radio"]),textarea) { box-sizing:border-box; min-height:44px!important; max-width:100%; font-size:16px!important; line-height:1.35!important; }
+  .co-office button { white-space:normal!important; overflow-wrap:anywhere; }
+  .co-office summary { min-height:44px; box-sizing:border-box; }
+  .co-office label { min-width:0; }
+  .co-office label input:is([type="checkbox"],[type="radio"]) { width:22px; height:22px; flex-shrink:0; }
+  .co-office label:has(input:is([type="checkbox"],[type="radio"])) { min-height:44px; align-content:center; }
+}
+.co-office :is(button,select,input,textarea):focus-visible { outline:2px solid var(--co-accent,var(--gold,#d4af37)); outline-offset:3px; }
+.co-recovery-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.co-recovery-actions button { min-height:44px; padding:8px 12px; color:var(--white,#f5f2ea); background:var(--co-surface-2,#1b1b22); border:1px solid var(--co-line,#45434b); border-radius:var(--card-radius-sm,8px); font:inherit; cursor:pointer; }
 
 @media(max-width:767px) {
   .co-office, .co-workspace-dialog { --co-readable-small:14px; --co-readable-body:16px; --text-micro:14px; --text-label:14px; --text-body:16px; font-size:16px; line-height:1.5; }

@@ -1,0 +1,1 @@
+The two iPad cases passed eight journeys; desktop stopped on an over-strict role expectation for its non-scrolling matrix. The harness now requires the named keyboard-accessible region only when horizontal scrolling is present.

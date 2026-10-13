@@ -1,3 +1,4 @@
+/* global module */
 // Private, editable waiver plans. Local planning only; no provider claims are submitted.
 (function (root) {
     'use strict';

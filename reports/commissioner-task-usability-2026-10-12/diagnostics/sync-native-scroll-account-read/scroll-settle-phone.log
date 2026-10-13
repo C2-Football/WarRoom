@@ -1,0 +1,5 @@
+chromium phone starting
+chromium phone context closed
+AssertionError [ERR_ASSERTION]: Native reverse keyboard navigation must reveal the complete heading beside the pinned league column: {"heading":"Season Setup","x":129,"right":241,"leftEdge":173,"rightEdge":357,"centerReachable":true,"hit":"<button type=\"button\" style=\"background: transparent; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; padding: 8px 6px; margin: 0px; cursor: pointer; text-align: center; font-style: ; font-variant-ligatures: ; font-variant-caps: ; font-variant-numeric: ; fon"}
+    at checkLeagueMatrix (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:349:9)
+    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:559:9

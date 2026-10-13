@@ -1,0 +1,12 @@
+PASS native modal lifecycle, entry/restore focus, scroll restoration and guarded Escape/backdrop/close
+PASS touch body/HTML/nonfocusable opener restores matching Review; removed task falls back to task/menu
+PASS ignore waits for confirmed saves, retains note/drawer on failure, and has distinct44px controls
+PASS preference retry saves newest draft before parent close and stops when that save fails
+PASS confirmed activity retry clears stale error without closing or discarding newer edits
+PASS ignored Settings rows include missing/legacy tasks with restore and truthful account/browser scope
+(node:18944) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS cloud choice waits for server truth, blocks duplicate activation/editing and guards all pending exits
+PASS failed cloud retry first commits the newest note and quota failure aborts before any POST
+PASS rejected cloud promise keeps drawer editable and reports an unconfirmed outcome
+PASS Settings distinguishes cloud/cache/local choices and requires explicit legacy sync with guarded44px actions

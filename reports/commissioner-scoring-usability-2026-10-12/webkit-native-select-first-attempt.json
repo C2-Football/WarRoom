@@ -1,0 +1,31 @@
+{
+  "engine": "webkit",
+  "url": "http://127.0.0.1:63872/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Completed2025 / 18provider weeks / 14regular-season replay weeks / 10teams / 40players / real engines",
+  "capabilityBoundary": "Browser touch/viewport emulation; physical iPad and authenticated hosted persistence are not asserted.",
+  "results": [
+    {
+      "label": "ipad-portrait",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Scoring rule picker needs44px touch target: {\"width\":450,\"height\":23,\"reachable\":true,\"coarse\":true,\"maxTouchPoints\":0,\"touchEvents\":true}\n    at reachable (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:89:11)\n    at runNextTicks (node:internal/process/task_queues:65:5)\n    at process.processImmediate (node:internal/timers:472:9)\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:192:9",
+      "checks": [],
+      "errors": [],
+      "touchChecks": [],
+      "replayDiagnostics": {
+        "runs": [
+          {
+            "leagueId": "qa-replay-half",
+            "proposal": {},
+            "empty": false,
+            "weeks": 14
+          }
+        ],
+        "rendered": [
+          "qa-replay-half"
+        ]
+      },
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 0
+    }
+  ]
+}

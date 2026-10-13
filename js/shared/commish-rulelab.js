@@ -77,31 +77,43 @@
     // Raw weekly stat lines for every NFL player. League-independent, so the
     // cache is keyed by season only — one network pass serves an entire
     // omnibus across N leagues. The cached value is the in-flight promise,
-    // so concurrent callers share one load; a rejected load is evicted.
+    // so concurrent callers share one load. Incomplete loads are evicted so
+    // a temporary provider failure cannot become the permanent season cache.
     const seasonStatsCache = {}; // { [season]: Promise<{week: {pid: statLine}}> }
 
-    function loadSeasonStats(season) {
+    function hasStatWeek(value) {
+        return !!value && typeof value === 'object' && !Array.isArray(value) &&
+            !Object.prototype.hasOwnProperty.call(value, 'error') &&
+            Object.values(value).some(line => line && typeof line === 'object' && !Array.isArray(line) &&
+                Object.values(line).some(n => typeof n === 'number' && Number.isFinite(n)));
+    }
+
+    function loadSeasonStats(season, options) {
         const key = String(season || '');
         if (!key) return Promise.resolve({});
-        if (seasonStatsCache[key]) return seasonStatsCache[key];
+        if (!(options && options.force) && seasonStatsCache[key]) return seasonStatsCache[key];
+        let incomplete = false;
         const p = (async () => {
             const f = globalThis.fetch;
             const out = {};
-            if (typeof f !== 'function') return out;
+            if (typeof f !== 'function') { incomplete = true; return out; }
             const weeks = [];
             for (let w = 1; w <= 18; w++) weeks.push(w);
             await Promise.all(weeks.map(async w => {
                 try {
                     const res = await f('https://api.sleeper.app/v1/stats/nfl/regular/' + key + '/' + w);
-                    if (!res || !res.ok) return;
+                    if (!res || !res.ok) { incomplete = true; return; }
                     const body = await res.json();
-                    if (body && typeof body === 'object' && Object.keys(body).length) out[w] = body;
-                } catch (e) { /* skip week — an unplayed week has no stats */ }
+                    if (hasStatWeek(body)) out[w] = body;
+                    else if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length) incomplete = true;
+                } catch (e) { incomplete = true; }
             }));
             return out;
         })();
         seasonStatsCache[key] = p;
-        p.catch(() => { delete seasonStatsCache[key]; });
+        p.then(() => {
+            if (incomplete && seasonStatsCache[key] === p) delete seasonStatsCache[key];
+        }, () => { if (seasonStatsCache[key] === p) delete seasonStatsCache[key]; });
         return p;
     }
 
@@ -114,26 +126,30 @@
         const lid = leagueId != null ? String(leagueId) : '';
         const out = {};
         if (!lid || typeof root.fetchMatchups !== 'function') return out;
-        let ws = Array.isArray(weeks) && weeks.length ? weeks.map(Number) : null;
+        let ws = Array.isArray(weeks) ? weeks.map(Number) : null;
         if (!ws) { ws = []; for (let w = 1; w <= 18; w++) ws.push(w); }
         ws = ws.filter(w => w >= 1 && w <= 18);
         await Promise.all(ws.map(async w => {
-            try {
-                const rows = await root.fetchMatchups(lid, w);
-                const mapped = (rows || []).map(r => ({
-                    rosterId: r.roster_id,
-                    matchupId: r.matchup_id != null ? r.matchup_id : null,
-                    points: Number(r.points) || 0,
-                    starters: Array.isArray(r.starters) ? r.starters.slice() : [],
-                    // Full roster kept for best-lineup replay: structure
-                    // proposals (superflex, extra FLEX) can only be answered by
-                    // refielding each roster's OPTIMAL lineup from everyone
-                    // they had that week — as-played starters can't sit in
-                    // slots that didn't exist yet.
-                    players: Array.isArray(r.players) ? r.players.slice() : [],
-                }));
-                if (mapped.filter(x => x.points > 0).length >= 2) out[w] = mapped;
-            } catch (e) { /* skip week */ }
+            // A failed week must reject the season load, not silently shorten
+            // the standings replay. A valid empty array is still unplayed.
+            const rows = await root.fetchMatchups(lid, w);
+            if (!Array.isArray(rows)) throw new Error('Week ' + w + ' lineups are unavailable. Retry the season data.');
+            if (rows.some(row => !row || typeof row !== 'object' || Array.isArray(row) || row.roster_id == null)) {
+                throw new Error('Week ' + w + ' lineups were not valid matchup rows. Retry the season data.');
+            }
+            const mapped = rows.map(r => ({
+                rosterId: r.roster_id,
+                matchupId: r.matchup_id != null ? r.matchup_id : null,
+                points: Number(r.points) || 0,
+                starters: Array.isArray(r.starters) ? r.starters.slice() : [],
+                // Full roster kept for best-lineup replay: structure
+                // proposals (superflex, extra FLEX) can only be answered by
+                // refielding each roster's OPTIMAL lineup from everyone
+                // they had that week — as-played starters can't sit in
+                // slots that didn't exist yet.
+                players: Array.isArray(r.players) ? r.players.slice() : [],
+            }));
+            if (mapped.filter(x => x.points > 0).length >= 2) out[w] = mapped;
         }));
         return out;
     }
@@ -341,13 +357,16 @@
         const myRosterId = opts && opts.myRosterId;
         const seasonUsed = (opts && opts.season) || league.season || null;
 
-        // A week counts when it holds lineup rows for at least two rosters —
+        // Only regular-season weeks count. A week holds lineup rows for at least two rosters —
         // the fetch helper already gated on real points; the pure path just
         // refuses weeks that cannot form a matchup.
         const counted = {};
+        const playoffStart = Number(league.settings && league.settings.playoff_week_start);
         for (const k of Object.keys(lineups)) {
             const w = Number(k);
-            if (w >= 1 && Array.isArray(lineups[k]) && lineups[k].length >= 2) counted[w] = lineups[k];
+            if (Number.isInteger(w) && w >= 1 && w <= 18 &&
+                !(Number.isFinite(playoffStart) && playoffStart > 0 && w >= playoffStart) &&
+                Array.isArray(lineups[k]) && lineups[k].length >= 2) counted[w] = lineups[k];
         }
         const weeks = Object.keys(counted).map(Number).sort((a, b) => a - b);
         if (!weeks.length) {
@@ -355,6 +374,16 @@
                 empty: true,
                 reason: 'No completed weeks with real lineups to replay — the Rule Lab needs at least one played week.',
                 seasonUsed, weeksCounted: 0,
+            };
+        }
+
+        const missingStatWeeks = weeks.filter(w => !hasStatWeek(seasonStats[w]));
+        if (missingStatWeeks.length) {
+            return {
+                empty: true,
+                reason: 'Season stats are unavailable for played week' + (missingStatWeeks.length === 1 ? ' ' : 's ') +
+                    missingStatWeeks.join(', ') + '. Retry the season data before comparing rules.',
+                missingStatWeeks, seasonUsed, weeksCounted: 0,
             };
         }
 
@@ -445,10 +474,10 @@
         // it lands on the gainer board. A commissioner pitching a rule that
         // happens to pay their own team should be the FIRST to say so.
         let proposerNote = null;
-        if (myRosterId != null) {
-            const idx = teamDeltas.findIndex(t => String(t.rosterId) === String(myRosterId));
-            if (idx >= 0) {
-                const myRank = idx + 1;
+        if (myRosterId != null && teamDeltas.some(t => t.delta !== 0)) {
+            const mine = teamDeltas.find(t => String(t.rosterId) === String(myRosterId));
+            if (mine) {
+                const myRank = 1 + teamDeltas.filter(t => t.delta > mine.delta).length;
                 const n = teamDeltas.length;
                 const seed = 'rulelab:' + String(league.league_id || league.id || '') + ':' + String(myRosterId)
                     + ':' + Object.keys(proposal).sort().join(',');

@@ -1,0 +1,20 @@
+  ok  leagues are managed by default (opt-out, never opt-in)
+  ok  switching a league off removes it and persists
+  ok  all domains alert by default at the lowest floor
+  ok  a domain switched off is silenced; floor raises the bar
+  ok  done suppresses the item while the problem is unchanged
+  ok  done RELEASES when the underlying number moves — the honesty rule
+  ok  skip snoozes until its deadline, then returns on its own
+  ok  hidden stays hidden regardless of age, but is recoverable
+  ok  ignored tasks stay ignored when their urgency and numbers change
+  ok  older hidden choices remain ignored when the finding changes
+  ok  ignored choices remain recoverable while the original finding is absent
+  ok  ignoring one league task leaves a different league task visible
+  ok  ignored choice survives a new module session and stays isolated to its account
+  ok  rejected ignore or restore saves never report a remembered choice
+  ok  filter suppresses by unmanaged league, domain switch and floor
+  ok  a multi-league item survives if ANY of its leagues is managed
+  ok  countTiers recounts over the filtered set, so pills match the rows
+  ok  filter never throws on junk input
+
+PASS 18 tests — 18 passed, 0 failed

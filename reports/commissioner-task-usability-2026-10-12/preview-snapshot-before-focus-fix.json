@@ -1,0 +1,15 @@
+{
+  "root": "/var/folders/yr/x2p02tcx41gbsq943nzj7fhc0000gn/T/commissioner-tasks-preview-final-ij8huqp1",
+  "publicFilesCopied": 486,
+  "compiledPreview": true,
+  "sourceHashes": {
+    "js/shared/commish-prefs.js": "f90daf8aad2eb25c833cc04122b325181d402b2a8eaaf05b9daddf85efb56a4b",
+    "js/shared/commish-followups.js": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+    "js/components/commish-sidebar.js": "a9e228a6a9dd9c4137d1749eecb8f1f7165753a8937547abe685961930879f76",
+    "js/components/commish-genesis-panel.js": "33cc013cbaa878e1d28fc1346c53e0d796df07fb217f5a49f0e775c69bdb15e4",
+    "js/components/commish-governance-panel.js": "554c2bbae8c1f2452ad9b15855bc8be44900144fd9b9eb4ee6f0a2360b6ef3a0",
+    "js/components/commish-people-panel.js": "dc8e194db50db5b02430a0cc56ca64dd33e953318733f4661aa51003e595e555",
+    "js/components/commish-command-panel.js": "b681950c5e2c11f2d5aa086d70cec263b969cb421eb43157317c0aea87d5a014",
+    "js/tabs/commissioner-office.js": "74590919286adca3511de29376e24ba03ef89ca2df01ad824b8098f0813ae0f2"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-10-13T00:01:24.726643+00:00",
+  "endpoint": "https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/fw-commish-ignored",
+  "checks": [
+    {
+      "method": "GET",
+      "origin": "https://c2-football.github.io",
+      "status": 401,
+      "allowOrigin": "https://c2-football.github.io",
+      "allowHeaders": "authorization, x-client-info, apikey, content-type",
+      "cacheControl": "no-store",
+      "body": "{\"ok\":false,\"code\":\"invalid_session\",\"error\":\"Sign in again to sync ignored tasks.\"}"
+    },
+    {
+      "method": "POST",
+      "origin": "https://c2-football.github.io",
+      "status": 401,
+      "allowOrigin": "https://c2-football.github.io",
+      "allowHeaders": "authorization, x-client-info, apikey, content-type",
+      "cacheControl": "no-store",
+      "body": "{\"ok\":false,\"code\":\"invalid_session\",\"error\":\"Sign in again to sync ignored tasks.\"}"
+    },
+    {
+      "method": "OPTIONS",
+      "origin": "https://c2-football.github.io",
+      "status": 200,
+      "allowOrigin": "https://c2-football.github.io",
+      "allowHeaders": "authorization, x-client-info, apikey, content-type",
+      "cacheControl": null,
+      "body": "ok"
+    },
+    {
+      "method": "OPTIONS",
+      "origin": "https://dhqfootball.com",
+      "status": 200,
+      "allowOrigin": "https://dhqfootball.com",
+      "allowHeaders": "authorization, x-client-info, apikey, content-type",
+      "cacheControl": null,
+      "body": "ok"
+    }
+  ],
+  "authenticatedAccountEvidence": false,
+  "writesPerformed": false
+}

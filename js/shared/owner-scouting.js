@@ -1,3 +1,4 @@
+/* global module */
 // Owner scouting derived only from the league evidence supplied by the caller.
 (function (root) {
     'use strict';

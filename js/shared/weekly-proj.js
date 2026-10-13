@@ -100,13 +100,15 @@
     // Published provider line for a pid, or null. Pre-season most rows are
     // all-zero shells until analysts publish — only trust lines with real
     // projected volume. A cold cache self-warms (fire-and-forget fetch).
+    function meaningfulProviderLine(line) {
+        if (!line || typeof line !== 'object') return null;
+        const vol = Number(line.pts_ppr) || Number(line.pts_std) || Number(line.pass_att) || Number(line.rush_att) || Number(line.rec_tgt) || Number(line.rec) || Number(line.idp_tkl) || Number(line.fga) || Number(line.xpm) || 0;
+        return vol > 0 ? line : null;
+    }
     function providerLine(pid, week) {
         const w = Number(week) || currentWeek();
         if (_prov.key !== (providerSeason() + '|' + w) || !_prov.byPid) { ensureWeekProjections(w); return null; }
-        const line = _prov.byPid[pid];
-        if (!line) return null;
-        const vol = Number(line.pts_ppr) || Number(line.pts_std) || Number(line.pass_att) || Number(line.rush_att) || Number(line.rec_tgt) || Number(line.rec) || Number(line.idp_tkl) || Number(line.fga) || Number(line.xpm) || 0;
-        return vol > 0 ? line : null;
+        return meaningfulProviderLine(_prov.byPid[pid]);
     }
 
     // Build league-scored histories independently of fantasy roster ownership.
@@ -272,7 +274,7 @@
     }
 
     // Project one player for a given week, scored through `scoring`.
-    function projectPlayer(pid, { playersData, statsData, priorData, scoring, week }) {
+    function projectPlayer(pid, { playersData, statsData, priorData, scoring, week, providerProjections, projectionsData }) {
         const ss = SS();
         if (!ss || !pid) return null;
         const player = (playersData && playersData[pid]) || null;
@@ -281,8 +283,15 @@
         const prior = (priorData && priorData[pid]) || null;
         // Provider analyst line anchors the baseline when published (already a
         // single-week line) — the internal season/prior blend is the fallback.
-        const prov = providerLine(pid, week);
-        const baseline = prov || buildBaseline(pid, season, prior, scoring, week);
+        // Scenario callers supply an isolated provider snapshot. An explicit
+        // empty map deliberately uses the fallback without touching the live
+        // one-week cache or dispatching projection refresh events.
+        const prov = providerProjections !== undefined
+            ? meaningfulProviderLine(providerProjections && providerProjections[pid])
+            : providerLine(pid, week);
+        const baseline = prov || (projectionsData
+            ? buildSeasonBaseline(pid, season, prior, projectionsData[pid], scoring, week)
+            : buildBaseline(pid, season, prior, scoring, week));
 
         const team = player && player.team;
         const ctx = teamWeekCtx(team, week);

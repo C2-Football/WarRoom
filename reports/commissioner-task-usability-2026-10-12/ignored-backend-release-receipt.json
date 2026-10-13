@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "status": "deployed_verified",
+  "checkedAt": "2026-10-13T00:01:35.188893+00:00",
+  "project": "sxshiqyxhhifvtfqawbq",
+  "ownerRepository": "skjjcruz/github.com-skjjcruz-owner-dashboard-dev",
+  "ownerBase": "4445de6adf65adeab28a36807c2867f60086d6be",
+  "ownerCommit": "c036f5fd1c988f70bab077e94b850e69c86a3910",
+  "ownerCheckout": "/Users/jacobc/Projects/work/warroom-commissioner-account-release-20261012",
+  "function": {
+    "created_at": 1791849533493,
+    "entrypoint_path": "file:///tmp/user_fn_sxshiqyxhhifvtfqawbq_8c1dfa0b-cdee-4a7f-8d6c-35224a839bf2_1/source/supabase/functions/fw-commish-ignored/index.ts",
+    "ezbr_sha256": "da36e89c4dc3c26b480a3bc71fe291baaab72102490b887d7d31271d2cd58d0f",
+    "id": "8c1dfa0b-cdee-4a7f-8d6c-35224a839bf2",
+    "import_map": false,
+    "name": "fw-commish-ignored",
+    "slug": "fw-commish-ignored",
+    "status": "ACTIVE",
+    "updated_at": 1791849533493,
+    "verify_jwt": false,
+    "version": 1
+  },
+  "migrationVersion": "20261012030000",
+  "migrationSha256": "580624e8eb63383be34b1a1904ee29a4d9fd0abfa4f8e8f61583cbe467ad9ccc",
+  "deployedSourceSha256": {
+    "supabase/functions/fw-commish-ignored/index.ts": "cd4355e4eb693103fc1a5cb4a618d656ba752b2d50a8de12f0a05736172c5c34",
+    "supabase/functions/_shared/security.ts": "aa247e3aed86f8f53d0bbc74b8ad2ff79c74dae53994da9c6552615db1b5992e"
+  },
+  "existingFunctionsVerifiedUnchanged": 36,
+  "ownerHelperChanged": false,
+  "ownerConfigChanged": false,
+  "privateSchemaVerified": true,
+  "unauthenticatedHttpCorsVerified": true,
+  "isolatedHandlerSqlGroupsPassed": 9,
+  "productionAccountRowsWrittenByThisRelease": 0,
+  "authenticatedAccountProof": "Not exercised by this backend deployment; root must verify signed-in two-device saving separately.",
+  "upstreamPatch": "ignored-backend-owner-upstream.patch",
+  "evidence": [
+    "ignored-backend-release-plan.json",
+    "ignored-backend-owner-helper-tests.log",
+    "ignored-backend-migration-apply.json",
+    "ignored-backend-migration-record.json",
+    "ignored-backend-schema-verify.json",
+    "ignored-backend-functions-before.json",
+    "ignored-backend-functions-after.json",
+    "ignored-backend-http-proof.json",
+    "ignored-backend-deploy.log",
+    "ignored-backend-download.log"
+  ]
+}

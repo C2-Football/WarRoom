@@ -1,0 +1,22 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:51009/dist-deploy/?dev=true&user=readiness-fixture",
+  "fixture": "Completed2025 / 18provider weeks / 14regular-season replay weeks / 10teams / 40players / real engines",
+  "capabilityBoundary": "Browser touch/viewport emulation; physical iPad and authenticated hosted persistence are not asserted.",
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": false,
+      "error": "locator.tap: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.hub-experience-card.commish-hero')\u001b[22m\n\u001b[2m    - locator resolved to <button disabled type=\"button\" class=\"hub-experience-card commish-hero\">…</button>\u001b[22m\n\u001b[2m  - attempting tap action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying tap action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying tap action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying tap action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at activate (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:77:56)\n    at open (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:113:15)\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:191:89",
+      "checks": [],
+      "errors": [],
+      "touchChecks": [],
+      "replayDiagnostics": {
+        "runs": [],
+        "rendered": []
+      },
+      "externalWriteGuard": true,
+      "blockedExternalMutations": 0
+    }
+  ]
+}

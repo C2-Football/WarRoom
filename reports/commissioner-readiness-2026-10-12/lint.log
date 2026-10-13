@@ -1,0 +1,20 @@
+Production: repository ESLint configuration. Tests: recommended rules with Node and browser-evaluation globals.
+{
+  "files": [
+    "tests/commish-schedule-recovery.cjs",
+    "tests/txn-store-recovery.cjs",
+    "js/components/commish-people-panel.js",
+    "js/components/commish-schedule-panel.js",
+    "js/shared/commish-radar.js",
+    "js/shared/commish-schedule.js",
+    "js/shared/commish-triage.js",
+    "js/shared/txn-store.js",
+    "js/tabs/commissioner-office.js",
+    "tests/commish-people-panel.js",
+    "tests/commish-polish-browser.cjs",
+    "tests/commish-radar.js",
+    "tests/commish-triage.js"
+  ],
+  "errors": 0,
+  "warnings": 0
+}

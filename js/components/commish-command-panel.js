@@ -362,9 +362,11 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         const hoverProps = { onMouseEnter: () => setHovRow(it.id), onMouseLeave: () => setHovRow(null), onClick: onRow };
         const reviewTask = event => { event.stopPropagation(); onRow(); };
 
-        if (phone) {
+        // The desktop columns need nearly 500px before the headline gets any
+        // space. A tablet with the office sidebar has less room than that.
+        if (phone || narrowGrid) {
             return (
-                <div key={it.id} {...hoverProps} style={{ ...common, display: 'flex', minHeight: '96px', boxSizing: 'border-box' }}>
+                <div key={it.id} data-testid="commish-task-row" data-task-id={it.id} data-layout="card" {...hoverProps} style={{ ...common, display: 'flex', minHeight: '96px', boxSizing: 'border-box' }}>
                     <div style={{ width: '3px', background: sc, flex: '0 0 3px' }} />
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -379,7 +381,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                             </div>
                             {whereChips(it)}
                         </div>
-                        <button type="button" aria-label={'Review ' + it.headline} onClick={reviewTask} style={{ ...bare, ...T.subject, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{it.headline}</button>
+                        <button type="button" aria-label={'Review ' + it.headline} title={it.headline || ''} onClick={reviewTask} style={{ ...bare, ...T.subject, width: '100%', minWidth: 0, minHeight: '44px', boxSizing: 'border-box', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'break-word' }}>{it.headline}</button>
                         {(it.tier === 'NOW' || it.tier === 'SOON') ? renderAction(it, true) : null}
                     </div>
                 </div>
@@ -387,7 +389,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         }
 
         return (
-            <div key={it.id} {...hoverProps} style={{ ...common, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'center', gap: '12px', padding: '10px 14px 10px 0' }}>
+            <div key={it.id} data-testid="commish-task-row" data-task-id={it.id} data-layout="table" {...hoverProps} style={{ ...common, display: 'grid', gridTemplateColumns: ROW_COLS, alignItems: 'center', gap: '12px', padding: '10px 14px 10px 0' }}>
                 {/* negative margins pull the rail through the row's own padding so
                     it reads as a full-height severity edge, not a dash */}
                 <div style={{ alignSelf: 'stretch', margin: '-10px 0', background: sc }} />
@@ -479,10 +481,30 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     // headers squeeze under ~40px and wrap one letter per line. Narrow
     // viewports (phone AND portrait tablet) get fixed columns that scroll.
     const gNarrow = narrowGrid != null ? !!narrowGrid : !!phone;
-    const gridCols = gNarrow
-        ? '140px repeat(' + (gDomains.length || 7) + ', 56px)'
+    // The office's desktop navigation starts at 1024px. Its sidebar still
+    // leaves too little room for eight matrix headings at that width; this
+    // breakpoint affects only the matrix, not task rows or desk density.
+    const matrixNarrow = gNarrow || (window.innerWidth > 0 && window.innerWidth < 1200);
+    const gridCols = matrixNarrow
+        ? '140px repeat(' + (gDomains.length || 7) + ', 112px)'
         : '190px repeat(' + (gDomains.length || 7) + ', minmax(0,1fr))';
-    const stickyCell = gNarrow ? { position: 'sticky', left: 0, zIndex: 1, background: SURF } : null;
+    const stickyCell = matrixNarrow ? { position: 'sticky', left: 0, zIndex: 1, background: SURF } : null;
+    const revealMatrixFocus = event => {
+        const target = event.target;
+        const scroller = event.currentTarget;
+        if (!matrixNarrow || !target.matches?.('[data-commish-matrix-cell]:focus-visible')) return;
+        // Native focus scrolling can stop once a cell is partly visible,
+        // including the part behind the pinned league. Check after that
+        // scroll and reveal only the still-focused keyboard control.
+        window.requestAnimationFrame(() => {
+            if (document.activeElement !== target || !target.matches(':focus-visible')) return;
+            const viewport = scroller.getBoundingClientRect();
+            const cell = target.getBoundingClientRect();
+            if (cell.left < viewport.left + 144 || cell.right > viewport.right) {
+                target.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'instant' });
+            }
+        });
+    };
 
     const band3 = (
         <div ref={gridRef}>
@@ -490,15 +512,20 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 <span style={T.title}>Across your leagues</span>
                 <span style={T.label}>Select a count to filter tasks, or a heading to open its workspace.</span>
             </div>
-            <div style={gNarrow ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : null}>
-                <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '4px', minWidth: gNarrow ? 'min-content' : undefined }}>
+            {matrixNarrow ? <div data-testid="commish-league-grid-scroll-hint" style={{ ...T.label, marginBottom: '8px' }}>Scroll sideways for all {gDomains.length} workspaces. League names stay in view.</div> : null}
+            <div data-testid="commish-league-grid-scroll" role={matrixNarrow ? 'region' : undefined}
+                aria-label={matrixNarrow ? 'Workspaces across your leagues' : undefined} tabIndex={matrixNarrow ? 0 : undefined}
+                onFocusCapture={revealMatrixFocus}
+                style={matrixNarrow ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollPaddingInlineStart: '144px' } : null}>
+                <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '4px', minWidth: matrixNarrow ? 'min-content' : undefined }}>
                     <div style={{ ...(stickyCell || {}) }} />
                     {gDomains.map(d => (
-                        <button type="button" key={d.key} onClick={() => openHub(d.hub, null)}
+                        <button type="button" key={d.key} data-commish-matrix-cell="" onClick={() => openHub(d.hub, null)}
                             onMouseEnter={() => setHovCol(d.key)} onMouseLeave={() => setHovCol(null)}
                             style={{
                                 ...bare, ...T.label, lineHeight: 1.2, textAlign: 'center', alignSelf: 'end',
-                                padding: '0 2px 8px', whiteSpace: 'normal', wordBreak: 'break-word',
+                                padding: matrixNarrow ? '8px 6px' : '0 2px 8px', minHeight: matrixNarrow ? '44px' : undefined,
+                                whiteSpace: 'normal', wordBreak: matrixNarrow ? 'normal' : 'break-word', overflowWrap: matrixNarrow ? 'normal' : undefined,
                                 color: hovCol === d.key ? ACCENT : MUTED,
                                 textDecoration: hovCol === d.key ? 'underline' : 'none',
                             }}>{d.label}</button>
@@ -529,7 +556,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                 const sel = String(f.leagueId || '') === String(l.leagueId) && f.domain === d.key;
                                 const counted = c.state === 'NOW' || c.state === 'SOON' || c.state === 'BACKLOG';
                                 return (
-                                    <button type="button" key={d.key}
+                                    <button type="button" key={d.key} data-commish-matrix-cell=""
                                         onClick={() => emit({ leagueId: sel ? null : l.leagueId, domain: sel ? null : d.key })}
                                         title={l.name + ' · ' + d.label + (counted ? ' · ' + c.n + ' open' : c.state === 'NOT_YET' ? ' · nothing to read until Week 1' : ' · clear')}
                                         style={{

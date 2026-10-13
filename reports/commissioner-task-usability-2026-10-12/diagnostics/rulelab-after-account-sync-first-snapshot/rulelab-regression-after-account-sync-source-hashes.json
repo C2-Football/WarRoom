@@ -1,0 +1,128 @@
+{
+  "url": "http://127.0.0.1:54689/dist-preview/",
+  "snapshotRoot": "/var/folders/yr/x2p02tcx41gbsq943nzj7fhc0000gn/T/commissioner-tasks-sync-frozen-0vtkln4n",
+  "modules": [
+    {
+      "file": "js/shared/commish-prefs.js",
+      "sourceSha256": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+      "expectedSourceSha256": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/js/shared/commish-prefs.js?v=20261012tasks2",
+      "frozenAssetSha256": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+      "servedAssetSha256": "fb43890d538588062aab3fcd1dc6ff620e59b570d8179471b80fdac24eeb3f7b",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/shared/commish-followups.js",
+      "sourceSha256": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+      "expectedSourceSha256": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/js/shared/commish-followups.js?v=20261012tasks2",
+      "frozenAssetSha256": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+      "servedAssetSha256": "935186c996892f11f3b4ee98da64bf13d4612c8ec6cf64b7caf08757263ab18b",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-sidebar.js",
+      "sourceSha256": "567f6e1f7e24bef2b32f77afbb1000c2002a5dd06d9153a55c92f1c7ab840707",
+      "expectedSourceSha256": "567f6e1f7e24bef2b32f77afbb1000c2002a5dd06d9153a55c92f1c7ab840707",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "567f6e1f7e24bef2b32f77afbb1000c2002a5dd06d9153a55c92f1c7ab840707",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-sidebar.js?v=20261012tasks2",
+      "frozenAssetSha256": "7ded0c383dcd2a4236439ea54b3371474728d7930eabf9aca353a507a5f9b6a8",
+      "servedAssetSha256": "7ded0c383dcd2a4236439ea54b3371474728d7930eabf9aca353a507a5f9b6a8",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-genesis-panel.js",
+      "sourceSha256": "7c4b58466f85b824ee43486f815237bfeb98248734e60189d0347e30f82fed81",
+      "expectedSourceSha256": "7c4b58466f85b824ee43486f815237bfeb98248734e60189d0347e30f82fed81",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "7c4b58466f85b824ee43486f815237bfeb98248734e60189d0347e30f82fed81",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-genesis-panel.js?v=20261012tasks2",
+      "frozenAssetSha256": "a638ba1312d34e45f7af00e03151ff3fe0d6789bbe5325d43850e57b7f13e20e",
+      "servedAssetSha256": "a638ba1312d34e45f7af00e03151ff3fe0d6789bbe5325d43850e57b7f13e20e",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-governance-panel.js",
+      "sourceSha256": "554c2bbae8c1f2452ad9b15855bc8be44900144fd9b9eb4ee6f0a2360b6ef3a0",
+      "expectedSourceSha256": "554c2bbae8c1f2452ad9b15855bc8be44900144fd9b9eb4ee6f0a2360b6ef3a0",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "554c2bbae8c1f2452ad9b15855bc8be44900144fd9b9eb4ee6f0a2360b6ef3a0",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-governance-panel.js?v=20261012tasks2",
+      "frozenAssetSha256": "ae5f5d5f6fdac6414585a5651102c28c8c5e6c0a6c5be36395080c663e14cf15",
+      "servedAssetSha256": "ae5f5d5f6fdac6414585a5651102c28c8c5e6c0a6c5be36395080c663e14cf15",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-people-panel.js",
+      "sourceSha256": "dc8e194db50db5b02430a0cc56ca64dd33e953318733f4661aa51003e595e555",
+      "expectedSourceSha256": "dc8e194db50db5b02430a0cc56ca64dd33e953318733f4661aa51003e595e555",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "dc8e194db50db5b02430a0cc56ca64dd33e953318733f4661aa51003e595e555",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-people-panel.js?v=20261012tasks2",
+      "frozenAssetSha256": "102206091dbd45d89ad42db832b70a7236391df7404d2e15f01b1f20fd88cbb2",
+      "servedAssetSha256": "102206091dbd45d89ad42db832b70a7236391df7404d2e15f01b1f20fd88cbb2",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-command-panel.js",
+      "sourceSha256": "215c093ff3af15e2f565c5fc45cbdab0fb079f8dd51191382c0416cb576399ab",
+      "expectedSourceSha256": "215c093ff3af15e2f565c5fc45cbdab0fb079f8dd51191382c0416cb576399ab",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "215c093ff3af15e2f565c5fc45cbdab0fb079f8dd51191382c0416cb576399ab",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-command-panel.js?v=20261012tasks2",
+      "frozenAssetSha256": "4143f588837b54ab486441c7e233c0367ecfeac005ad1102a7fe36576e9576da",
+      "servedAssetSha256": "4143f588837b54ab486441c7e233c0367ecfeac005ad1102a7fe36576e9576da",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/components/commish-schedule-panel.js",
+      "sourceSha256": "69f948029dd27282002a86505b00151eaab3440abdc19d6fa27334f0cbbb1212",
+      "expectedSourceSha256": "69f948029dd27282002a86505b00151eaab3440abdc19d6fa27334f0cbbb1212",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "69f948029dd27282002a86505b00151eaab3440abdc19d6fa27334f0cbbb1212",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/components/commish-schedule-panel.js?v=20261012tasks2",
+      "frozenAssetSha256": "8d799951093a73dfb2b337aeae0f38f2961a1a66655ff36c4aa8e20f49d07c7e",
+      "servedAssetSha256": "8d799951093a73dfb2b337aeae0f38f2961a1a66655ff36c4aa8e20f49d07c7e",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/tabs/commissioner-office.js",
+      "sourceSha256": "d1a3ef15dd82c2bf105a09cab8e1e92886adcb07eb147a65c6c702fefaafec80",
+      "expectedSourceSha256": "d1a3ef15dd82c2bf105a09cab8e1e92886adcb07eb147a65c6c702fefaafec80",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "d1a3ef15dd82c2bf105a09cab8e1e92886adcb07eb147a65c6c702fefaafec80",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/dist-preview/compiled/js/tabs/commissioner-office.js?v=20261012tasks2",
+      "frozenAssetSha256": "b9030f436e1252f6976ab73eece1f3db48ca7b6df67cd0c8d784281d7df6eae0",
+      "servedAssetSha256": "b9030f436e1252f6976ab73eece1f3db48ca7b6df67cd0c8d784281d7df6eae0",
+      "servedMatchesFrozenAsset": true
+    },
+    {
+      "file": "js/shared/commish-ignore-sync.js",
+      "sourceSha256": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b",
+      "expectedSourceSha256": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b",
+      "sourceMatchesFrozen": true,
+      "frozenSourceSha256": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b",
+      "frozenCompiledSha256": null,
+      "servedUrl": "http://127.0.0.1:54689/js/shared/commish-ignore-sync.js?v=20261012tasks2",
+      "frozenAssetSha256": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b",
+      "servedAssetSha256": "5e18dcf33a0e9b16e4ea8d0bfb1fed8673c331277c2f5dc77e3f39f859ae484b",
+      "servedMatchesFrozenAsset": true
+    }
+  ],
+  "allTenSourceModulesMatch": true,
+  "allTenServedModulesMatch": true
+}

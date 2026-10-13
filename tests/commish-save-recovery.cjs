@@ -54,7 +54,7 @@ try{
   const beforeDiscard=JSON.stringify(Treasury.getLedger('league'));const oldReset=ui.reset;ui.discard();ui=render();assert.equal(ui.canLeave(),true);assert.equal(ui.reset,oldReset+1);assert.equal(JSON.stringify(Treasury.getLedger('league')),beforeDiscard);
 
   const formSlots=[];let formCursor=0;
-  const p=vm.createContext({window:{},React:{createElement:(type,props,...children)=>({type,props:{...props,children}}),Fragment:'fragment',useState(init){const i=formCursor++;if(!(i in formSlots))formSlots[i]=init;return[formSlots[i],v=>formSlots[i]=typeof v==='function'?v(formSlots[i]):v];}}});
+  const p=vm.createContext({window:{},React:{createElement:(type,props,...children)=>({type,props:{...props,children}}),Fragment:'fragment',useEffect(){},useState(init){const i=formCursor++;if(!(i in formSlots))formSlots[i]=init;return[formSlots[i],v=>formSlots[i]=typeof v==='function'?v(formSlots[i]):v];}}});
   vm.runInContext(Babel.transform(fs.readFileSync('js/components/commish-ops-panel.js','utf8'),{presets:['react']}).code,p);
   const form=()=>{formCursor=0;return p.WrCommishOpsPanel({drift:[],calendar:[],conflicts:[],leagues:[],onAddTask:actions.onAddTask});};
   const all=node=>{if(!node||typeof node!=='object')return[];if(Array.isArray(node))return node.flatMap(all);return[node,...Object.values(node.props||{}).flatMap(all)];};
@@ -71,7 +71,7 @@ try{
   vm.runInContext(Babel.transform(fs.readFileSync('js/components/commish-governance-panel.js','utf8'),{presets:['react']}).code,p);
   const leagueSafeUrl='https://www.leaguesafe.com/existing',sheetUrl='https://docs.google.com/spreadsheets/d/existing';let savedLinks=[];
   const dues=()=>{formCursor=0;return p.WrCommishGovernancePanel({section:'dues',leagues:[{id:'league',name:'Alpha'}],treasuries:{league:{summary:{paid:0,total:1,pct:0},rows:[],leagueSafeUrl,sheetUrl}},onSetLeagueSafe:(lid,url)=>{savedLinks.push(url);return true;},onSetSheet:(lid,url)=>{savedLinks.push(url);return true;}});};
-  tree=dues();all(tree).find(n=>n.type==='div'&&n.props.onClick).props.onClick();tree=dues();
+  tree=dues();all(tree).find(n=>n.type==='button'&&n.props['aria-expanded']===false).props.onClick();tree=dues();
   all(tree).find(n=>n.type==='button'&&n.props.children.join('')==='Save link').props.onClick();
   all(tree).find(n=>n.type==='button'&&n.props.children.join('')==='Save').props.onClick();
   assert.deepEqual(savedLinks,[leagueSafeUrl,sheetUrl],'saving untouched displayed links preserves them');
