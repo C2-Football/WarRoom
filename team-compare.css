@@ -272,8 +272,10 @@
     .tcmp-value { padding: 14px 10px; }
     .tcmp-value > strong { font-size: 36px; }
     .tcmp-value > strong { font-size: clamp(25px, 9vw, 36px); }
-    .tcmp-card-stats { gap: 13px 7px; padding: 14px 10px; }
-    .tcmp-card-stats > div:nth-child(n + 3) dt { min-height: 4.05em; }
+    .tcmp-card-stats { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 10px; }
+    .tcmp-card-stats dt { min-height: 0; margin-bottom: 4px; }
+    .tcmp-card-stats dd { font-size: 20px; }
+    .tcmp-card-stats small { margin-top: 3px; }
     .tcmp-core { margin-right: 10px; margin-left: 10px; }
     .tcmp-card-note { padding: 12px 10px; }
     .tcmp-panel { padding: 14px 12px; }
