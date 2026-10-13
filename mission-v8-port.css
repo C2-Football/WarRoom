@@ -235,6 +235,24 @@
   .wr-mission-v8 .wr-settings-module-screen .wr-mobile-section>summary{font-size:14px;}
   .wr-mission-v8 .gm-settings-preset[aria-pressed=true]{border-color:var(--cx-accent)!important;background:rgba(183,206,255,.14)!important;}
   .wr-mission-v8 .gm-settings-preset-current{margin-left:8px;font-size:11px;font-weight:600;color:var(--cx-accent);}
+
+  /* Chopped Home carries the desktop survival outlook in a phone-sized card. */
+  .wr-mission-v8 .mc-chop-card{
+    --co-surface:linear-gradient(135deg,rgba(48,68,101,.84),rgba(28,42,66,.92));
+    --co-line:rgba(183,206,255,.2);--co-well:rgba(17,31,53,.56);
+    padding:12px!important;border-color:var(--gx-edge)!important;border-radius:15px!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.09);
+  }
+  .wr-mission-v8 .mc-chop-heading{gap:4px!important;flex-direction:column;margin-bottom:10px!important;}
+  .wr-mission-v8 .mc-chop-heading>span:first-child{font:750 18px var(--font-body,sans-serif)!important;letter-spacing:0!important;text-transform:none!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 .mc-chop-heading>span+span{font:600 11px var(--font-body,sans-serif)!important;letter-spacing:0!important;text-transform:none!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 .mc-chop-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+  .wr-mission-v8 .mc-chop-metric{min-width:0;padding:8px 10px!important;border-left:3px solid var(--chop-metric-color)!important;border-radius:9px!important;}
+  .wr-mission-v8 .mc-chop-metric>div:first-child{font:500 11px var(--font-body,sans-serif)!important;letter-spacing:0!important;text-transform:none!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 .mc-chop-metric>div+div{font-size:25px!important;line-height:1.2;}
+  .wr-mission-v8 .mc-chop-method{font:400 11px/1.5 var(--font-body,sans-serif)!important;color:var(--cx-muted)!important;}
+  .wr-mission-v8 .mc-chop-open{width:100%;min-height:44px!important;margin-top:9px;background:rgba(183,206,255,.1)!important;border-color:var(--acc-line1)!important;border-radius:10px!important;color:var(--cx-accent)!important;font:650 12px var(--font-body,sans-serif)!important;}
+  .wr-mission-v8 .mc-chop-race .mc-chop-race-note{font-size:11px!important;line-height:1.5!important;}
 }
 
 @media (max-width:350px){

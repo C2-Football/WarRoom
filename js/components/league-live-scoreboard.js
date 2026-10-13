@@ -78,6 +78,29 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         const roster = rosterFor(row);
         return !roster || !window.App?.Chopped?.isAliveInWeek || window.App.Chopped.isAliveInWeek(roster, week);
     }).sort((a, b) => (teamPoints(b) ?? -Infinity) - (teamPoints(a) ?? -Infinity));
+    const compactChop = chopped && overview && isPhone;
+    // A missing weekly row stays unknown; current roster contents cannot stand
+    // in for the provider's selected-week score or starters.
+    const raceRows = compactChop ? [
+        ...(currentLeague?.rosters || []).filter(roster => !window.App?.Chopped?.isAliveInWeek || window.App.Chopped.isAliveInWeek(roster, week)).map(roster =>
+            (board.rows || []).find(row => String(row.roster_id) === String(roster.roster_id)) || { roster_id: roster.roster_id, points: null }),
+        ...ladder.filter(row => !rosterFor(row)),
+    ] : [];
+    const racePoints = row => {
+        const value = row && teamPoints(row);
+        return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    };
+    raceRows.sort((a, b) => {
+        const left = racePoints(a), right = racePoints(b);
+        return left == null ? right == null ? 0 : 1 : right == null ? -1 : left - right;
+    });
+    const scoredRaceRows = raceRows.filter(row => racePoints(row) != null);
+    const lowestRaceScore = scoredRaceRows.length ? racePoints(scoredRaceRows[0]) : null;
+    const lowestRaceCount = scoredRaceRows.filter(row => racePoints(row) === lowestRaceScore).length;
+    const raceScoresComplete = raceRows.length > 0 && scoredRaceRows.length === raceRows.length;
+    const ownRaceRow = raceRows.find(own);
+    const ownRaceScore = racePoints(ownRaceRow);
+    const ownRaceGap = raceScoresComplete && ownRaceScore != null ? ownRaceScore - lowestRaceScore : null;
     const updated = board.updatedAt ? new Date(board.updatedAt) : null;
     const loading = ['loading', 'idle', 'refreshing'].includes(board.status);
     const hasRows = (board.rows || []).length > 0;
@@ -146,7 +169,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             </div>)}
         </div>;
     };
-    return <section className={`lls${expanded || fullBoard ? ' lls-expanded' : ' lls-compact'}${isPhone ? ' la-mobile la-league-score' : ''}${fullBoard ? ' mc-scoreboard' : ''}`}  aria-label="League scoreboard">
+    return <section className={`lls${expanded || fullBoard ? ' lls-expanded' : ' lls-compact'}${isPhone ? ' la-mobile la-league-score' : ''}${fullBoard ? ' mc-scoreboard' : ''}${compactChop ? ' mc-chop-race' : ''}`}  aria-label={compactChop ? 'Weekly survival race' : 'League scoreboard'}>
         <style>{`
             .lls{border:1px solid rgba(212,175,55,.2);border-radius:var(--card-radius, 10px);background:var(--off-black,#1b1b22);padding:12px 14px;color:var(--white,#f5f2ea);margin-bottom:14px}
             .lls-header,.lls-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.lls h3{margin:0;font-family:var(--font-title,'Rajdhani',sans-serif);font-size:1.5rem}.lls-note{font-size:.75rem;line-height:1.6;color:var(--text-muted,#8d887e);margin:6px 0 12px}.lls-controls label{font-size:.75rem;color:var(--silver,#bdb8ad)}
@@ -166,23 +189,46 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             .lls-compact .lls-matchups{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:thin}.lls-compact .lls-matchups>.lls-card{flex:0 0 218px;scroll-snap-align:start;padding:8px 10px;box-sizing:border-box}.lls-compact .lls-team{padding:3px 0;gap:8px}.lls-compact .lls-team-name{font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lls-compact .lls-score{font-size:1rem}.lls-compact .lls-card .lls-note{margin:4px 0 0;font-size:.65rem}.lls-compact .lls-footer{margin-top:7px}.lls-compact .lls-footer .lls-note{font-size:.65rem}.lls-compact .lls-footer button{border:0;background:transparent;padding:2px 0;min-height:24px}
             .lls-matchups:focus-visible{outline:2px solid var(--gold,#d4af37);outline-offset:3px}@media(max-width:480px){.lls{padding:10px}.lls-controls{width:auto}.lls-header{gap:8px}.lls-heading{width:100%}.lls-compact .lls-matchups>.lls-card{flex-basis:230px}}
         `}</style>
+        {compactChop && <style>{`
+            .mc-chop-race .lls-controls :is(button,select){min-height:44px}.mc-chop-race .lls-heading .lls-note{display:none}.mc-chop-race .lls-controls{width:auto;margin-left:auto}.mc-chop-race .lls-header{align-items:center}
+            .mc-chop-race-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--gx-edge,rgba(183,206,255,.2));border-bottom:1px solid var(--gx-edge,rgba(183,206,255,.2))}.mc-chop-race-summary>div{display:grid;gap:3px;min-width:0}.mc-chop-race-summary>div+div{text-align:right}.mc-chop-race-summary span{font-size:11px;line-height:1.35;color:var(--silver)}.mc-chop-race-summary strong{font:650 22px/1.2 var(--font-mono,monospace);font-variant-numeric:tabular-nums;color:var(--gold)}.mc-chop-race-summary>div+div>strong{font-size:clamp(16px,4.7vw,22px)}.mc-chop-race-summary .is-danger strong{color:var(--warn,#efbe72)}
+            .mc-chop-race-note{font-size:11px;line-height:1.45;margin:8px 0;color:var(--silver)}.mc-chop-race-table{width:100%;border-collapse:collapse;table-layout:fixed}.mc-chop-race-table th{padding:7px 5px;font-size:10px;font-weight:600;color:var(--silver);text-align:right;border-bottom:1px solid var(--gx-edge,rgba(183,206,255,.2))}.mc-chop-race-table th:first-child{text-align:left;width:auto}.mc-chop-race-table th:not(:first-child){width:63px}.mc-chop-race-table td{padding:0 5px;border-bottom:1px solid rgba(183,206,255,.12)}.mc-chop-race-table td:not(:first-child){text-align:right;font:500 12px var(--font-mono,monospace);font-variant-numeric:tabular-nums;white-space:nowrap}.mc-chop-race-table .is-own{background:rgba(183,206,255,.1)}.mc-chop-race-table .is-risk td:first-child{box-shadow:inset 3px 0 var(--warn,#efbe72)}.mc-chop-race .mc-chop-race-team{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:44px;min-width:0;width:100%;box-sizing:border-box;padding:6px 2px;border:0;background:transparent;color:var(--white);text-align:left;font:600 12px/1.3 var(--font-body,system-ui,sans-serif)}.mc-chop-race-team>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}.mc-chop-race-team>small{font-size:10px;line-height:1.2;color:var(--silver)}.mc-chop-race-team .mc-chop-risk-label{color:var(--warn,#efbe72)}.mc-chop-race-table caption{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+        `}</style>}
         <div className="lls-header">
-            <div className="lls-heading" hidden={isPhone && !expanded && !chopped && hasRows && !fullBoard}><h3>{chopped ? 'Weekly scoring race' : overview ? 'League scoreboard' : 'Around the league'}</h3><span className="lls-note">{currentLeague?.season} · Actual points</span></div>
+            <div className="lls-heading" hidden={isPhone && !expanded && !chopped && hasRows && !fullBoard}><h3>{compactChop ? 'Weekly survival race' : chopped ? 'Weekly scoring race' : overview ? 'League scoreboard' : 'Around the league'}</h3><span className="lls-note">{currentLeague?.season} · Actual points</span></div>
             <div className="lls-controls">
                 <label>Week <select aria-label="Scoreboard week" value={week} onChange={event => { const value = Number(event.target.value); if (onWeekChange) onWeekChange(value); else setSelection({ leagueId, week: value }); }}>
                     {Array.from({ length: 18 }, (_, i) => i + 1).map(w => <option key={w} value={w}>{w}</option>)}
                 </select></label>
-                {(!isPhone || expanded || fullBoard || !hasRows || board.error) && <button type="button" disabled={loading || board.supported === false} onClick={() => { board.refresh?.(); onRefresh?.(); }}>{loading ? 'Updating…' : 'Refresh scores'}</button>}
-                {hasRows && !fullBoard && <button type="button" aria-expanded={expanded} aria-controls={boardId} onClick={() => setExpanded(!expanded)}>{expanded ? (isPhone ? 'Show less' : 'Collapse') : `All ${chopped ? ladder.length + ' teams' : groups.length + (isPhone ? ' games' : ' matchups')}${isPhone ? '' : ' ↓'}`}</button>}
+                {(compactChop || !isPhone || expanded || fullBoard || !hasRows || board.error) && <button type="button" disabled={loading || board.supported === false} onClick={() => { board.refresh?.(); onRefresh?.(); }}>{loading ? 'Updating…' : 'Refresh scores'}</button>}
+                {hasRows && !fullBoard && !compactChop && <button type="button" aria-expanded={expanded} aria-controls={boardId} onClick={() => setExpanded(!expanded)}>{expanded ? (isPhone ? 'Show less' : 'Collapse') : `All ${chopped ? ladder.length + ' teams' : groups.length + (isPhone ? ' games' : ' matchups')}${isPhone ? '' : ' ↓'}`}</button>}
             </div>
         </div>
         <div role="status" aria-live="polite">
             {board.supported === false ? <p className="lls-note">Live scores are available for connected Sleeper leagues.</p>
                 : board.error || board.status === 'error' ? <p className="lls-note lls-error">{hasRows ? 'Scores could not refresh. Showing the last successful update.' : 'Scores are temporarily unavailable. Try refreshing.'}</p>
                 : loading && !hasRows ? <p className="lls-note">Loading this week’s league scores…</p>
-                : !hasRows ? <p className="lls-note">Sleeper has not reported matchups for this week yet.</p> : null}
+                : !hasRows ? <p className="lls-note">Sleeper has not reported {compactChop ? 'team scores' : 'matchups'} for this week yet.</p> : null}
         </div>
-        {hasRows && <div id={boardId} className="lls-grid lls-matchups" tabIndex={expanded || fullBoard ? undefined : 0} role="region" aria-label={chopped ? 'Weekly team scores' : 'Weekly matchups'}>
+        {compactChop && board.supported !== false && raceRows.length > 0 && <div id={boardId}>
+            <div className="mc-chop-race-summary" aria-label={`Your Week ${week} score and gap`}>
+                <div><span>Your actual · Week {week}</span><strong>{points(ownRaceScore)}</strong></div>
+                <div className={ownRaceGap === 0 ? 'is-danger' : undefined}><strong>{ownRaceGap == null ? '—' : `${ownRaceGap > 0 ? '+' : ''}${points(ownRaceGap)} pts`}</strong><span>{!ownRaceRow ? 'Not in this week’s field' : ownRaceGap == null ? 'Gap unavailable' : ownRaceGap === 0 ? lowestRaceCount > 1 ? 'Tied at lowest · in danger' : 'Lowest · in danger' : 'Above the current lowest'}</span></div>
+            </div>
+            <p className="mc-chop-race-note">{lowestRaceScore == null ? 'Scores and risk are unavailable; official results decide the chop.' : raceScoresComplete ? 'Lowest score is provisionally at risk; official results decide the chop.' : 'Scores are missing; lowest reported is provisionally at risk, pending official results.'}</p>
+            <table className="mc-chop-race-table">
+                <caption>Week {week} survival race, lowest actual scores first. Projected finish uses earned points and estimates for unfinished starters; a dash means data is unavailable.</caption>
+                <thead><tr><th scope="col">Team · {raceRows.length} alive this week</th><th scope="col">Actual</th><th scope="col">Proj.<br />finish</th></tr></thead>
+                <tbody>{raceRows.map(row => {
+                    const score = racePoints(row), atRisk = score != null && score === lowestRaceScore;
+                    const riskLabel = !raceScoresComplete ? 'Lowest reported' : lowestRaceCount > 1 ? 'Tied low · at risk' : 'At risk';
+                    const identity = <><span title={ownerName(row)}>{ownerName(row)}</span><small>{own(row) && <span>You{atRisk || score == null ? ' · ' : ''}</span>}{atRisk ? <span className="mc-chop-risk-label" title="Provisional; official league results determine eliminations">{riskLabel} · provisional</span> : score == null ? 'Awaiting score' : null}</small></>;
+                    const teamActionLabel = `Open ${ownerName(row)} team profile${own(row) ? '. Your team' : ''}${atRisk ? '. ' + riskLabel + '; provisional' : score == null ? '. Awaiting score' : ''}`;
+                    return <tr key={row.roster_id} className={`${own(row) ? 'is-own' : ''}${atRisk ? ' is-risk' : ''}`}><td>{onOpenTeam ? <button type="button" className="mc-chop-race-team" aria-label={teamActionLabel} onClick={() => onOpenTeam(row.roster_id)}>{identity}</button> : <div className="mc-chop-race-team">{identity}</div>}</td><td>{points(score)}</td><td>{points(canOpenGameDay ? projectedFinish(row) : null)}</td></tr>;
+                })}</tbody>
+            </table>
+        </div>}
+        {hasRows && !compactChop && <div id={boardId} className="lls-grid lls-matchups" tabIndex={expanded || fullBoard ? undefined : 0} role="region" aria-label={chopped ? 'Weekly team scores' : 'Weekly matchups'}>
             {chopped ? visibleLadder.map(row => <article className={`lls-card${own(row) ? ' lls-card-own' : ''}`} key={row.roster_id}>
                 <div className="lls-rank">{teamPoints(row) == null ? 'Awaiting score' : `Position ${ladder.findIndex(r => teamPoints(r) === teamPoints(row)) + 1}`}</div>
                 {team(row)}{(expanded || fullBoard) && <details><summary>Starter scores</summary>{starters(row)}{onOpenTeam && <button type="button" onClick={() => onOpenTeam(row.roster_id)}>Team profile →</button>}</details>}
@@ -207,7 +253,7 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
             })}</div>
         </details>}
         <div className="lls-footer">
-            <p className="lls-note">{updated && !Number.isNaN(updated.getTime()) ? `${isPhone && !expanded ? '' : 'Updated '}${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ` : ''}{expanded ? 'Sleeper scores refresh every 30 seconds while visible. Scoring may be delayed or corrected. A dash means no score was reported.' : isPhone ? 'Sleeper' : 'Sleeper · Refreshes every 30s'}{expanded && chopped ? ' Positions are provisional; eliminations follow league results.' : ''}</p>
+            <p className="lls-note">{updated && !Number.isNaN(updated.getTime()) ? `${isPhone && !expanded ? '' : 'Updated '}${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ` : ''}{expanded || compactChop ? 'Sleeper scores refresh every 30 seconds while visible. Scoring may be delayed or corrected. A dash means no score was reported.' : isPhone ? 'Sleeper' : 'Sleeper · Refreshes every 30s'}{expanded && chopped && !compactChop ? ' Positions are provisional; eliminations follow league results.' : ''}</p>
             {setActiveTab && !fullBoard && <button type="button" onClick={() => setActiveTab('lineup')}>My Game Plan →</button>}
         </div>
     </section>;

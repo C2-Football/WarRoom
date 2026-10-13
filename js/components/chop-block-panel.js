@@ -2,7 +2,7 @@
 // js/components/chop-block-panel.js — window.WrChopBlock
 // The Chopping Block: survival odds for a Sleeper CHOPPED league.
 //
-//   <WrChopBlock active currentLeague myRoster compact? onOpenLeague? />
+//   <WrChopBlock active currentLeague myRoster compact? phone? onOpenLeague? />
 //
 // Renders three things and nothing else:
 //   1. YOUR number — chance of being chopped this week, and how many more
@@ -16,9 +16,9 @@
 // forward. Preseason (no played weeks) is labelled as projection-based rather
 // than presented as if it were form.
 //
-// Deferred with the "lineup" group. Pure render + one async load.
+// Shared by desktop Home, phone Overview, and the full League view.
 // ══════════════════════════════════════════════════════════════════
-function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenLeague }) {
+function WrChopBlock({ active, currentLeague, myRoster, compact = false, phone = false, onOpenLeague }) {
     const SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)';
     const AMBER = 'var(--k-f0a500, #f0a500)', GOLD = 'var(--gold, #D4AF37)';
@@ -28,48 +28,54 @@ function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenL
     const microHdr = { font: '600 0.6875rem ' + MONO, color: '#8D887E', letterSpacing: '0.08em', textTransform: 'uppercase' };
 
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+    const rosters = currentLeague?.rosters || window.S?.rosters || [];
+    const week = window.App?.WeeklyProj?.currentWeek?.() || 1;
+    // The phone Home can mount before the NFL week and selected roster finish
+    // loading. Recompute when those inputs, or an official elimination, change.
+    const modelKey = [leagueId, currentLeague?.season, week, myRoster?.roster_id,
+        currentLeague?.settings?.last_chopped_leg,
+        rosters.map(roster => `${roster.roster_id}:${roster.settings?.eliminated || ''}`).join(',')].join('|');
     const [st, setSt] = React.useState({ status: 'idle' });
     // Run-identity ref, not a cleanup kill switch — the effect depends on its
     // own status, so a cleanup flag would orphan the in-flight run.
     const runRef = React.useRef({ key: null });
-    React.useEffect(() => { runRef.current.key = null; setSt({ status: 'idle' }); }, [leagueId]);
+    React.useEffect(() => { runRef.current.key = null; setSt({ status: 'idle' }); }, [modelKey]);
 
     React.useEffect(() => {
         if (!active || st.status !== 'idle') return;
-        if (runRef.current.key === leagueId) return;
-        const Ch = window.App?.Chopped, CO = window.App?.ChopOdds, Luck = window.App?.Luck, WP = window.App?.WeeklyProj;
+        if (runRef.current.key === modelKey) return;
+        const Ch = window.App?.Chopped, CO = window.App?.ChopOdds, Luck = window.App?.Luck;
         if (!Ch || !CO || !Luck || !currentLeague) { setSt({ status: 'unavailable' }); return; }
         if (!Ch.isChopped(currentLeague)) { setSt({ status: 'not-chopped' }); return; }
-        runRef.current.key = leagueId;
-        const live = () => runRef.current.key === leagueId;
+        runRef.current.key = modelKey;
+        const live = () => runRef.current.key === modelKey;
         setSt({ status: 'loading' });
         (async () => {
             try {
-                const week = WP?.currentWeek ? WP.currentWeek() : 1;
                 let ledger = { rows: [] };
                 try { ledger = await Luck.build({ league: currentLeague }); } catch (e) { /* preseason */ }
                 if (!live()) return;
                 const sim = CO.simulate({
                     league: currentLeague,
-                    rosters: currentLeague.rosters || window.S?.rosters || [],
+                    rosters,
                     ledger, week, myRosterId: myRoster?.roster_id,
                 });
                 if (!live()) return;
                 setSt(sim ? { status: 'ready', sim } : { status: 'unavailable' });
             } catch (e) { window.wrLog?.('chopBlock', e); if (live()) setSt({ status: 'error' }); }
         })();
-    }, [active, st.status, leagueId, currentLeague, myRoster]);
+    }, [active, st.status, modelKey, currentLeague, myRoster]);
 
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: 'var(--co-surface, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+        <div className={phone ? 'mc-chop-card' : undefined} style={{ background: 'var(--co-surface, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', marginBottom: '12px' }}>
+            <div className={phone ? 'mc-chop-heading' : undefined} style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
                 <span style={{ font: '700 0.82rem ' + MONO, color: TEXT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr }}>{meta}</span> : null}
             </div>
             {children}
         </div>
     );
-    const leagueAction = () => compact && typeof onOpenLeague === 'function' ? <button type="button" onClick={onOpenLeague} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 10px', minHeight: '40px', color: GOLD, fontSize: '.78rem', cursor: 'pointer' }}>Open League →</button> : null;
+    const leagueAction = () => compact && typeof onOpenLeague === 'function' ? <button type="button" className={phone ? 'mc-chop-open' : undefined} onClick={onOpenLeague} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 10px', minHeight: '40px', color: GOLD, fontSize: '.78rem', cursor: 'pointer' }}>{phone ? 'Survival details →' : 'Open League →'}</button> : null;
 
     if (st.status === 'not-chopped') return null;
     if (st.status === 'loading' || st.status === 'idle') {
@@ -87,33 +93,35 @@ function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenL
     const projected = sim.basis === 'projected';
 
     return (
-        <div aria-label={compact ? 'Survival summary' : 'Survival odds'}>
+        <div className={phone ? 'mc-chop-home' : undefined} aria-label={compact ? 'Survival summary' : 'Survival odds'}>
             {me && me.alive ? (
-                <Section title="Your Survival" meta={(projected ? 'projected form · ' : '') + sim.simCount.toLocaleString() + ' simulations'}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                <Section title={phone ? 'The Chopping Block' : 'Your Survival'} meta={phone ? (sim.weeks?.[0] ? 'Next chop · Wk ' + sim.weeks[0] + ' · ' : '') + alive.length + ' alive · ' + dead.length + ' chopped' : (projected ? 'projected form · ' : '') + sim.simCount.toLocaleString() + ' simulations'}>
+                    <div className={phone ? 'mc-chop-metrics' : undefined} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                         {[
                             { lbl: 'Chopped this week', val: me.chopThisWeekPct + '%', col: riskCol(me.chopThisWeekPct) },
-                            { lbl: 'Weeks left (expected)', val: me.expWeeksLeft, col: TEXT },
+                            { lbl: phone ? 'Expected weeks left' : 'Weeks left (expected)', val: me.expWeeksLeft, col: TEXT },
                             { lbl: 'Survive the season', val: me.survivePct + '%', col: me.survivePct >= 20 ? GREEN : TEXT },
                             { lbl: 'Last one standing', val: me.winPct + '%', col: GOLD },
                         ].map(k => (
-                            <div key={k.lbl} style={{ background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px' }}>
+                            <div key={k.lbl} className={phone ? 'mc-chop-metric' : undefined} style={{ '--chop-metric-color': k.col, background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px' }}>
                                 <div style={{ ...microHdr }}>{k.lbl}</div>
                                 <div style={{ ...mono, fontSize: '1.25rem', fontWeight: 700, color: k.col, marginTop: '2px' }}>{k.val}</div>
                             </div>
                         ))}
                     </div>
-                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '9px', lineHeight: 1.55 }}>
-                        {compact ? (alive.length + ' teams remain. ' + (projected ? 'Based on projected roster strength.' : 'Weekly odds use scoring form.')) : projected
+                    <div className={phone ? 'mc-chop-method' : undefined} style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '9px', lineHeight: 1.55 }}>
+                        {phone ? (projected ? 'No scoring history · equal-strength baseline' : 'Scoring form') + ' · ' + sim.simCount.toLocaleString() + ' simulations. Estimates, not live-score odds.' : compact ? (alive.length + ' teams remain. ' + (projected ? 'Based on projected roster strength.' : 'Weekly odds use scoring form.')) : projected
                             ? 'No games played yet — these run off projected roster strength, not form. They will sharpen every week.'
                             : 'Every week the lowest score is chopped. Trust the this-week number most: the season-long figures assume nobody rebuilds off the waiver pool, and in this format everybody does.'}
                     </div>
+                    {phone && leagueAction()}
                 </Section>
             ) : me && !me.alive ? (
                 <Section title="Your Survival" meta={'chopped in week ' + me.eliminatedWeek}>
                     <div style={{ color: SILVER, fontSize: '0.8rem', lineHeight: 1.6 }}>
-                        You were chopped in <b style={{ color: TEXT }}>week {me.eliminatedWeek}</b> and your roster went back to the waiver pool. {compact ? 'The remaining field is in League.' : 'The block below is still live.'}
+                        You were chopped in <b style={{ color: TEXT }}>week {me.eliminatedWeek}</b> and your roster went back to the waiver pool. {phone ? alive.length + ' teams remain in the survival race below.' : compact ? 'The remaining field is in League.' : 'The block below is still live.'}
                     </div>
+                    {phone && leagueAction()}
                 </Section>
             ) : null}
 
@@ -159,7 +167,8 @@ function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenL
                     </div>
                 </Section>
             ) : null}
-            {compact && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px', color: SILVER, fontSize: '.75rem' }}><span>{alive.length} alive · {dead.length} chopped</span>{leagueAction()}</div>}
+            {compact && !phone && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px', color: SILVER, fontSize: '.75rem' }}><span>{alive.length} alive · {dead.length} chopped</span>{leagueAction()}</div>}
+            {phone && !me && <Section title="The Chopping Block" meta={alive.length + ' alive · ' + dead.length + ' chopped'}><div className="mc-chop-method">Choose your team to see your survival outlook. Follow the field below.</div>{leagueAction()}</Section>}
         </div>
     );
 }

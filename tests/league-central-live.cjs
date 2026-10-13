@@ -95,3 +95,29 @@ find(tree, n => n.type === 'select' && n.props['aria-label'] === 'Standings view
 tree = assertRefreshKeepsComponentTypes();
 assert(text(tree).includes('First-round bye'), 'The same refresh guard covers expandable playoff fields');
 console.log('PASS League Central disclosure component identity survives score refresh in standings and playoff views');
+
+// Chopped Home has a survival outlook, never a meaningless head-to-head record.
+let survivalProps;
+root.WrChopBlock = value => { survivalProps = value; return React.createElement('section', { 'aria-label': 'Desktop survival widget on phone' }); };
+root.App.Chopped = { isChopped: value => value.settings.type === 3 };
+const destinations = [];
+props.overview = true;
+props.setActiveTab = destination => destinations.push(destination);
+league.settings.type = 3;
+reset(); tree = render();
+assert(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
+assert.equal(survivalProps.compact, true);
+assert.equal(survivalProps.phone, true);
+assert.equal(survivalProps.currentLeague, league);
+assert.equal(survivalProps.myRoster, props.myRoster);
+assert(!find(tree, n => n.props.className === 'mc-overview-summary'), 'Chopped Home does not show 0–0 or all-team standing');
+survivalProps.onOpenLeague();
+find(tree, n => n.type === 'button' && text(n) === 'Explore waivers →').props.onClick();
+assert.deepEqual(destinations, ['central', 'fa']);
+const topLevel = tree.children.flat(Infinity).filter(Boolean);
+assert(topLevel.indexOf(find(tree, n => n.type === boundary)) > topLevel.indexOf(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone')), 'Survival outlook leads the live field');
+league.settings.type = 1;
+reset(); tree = render();
+assert(find(tree, n => n.props.className === 'mc-overview-summary'), 'Head-to-head Home retains its record and standing');
+assert(!find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
+console.log('PASS Chopped mobile Home reuses desktop survival, hides head-to-head summary, and preserves league and waiver navigation');

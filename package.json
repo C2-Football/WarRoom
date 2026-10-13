@@ -43,7 +43,7 @@
     "test:player-comparison": "node tests/player-comparison.cjs",
     "test:mobile": "node tests/mission-overview.cjs && node tests/mobile-shell.cjs && node tests/mobile-dock-customization.cjs && node tests/gameday-mobile.cjs && node tests/roster-mobile.cjs && node --test tests/roster-review.cjs && node tests/roster-player-stats.cjs && node tests/season-odds-mobile.cjs && node tests/draft-phone-layout.cjs && node tests/draft-mobile-profile.cjs && node tests/player-card-fantasy.cjs && node tests/stats-mobile.cjs && node tests/league-live-scoreboard.js && node tests/league-matchup-view.cjs && node tests/mission-trades.cjs && node tests/mission-league-team.cjs && node tests/owner-scouting.cjs",
     "test:forecast-ledger": "node tests/forecast-ledger.cjs && node tests/forecast-archive.cjs && node tests/forecast-evaluation.cjs",
-    "test:chopped": "node tests/chopped.js && node tests/chop-odds.js",
+    "test:chopped": "node tests/chopped.js && node tests/chop-odds.js && node tests/chop-block-lifecycle.cjs",
     "test:first-class": "node tests/first-class-modes.js",
     "test:workspaces": "node --test tests/league-workspaces.cjs tests/portfolio-consolidation.cjs && node tests/player-notebook.cjs && node tests/workspace-intelligence.cjs",
     "test:empire": "node tests/empire-values.js && node tests/empire-decisions.js && node tests/empire-scenarios.cjs && node --test tests/empire-pick-coverage.cjs tests/empire-pick-formats.cjs tests/empire-draft-inventory.cjs tests/empire-seasonal-advice.cjs",

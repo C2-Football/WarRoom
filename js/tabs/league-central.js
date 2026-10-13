@@ -621,14 +621,16 @@ function LeagueCentralTab({
         try { overviewHealth = window.assessTeamFromGlobal(myRoster.roster_id)?.healthScore ?? null; } catch (_) { /* unavailable read stays empty */ }
     }
     if (overview && isPhone) return <div ref={centralRef} className="la-mobile la-central mc-league-overview">
-        {overviewTeam && <button type="button" className="mc-overview-summary" aria-label="Open your league standing and season outlook" onClick={() => setActiveTab?.('central')}>
+        {isChopped && window.WrChopBlock && <window.WrChopBlock active compact phone currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => setActiveTab?.('central')} />}
+        {!isChopped && overviewTeam && <button type="button" className="mc-overview-summary" aria-label="Open your league standing and season outlook" onClick={() => setActiveTab?.('central')}>
             <span><small>{liveReady ? 'Live record' : 'Record'}</small><strong>{overviewTeam.wins}–{overviewTeam.losses}{overviewTeam.ties ? '–' + overviewTeam.ties : ''}</strong></span>
             <span><small>Standing</small><strong>{overviewRank != null ? '#' + overviewRank : '—'}<em> / {tableTeams.length}</em></strong></span>
             <span><small>{overviewHealth != null ? 'Roster health' : 'Points for'}</small><strong>{overviewHealth != null ? overviewHealth : score(overviewTeam.pointsFor)}</strong></span>
         </button>}
-        <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />
+        {!isChopped && <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />}
         {renderScoreboard()}
-        <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.('central')}>Full standings →</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
+        <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.(isChopped ? 'fa' : 'central')}>{isChopped ? 'Explore waivers →' : 'Full standings →'}</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
+        {isChopped && <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />}
     </div>;
 
     return (
