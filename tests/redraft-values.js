@@ -171,6 +171,37 @@ test('keeper leagues keep the dynasty blend (getKeeperValue) untouched', () => {
   const expect = Math.round(0.6 * 6000 + 0.4 * ros.values.vet);
   assert.strictEqual(kv, expect, 'keeper = 60% dynasty + 40% ROS');
 });
+test('seasonal skins use current ROS values, including projection-only players, without dynasty fallback', () => {
+  for (const skin of [{ type: 'redraft' }, { type: 'chopped' }, { type: 'best_ball' }, { type: 'dfs' }, { type: 'custom', features: { showAgeCurve: false } }]) {
+    const ros = build({ skin });
+    const id = 'L' + lid;
+    window.S.currentLeagueId = id;
+    window.App.LeagueSkin = { getCurrent: () => skin };
+    assert.ok(ros && ros.values.rook > 0, skin.type + ': projected rookie is priced');
+    assert.strictEqual(PV.getValue('rook', { skin }), ros.values.rook, skin.type + ': explicit skin reads ROS');
+    assert.strictEqual(PV.valueMap({ skin }).rook, ros.values.rook, skin.type + ': value map reads ROS');
+    assert.ok(Object.keys(PV.valueMap({ skin })).includes('rook'), skin.type + ': projection-only ids enumerate');
+    assert.strictEqual(PV.getValue('stash'), 0, skin.type + ': missing seasonal production cannot expose 8000 dynasty value');
+    assert.strictEqual(PV.getValue('missing'), null, skin.type + ': missing evidence is unavailable');
+    assert.strictEqual(PV.isRedraftActive(), true, skin.type + ': current seasonal map is active');
+    window.S.currentLeagueId = 'other';
+    assert.strictEqual(PV.getValue('vet', { skin }), null, skin.type + ': another league cannot use the cached values');
+    assert.strictEqual(PV.isRedraftActive(), false);
+    delete window.App.LeagueSkin;
+  }
+});
+test('keeper stays on its explicit blend when age curves are hidden', () => {
+  const skin = { type: 'keeper', features: { showAgeCurve: false } };
+  const ros = build({ skin });
+  window.S.currentLeagueId = 'L' + lid;
+  window.App.LeagueSkin = { getCurrent: () => skin };
+  assert.ok(ros, 'keeper still builds seasonal inputs for the blend');
+  assert.strictEqual(PV.getValue('vet', { skin }), 6000, 'ordinary keeper value remains dynasty');
+  assert.strictEqual(PV.getKeeperValue('vet', { skin }), Math.round(0.6 * 6000 + 0.4 * ros.values.vet));
+  assert.strictEqual(PV.isRedraftActive(), false, 'keeper cannot activate pure seasonal pricing');
+  assert.ok(!Object.keys(PV.valueMap({ skin })).includes('rook'), 'ordinary keeper map keeps its dynasty universe');
+  delete window.App.LeagueSkin;
+});
 test('isRedraftActive: true only when the CURRENT league has a built redraft map', () => {
   resetState(); lid++;
   const id = 'L' + lid;

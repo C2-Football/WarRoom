@@ -115,10 +115,11 @@ const surfaces = [
       ['const openPlayerCard = (pid) => {', 'centralizes compare player opening'],
       ['window.WR && typeof window.WR.openPlayerCard', 'uses unified player card'],
       ['else if (typeof window._wrSelectPlayer ===', 'keeps shared selector fallback'],
-      ['onClick={() => openPlayerCard(player.pid)}', 'summary player cells open detail'],
-      ['onClick={() => openCard(r.pid)}', 'roster matrix cells open detail'],
-      ['role="button"\n                    tabIndex={0}\n                    title="Open player card"', 'field comparison player cells expose player-card destination'],
-      ['role="button"\n                        tabIndex={0}\n                        title="Open player card"', 'head-to-head roster cells expose player-card destination'],
+      ['<button key={player.pid} title="Open player card" onClick={() => openPlayerCard(player.pid)}', 'summary player cells are native buttons that open player detail'],
+      ['<button title="Open player card" className="tcmp-roster-player" key={player.pid} onClick={() => openPlayerCard(player.pid)}>', 'full-roster player cells are native buttons with their player-card destination'],
+    ],
+    minCounts: [
+      ['onClick={() => openPlayerCard(player.pid)}', 2, 'summary and full-roster cells retain player detail activation'],
     ],
   },
   {

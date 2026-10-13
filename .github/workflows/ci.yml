@@ -13,3 +13,5 @@ jobs:
       - run: npx eslint . --ext .js
       - run: node tests/run.js
       - run: npm run test:timeleague
+      - name: Verify comparison data contracts
+        run: node --test tests/player-comparison.cjs tests/team-comparison.cjs tests/team-comparison-data.cjs

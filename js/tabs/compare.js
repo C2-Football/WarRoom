@@ -1,7 +1,7 @@
 function ComparePhoneSection({ phone, title, children }) {
     return phone ? <details className="la-disclosure"><summary>{title}</summary><div className="la-disclosure-body">{children}</div></details> : <React.Fragment>{children}</React.Fragment>;
 }
-// js/tabs/compare.js - CompareTab: standalone team-vs-team comparison.
+// js/tabs/compare.js - CompareTab: player and team comparison workspace.
 //
 // Shows team-vs-team roster strength, position edges, H2H history, and a
 // full per-position roster diff.
@@ -26,27 +26,42 @@ function CompareTab({
     playersData,
     statsData,
     stats2025Data,
+    priorStatsSeason,
     standings,
     sleeperUserId,
 }) {
     const sameId = (a, b) => String(a) === String(b);
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const skinFeatures = resolvedLeagueSkin?.features || {};
+    const seasonalFormat = skinFeatures.showAgeCurve === false || ['redraft', 'chopped', 'best_ball', 'dfs'].includes(resolvedLeagueSkin?.type);
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
     const valueLabel = resolvedLeagueSkin?.vocabulary?.valueLabel || 'DHQ Value';
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+    const intelReady = !!window.App?.LI_LOADED && String(window.App?.LI?.sourceLeagueId || '') === String(leagueId);
+    function comparisonValues() {
+        if (!seasonalFormat && !intelReady) return {};
+        const raw = intelReady ? window.App?.LI?.playerScores || {} : {};
+        if (resolvedLeagueSkin?.type === 'keeper' && typeof window.App?.PlayerValue?.getKeeperValue === 'function') {
+            return new Proxy(raw, { get: (target, pid) => typeof pid === 'string' && Number.isFinite(target[pid]) && target[pid] >= 0
+                ? window.App.PlayerValue.getKeeperValue(pid, { skin: resolvedLeagueSkin }) : target[pid] });
+        }
+        return seasonalFormat && window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap({ skin: resolvedLeagueSkin }) : raw;
+    }
     // Scout-free vs Pro: free keeps the full raw compare — matrix, per-row
     // leaders, age curves, duel totals headline, GM-lens chip. The buy/sell
     // Action row + the field-verdict Read gate on this predicate (mirrors
     // reconai compare-scout.js, which filters its Verdict row for free).
     const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+    const [scoringRevision, refreshScoringForm] = React.useReducer(revision => revision + 1, 0);
     // Redraft → build ROS values so roster-strength comparisons reflect
     // rest-of-season production (no-op → DHQ for dynasty/keeper).
     React.useMemo(() => {
-        try { window.App?.PlayerValue?.ensureRos?.({ leagueId, league: currentLeague, playersData, statsData, priorData: stats2025Data, skin: resolvedLeagueSkin }); }
+        try { window.App?.PlayerValue?.ensureRos?.({ leagueId, league: currentLeague, playersData, statsData,
+            priorData: priorStatsSeason != null && Number(priorStatsSeason) !== Number(currentLeague?.season) - 1 ? {} : stats2025Data,
+            skin: resolvedLeagueSkin }); }
         catch (e) { if (window.wrLog) window.wrLog('compare.ensureRos', e); }
         return null;
-    }, [currentLeague, playersData, statsData, stats2025Data]);
+    }, [currentLeague, playersData, statsData, stats2025Data, priorStatsSeason, resolvedLeagueSkin, scoringRevision, intelReady]);
     const [compareTeamId, setCompareTeamId] = React.useState(() => {
         try {
             const preselect = window._wrComparePreselect;
@@ -89,9 +104,52 @@ function CompareTab({
         try { return localStorage.getItem('wr_compare_division_' + (leagueId || 'default')) || ''; } catch { return ''; }
     });
     const [h2hState, setH2hState] = React.useState({ loading: false, meetings: [], error: null, loadedFor: null });
+    const [teamRankMetric, setTeamRankMetric] = React.useState(() => {
+        try { const saved = localStorage.getItem('wr_compare_team_metric_v1_' + leagueId); return ['total', 'starterTotal', 'totalAssets'].includes(saved) ? saved : 'total'; } catch { return 'total'; }
+    });
+    const [playerMetricIds, setPlayerMetricIds] = React.useState(() => {
+        try { const saved = JSON.parse(localStorage.getItem('wr_compare_metrics_v1_' + leagueId)); return Array.isArray(saved) && saved.length ? [...new Set(saved.filter(id => typeof id === 'string'))].slice(0, 6) : null; } catch { return null; }
+    });
+    const [draftData, setDraftData] = React.useState(null);
+    const [draftRefresh, requestDraftRefresh] = React.useReducer(value => value + 1, 0);
+    React.useEffect(() => {
+        const type = resolvedLeagueSkin?.type;
+        if (compareScope === 'players' || !['dynasty', 'keeper'].includes(type) || skinFeatures.showFuturePicks === false) return;
+        const data = window.App?.TeamComparisonData;
+        if (!data) return;
+        let cancelled = false, timer;
+        const key = data.contextKey(currentLeague);
+        const seeded = currentLeague?._pickFeedState === 'ready' && Array.isArray(currentLeague?.tradedPicks)
+            && currentLeague?._draftInventoryState === 'ready' && String(currentLeague?._draftInventory?.season) === String(currentLeague?.season)
+            && (!currentLeague?.draft_id || String(currentLeague._draftInventory?.draftId) === String(currentLeague.draft_id));
+        const read = async force => {
+            setDraftData(previous => previous?.contextKey === key ? { ...previous, loading: true } : { contextKey: key, loading: true });
+            const result = await data.load(currentLeague, { skin: resolvedLeagueSkin, force, isCurrent: () => !cancelled });
+            if (cancelled || result.status === 'cancelled') return;
+            setDraftData({ ...result, loading: false });
+            if (result.context?._draftInventory?.phase === 'drafting') timer = setTimeout(() => read(true), 15000);
+        };
+        if (!seeded || draftRefresh > 0 || currentLeague?._draftInventory?.phase === 'drafting') read(draftRefresh > 0);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [leagueId, currentLeague?.season, currentLeague?.draft_id, currentLeague?._pickFeedState, currentLeague?._draftInventoryState, compareScope, resolvedLeagueSkin?.type, skinFeatures.showFuturePicks, draftRefresh]);
     const [heatPos, setHeatPos] = React.useState(null); // phone Position Heatmap: selected position (null → first)
     const [searchPos, setSearchPos] = React.useState('ALL');   // phone add-player search: position-group filter
     const [searchTeam, setSearchTeam] = React.useState('ALL'); // phone add-player search: owned-by-team filter (rosterId)
+    React.useEffect(() => {
+        const refresh = event => {
+            if (event.detail?.leagueId != null && String(event.detail.leagueId) !== String(leagueId)) return;
+            if (event.detail?.season != null && currentLeague?.season != null && String(event.detail.season) !== String(currentLeague.season)) return;
+            refreshScoringForm();
+        };
+        window.addEventListener('wr:weekly-points-loaded', refresh);
+        window.addEventListener('wr:ros-market-loaded', refresh);
+        window.addEventListener('wr:projections-loaded', refresh);
+        return () => {
+            window.removeEventListener('wr:weekly-points-loaded', refresh);
+            window.removeEventListener('wr:ros-market-loaded', refresh);
+            window.removeEventListener('wr:projections-loaded', refresh);
+        };
+    }, [leagueId, currentLeague?.season]);
 
     // Phone tier (≤767): shared viewport seam (js/shared/viewport.js) — every
     // phone-conditional style below keys off this so tablet/desktop never change.
@@ -191,6 +249,18 @@ function CompareTab({
         if (!leagueId) return;
         try { localStorage.setItem('wr_compare_players_' + leagueId, JSON.stringify(comparePlayerIds)); } catch {}
     }, [leagueId, comparePlayerIds]);
+    React.useEffect(() => {
+        if (!leagueId) return;
+        try { localStorage.setItem('wr_compare_team_metric_v1_' + leagueId, teamRankMetric); } catch {}
+    }, [leagueId, teamRankMetric]);
+    React.useEffect(() => {
+        if (!leagueId) return;
+        try {
+            const key = 'wr_compare_metrics_v1_' + leagueId;
+            if (playerMetricIds === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, JSON.stringify(playerMetricIds));
+        } catch {}
+    }, [leagueId, playerMetricIds]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -228,8 +298,12 @@ function CompareTab({
         // parallel rather than season-by-season.
         async function loadRawChain() {
             const sleeperBase = 'https://api.sleeper.app/v1';
+            const cutoffKey = String(currentLeague?.season || '') + ':' + window.App.TeamComparison.completedThroughWeek({
+                season: currentLeague?.season, nflState: window.S?.nflState, leagueWeek: currentLeague?.current_week,
+            });
             const cached = window._wrCompareRawCache[rootLeagueId];
-            if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.seasons)) {
+            if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.seasons)
+                && cached.cutoffKey === cutoffKey) {
                 return cached.seasons;
             }
 
@@ -265,15 +339,19 @@ function CompareTab({
                 return { leagueId: seasonEntry.leagueId, season, rosters, weeklyMatchups };
             }))).filter(Boolean);
 
-            window._wrCompareRawCache[rootLeagueId] = { ts: Date.now(), seasons };
+            window._wrCompareRawCache[rootLeagueId] = { ts: Date.now(), cutoffKey, seasons };
             return seasons;
         }
 
         async function loadHistoricalH2H() {
-            const cacheKey = 'wr_compare_h2h_v3_' + rootLeagueId + '_' + myOwnerId + '_' + theirOwnerId;
+            const cacheKey = 'wr_compare_h2h_v4_' + rootLeagueId + '_' + myOwnerId + '_' + theirOwnerId;
+            const cutoffKey = String(currentLeague?.season || '') + ':' + window.App.TeamComparison.completedThroughWeek({
+                season: currentLeague?.season, nflState: window.S?.nflState, leagueWeek: currentLeague?.current_week,
+            });
             try {
                 const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-                if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.meetings)) {
+                if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.meetings)
+                    && cached.cutoffKey === cutoffKey) {
                     return cached.meetings;
                 }
             } catch {}
@@ -293,6 +371,12 @@ function CompareTab({
                 if (!historicalMine || !historicalTheirs) continue;
 
                 seasonEntry.weeklyMatchups.forEach(({ week, rows }) => {
+                    const throughWeek = window.App.TeamComparison.completedThroughWeek({
+                        season, nflState: window.S?.nflState,
+                        leagueWeek: Number(season) === currentSeason ? currentLeague?.current_week : null,
+                    });
+                    // A live score is not a completed regular-season meeting.
+                    if (week > throughWeek) return;
                     const grouped = {};
                     rows.forEach(row => {
                         if (!row || row.roster_id == null || row.matchup_id == null) return;
@@ -304,10 +388,9 @@ function CompareTab({
                         const me = pair.find(row => sameId(row.roster_id, historicalMine.roster_id));
                         const them = pair.find(row => sameId(row.roster_id, historicalTheirs.roster_id));
                         if (!me || !them) return;
-                        const myPts = Number(me.points || 0);
-                        const theirPts = Number(them.points || 0);
-                        const played = myPts > 0 || theirPts > 0 || (Number(season) && Number(season) < currentSeason);
-                        if (!played) return;
+                        const myPts = window.App.TeamComparison.meetingScore(me);
+                        const theirPts = window.App.TeamComparison.meetingScore(them);
+                        if (myPts === null || theirPts === null) return;
                         meetings.push({
                             season,
                             week,
@@ -322,7 +405,7 @@ function CompareTab({
             }
 
             meetings.sort((a, b) => Number(b.season) - Number(a.season) || b.week - a.week);
-            try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), meetings })); } catch {}
+            try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), cutoffKey, meetings })); } catch {}
             return meetings;
         }
 
@@ -336,7 +419,9 @@ function CompareTab({
             });
 
         return () => { cancelled = true; };
-    }, [leagueId, compareScope, compareTeamId, myRoster?.owner_id, myRoster?.roster_id, currentLeague?.rosters?.length]);
+    }, [leagueId, compareScope, compareTeamId, myRoster?.owner_id, myRoster?.roster_id, currentLeague?.rosters?.length,
+        currentLeague?.season, currentLeague?.current_week, window.S?.nflState?.season, window.S?.nflState?.season_type,
+        window.S?.nflState?.display_week, window.S?.nflState?.week]);
 
     // Position rank by DHQ across every scored player (e.g. "WR #14"), for the
     // Players-mode cards. Built once over the scored-player universe; recomputes
@@ -344,23 +429,23 @@ function CompareTab({
     // (own normPos/valueMap) so it can sit above the early return with the hooks.
     const posRankMap = React.useMemo(() => {
         const np = window.App?.normPos || ((x) => x);
-        const sc = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
-        const raw = window.App?.LI?.playerScores || {};
+        const sc = comparisonValues();
         const byPos = {};
-        Object.keys(raw).forEach(pid => {
+        Object.keys(sc).forEach(pid => {
             const pl = playersData?.[pid] || playersData?.[String(pid)];
             if (!pl) return;
             const pos = np(pl.position);
-            const v = sc[pid] || sc[String(pid)] || 0;
-            if (!v) return;
+            const v = sc[pid];
+            if (!Number.isFinite(v) || v < 0) return;
             (byPos[pos] = byPos[pos] || []).push([String(pid), v]);
         });
         const rank = {};
         Object.keys(byPos).forEach(pos => {
-            byPos[pos].sort((a, b) => b[1] - a[1]).forEach((row, i) => { rank[row[0]] = i + 1; });
+            const rows = byPos[pos].sort((a, b) => b[1] - a[1]);
+            rows.forEach(row => { rank[row[0]] = rows.findIndex(other => other[1] === row[1]) + 1; });
         });
         return rank;
-    }, [playersData, currentLeague, statsData, stats2025Data]);
+    }, [playersData, currentLeague, statsData, stats2025Data, resolvedLeagueSkin, scoringRevision, intelReady]);
 
     if (!myRoster) {
         return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)' }}>No roster found</div>;
@@ -368,12 +453,12 @@ function CompareTab({
 
     const normPos = window.App.normPos;
     const posColors = window.App.POS_COLORS || {};
-    const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
+    const scores = comparisonValues();
     const allPositions = ['QB','RB','WR','TE','K','DEF','DL','LB','DB'];
     const posLabel = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
     const rosterById = {};
     (currentLeague?.rosters || []).forEach(r => { rosterById[String(r.roster_id)] = r; });
-    const getRosterTotal = (roster) => (roster?.players || []).reduce((sum, pid) => sum + (scores[pid] || scores[String(pid)] || 0), 0);
+    const getRosterTotal = roster => window.App.TeamComparison.summarize({ roster, playersData, values: scores, normPos, positions: allPositions }).total;
     const myTotal = getRosterTotal(myRoster);
     const getOwnerName = (roster, fallback) => {
         const user = (currentLeague?.users || []).find(u => sameId(u.user_id, roster?.owner_id));
@@ -382,7 +467,6 @@ function CompareTab({
     const leagueSeason = parseInt(currentLeague?.season, 10) || new Date().getFullYear();
     const draftRounds = Number(currentLeague?.settings?.draft_rounds || 5);
     const leagueTeamCount = (currentLeague?.rosters || []).length || 12;
-    const tradedPicks = window.S?.tradedPicks || [];
     const pickMidSlot = Math.ceil(leagueTeamCount / 2);
     const getPickValue = (year, round) => {
         const rd = Number(round) || 1;
@@ -390,93 +474,39 @@ function CompareTab({
         if (typeof window.getIndustryPickValue === 'function') return window.getIndustryPickValue(pickNumber, leagueTeamCount, draftRounds);
         const sharedValue = window.App?.PlayerValue?.getPickValue?.(year, rd, leagueTeamCount, pickMidSlot);
         if (sharedValue != null) return sharedValue;
-        return Math.max(500, 10000 - rd * 2000);
+        return null;
     };
-    const getDraftCapital = (roster) => {
-        const rid = roster?.roster_id;
-        const picks = [];
-        if (rid == null) return { picks, totalValue: 0, count: 0, byRound: {}, byYear: {}, topPicks: [], label: '0 picks' };
-
-        for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) {
-            for (let rd = 1; rd <= draftRounds; rd++) {
-                const tradedAway = tradedPicks.find(p => parseInt(p.season, 10) === yr && Number(p.round) === rd && sameId(p.roster_id, rid) && !sameId(p.owner_id, rid));
-                if (!tradedAway) {
-                    const value = getPickValue(yr, rd);
-                    picks.push({
-                        year: yr,
-                        round: rd,
-                        own: true,
-                        value,
-                        label: yr === leagueSeason ? 'R' + rd : "'" + String(yr).slice(-2) + ' R' + rd,
-                    });
-                }
-
-                tradedPicks
-                    .filter(p => parseInt(p.season, 10) === yr && Number(p.round) === rd && sameId(p.owner_id, rid) && !sameId(p.roster_id, rid))
-                    .forEach(p => {
-                        const fromRoster = rosterById[String(p.roster_id)];
-                        const fromName = getOwnerName(fromRoster, 'Team ' + p.roster_id);
-                        const value = getPickValue(yr, rd);
-                        picks.push({
-                            year: yr,
-                            round: rd,
-                            own: false,
-                            from: fromName,
-                            value,
-                            label: (yr === leagueSeason ? 'R' + rd : "'" + String(yr).slice(-2) + ' R' + rd) + ' via ' + fromName,
-                        });
-                    });
-            }
-        }
-
-        const byRound = {};
-        const byYear = {};
-        picks.forEach(p => {
-            byRound[p.round] = (byRound[p.round] || 0) + 1;
-            byYear[p.year] = (byYear[p.year] || 0) + 1;
-        });
-        const totalValue = picks.reduce((sum, p) => sum + (p.value || 0), 0);
-        const topPicks = [...picks].sort((a, b) => b.value - a.value || a.year - b.year || a.round - b.round).slice(0, 4);
-        return {
-            picks,
-            totalValue,
-            count: picks.length,
-            byRound,
-            byYear,
-            topPicks,
-            label: picks.length + ' picks',
-        };
-    };
+    const draftContextKey = String(currentLeague?.season || '') + ':' + String(leagueId);
+    const scopedDraftData = draftData?.contextKey === draftContextKey ? draftData : null;
+    const verifiedDraftLeague = scopedDraftData?.context ? { ...currentLeague, ...scopedDraftData.context }
+        : currentLeague?._pickFeedState === 'ready' ? currentLeague
+        : { ...currentLeague, tradedPicks: undefined, _pickFeedState: 'unavailable', _draftInventory: undefined, _draftInventoryState: 'unavailable' };
+    const getDraftCapital = roster => window.App.TeamComparison.draftCapital({
+        roster, league: verifiedDraftLeague, skin: resolvedLeagueSkin,
+        rosterById, getOwnerName, getPickValue,
+    });
     const getFaab = (roster) => {
         const isFaab = currentLeague?.settings?.waiver_type === 2 || Number(currentLeague?.settings?.waiver_budget || 0) > 0;
-        const budget = isFaab ? Number(currentLeague?.settings?.waiver_budget || 100) : 0;
-        const spent = Number(roster?.settings?.waiver_budget_used || 0);
-        const remaining = budget ? Math.max(0, budget - spent) : 0;
+        const budget = isFaab && Number.isFinite(currentLeague?.settings?.waiver_budget) ? Math.max(0, currentLeague.settings.waiver_budget) : null;
+        const spent = Number.isFinite(roster?.settings?.waiver_budget_used) ? Math.max(0, roster.settings.waiver_budget_used) : null;
+        const remaining = budget != null && spent != null ? Math.max(0, budget - spent) : null;
         return {
             isFaab,
             budget,
             spent,
             remaining,
-            pct: budget ? Math.round(remaining / budget * 100) : 0,
-            label: budget ? '$' + remaining + ' / $' + budget : 'No FAAB',
+            pct: budget && remaining != null ? Math.round(remaining / budget * 100) : null,
+            label: !isFaab ? 'No FAAB' : remaining == null ? 'FAAB unreported' : '$' + remaining + ' / $' + budget,
         };
     };
     const myName = getOwnerName(myRoster, 'You');
-    const allTeamOptions = (standings || [])
-        .map(t => {
-            const roster = rosterById[String(t.rosterId)];
-            const dhq = getRosterTotal(roster);
-            return { ...t, roster, dhq, gap: Math.abs(dhq - myTotal), name: t.displayName || getOwnerName(roster, 'Team ' + t.rosterId) };
-        })
-        .filter(t => t.roster);
-    const opponentOptions = (standings || [])
-        .filter(t => !sameId(t.rosterId, myRoster.roster_id))
-        .map(t => {
-            const roster = rosterById[String(t.rosterId)];
-            const dhq = getRosterTotal(roster);
-            return { ...t, roster, dhq, gap: Math.abs(dhq - myTotal), name: t.displayName || getOwnerName(roster, 'Team ' + t.rosterId) };
-        })
-        .filter(t => t.roster);
+    const allTeamOptions = (currentLeague?.rosters || []).map(roster => {
+        const standing = (standings || []).find(row => sameId(row.rosterId, roster.roster_id));
+        const dhq = getRosterTotal(roster);
+        const coverage = window.App.TeamComparison.summarize({ roster, playersData, values: scores, normPos, positions: allPositions });
+        return { ...standing, rosterId: roster.roster_id, roster, dhq, complete: coverage.complete, gap: Math.abs(dhq - myTotal), name: standing?.displayName || getOwnerName(roster, 'Team ' + roster.roster_id) };
+    });
+    const opponentOptions = allTeamOptions.filter(team => !sameId(team.rosterId, myRoster.roster_id));
 
     const metadata = currentLeague?.metadata || {};
     const getDivisionKey = (roster) => String(roster?.settings?.division ?? 0);
@@ -536,20 +566,17 @@ function CompareTab({
 
     const statsRefForField = statsData || {};
     const stats2025RefForField = stats2025Data || {};
-    const derivedStatsRefForField = window.S?.playerStats || {};
     const scoringForField = currentLeague?.scoring_settings || {};
-    const calcFieldPPG = (pid) => {
-        const st = statsRefForField[pid] || statsRefForField[String(pid)] || {};
-        const prev = stats2025RefForField[pid] || stats2025RefForField[String(pid)] || {};
-        const curGP = Number(st.gp || 0);
-        const prevGP = Number(prev.gp || 0);
-        const curPts = curGP > 0 && typeof window.App?.calcRawPts === 'function' ? window.App.calcRawPts(st, scoringForField) : null;
-        const prevPts = prevGP > 0 && typeof window.App?.calcRawPts === 'function' ? window.App.calcRawPts(prev, scoringForField) : null;
-        const derived = derivedStatsRefForField[pid] || derivedStatsRefForField[String(pid)] || {};
-        if (curGP > 0 && curPts != null) return +(curPts / curGP).toFixed(1);
-        if (prevGP > 0 && prevPts != null) return +(prevPts / prevGP).toFixed(1);
-        return derived.seasonAvg || derived.prevAvg || 0;
-    };
+    const calcFieldStats = pid => window.App.PlayerComparison.summarize({
+        pid, statsData: statsRefForField, priorData: stats2025RefForField, season: leagueSeason, priorStatsSeason,
+        position: normPos(playersData?.[pid]?.position),
+        calcPPG: row => {
+            const points = typeof window.App.LeagueStats?.score === 'function'
+                ? window.App.LeagueStats.score(row, scoringForField, normPos(playersData?.[pid]?.position))
+                : window.App.calcRawPts?.(row, scoringForField);
+            return points != null && row.gp > 0 ? points / row.gp : null;
+        },
+    });
     const enrichFieldPlayer = (pid) => {
         const p = playersData?.[pid] || playersData?.[String(pid)];
         if (!p) return null;
@@ -567,50 +594,30 @@ function CompareTab({
             age,
             team: p.team || 'FA',
             yrsExp: p.years_exp || 0,
-            ppg: calcFieldPPG(pid),
-            dhq: scores[pid] || scores[String(pid)] || 0,
+            ...calcFieldStats(pid),
+            dhq: Number.isFinite(scores[pid]) && scores[pid] >= 0 ? scores[pid] : 0,
+            valueKnown: Number.isFinite(scores[pid]) && scores[pid] >= 0,
             peakYrs: age ? Math.max(0, peakEnd - age) : 0,
             valueYrs: age ? Math.max(0, valueEnd - age) : 0,
             pastValue: age ? age > valueEnd : false,
         };
     };
-    const starterDhqForRoster = (roster) => (roster?.starters || [])
-        .filter(pid => pid && pid !== '0')
-        .reduce((sum, pid) => sum + (scores[pid] || scores[String(pid)] || 0), 0);
     const teamProfile = (teamOption, isMine) => {
         const roster = isMine ? myRoster : teamOption?.roster;
         if (!roster) return null;
+        const summary = window.App.TeamComparison.summarize({ roster, playersData, values: scores, normPos, positions: allPositions });
         const players = (roster.players || []).map(enrichFieldPlayer).filter(Boolean);
-        const posTotals = {};
-        const posTop = {};
-        allPositions.forEach(pos => {
-            const atPos = players.filter(r => r.pos === pos).sort((a, b) => b.dhq - a.dhq);
-            posTotals[pos] = atPos.reduce((s, p) => s + p.dhq, 0);
-            posTop[pos] = atPos[0] || null;
-        });
-        const total = getRosterTotal(roster);
-        const starterTotal = starterDhqForRoster(roster);
         const pickCapital = getDraftCapital(roster);
         const faab = getFaab(roster);
-        const pastValue = players.reduce((sum, p) => sum + (p.pastValue ? p.dhq : 0), 0);
-        const topPlayer = [...players].sort((a, b) => b.dhq - a.dhq)[0] || null;
+        const user = (currentLeague?.users || []).find(u => sameId(u.user_id, roster.owner_id));
+        const record = [summary.record.wins, summary.record.losses].map(n => n == null ? '—' : n).join('-') + (summary.record.ties > 0 ? '-' + summary.record.ties : '');
         return {
-            roster,
-            rosterId: String(roster.roster_id),
-            isMine: !!isMine,
+            ...summary, roster, rosterId: String(roster.roster_id), isMine: !!isMine,
             name: isMine ? myName : (teamOption?.name || getOwnerName(roster, 'Team ' + roster.roster_id)),
-            record: (roster.settings?.wins || 0) + '-' + (roster.settings?.losses || 0),
-            division: getDivisionKey(roster),
-            total,
-            starterTotal,
-            posTotals,
-            posTop,
-            players,
-            pickCapital,
-            faab,
-            totalAssets: total + pickCapital.totalValue,
-            topPlayer,
-            pastValuePct: total > 0 ? Math.round(pastValue / total * 100) : 0,
+            record, division: getDivisionKey(roster), players, pickCapital, faab,
+            avatar: user?.metadata?.avatar || (user?.avatar ? 'https://sleepercdn.com/avatars/' + user.avatar : null),
+            totalAssets: summary.total + (pickCapital.valued ? pickCapital.totalValue || 0 : 0),
+            assetsComplete: summary.complete && pickCapital.complete && pickCapital.valued,
         };
     };
     const openPlayerCard = (pid) => {
@@ -623,7 +630,6 @@ function CompareTab({
     const panelStyle = { background: 'var(--black)', border: 'var(--card-border)', borderRadius: 'var(--card-radius)' };
     const labelStyle = { fontSize: 'var(--text-micro)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.66 };
     const mono = { fontFamily: 'JetBrains Mono, monospace' };
-    const muted = { color: 'var(--silver)', opacity: 0.72 };
     const selectStyle = {
         padding: '9px 14px',
         fontSize: isPhone ? '14px' : '0.82rem',
@@ -674,17 +680,17 @@ function CompareTab({
             // Phone (≤767): scope pills re-pour as the shared .wr-seg
             // segmented sub-nav (P2) — same lenses, same setScope setters;
             // the seg scrolls horizontally when the five don't fit.
-            <label className="la-view-select">Compare<select value={compareScope} onChange={event => setScope(event.target.value)}>{[['duel','Duel'],['players','Players'],['group','Group'],['division','Division'],['league','League']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label className="la-view-select">Compare<select value={compareScope} onChange={event => setScope(event.target.value)}>{[['duel','Teams'],['players','Players'],['group','Group'],['division','Division'],['league','League']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         ) : (
         <div className="wr-module-nav">
             {[
-                ['duel', 'Duel', '1 opponent'],
+                ['duel', 'Teams', '1 opponent'],
                 ['players', 'Players', 'head-to-head'],
                 ['group', 'Group', '2+ teams'],
                 ['division', 'Division', 'league divisions'],
                 ['league', 'League', 'all teams'],
             ].map(([key, label, sub]) => (
-                <button key={key} className={compareScope === key ? 'is-active' : ''} onClick={() => setScope(key)} title={sub}>
+                <button key={key} className={compareScope === key ? 'is-active' : ''} aria-pressed={compareScope === key} onClick={() => setScope(key)} title={sub}>
                     {label}
                 </button>
             ))}
@@ -694,7 +700,7 @@ function CompareTab({
     const renderFieldControls = () => {
         if (compareScope === 'group') {
             return (
-                <div style={{ ...panelStyle, padding: '12px', marginBottom: '14px' }}>
+                <div className="tcmp-field-controls" style={{ ...panelStyle, padding: '12px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' }}>
                         <div>
                             <div style={{ ...labelStyle, color: 'var(--gold)', opacity: 1 }}>Group Builder</div>
@@ -712,9 +718,9 @@ function CompareTab({
                             const active = selectedGroupIds.map(String).includes(String(t.rosterId));
                             const manualActive = manualCompareIds.map(String).includes(String(t.rosterId));
                             return (
-                                <button key={t.rosterId} onClick={() => toggleManualTeam(t.rosterId)} style={{
+                                <button key={t.rosterId} aria-pressed={active} aria-label={'Select ' + t.name} onClick={() => toggleManualTeam(t.rosterId)} style={{
                                     padding: '8px 9px',
-                                    minHeight: isPhone ? '44px' : undefined,
+                                    minHeight: '44px',
                                     borderRadius: 'var(--card-radius-sm, 8px)',
                                     border: '1px solid ' + (manualActive ? 'var(--acc-line3, rgba(212,175,55,0.46))' : 'var(--ov-4, rgba(255,255,255,0.07))'),
                                     background: manualActive ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : active ? 'var(--ov-4, rgba(255,255,255,0.055))' : 'var(--ov-2, rgba(255,255,255,0.025))',
@@ -723,7 +729,7 @@ function CompareTab({
                                     textAlign: 'left',
                                 }}>
                                     <div style={{ fontWeight: 850, color: manualActive ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
-                                    <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.66, marginTop: '2px' }}>{t.dhq.toLocaleString()} {valueShortLabel}{sameId(t.rosterId, myRoster.roster_id) ? ' · You' : ''}</div>
+                                    <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.66, marginTop: '2px' }}>{t.dhq.toLocaleString()}{t.complete ? '' : '*'} {valueShortLabel}{sameId(t.rosterId, myRoster.roster_id) ? ' · You' : ''}</div>
                                 </button>
                             );
                         })}
@@ -735,7 +741,7 @@ function CompareTab({
             return (
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
                     {divisionKeys.map(key => (
-                        <button key={key} onClick={() => setSelectedDivision(key)} style={quickButtonStyle(key === activeDivision)}>
+                        <button key={key} aria-pressed={key === activeDivision} onClick={() => setSelectedDivision(key)} style={quickButtonStyle(key === activeDivision)}>
                             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.72 }}>{getDivisionName(key)}</div>
                             <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: '2px' }}>{(divisions[key] || []).length} teams</div>
                         </button>
@@ -747,448 +753,170 @@ function CompareTab({
     };
 
     const renderFieldAnalysis = (selectedTeams, fieldLabel, fieldSub, options = {}) => {
-        const includeUser = options.includeUser !== false;
-        const selectedTeamList = selectedTeams.filter(Boolean);
-        const selectedHasUser = selectedTeamList.some(t => sameId(t.rosterId, myRoster.roster_id));
-        const profilesById = new Map();
-        const addProfile = (profile) => {
-            if (profile && !profilesById.has(profile.rosterId)) profilesById.set(profile.rosterId, profile);
+      const profilesById = new Map();
+      if (options.includeUser !== false) {
+        const mine = teamProfile(null, true);
+        profilesById.set(mine.rosterId, mine);
+      }
+      selectedTeams.filter(Boolean).forEach(team => {
+        const profile = teamProfile(team, sameId(team.rosterId, myRoster.roster_id));
+        if (profile) profilesById.set(profile.rosterId, profile);
+      });
+      const profiles = [...profilesById.values()];
+      if (profiles.length < 2) return <section className="tcmp-showcase tcmp-empty"><span className="tcmp-kicker">DYNASTY HQ / TEAM COMPARE</span><h2>Build your rivalry.</h2><p>Select another team to compare rosters, starters, and position strengths.</p></section>;
+      const assetsAvailable = profiles.every(p => p.assetsComplete);
+      const metric = teamRankMetric === 'totalAssets' && !assetsAvailable ? 'total' : teamRankMetric;
+      const metricLabel = metric === 'starterTotal' ? 'Submitted starter value' : metric === 'totalAssets' ? 'Roster + draft value' : 'Roster value';
+      const completeFor = p => metric === 'starterTotal' ? p.starterComplete : metric === 'totalAssets' ? p.assetsComplete : p.complete;
+      const ranked = window.App.TeamComparison.rank(profiles, metric);
+      const rankFor = profile => ranked.find(row => sameId(row.profile.rosterId, profile.rosterId));
+      const focusProfile = profiles.find(p => p.isMine) || profiles[0];
+      const comparisonProfiles = profiles.filter(p => !sameId(p.rosterId, focusProfile.rosterId));
+      const focus = focusProfile;
+      const rivals = comparisonProfiles;
+      const accents = ['#ebc875', '#63cbe9', '#b6a1ff', '#ffac78'];
+      const accent = p => p.isMine ? accents[0] : accents[1 + profiles.filter(x => !x.isMine).indexOf(p) % 3];
+      const number = value => value == null ? '—' : Number(value).toLocaleString(undefined, {
+        maximumFractionDigits: 1
+      });
+      const signed = value => (value > 0 ? '+' : '') + number(value);
+      const faabLeft = profile => profile.faab.remaining == null ? '—' : '$' + number(profile.faab.remaining);
+      const known = (value, complete) => complete ? number(value) : number(value) + '*';
+      const validRanks = ranked.filter(row => row.rank != null);
+      const leaders = validRanks.filter(row => row.rank === 1);
+      const allComplete = profiles.every(completeFor);
+      const activePositions = allPositions.filter(pos => profiles.some(p => p.players.some(player => player.pos === pos)));
+      const roomDiffs = activePositions.map(pos => {
+        const complete = profiles.every(p => p.posComplete[pos]);
+        const average = rivals.reduce((sum, p) => sum + (p.posTotals[pos] || 0), 0) / rivals.length;
+        return {
+          pos,
+          diff: (focus.posTotals[pos] || 0) - average,
+          complete
         };
-        if (includeUser && !selectedHasUser) addProfile(teamProfile(null, true));
-        selectedTeamList.forEach(t => addProfile(teamProfile(t, sameId(t.rosterId, myRoster.roster_id))));
-        const profiles = Array.from(profilesById.values());
-        if (profiles.length < 2) {
-            return <div style={{ ...panelStyle, padding: '24px', color: 'var(--silver)' }}>Select at least two teams to build a field comparison.</div>;
+      }).filter(row => row.complete);
+      const strength = roomDiffs.filter(row => row.diff > 0).sort((a, b) => b.diff - a.diff)[0];
+      const exposure = roomDiffs.filter(row => row.diff < 0).sort((a, b) => a.diff - b.diff)[0];
+      const duel = !!options.duel;
+      const displayProfiles = profiles.length <= 4 ? duel ? profiles : ranked.map(row => row.profile) : [focus, ...ranked.map(row => row.profile).filter(p => p !== focus).slice(0, 3)];
+      const topValue = Math.max(1, ...profiles.map(p => p[metric]));
+      const rankText = p => {
+        const row = rankFor(p);
+        return row.rank == null ? 'Unranked' : (row.tied ? 'Tied ' : '') + '#' + row.rank + ' of ' + profiles.length;
+      };
+      const read = !allComplete ? 'Some player values or starter slots are unavailable. Totals marked * are partial; a complete field winner is not awarded.' : leaders.length > 1 ? leaders.map(row => row.profile.name).join(' and ') + ' are tied on ' + metricLabel.toLowerCase() + '.' : leaders[0].profile.name + ' leads ' + metricLabel.toLowerCase() + ' by ' + number(leaders[0].profile[metric] - validRanks[1].profile[metric]) + ' ' + valueShortLabel + '.';
+      const activePos = activePositions.includes(heatPos) ? heatPos : activePositions.includes('QB') ? 'QB' : activePositions[0];
+      const roomRanks = [...profiles].sort((a, b) => (b.posTotals[activePos] || 0) - (a.posTotals[activePos] || 0));
+      const roomMax = Math.max(1, ...roomRanks.map(p => p.posTotals[activePos] || 0));
+      const roomComplete = profiles.every(p => p.posComplete[activePos]);
+      const rankPosition = p => 1 + roomRanks.filter(other => (other.posTotals[activePos] || 0) > (p.posTotals[activePos] || 0)).length;
+      const detailProfiles = profiles.length <= 4 ? profiles : displayProfiles;
+      const openDuel = p => {
+        if (!p.isMine) {
+          setCompareTeamId(p.rosterId);
+          setScope('duel');
         }
-        const sortedProfiles = [...profiles].sort((a, b) => b.totalAssets - a.totalAssets);
-        const focusProfile = profiles.find(p => p.isMine) || profiles[0];
-        const comparisonProfiles = profiles.filter(p => !sameId(p.rosterId, focusProfile.rosterId));
-        const focusRank = Math.max(1, sortedProfiles.findIndex(p => sameId(p.rosterId, focusProfile.rosterId)) + 1);
-        const fieldAvg = comparisonProfiles.length ? Math.round(comparisonProfiles.reduce((s, p) => s + p.total, 0) / comparisonProfiles.length) : 0;
-        const starterAvg = comparisonProfiles.length ? Math.round(comparisonProfiles.reduce((s, p) => s + p.starterTotal, 0) / comparisonProfiles.length) : 0;
-        const pickAvg = comparisonProfiles.length ? Math.round(comparisonProfiles.reduce((s, p) => s + (p.pickCapital?.totalValue || 0), 0) / comparisonProfiles.length) : 0;
-        const faabAvg = comparisonProfiles.length ? Math.round(comparisonProfiles.reduce((s, p) => s + (p.faab?.remaining || 0), 0) / comparisonProfiles.length) : 0;
-        const percentile = profiles.length > 1 ? Math.round((1 - ((focusRank - 1) / (profiles.length - 1))) * 100) : 100;
-        const posDiffs = allPositions.map(pos => {
-            const avg = comparisonProfiles.length ? comparisonProfiles.reduce((s, p) => s + (p.posTotals[pos] || 0), 0) / comparisonProfiles.length : 0;
-            return { pos, avg, mine: focusProfile.posTotals[pos] || 0, diff: Math.round((focusProfile.posTotals[pos] || 0) - avg) };
-        });
-        const strongest = [...posDiffs].sort((a, b) => b.diff - a.diff)[0];
-        const weakest = [...posDiffs].sort((a, b) => a.diff - b.diff)[0];
-        const maxTotal = Math.max(1, ...profiles.map(p => p.totalAssets));
-        const maxStarter = Math.max(1, ...profiles.map(p => p.starterTotal));
-        const maxByPos = {};
-        allPositions.forEach(pos => { maxByPos[pos] = Math.max(1, ...profiles.map(p => p.posTotals[pos] || 0)); });
-        const bestByPos = {};
-        allPositions.forEach(pos => {
-            bestByPos[pos] = [...profiles].sort((a, b) => (b.posTotals[pos] || 0) - (a.posTotals[pos] || 0))[0]?.rosterId;
-        });
-        const divisionProfiles = {};
-        profiles.forEach(p => {
-            if (!divisionProfiles[p.division]) divisionProfiles[p.division] = [];
-            divisionProfiles[p.division].push(p);
-        });
-        const breakdownProfiles = profiles.length <= 4 ? profiles : [];
-        const positionBreakdowns = breakdownProfiles.length ? allPositions.map(pos => {
-            const columns = breakdownProfiles.map(profile => {
-                const playersAtPos = (profile.players || []).filter(r => r.pos === pos).sort((a, b) => b.dhq - a.dhq);
-                return {
+      };
+      const cardStat = (label, value, note) => <div><dt>{label}</dt><dd>{value}</dd>{note ? <small>{note}</small> : null}</div>;
+      return <section className="tcmp-showcase" aria-label={duel ? 'Team head-to-head comparison' : fieldLabel + ' team comparison'}>
+                <header className="tcmp-heading"><div><span className="tcmp-kicker">DYNASTY HQ / TEAM COMPARE · {fieldLabel}</span><h2>{duel ? 'Who owns the edge?' : 'See the whole field.'}</h2><p>{fieldSub}</p></div><span className="tcmp-basis">{valueShortLabel} values · {leagueSeason}</span></header>
+                {!intelReady && ['dynasty', 'keeper'].includes(resolvedLeagueSkin?.type) ? <p role="status">Player values are loading for this league. Records and reported scoring remain available.</p> : null}
+                <div className="tcmp-toolbar"><label>Compare by <select aria-label="Rank teams by" value={metric} onChange={event => setTeamRankMetric(event.target.value)}><option value="total">Roster value</option><option value="starterTotal">Submitted starter value</option>{assetsAvailable ? <option value="totalAssets">Roster + draft value</option> : null}</select></label><span>{profiles.length} teams · {metricLabel}</span></div>
+                <div className="tcmp-deck" data-count={displayProfiles.length}>
+                    {displayProfiles.map(profile => <article className="tcmp-team-card" key={profile.rosterId} style={{
+            '--team-accent': accent(profile)
+          }}>
+                        <div className="tcmp-card-top"><span>{profile.isMine ? 'Your franchise' : duel ? 'The challenger' : 'In the field'}</span><strong>{rankText(profile)}</strong></div>
+                        <div className="tcmp-card-identity"><span className="tcmp-avatar">{profile.name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}{profile.avatar ? <img src={profile.avatar} alt="" onError={event => {
+                  event.currentTarget.style.display = 'none';
+                }} /> : null}</span><div><h3 className={profile.name.length > 36 ? 'tcmp-long-name' : undefined}>{profile.name}</h3><p>{profile.record} · {getDivisionName(profile.division)}</p></div></div>
+                        <div className="tcmp-value"><span>{metricLabel} · {valueShortLabel}</span><strong>{known(profile[metric], completeFor(profile))}</strong><small>{metric === 'starterTotal' ? 'Current submitted lineup' : metric === 'totalAssets' ? 'Players plus estimated draft capital' : profile.knownValueCount + ' of ' + profile.playerCount + ' players valued'}</small></div>
+                        <div className="tcmp-track"><i style={{
+                width: Math.min(100, profile[metric] / topValue * 100) + '%'
+              }} /></div>
+                        <dl className="tcmp-card-stats">{cardStat('Starters', known(profile.starterTotal, profile.starterComplete), valueShortLabel + ' value')}{cardStat('Bench / reserves', known(profile.benchTotal, profile.complete && profile.starterComplete), valueShortLabel + ' value')}{cardStat('Avg. roster age', profile.averageAge == null ? '—' : number(profile.averageAge), 'Known player ages')}{cardStat('Points for', number(profile.pointsFor), leagueSeason + ' season')}</dl>
+                        <div className="tcmp-core" aria-label={profile.name + ' highest-value players'}>{profile.players.filter(player => Number.isFinite(scores[player.pid]) && scores[player.pid] >= 0).sort((a, b) => b.dhq - a.dhq).slice(0, 3).map(player => <button key={player.pid} title="Open player card" onClick={() => openPlayerCard(player.pid)} aria-label={'Open ' + player.p.full_name + ' player details'}><img src={'https://sleepercdn.com/content/nfl/players/thumb/' + player.pid + '.jpg'} alt="" onError={event => {
+                  event.currentTarget.style.display = 'none';
+                }} /><span>{player.p.last_name || player.p.full_name}</span></button>)}</div>
+                        <div className="tcmp-card-note"><span>{profile.pickCapital.valued ? 'Draft capital' : profile.pickCapital.disabled ? 'Waiver budget' : 'Draft rights'}</span><strong>{profile.pickCapital.valued ? number(profile.pickCapital.totalValue) + (profile.pickCapital.complete ? '' : '*') + ' · ' + profile.pickCapital.count + ' picks' : profile.pickCapital.disabled ? profile.faab.isFaab ? faabLeft(profile) + ' left' : 'No FAAB' : profile.pickCapital.complete ? profile.pickCapital.count + ' picks · unpriced' : 'Not fully reported'}</strong></div>
+                    </article>)}
+                </div>
+                {profiles.length > 4 ? <p className="tcmp-card-note">Featured: {focus.isMine ? 'your team' : focus.name} and three rivals. All {profiles.length} teams appear in the ranking below.</p> : null}
+                <div className="tcmp-read"><strong>The comparison read</strong><p>{read}</p>{gm.hasStrategy && focus.isMine ? <small title={gmPostureFrame.hint}>{gmPostureFrame.label}</small> : null}</div>
+                <div className="tcmp-strengths"><div><span>{focus.isMine ? 'Your' : focus.name + ' ·'} strongest advantage</span><strong>{strength ? posLabel(strength.pos) + ' · ' + signed(Math.round(strength.diff)) : 'No clear room advantage'}</strong><p>{strength ? 'Roster value over ' + (duel ? 'the opponent' : 'the other teams’ average') + '.' : 'No fully valued position has a positive gap.'}</p></div><div><span>{focus.isMine ? 'Your' : focus.name + ' ·'} biggest gap</span><strong>{exposure ? posLabel(exposure.pos) + ' · ' + signed(Math.round(exposure.diff)) : 'No clear room deficit'}</strong><p>{exposure ? 'Roster value below ' + (duel ? 'the opponent' : 'the other teams’ average') + '.' : 'No fully valued position has a negative gap.'}</p></div></div>
+                <div className="tcmp-panels">
+                    <section className="tcmp-panel"><div className="tcmp-panel-heading"><div><h3>{duel ? 'Position advantages' : 'Position leaderboard'}</h3><p>Full-roster {valueShortLabel} value by room</p></div><span>{activePositions.length} rooms</span></div>
+                        {duel ? <div className="tcmp-room-list">{activePositions.map(pos => {
+                const a = profiles[0],
+                  b = profiles[1],
+                  diff = (a.posTotals[pos] || 0) - (b.posTotals[pos] || 0);
+                const complete = a.posComplete[pos] && b.posComplete[pos];
+                const max = Math.max(1, a.posTotals[pos] || 0, b.posTotals[pos] || 0);
+                return <div className="tcmp-room-duel" key={pos}><header><span>{posLabel(pos)}</span><strong>{!complete ? 'Partial values' : diff === 0 ? 'Even' : (diff > 0 ? a.isMine ? 'You' : a.name : b.name) + ' +' + number(Math.abs(diff))}</strong></header><div className="tcmp-room-pair">{profiles.map(p => <div key={p.rosterId} className="tcmp-room-side" style={{
+                      '--team-accent': accent(p)
+                    }}><span>{p.isMine ? 'You' : p.name}</span><strong>{known(p.posTotals[pos] || 0, p.posComplete[pos])}</strong><div className="tcmp-track"><i style={{
+                          width: (p.posTotals[pos] || 0) / max * 100 + '%'
+                        }} /></div></div>)}</div></div>;
+              })}</div> : <React.Fragment><div className="tcmp-position-tabs" aria-label="Position to compare">{activePositions.map(pos => <button key={pos} aria-pressed={pos === activePos} onClick={() => setHeatPos(pos)}>{posLabel(pos)}</button>)}</div><div className="tcmp-position-ranks">{roomRanks.map(p => <div key={p.rosterId} className="tcmp-position-row" style={{
+                  '--team-accent': accent(p)
+                }}><span>{roomComplete ? '#' + rankPosition(p) : '—'}</span><strong>{p.name}</strong><div className="tcmp-track"><i style={{
+                      width: (p.posTotals[activePos] || 0) / roomMax * 100 + '%'
+                    }} /></div><span>{known(p.posTotals[activePos] || 0, p.posComplete[activePos])}</span></div>)}</div>{!roomComplete ? <p>Some room values are partial; no position ranks are awarded.</p> : null}</React.Fragment>}
+                    </section>
+                    <section className="tcmp-panel"><div className="tcmp-panel-heading"><div><h3>{duel ? 'The numbers side by side' : 'Team power board'}</h3><p>{duel ? 'Roster depth, capital, and waiver flexibility' : 'Ranked by ' + metricLabel.toLowerCase() + '. Open a rival to compare head to head.'}</p></div></div><div className="tcmp-ranking">{ranked.map(({
+                profile: p,
+                rank,
+                tied
+              }) => <div className="tcmp-rank-item" key={p.rosterId} data-mine={p.isMine} style={{
+                '--team-accent': accent(p)
+              }}><span className="tcmp-rank-number">{rank == null ? '—' : (tied ? '=' : '#') + rank}</span><button className="tcmp-rank-name" disabled={p.isMine} onClick={() => openDuel(p)} aria-label={p.isMine ? p.name + ', your team' : 'Compare against ' + p.name}><strong>{p.name}</strong><small>{p.isMine ? 'Your team · ' : ''}{p.record}</small></button><div className="tcmp-rank-value"><strong>{known(p[metric], completeFor(p))}</strong><small>{metricLabel}</small></div><dl className="tcmp-rank-stats">{cardStat('Roster', known(p.total, p.complete))}{cardStat('Starters', known(p.starterTotal, p.starterComplete))}{cardStat('Draft capital', p.pickCapital.valued ? number(p.pickCapital.totalValue) + (p.pickCapital.complete ? '' : '*') : '—')}{cardStat('FAAB left', p.faab.isFaab ? faabLeft(p) : '—')}</dl><div className="tcmp-track"><i style={{
+                    width: Math.min(100, p[metric] / topValue * 100) + '%'
+                  }} /></div></div>)}</div></section>
+                </div>
+                {duel ? renderTeamHistory(profiles[1]) : null}
+                <details className="tcmp-details"><summary>Draft capital & waiver budgets<small>Ownership, estimated values, and FAAB</small></summary><div className="tcmp-details-body">{['dynasty', 'keeper'].includes(resolvedLeagueSkin?.type) && window.App?.TeamComparisonData ? <div className="tcmp-draft-refresh"><button type="button" disabled={scopedDraftData?.loading} onClick={() => requestDraftRefresh()} style={smallButtonStyle(false)}>{scopedDraftData?.loading ? 'Checking draft ownership…' : 'Refresh draft data'}</button>{scopedDraftData?.error ? <p role="status">{scopedDraftData.error}</p> : null}</div> : null}<div className="tcmp-capital-grid">{profiles.map(p => <article key={p.rosterId}><h4>{p.name}</h4><p>{p.pickCapital.note}</p>{p.pickCapital.picks.length ? <React.Fragment><p>{p.pickCapital.count} picks{p.pickCapital.valued ? ' · ' + number(p.pickCapital.totalValue) + ' estimated ' + valueShortLabel : ' · unpriced rights'}</p><ul>{Object.entries(p.pickCapital.byYear).map(([year, count]) => <li key={year}>{year} · {count} picks</li>)}</ul><p>Top picks: {p.pickCapital.topPicks.map(pick => pick.label).join(' · ')}</p></React.Fragment> : null}<p>{p.faab.isFaab ? p.faab.remaining == null ? 'FAAB budget or spending is unreported.' : faabLeft(p) + ' of $' + p.faab.budget + ' FAAB remaining' : 'No FAAB budget in this league'}</p></article>)}</div></div></details>
+                <details className="tcmp-details"><summary>Full rosters by position<small>Open any player for the full card</small></summary><div className="tcmp-details-body">{profiles.length > 4 ? <p>Showing the four featured teams. Open a rival from the power board for a full head-to-head roster comparison.</p> : null}{activePositions.map(pos => {
+              const atPos = detailProfiles.map(profile => ({
+                profile,
+                players: profile.players.filter(p => p.pos === pos).sort((a, b) => b.dhq - a.dhq)
+              }));
+              const maxLen = Math.max(0, ...atPos.map(column => column.players.length));
+              if (!maxLen) return null;
+              const cap = isPhone ? 4 : 6,
+                expanded = expandedRosterPos.has(pos);
+              return <section className="tcmp-roster-room" key={pos}><h4>{posLabel(pos)}{gmTargetPositions.has(pos) ? ' · Strategy target' : ''}</h4><div className="tcmp-roster-grid" style={{
+                  '--team-count': detailProfiles.length
+                }}>{atPos.map(({
                     profile,
-                    total: playersAtPos.reduce((s, r) => s + r.dhq, 0),
-                    players: playersAtPos,
-                };
-            });
-            const maxLen = Math.max(0, ...columns.map(col => col.players.length));
-            const leader = [...columns].sort((a, b) => b.total - a.total)[0];
-            return { pos, columns, maxLen, leaderId: leader?.profile?.rosterId };
-        }).filter(summary => summary.maxLen > 0) : [];
-        const fieldCards = [
-            { label: 'Asset Rank', value: '#' + focusRank + ' of ' + profiles.length, sub: percentile + 'th percentile incl. picks', color: focusRank <= Math.ceil(profiles.length / 3) ? 'var(--good)' : focusRank <= Math.ceil(profiles.length * 0.66) ? 'var(--gold)' : 'var(--bad)' },
-            { label: 'Roster vs Field', value: (focusProfile.total - fieldAvg > 0 ? '+' : '') + (focusProfile.total - fieldAvg).toLocaleString(), sub: focusProfile.total.toLocaleString() + ' vs ' + fieldAvg.toLocaleString() + ' avg', color: focusProfile.total >= fieldAvg ? 'var(--good)' : 'var(--bad)' },
-            { label: 'Starter vs Field', value: (focusProfile.starterTotal - starterAvg > 0 ? '+' : '') + (focusProfile.starterTotal - starterAvg).toLocaleString(), sub: focusProfile.starterTotal.toLocaleString() + ' vs ' + starterAvg.toLocaleString() + ' avg', color: focusProfile.starterTotal >= starterAvg ? 'var(--good)' : 'var(--bad)' },
-            { label: 'Picks vs Field', value: ((focusProfile.pickCapital.totalValue - pickAvg) > 0 ? '+' : '') + (focusProfile.pickCapital.totalValue - pickAvg).toLocaleString(), sub: focusProfile.pickCapital.count + ' picks vs ' + Math.round(comparisonProfiles.reduce((s, p) => s + (p.pickCapital?.count || 0), 0) / Math.max(comparisonProfiles.length, 1)) + ' avg', color: focusProfile.pickCapital.totalValue >= pickAvg ? 'var(--good)' : 'var(--bad)' },
-            { label: 'FAAB vs Field', value: focusProfile.faab.isFaab ? ((focusProfile.faab.remaining - faabAvg) > 0 ? '+$' : '-$') + Math.abs(focusProfile.faab.remaining - faabAvg).toLocaleString() : '—', sub: focusProfile.faab.label, color: !focusProfile.faab.isFaab ? 'var(--silver)' : focusProfile.faab.remaining >= faabAvg ? 'var(--good)' : 'var(--bad)' },
-            { label: 'Best Room', value: strongest ? posLabel(strongest.pos) : '-', sub: strongest ? ((strongest.diff > 0 ? '+' : '') + strongest.diff.toLocaleString() + ' vs avg') : '-', color: 'var(--good)' },
-            { label: 'Danger Room', value: weakest ? posLabel(weakest.pos) : '-', sub: weakest ? ((weakest.diff > 0 ? '+' : '') + weakest.diff.toLocaleString() + ' vs avg') : '-', color: weakest?.diff < 0 ? 'var(--bad)' : 'var(--gold)' },
-        ];
-        // Phone column-set (plan D6): Field Ranking drops to the 4 decision
-        // columns (# · Team · Assets · Edge) at ≤767 — column-drop, not squish.
-        const rankGridCols = isPhone
-            ? '34px minmax(0,1.5fr) minmax(0,.75fr) minmax(0,.9fr)'
-            : '34px minmax(0,1.15fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.46fr) minmax(0,.4fr) minmax(0,.4fr) minmax(0,.62fr)';
-        const fieldLead = focusProfile.isMine ? 'You' : focusProfile.name;
-        // Tiered standing by percentile (rank among the field), owner ask.
-        const fieldTier = percentile >= 80 ? { label: 'Top of the heap', color: 'var(--good)' }
-            : percentile >= 55 ? { label: 'Front runner', color: 'var(--gold)' }
-            : percentile >= 30 ? { label: 'Middle of the pack', color: 'var(--silver)' }
-            : { label: 'Back of the pack', color: 'var(--bad)' };
-        const fieldRead = focusProfile.isMine ? fieldTier.label : (focusProfile.total >= fieldAvg ? 'Above field avg' : 'Below field avg');
-        const fieldReadColor = focusProfile.isMine ? fieldTier.color : (focusProfile.total >= fieldAvg ? 'var(--good)' : 'var(--bad)');
-
-        const renderTeamChip = (profile) => (
-            <div key={profile.rosterId} style={{ padding: '9px 10px', background: profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid ' + (profile.isMine ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-4, rgba(255,255,255,0.07))'), borderRadius: 'var(--card-radius-sm, 8px)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline' }}>
-                    <div style={{ minWidth: 0 }}>
-                        <div style={{ color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.name}</div>
-                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, marginTop: '2px' }}>{profile.record} - {getDivisionName(profile.division)}</div>
-                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.52, marginTop: '2px' }}>{profile.pickCapital.count} picks · {profile.faab.isFaab ? '$' + profile.faab.remaining + ' FAAB' : 'No FAAB'}</div>
-                    </div>
-                    <div style={{ ...mono, color: profile.isMine ? 'var(--gold)' : 'var(--silver)', fontWeight: 800 }}>{profile.totalAssets.toLocaleString()}</div>
-                </div>
-                <div style={{ height: '4px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' }}>
-                    <div style={{ width: (profile.totalAssets / maxTotal * 100) + '%', height: '100%', background: profile.isMine ? 'var(--gold)' : 'var(--k-7c6bf8, #7c6bf8)' }}></div>
-                </div>
-            </div>
-        );
-        const renderFieldPlayerCell = (player, column, rowBestDhq) => {
-            if (!player) {
-                return (
-                    <div style={{
-                        minHeight: '46px',
-                        padding: '8px',
-                        borderRadius: 'var(--card-radius-sm, 8px)',
-                        border: '1px solid var(--ov-3, rgba(255,255,255,0.04))',
-                        background: 'var(--ov-1, rgba(255,255,255,0.018))',
-                        color: 'var(--ov-8, rgba(255,255,255,0.28))',
-                        fontSize: isPhone ? '14px' : '0.72rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                    }}>No player</div>
-                );
-            }
-            const isRowBest = player.dhq > 0 && player.dhq === rowBestDhq;
-            const isMine = column.profile.isMine;
-            const dhqCol = player.dhq >= 7000 ? 'var(--good)' : player.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : player.dhq >= 1000 ? 'var(--silver)' : 'var(--ov-9, rgba(255,255,255,0.5))';
-            return (
-                <div
-                    role="button"
-                    tabIndex={0}
-                    title="Open player card"
-                    onClick={() => openPlayerCard(player.pid)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPlayerCard(player.pid); } }}
-                    style={{
-                    minHeight: '46px',
-                    padding: '8px',
-                    borderRadius: 'var(--card-radius-sm, 8px)',
-                    border: '1px solid ' + (isRowBest ? 'rgba(46,204,113,0.28)' : isMine ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-4, rgba(255,255,255,0.055))'),
-                    background: isRowBest ? 'rgba(46,204,113,0.07)' : isMine ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'var(--ov-1, rgba(255,255,255,0.024))',
-                    cursor: 'pointer',
-                    minWidth: 0,
-                }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
-                        {!isPhone && <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+player.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'24px',height:'24px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: 'var(--white)', fontSize: isPhone ? '16px' : '0.76rem', fontWeight: 800, whiteSpace: isPhone ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.p?.full_name || '?'}</div>
-                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.66, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {player.team} {player.age != null ? '· ' + player.age + 'yo' : ''}{player.ppg > 0 ? ' · ' + player.ppg + ' PPG' : ''} · {player.peakYrs > 0 ? player.peakYrs + 'yr peak' : player.valueYrs + 'yr value'}
-                            </div>
-                        </div>
-                        <div style={{ ...mono, color: dhqCol, fontSize: isPhone ? '14px' : '0.72rem', fontWeight: 850, flexShrink: 0 }}>{player.dhq > 0 ? player.dhq.toLocaleString() : '-'}</div>
-                    </div>
-                </div>
-            );
-        };
-        const renderFieldRosterBreakdown = () => {
-            if (profiles.length > 4) {
-                return (
-                    <div style={{ ...panelStyle, padding: '14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: 'var(--white)', letterSpacing: 0 }}>Full Breakdown</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.66, marginTop: '2px' }}>Available for up to 4 total teams so the player-level columns stay readable.</div>
-                        </div>
-                        <div style={{ ...mono, color: 'var(--gold)', fontSize: isPhone ? '14px' : '0.76rem', fontWeight: 850 }}>{profiles.length} teams selected</div>
-                    </div>
-                );
-            }
-
-            return (
-                <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                        <div>
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Breakdown</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.62, marginTop: '2px' }}>Player-level rooms across {profiles.length} teams. Click any player to open the card.</div>
-                        </div>
-                        <div style={{ ...mono, color: 'var(--silver)', fontSize: isPhone ? '14px' : '0.72rem' }}>{profiles.length} teams</div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '8px', marginBottom: '12px' }}>
-                        {profiles.map(profile => (
-                            <div key={'capital-' + profile.rosterId} style={{ padding: '10px', borderRadius: 'var(--card-radius-sm, 8px)', background: profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (profile.isMine ? 'var(--acc-line1, rgba(212,175,55,0.26))' : 'var(--ov-4, rgba(255,255,255,0.06))') }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline', marginBottom: '7px' }}>
-                                    <div style={{ color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.name}</div>
-                                    <div style={{ ...mono, color: profile.isMine ? 'var(--gold)' : 'var(--silver)', fontSize: isPhone ? '14px' : '0.72rem', fontWeight: 850 }}>{profile.totalAssets.toLocaleString()}</div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px' }}>
-                                    <div>
-                                        <div style={labelStyle}>Roster</div>
-                                        <div style={{ ...mono, color: 'var(--white)', fontSize: isPhone ? '14px' : '0.72rem', fontWeight: 850 }}>{profile.total.toLocaleString()}</div>
-                                    </div>
-                                    <div>
-                                        <div style={labelStyle}>Picks</div>
-                                        <div style={{ ...mono, color: profile.pickCapital.totalValue >= focusProfile.pickCapital.totalValue ? 'var(--good)' : 'var(--silver)', fontSize: isPhone ? '14px' : '0.72rem', fontWeight: 850 }}>{Math.round(profile.pickCapital.totalValue / 1000)}k</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.56 }}>{profile.pickCapital.count} picks</div>
-                                    </div>
-                                    <div>
-                                        <div style={labelStyle}>FAAB</div>
-                                        <div style={{ ...mono, color: profile.faab.isFaab ? (profile.faab.remaining >= focusProfile.faab.remaining ? 'var(--good)' : 'var(--silver)') : 'var(--ov-8, rgba(255,255,255,0.32))', fontSize: isPhone ? '14px' : '0.72rem', fontWeight: 850 }}>{profile.faab.isFaab ? '$' + profile.faab.remaining : '—'}</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.56 }}>{profile.faab.isFaab ? profile.faab.pct + '%' : 'No FAAB'}</div>
-                                    </div>
-                                </div>
-                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    Best picks: {profile.pickCapital.topPicks.length ? profile.pickCapital.topPicks.slice(0, 2).map(p => p.label).join(' · ') : 'None'}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    {positionBreakdowns.map(summary => {
-                        const maxTotalAtPos = Math.max(1, ...summary.columns.map(col => col.total));
-                        // Phone: up to 4 team columns of player cells can't fit 375 —
-                        // panel becomes the horizontal scroll container and every row
-                        // (header included) shares one explicit px minimum so team
-                        // columns hold ≥140px instead of squishing.
-                        const bdCols = summary.columns.length;
-                        const bdGrid = isPhone ? ('40px repeat(' + bdCols + ', minmax(140px, 1fr))') : ('72px repeat(' + bdCols + ', minmax(0, 1fr))');
-                        const bdMinW = isPhone ? (60 + bdCols * 148) + 'px' : undefined; // 40px label + N*(140+8px gap) + 20px row padding (border-box)
-                        return (
-                            <div key={'field-breakdown-' + summary.pos} style={{ ...panelStyle, marginBottom: '12px', ...(isPhone ? { overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' } : { overflow: 'hidden' }) }}>
-                                <div style={{ padding: '10px', minWidth: bdMinW, background: (posColors[summary.pos] || 'var(--k-666666, #666666)') + '14', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: bdGrid, gap: '8px', alignItems: 'end' }}>
-                                        <div style={{ fontFamily: 'var(--font-body)', fontSize: isPhone ? '14px' : '0.78rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{posLabel(summary.pos)}</div>
-                                        {summary.columns.map(column => {
-                                            const isLeader = summary.leaderId === column.profile.rosterId;
-                                            return (
-                                                <div key={summary.pos + '-head-' + column.profile.rosterId} style={{ minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', alignItems: 'baseline' }}>
-                                                        <span style={{ color: column.profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{column.profile.name}</span>
-                                                        <span style={{ ...mono, color: isLeader ? 'var(--good)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850 }}>{column.total.toLocaleString()}</span>
-                                                    </div>
-                                                    <div style={{ height: '4px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden', marginTop: '5px' }}>
-                                                        <div style={{ width: (column.total / maxTotalAtPos * 100) + '%', height: '100%', background: isLeader ? 'var(--good)' : column.profile.isMine ? 'var(--gold)' : 'var(--k-7c6bf8, #7c6bf8)' }}></div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                {Array.from({ length: summary.maxLen }).map((_, rowIdx) => {
-                                    const rowBestDhq = Math.max(0, ...summary.columns.map(column => column.players[rowIdx]?.dhq || 0));
-                                    return (
-                                        <div key={summary.pos + '-row-' + rowIdx} style={{ display: 'grid', gridTemplateColumns: bdGrid, minWidth: bdMinW, gap: '8px', padding: '7px 10px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))', alignItems: 'stretch' }}>
-                                            <div style={{ ...mono, color: 'var(--silver)', opacity: 0.56, fontSize: 'var(--text-micro, 0.6875rem)', alignSelf: 'center' }}>#{rowIdx + 1}</div>
-                                            {summary.columns.map(column => (
-                                                <div key={summary.pos + '-' + rowIdx + '-' + column.profile.rosterId} style={{ minWidth: 0 }}>
-                                                    {renderFieldPlayerCell(column.players[rowIdx], column, rowBestDhq)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        );
-                    })}
-                </div>
-            );
-        };
-
-        // Phone (P7): the Field Ranking re-pours as a shared sticky table —
-        // the ≤767 column-drop (rankGridCols) is superseded by the full
-        // column set inside a scoped .wr-sticky-table-wrap scroller with a
-        // pinned #/team column, so no column is lost on phone. Values and
-        // color logic mirror the desktop cells exactly.
-        const renderPhoneRankTable = () => <div className="la-field-ranking">{sortedProfiles.map((profile, idx) => {
-            const isFocus = sameId(profile.rosterId, focusProfile.rosterId);
-            const roomsWon = allPositions.filter(pos => (profile.posTotals[pos] || 0) > (focusProfile.posTotals[pos] || 0)).length;
-            const roomsLost = allPositions.filter(pos => (profile.posTotals[pos] || 0) < (focusProfile.posTotals[pos] || 0)).length;
-            const diff = profile.totalAssets - focusProfile.totalAssets;
-            const fields = [['Roster value', profile.total.toLocaleString()], ['Starter value', profile.starterTotal.toLocaleString()], ['Draft capital', profile.pickCapital.totalValue.toLocaleString()], ['FAAB', profile.faab.isFaab ? '$' + profile.faab.remaining : 'No FAAB'], ['Position rooms', isFocus ? (profile.isMine ? 'You' : 'Focus') : roomsWon + ' ahead · ' + roomsLost + ' behind'], ['Edge', isFocus ? (profile.topPlayer?.p?.full_name || 'No player data') : (diff > 0 ? '+' : '') + diff.toLocaleString()]];
-            return <details key={profile.rosterId} className="la-report-row"><summary><span><strong>#{idx + 1} {profile.name}</strong><small>{profile.record} · {getDivisionName(profile.division)}</small></span><span className="la-main-value"><strong>{profile.totalAssets.toLocaleString()}</strong><small>Assets</small></span><span className="la-detail-cue" aria-hidden="true">+</span></summary><dl className="la-fields">{fields.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details>;
-        })}</div>;
-
-        return (
-            <div>
-                <div style={{ ...panelStyle, padding: '18px 20px', marginBottom: '14px', background: 'linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.055)), rgba(52,152,219,0.045))' }}>
-                    {isPhone ? (
-                        // Phone (owner ask): lead with the tier verdict, then rank
-                        // + strongest/weakest room — no floating right-aligned block.
-                        <div style={{ marginBottom: '14px' }}>
-                            <div style={labelStyle}>{fieldLabel}</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.55rem', fontWeight: 850, color: fieldReadColor, letterSpacing: 0, lineHeight: 1.08, margin: '2px 0 5px' }}>{fieldRead}</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.82rem', color: 'var(--silver)' }}>{fieldLead} vs {comparisonProfiles.length}-team field · <b style={{ color: 'var(--white)' }}>#{focusRank} of {profiles.length}</b></div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.8rem', color: 'var(--silver)', marginTop: '5px' }}>Strongest room <b style={{ color: 'var(--good)' }}>{strongest ? posLabel(strongest.pos) : '—'}</b> · Weakest room <b style={{ color: 'var(--bad)' }}>{weakest ? posLabel(weakest.pos) : '—'}</b></div>
-                        </div>
-                    ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                        <div>
-                            <div style={labelStyle}>{fieldLabel}</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem', color: 'var(--white)', fontWeight: 850, letterSpacing: 0 }}>{fieldLead} vs {comparisonProfiles.length} team field</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.76rem', color: 'var(--silver)', opacity: 0.72 }}>{fieldSub}</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={labelStyle}>Field Read</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: fieldReadColor, letterSpacing: 0 }}>
-                                {fieldRead}
-                            </div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>
-                                Strongest room: {strongest ? posLabel(strongest.pos) : 'Roster'}; weakest room: {weakest ? posLabel(weakest.pos) : 'depth'}.
-                            </div>
-                        </div>
-                    </div>
-                    )}
-                    {/* Phone (P4): the KPI cards ride a horizontally snapping
-                        .wr-kpi-strip instead of a stacked grid. */}
-                    <ComparePhoneSection phone={isPhone} title="Field benchmarks"><div className={isPhone ? 'wr-kpi-strip' : undefined} style={isPhone ? undefined : { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '9px' }}>
-                        {fieldCards.map(card => (
-                            <div key={card.label} style={{ padding: '10px', background: 'rgba(0,0,0,0.24)', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius-sm, 8px)', ...(isPhone ? { width: '156px' } : null) }}>
-                                <div style={labelStyle}>{card.label}</div>
-                                <div style={{ ...mono, fontSize: '1rem', color: card.color, fontWeight: 850, marginTop: '5px' }}>{card.value}</div>
-                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, marginTop: '2px' }}>{card.sub}</div>
-                            </div>
-                        ))}
-                    </div></ComparePhoneSection>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 520px), 1fr))', gap: '14px', marginBottom: '14px' }}>
-                    <div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline', marginBottom: '12px' }}>
-                            <div>
-                                <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: 'var(--white)', letterSpacing: 0 }}>Field Ranking</div>
-                                <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.66 }}>Roster value, starter value, draft capital, FAAB, and best player.</div>
-                            </div>
-                            <div style={{ ...mono, color: 'var(--gold)', fontWeight: 850 }}>{profiles.length} teams</div>
-                        </div>
-                        {isPhone ? renderPhoneRankTable() : (
-                        <div style={{ display: 'grid', gap: '7px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: rankGridCols, gap: '8px', padding: '0 9px 2px', fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.54, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                <span>#</span><span>Team</span><span>Assets</span>{isPhone ? null : <React.Fragment><span>Roster</span><span>Start</span><span>Picks</span><span>FAAB</span><span>Rooms</span></React.Fragment>}<span>Edge</span>
-                            </div>
-                            {sortedProfiles.map((profile, idx) => {
-                                const isFocus = sameId(profile.rosterId, focusProfile.rosterId);
-                                const roomsWon = allPositions.filter(pos => (profile.posTotals[pos] || 0) > (focusProfile.posTotals[pos] || 0)).length;
-                                const roomsLost = allPositions.filter(pos => (profile.posTotals[pos] || 0) < (focusProfile.posTotals[pos] || 0)).length;
-                                const diff = profile.totalAssets - focusProfile.totalAssets;
-                                return (
-                                    <div key={profile.rosterId} style={{ display: 'grid', gridTemplateColumns: rankGridCols, gap: '8px', alignItems: 'center', padding: '8px 9px', borderRadius: 'var(--card-radius-sm, 8px)', background: profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (profile.isMine ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-4, rgba(255,255,255,0.055))'), fontSize: isPhone ? '14px' : '0.72rem' }}>
-                                        <div style={{ ...mono, color: profile.isMine ? 'var(--gold)' : 'var(--silver)', fontWeight: 850 }}>#{idx + 1}</div>
-                                        <div style={{ minWidth: 0 }}>
-                                            <div style={{ color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.name}</div>
-                                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62 }}>{getDivisionName(profile.division)} - {profile.record}</div>
-                                        </div>
-                                        <div style={{ ...mono, color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800 }}>{profile.totalAssets.toLocaleString()}</div>
-                                        {isPhone ? null : <React.Fragment>
-                                        <div style={{ ...mono, color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800 }}>{profile.total.toLocaleString()}</div>
-                                        <div>
-                                            <div style={{ ...mono, color: 'var(--silver)', fontWeight: 800 }}>{profile.starterTotal.toLocaleString()}</div>
-                                            <div style={{ height: '3px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}><div style={{ width: (profile.starterTotal / maxStarter * 100) + '%', height: '100%', background: profile.isMine ? 'var(--gold)' : 'var(--k-7c6bf8, #7c6bf8)' }}></div></div>
-                                        </div>
-                                        <div style={{ ...mono, color: profile.pickCapital.totalValue >= focusProfile.pickCapital.totalValue ? 'var(--good)' : 'var(--silver)', fontWeight: 800 }}>{Math.round(profile.pickCapital.totalValue / 1000)}k</div>
-                                        <div style={{ ...mono, color: profile.faab.isFaab ? (profile.faab.remaining >= focusProfile.faab.remaining ? 'var(--good)' : 'var(--silver)') : 'var(--ov-8, rgba(255,255,255,0.32))', fontWeight: 800 }}>{profile.faab.isFaab ? '$' + profile.faab.remaining : '—'}</div>
-                                        <div style={{ color: isFocus ? 'var(--silver)' : roomsWon > roomsLost ? 'var(--bad)' : roomsWon < roomsLost ? 'var(--good)' : 'var(--silver)' }}>
-                                            {isFocus ? (profile.isMine ? 'You' : 'Focus') : roomsWon + '-' + roomsLost}
-                                        </div>
-                                        </React.Fragment>}
-                                        <div style={{ minWidth: 0, color: isFocus ? (profile.isMine ? 'var(--gold)' : 'var(--silver)') : diff > 0 ? 'var(--bad)' : 'var(--good)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {isFocus ? (profile.topPlayer?.p?.full_name || 'Top player') : (diff > 0 ? '+' : '') + diff.toLocaleString()}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        )}
-                    </div>
-
-                    <ComparePhoneSection phone={isPhone} title="Position rankings"><div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: 'var(--white)', letterSpacing: 0, marginBottom: '12px' }}>Position Heatmap</div>
-                        {/* Phone (≤767): the grid's 456px track minimum can't fit — the grid
-                            itself becomes the scroll container with a sticky team column
-                            (My Roster pattern; zebra differs here, so each sticky cell paints
-                            its translucent fill over an opaque --black underlay instead of
-                            background:'inherit'). Tablet/desktop: identical to before. */}
-                        {isPhone ? (() => {
-                            // Phone: the 9-column grid is unreadable at 375px, so
-                            // pivot to a position toggle + a ranked team leaderboard
-                            // for the picked position (owner ask). Desktop keeps the
-                            // grid (the else branch below, untouched).
-                            const activePos = (heatPos && allPositions.includes(heatPos)) ? heatPos : allPositions[0];
-                            const ranked = [...sortedProfiles].sort((a, b) => (b.posTotals[activePos] || 0) - (a.posTotals[activePos] || 0));
-                            const maxV = maxByPos[activePos] || 1;
-                            const myRank = ranked.findIndex(p => p.isMine) + 1;
-                            return (
-                            <React.Fragment>
-                                <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '6px' }}>
-                                    {allPositions.map(pos => { const on = pos === activePos, c = posColors[pos] || 'var(--silver)'; return <button key={pos} onClick={() => setHeatPos(pos)} style={{ flex: 'none', minHeight: '40px', padding: '7px 13px', borderRadius: 'var(--card-radius-sm, 8px)', ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? c : 'var(--silver)', background: on ? 'rgba(255,255,255,0.06)' : 'transparent', border: '1px solid ' + (on ? c : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{posLabel(pos)}</button>; })}
-                                </div>
-                                <div style={{ fontSize: isPhone ? '14px' : '0.76rem', color: 'var(--silver)', margin: '2px 2px 8px', lineHeight: 1.4 }}>Every team's <b style={{ color: posColors[activePos] || 'var(--white)' }}>{posLabel(activePos)}</b> value{myRank > 0 ? <React.Fragment> — you rank <b style={{ color: 'var(--gold)' }}>#{myRank} of {ranked.length}</b></React.Fragment> : ''}.</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {ranked.map((p, i) => { const val = p.posTotals[activePos] || 0, isLead = i === 0; const barC = p.isMine ? 'var(--gold)' : isLead ? 'var(--good)' : 'var(--k-7c6bf8, #7c6bf8)'; return (
-                                        <div className="la-position-ranking" key={p.rosterId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: p.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (p.isMine ? 'rgba(212,175,55,0.4)' : 'var(--ov-4, rgba(255,255,255,0.06))') }}>
-                                            <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--text-muted, #8B8B96)', minWidth: '20px' }}>{i + 1}</span>
-                                            <span style={{ flex: 1, minWidth: 0, fontSize: isPhone ? '14px' : '0.85rem', fontWeight: 600, color: p.isMine ? 'var(--gold)' : 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                            {isLead ? <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.56rem', fontWeight: 800, color: 'var(--good)', letterSpacing: '0.06em' }}>TOP</span> : null}
-                                            <div style={{ flex: '0 0 82px', height: '6px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: (val / maxV * 100) + '%', height: '100%', background: barC }} /></div>
-                                            <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.78rem', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--silver)', minWidth: '34px', textAlign: 'right' }}>{Math.round(val / 1000)}k</span>
-                                        </div>
-                                    ); })}
-                                </div>
-                            </React.Fragment>
-                            );
-                        })() : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(112px,1.2fr) repeat(8,minmax(38px,1fr))', gap: '5px', alignItems: 'stretch' }}>
-                            <div style={{ ...labelStyle }}>Team</div>
-                            {allPositions.map(pos => <div key={pos} style={{ ...labelStyle, textAlign: 'center', color: posColors[pos] || 'var(--silver)' }}>{posLabel(pos)}</div>)}
-                            {sortedProfiles.map(profile => {
-                                const teamFill = profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : 'var(--ov-2, rgba(255,255,255,0.025))';
-                                return (
-                                <React.Fragment key={'hm-' + profile.rosterId}>
-                                    <div style={{ padding: '7px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: teamFill, color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.name}</div>
-                                    {allPositions.map(pos => {
-                                        const val = profile.posTotals[pos] || 0;
-                                        const isBest = bestByPos[pos] === profile.rosterId;
-                                        const isMine = profile.isMine;
-                                        return (
-                                            <div key={profile.rosterId + '-' + pos} title={profile.name + ' ' + pos + ': ' + val.toLocaleString()} style={{ padding: '6px 5px', borderRadius: 'var(--card-radius-xs, 5px)', background: isBest ? 'rgba(46,204,113,0.14)' : isMine ? 'var(--acc-fill2, rgba(212,175,55,0.09))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (isBest ? 'rgba(46,204,113,0.22)' : 'var(--ov-3, rgba(255,255,255,0.04))'), textAlign: 'center' }}>
-                                                <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', color: isBest ? 'var(--good)' : isMine ? 'var(--gold)' : 'var(--silver)', fontWeight: 800 }}>{Math.round(val / 1000)}k</div>
-                                                <div style={{ height: '3px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}><div style={{ width: (val / maxByPos[pos] * 100) + '%', height: '100%', background: isBest ? 'var(--good)' : isMine ? 'var(--gold)' : 'var(--k-7c6bf8, #7c6bf8)' }}></div></div>
-                                            </div>
-                                        );
-                                    })}
-                                </React.Fragment>
-                                );
-                            })}
-                        </div>
-                        )}
-                    </div></ComparePhoneSection>
-                </div>
-
-                <ComparePhoneSection phone={isPhone} title="Full rosters by position">{renderFieldRosterBreakdown()}</ComparePhoneSection>
-
-                {divisionKeys.length > 1 && (compareScope === 'division' || compareScope === 'league') ? (
-                    <ComparePhoneSection phone={isPhone} title="Division boards"><div style={{ ...panelStyle, padding: '14px', marginBottom: '14px' }}>
-                        <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: 'var(--white)', letterSpacing: 0, marginBottom: '10px' }}>Division Boards</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                            {Object.entries(divisionProfiles).sort(([a], [b]) => Number(a) - Number(b)).map(([key, list]) => (
-                                <div key={key} style={{ padding: '10px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ color: 'var(--gold)', fontWeight: 850, marginBottom: '8px' }}>{getDivisionName(key)}</div>
-                                    {[...list].sort((a, b) => b.total - a.total).map((p, idx) => (
-                                        <div key={p.rosterId} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', gap: '7px', alignItems: 'center', padding: '5px 0', borderTop: idx ? '1px solid var(--ov-3, rgba(255,255,255,0.045))' : 'none' }}>
-                                            <div style={{ ...mono, color: p.isMine ? 'var(--gold)' : 'var(--silver)' }}>#{idx + 1}</div>
-                                            <div style={{ color: p.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                                            <div style={{ ...mono, color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.total.toLocaleString()}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    </div></ComparePhoneSection>
-                ) : null}
-
-                {/* Team-card field grid — redundant with the phone rank table
-                    above, so desktop-only on phone (owner ask). */}
-                {!isPhone && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '8px' }}>
-                    {profiles.map(renderTeamChip)}
-                </div>
-                )}
-            </div>
-        );
+                    players
+                  }) => <div className="tcmp-roster-column" key={profile.rosterId}><h5>{profile.name}</h5>{players.length ? players.slice(0, expanded ? undefined : cap).map(player => <button title="Open player card" className="tcmp-roster-player" key={player.pid} onClick={() => openPlayerCard(player.pid)}><img src={'https://sleepercdn.com/content/nfl/players/thumb/' + player.pid + '.jpg'} alt="" onError={e => {
+                        e.currentTarget.style.display = 'none';
+                      }} /><span><strong>{player.p.full_name}</strong><small>{player.team}{player.ppg != null ? ' · ' + player.ppg + ' ' + player.ppgLabel : ''}</small></span><b>{Number.isFinite(scores[player.pid]) && scores[player.pid] >= 0 ? number(player.dhq) : '—'}</b></button>) : <p>No players</p>}</div>)}</div>{maxLen > cap ? <button style={smallButtonStyle(false)} onClick={() => setExpandedRosterPos(previous => {
+                  const next = new Set(previous);
+                  if (next.has(pos)) next.delete(pos);else next.add(pos);
+                  return next;
+                })}>{expanded ? 'Show top ' + cap : 'Show all ' + posLabel(pos) + ' players'}</button> : null}</section>;
+            })}</div></details>
+                <div className="tcmp-notes"><p>Values measure roster assets, not weekly projections or win probability. Starter value uses the submitted lineup; bench / reserves includes every other rostered player.</p>{profiles.some(p => !p.complete || !p.starterComplete || p.pickCapital.valued && !p.pickCapital.complete) ? <p>* Partial value: player values, starter slots, or draft ownership are unreported. Ranks require complete values.</p> : null}{profiles.some(p => p.pickCapital.valued) ? <p>Draft values are estimates using mid-round slots. Draft capital is separate from roster value unless you choose “Roster + draft value.”</p> : null}<p>Average age uses known player ages. Records and points for are reported season totals.</p></div>
+                <footer className="tcmp-footer"><span>DYNASTY HQ</span><span>Your league. Your scoring. Your edge.</span></footer>
+            </section>;
+    };
+    const renderTeamHistory = opponent => {
+      const meetings = h2hState.loadedFor && sameId(h2hState.loadedFor, opponent.rosterId) ? h2hState.meetings : [];
+      const wins = meetings.filter(m => m.result === 'W').length,
+        losses = meetings.filter(m => m.result === 'L').length,
+        ties = meetings.filter(m => m.result === 'T').length;
+      const championships = intelReady ? window.App?.LI?.championships : null;
+      const titleCount = id => Object.values(championships || {}).filter(c => sameId(c.champion, id)).length;
+      const brackets = Object.values(intelReady ? window.App?.LI?.bracketData || {} : {}).filter(entry => entry.winners?.length);
+      const playoffRecord = window.WrHistory?.playoffRecord;
+      const sumPlayoffs = id => brackets.reduce((total, entry) => {
+        const record = playoffRecord(entry.winners, id);
+        return { w: total.w + record.w, l: total.l + record.l };
+      }, { w: 0, l: 0 });
+      const playoffMine = brackets.length && typeof playoffRecord === 'function' ? sumPlayoffs(myRoster.roster_id) : null;
+      const playoffTheirs = playoffMine ? sumPlayoffs(opponent.rosterId) : null;
+      return <details className="tcmp-details"><summary>Rivalry history<small>{h2hState.loading ? 'Loading meetings…' : meetings.length ? wins + '-' + losses + (ties ? '-' + ties : '') + ' across ' + meetings.length + ' meetings' : 'Past meetings and championships'}</small></summary><div className="tcmp-details-body"><p>Completed regular-season meetings between the current owners in the linked Sleeper league history.</p>{h2hState.loading ? <p>Loading owner-vs-owner history…</p> : meetings.length ? meetings.slice(0, 12).map(m => <div className="tcmp-history-row" key={m.season + '-' + m.week + '-' + m.matchupId}><span>{m.season} · W{m.week}</span><strong>{m.result} · {m.myPoints.toFixed(2)} – {m.theirPoints.toFixed(2)}</strong><span>{m.margin > 0 ? '+' : ''}{m.margin.toFixed(2)}</span></div>) : <p>{h2hState.error || 'No completed meetings found in the available linked history.'}</p>}{meetings.length > 12 ? <p>{meetings.length - 12} older meetings also included in the record.</p> : null}<p>{championships && Object.keys(championships).length ? myName + ': ' + titleCount(myRoster.roster_id) + ' titles · ' + opponent.name + ': ' + titleCount(opponent.rosterId) + ' titles in the available league history.' : 'Championship history is not available.'}</p>{playoffMine ? <p>Franchise playoff records: {myName} {playoffMine.w}-{playoffMine.l} · {opponent.name} {playoffTheirs.w}-{playoffTheirs.l}. Championship-path games only, from the available history.</p> : null}</div></details>;
     };
 
     // ── Players mode ─────────────────────────────────────────────────────────
@@ -1218,6 +946,7 @@ function CompareTab({
             <div style={{ position: 'relative', minWidth: '230px', flex: '1 1 250px', maxWidth: '440px' }}>
                 <input
                     ref={playerSearchRef}
+                    aria-label="Search players to compare"
                     value={playerQuery}
                     onChange={e => setPlayerQuery(e.target.value)}
                     placeholder={atMax ? 'Four players max — remove one to swap' : 'Search a player to compare…'}
@@ -1231,7 +960,7 @@ function CompareTab({
                                 <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} onError={e => e.target.style.display = 'none'} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                                 <span style={{ flex: 1, minWidth: 0, color: 'var(--white)', fontSize: isPhone ? '14px' : '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: posColors[r.pos] || 'var(--silver)', fontWeight: 800 }}>{posLabel(r.pos)} · {r.team}</span>
-                                <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontWeight: 800 }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '—'}</span>
+                                <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontWeight: 800 }}>{Number.isFinite(scores[r.pid]) && scores[r.pid] >= 0 ? r.dhq.toLocaleString() : '—'}</span>
                             </button>
                         ))}
                     </div>
@@ -1241,488 +970,166 @@ function CompareTab({
     };
 
     const renderPlayerCompare = () => {
-        const ids = comparePlayerIds.map(String).slice(0, 4);
-        const enrichComparePlayer = (pid) => {
+        const isRedraft = seasonalFormat;
+        const accents = ['#e7bd58', '#63cbe9', '#b6a1ff', '#ffac78'];
+        const number = (v, digits = 1) => v == null ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
+        const players = comparePlayerIds.map(String).slice(0, 4).map((pid, index) => {
             const base = enrichFieldPlayer(pid);
-            if (!base) return { pid: String(pid), missing: true };
-            const meta = window.App?.LI?.playerMeta?.[pid] || window.App?.LI?.playerMeta?.[String(pid)] || {};
-            // Free: rec stays null — the seeded fallback is a rec too. The
-            // Action row/chip consumers render Pro-only below.
-            const pa = isPro && typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
-            const trend = meta.trend || 0;
-            const rec = !isPro ? null : pa ? String(pa.label).toUpperCase()
-                : (base.valueYrs <= 0 && trend <= -10 ? 'SELL NOW' : base.valueYrs <= 0 ? 'SELL' : base.peakYrs <= 1 ? 'SELL' : base.dhq >= 7000 && base.peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
-            const recCol = rec && rec.includes('SELL') ? 'var(--bad)' : rec && rec.includes('BUY') ? 'var(--good)' : 'var(--gold)';
-            const curve = typeof window.App?.getAgeCurve === 'function' ? window.App.getAgeCurve(base.pos) : { peak: [24, 29], decline: [30, 32] };
-            const pLo = (curve.peak && curve.peak[0]) || 24;
-            const pHi = (curve.peak && curve.peak[1]) || 29;
-            const declineHi = (curve.decline && curve.decline[1]) || 32;
-            const age = base.age || 0;
-            const phase = !age ? { label: '—', color: 'var(--silver)' }
-                : age < pLo ? { label: 'Rising', color: 'var(--good)' }
-                : age <= pHi ? { label: 'Prime', color: 'var(--gold)' }
-                : age <= declineHi ? { label: 'Veteran', color: 'var(--k-f0a500, #f0a500)' }
-                : { label: 'Post-Window', color: 'var(--bad)' };
-            const ctx = meta.statusReason
-                ? (meta.statusReason + (meta.roleLabel ? ' · ' + meta.roleLabel : ''))
-                : [meta.roleLabel, meta.opportunityLabel].filter(Boolean).join(' · ');
-            const depthChart = (typeof base.p?.depth_chart_order === 'number') ? (base.pos + (base.p.depth_chart_order + 1)) : null;
-            return {
-                ...base,
-                meta, rec, recCol, phase, ctx, depthChart,
-                trend,
-                tier: tierLabelFromDhq(base.dhq),
-                posRank: posRankMap[String(pid)] || null,
-                ageCurve: { lo: pLo, peakHi: pHi, declineHi },
-                htWt: [base.p?.height, base.p?.weight].filter(Boolean).join(' / '),
-                college: base.p?.college || '',
-                name: base.p?.full_name || (base.p ? ((base.p.first_name || '') + ' ' + (base.p.last_name || '')).trim() : 'Unknown'),
-            };
-        };
-        const players = ids.map(enrichComparePlayer);
-        const valid = players.filter(pl => !pl.missing);
-        const multi = valid.length > 1;
-        const maxDhq = Math.max(0, ...valid.map(p => p.dhq || 0));
-        const maxPpg = Math.max(0, ...valid.map(p => p.ppg || 0));
-        const maxRunway = Math.max(0, ...valid.map(p => p.valueYrs || 0));
-        const bestRank = Math.min(Infinity, ...valid.filter(p => p.posRank).map(p => p.posRank));
-        const leader = valid.slice().sort((a, b) => (b.dhq || 0) - (a.dhq || 0))[0] || null;
-
-        const statRow = (label, value, isBest, valueColor) => (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-                <span style={{ ...mono, fontWeight: 850, fontSize: isPhone ? '14px' : '0.82rem', color: valueColor || (isBest ? 'var(--good)' : 'var(--white)') }}>
-                    {value}{isBest ? <span style={{ marginLeft: '5px', fontSize: isPhone ? '14px' : '0.6rem', color: 'var(--good)' }}>▲</span> : null}
-                </span>
-            </div>
-        );
-
-        const renderCompareCard = (pl, idx) => {
-            if (!pl || pl.missing) {
-                return (
-                    <div key={'cmp-missing-' + (pl?.pid || idx)} style={{ ...panelStyle, padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '260px', gap: '10px', textAlign: 'center' }}>
-                        <div style={{ color: 'var(--silver)', fontSize: isPhone ? '14px' : '0.82rem', opacity: 0.8 }}>This player isn't in the value pool yet.</div>
-                        <button onClick={() => removeComparePlayer(pl?.pid)} style={smallButtonStyle(false)}>Remove</button>
-                    </div>
-                );
-            }
-            const dhqCol = pl.dhq >= 7000 ? 'var(--good)' : pl.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : pl.dhq >= 1000 ? 'var(--silver)' : 'var(--ov-9, rgba(255,255,255,0.5))';
-            const isLeader = multi && leader && String(leader.pid) === String(pl.pid);
-            return (
-                <div key={'cmp-' + pl.pid} style={{ ...panelStyle, padding: 0, overflow: 'hidden', position: 'relative', border: isLeader ? '1px solid var(--acc-line3, rgba(212,175,55,0.46))' : panelStyle.border }}>
-                    <button className="cmp-remove-x" title="Remove from compare" onClick={() => removeComparePlayer(pl.pid)} style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 2, width: '26px', height: '26px', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: 'rgba(0,0,0,0.42)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.95rem', lineHeight: 1 }}>×</button>
-                    <div
-                        role="button"
-                        tabIndex={0}
-                        title="Open full player card"
-                        onClick={() => openPlayerCard(pl.pid)}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPlayerCard(pl.pid); } }}
-                        style={{ padding: '14px 14px 12px', cursor: 'pointer', background: isLeader ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'var(--ov-1, rgba(255,255,255,0.02))', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))' }}
-                    >
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', minWidth: 0 }}>
-                            <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + pl.pid + '.jpg'} onError={e => e.target.style.display = 'none'} style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid ' + (posColors[pl.pos] || 'var(--silver)') }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                    <div style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 850, fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name}</div>
-                                    {isLeader ? <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.56rem', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 5px', letterSpacing: '0.04em', flexShrink: 0 }}>DHQ LEAD</span> : null}
-                                </div>
-                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    <span style={{ color: posColors[pl.pos] || 'var(--silver)', fontWeight: 800 }}>{posLabel(pl.pos)}</span> · {pl.team}{pl.age ? ' · ' + pl.age + 'yo' : ''}{pl.yrsExp != null ? ' · ' + pl.yrsExp + 'y exp' : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ minWidth: 0 }}>
-                                <div style={labelStyle}>{valueLabel}</div>
-                                <div style={{ ...mono, fontSize: '1.7rem', fontWeight: 850, color: dhqCol, lineHeight: 1 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '—'}</div>
-                            </div>
-                            <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.78rem', fontWeight: 850, color: pl.tier.color, flexShrink: 0 }}>{pl.tier.label}</span>
-                        </div>
-                        <div style={{ height: '5px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' }}>
-                            <div style={{ width: (maxDhq > 0 ? (pl.dhq / maxDhq * 100) : 0) + '%', height: '100%', background: dhqCol }}></div>
-                        </div>
-                    </div>
-                    <div style={{ padding: '4px 14px 13px' }}>
-                        {statRow('PPG', pl.ppg > 0 ? pl.ppg : '—', multi && pl.ppg > 0 && pl.ppg === maxPpg)}
-                        {statRow('Runway', pl.valueYrs > 0 ? pl.valueYrs + 'yr' : '—', multi && pl.valueYrs > 0 && pl.valueYrs === maxRunway)}
-                        {statRow('Window', pl.phase.label, false, pl.phase.color)}
-                        {statRow('Pos Rank', pl.posRank ? (posLabel(pl.pos) + ' #' + pl.posRank) : '—', multi && pl.posRank && pl.posRank === bestRank)}
-                        {isPro ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', paddingTop: '9px', marginTop: '3px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</span>
-                            <span style={{ ...mono, fontWeight: 850, fontSize: isPhone ? '14px' : '0.72rem', color: pl.recCol, border: '1px solid ' + pl.recCol, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px' }}>{pl.rec}</span>
-                        </div>
-                        ) : null}
-                        {pl.ctx ? <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '8px', lineHeight: 1.4 }}>{pl.ctx}</div> : null}
-                    </div>
-                </div>
-            );
-        };
-
-        const renderGhostCell = (idx) => (
-            <button key={'ghost-' + idx} onClick={() => playerSearchRef.current && playerSearchRef.current.focus()} style={{ ...panelStyle, minHeight: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', color: 'var(--silver)', borderStyle: 'dashed', background: 'var(--ov-1, rgba(255,255,255,0.015))' }}>
-                <div style={{ fontSize: '1.7rem', opacity: 0.4, fontWeight: 300 }}>+</div>
-                <div style={{ fontSize: isPhone ? '14px' : '0.8rem', opacity: 0.74, fontWeight: 700 }}>Add a player</div>
-                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.5, maxWidth: '180px', textAlign: 'center', lineHeight: 1.4 }}>Search above, or hit Compare on any player card</div>
-            </button>
-        );
-
-        // Phone (P1): picked players render as WR.AssetRows. The ✕ drives the
-        // EXACT same removeComparePlayer as the desktop card/hero ✕ buttons;
-        // row tap opens the full player card (same openPlayerCard seam). The
-        // LEAD chip mirrors the ungated desktop "DHQ LEAD" chip — raw data,
-        // no gate movement.
-        const phoneRemoveX = (pid) => (
-            <button className="cmp-remove-x" title="Remove from compare"
-                onClick={(e) => { e.stopPropagation(); removeComparePlayer(pid); }}
-                style={{ position: 'relative', width: '26px', height: '26px', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: 'rgba(0,0,0,0.42)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.95rem', lineHeight: 1, flexShrink: 0, padding: 0 }}>×</button>
-        );
-        const renderPhoneFieldRows = () => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-                {players.map((pl, idx) => {
-                    if (!pl || pl.missing) {
-                        return (
-                            <WrAssetRow key={'ph-missing-' + (pl?.pid || idx)} pos="?" name="Not in the value pool yet"
-                                tag="Remove to swap in another player"
-                                slots={[{ label: valueShortLabel, value: '—', tone: 'mute' }]}
-                                verdict={phoneRemoveX(pl?.pid)} />
-                        );
-                    }
-                    const isLeader = multi && leader && String(leader.pid) === String(pl.pid);
-                    return (
-                        <WrAssetRow key={'ph-' + pl.pid} pos={pl.pos} name={pl.name}
-                            tag={[pl.team, pl.age ? pl.age + 'yo' : null, pl.posRank ? posLabel(pl.pos) + ' #' + pl.posRank : null, pl.tier.label].filter(Boolean).join(' · ')}
-                            slots={[{ label: valueShortLabel, value: pl.dhq > 0 ? pl.dhq.toLocaleString() : '—', tone: isLeader ? 'gold' : undefined }]}
-                            verdict={<React.Fragment>
-                                {isLeader ? <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: isPhone ? '14px' : '0.56rem', fontWeight: 700, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 5px', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>LEAD</span> : null}
-                                {phoneRemoveX(pl.pid)}
-                            </React.Fragment>}
-                            accent={isLeader ? 'gold' : undefined}
-                            onClick={() => openPlayerCard(pl.pid)} />
-                    );
-                })}
-            </div>
-        );
-
-        if (!valid.length && !players.length) {
-            const myTopForQuick = (myRoster?.players || []).map(enrichFieldPlayer).filter(Boolean).sort((a, b) => b.dhq - a.dhq).slice(0, 4);
-            return (
-                <div style={{ ...panelStyle, padding: '30px 28px', textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', color: 'var(--white)', fontWeight: 800, marginBottom: '7px', letterSpacing: 0 }}>Compare players head-to-head</div>
-                    <div style={{ fontSize: isPhone ? '14px' : '0.86rem', color: 'var(--silver)', lineHeight: 1.55, maxWidth: '560px', margin: '0 auto 16px' }}>
-                        {isPhone
-                            ? 'Add up to four players to compare their ' + valueLabel + ' and key signals side by side. Tap Add player above to search by name, position, or owning team.'
-                            : <React.Fragment>Add up to four players to see their {valueLabel} and key signals side by side across four quadrants. Search above, hit <strong style={{ color: 'var(--gold)' }}>Compare</strong> on any player card, or start with your top players:</React.Fragment>}
-                    </div>
-                    {/* Quick-start top-player cards — desktop only (owner ask); phone uses the search. */}
-                    {!isPhone && (
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        {myTopForQuick.length ? myTopForQuick.map(pl => (
-                            <button key={pl.pid} onClick={() => addComparePlayer(pl.pid)} style={quickButtonStyle(false)}>
-                                <div style={{ fontWeight: 850, color: 'var(--white)' }}>{pl.p?.full_name || '?'}</div>
-                                <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.66, marginTop: '2px' }}>{pl.dhq.toLocaleString()} {valueShortLabel}</div>
-                            </button>
-                        )) : <div style={{ fontSize: isPhone ? '14px' : '0.8rem', color: 'var(--silver)', opacity: 0.6 }}>Use the search above to add players.</div>}
-                    </div>
-                    )}
-                </div>
-            );
-        }
-
-        const isRedraft = (resolvedLeagueSkin?.type === 'redraft');
-
-        // 2–4 players → one comparison matrix: players are columns, metrics are
-        // rows, with per-row winners (▲ + gap-to-best), a field verdict, a value
-        // share bar, and side-by-side age curves. Scales the head-to-head look
-        // across the whole field.
-        const renderComparisonMatrix = (list) => {
-            const N = list.length;
-            const depthOrd = (pl) => (typeof pl.p?.depth_chart_order === 'number') ? pl.p.depth_chart_order + 1 : 0;
-            const trendDisp = (pl) => pl.trend ? ((pl.trend > 0 ? '↑ +' : '↓ ') + pl.trend) : 'Flat';
-            // Phone (≤767): minmax(0,1fr) player columns compress to ~60px at 375
-            // instead of engaging the scroll container — hold a 110px floor per
-            // player column (two players still fit a 375 side-by-side; 3–4 scroll)
-            // and pin the metric-label column sticky-left. Desktop/tablet: unchanged.
-            const gt = isPhone
-                ? 'minmax(84px, 0.62fr) repeat(' + N + ', minmax(110px, 1fr))'
-                : 'minmax(94px, 0.62fr) repeat(' + N + ', minmax(0, 1fr))';
-            // Explicit px floor so every row spans the full scroll width (row
-            // borders stay continuous mid-scroll): 84px label + N*(110px + 10px gap).
-            const rowMinW = isPhone ? (84 + N * 120) + 'px' : undefined;
-            const fieldMaxDhq = Math.max(0, ...list.map(p => p.dhq || 0));
-
-            // Metric defs. dir high/low picks the winner; numeric rows also print a
-            // gap-to-best under non-winners; countable rows feed the "leads N" tally.
-            const mk = (label, dir, valFn, dispFn, opts) => {
-                opts = opts || {};
-                return {
-                    label, dir,
-                    values: list.map(valFn),
-                    display: list.map((p, i) => dispFn(p, valFn(p), i)),
-                    colors: opts.colors ? list.map(opts.colors) : null,
-                    numeric: !!opts.numeric, countable: !!opts.countable, gapFmt: opts.gapFmt, wrap: !!opts.wrap,
-                };
-            };
-            const metrics = [
-                mk(valueShortLabel, 'high', p => p.dhq, (p, v) => v > 0 ? v.toLocaleString() : '—', { numeric: true, countable: true, gapFmt: n => n.toLocaleString() }),
-                mk('Pos Rank', 'low', p => p.posRank || 0, (p, v) => v ? (posLabel(p.pos) + ' #' + v) : '—', { countable: true }),
-                mk('Tier', 'none', p => p.dhq, (p) => p.tier.label, { colors: p => p.tier.color }),
-                mk('PPG', 'high', p => p.ppg || 0, (p, v) => v > 0 ? v : '—', { numeric: true, countable: true, gapFmt: n => n.toFixed(1) }),
-                mk('PPG Trend', 'high', p => p.trend || 0, (p) => trendDisp(p), { countable: true }),
-                mk('Age', isRedraft ? 'none' : 'low', p => p.age || 0, (p, v) => v ? v + 'yo' : '—'),
-                mk('Dynasty Runway', isRedraft ? 'none' : 'high', p => p.valueYrs || 0, (p, v) => v > 0 ? v + 'yr' : '—', { countable: !isRedraft }),
-                mk('Peak Left', isRedraft ? 'none' : 'high', p => p.peakYrs || 0, (p, v) => v > 0 ? v + 'yr' : '—', { countable: !isRedraft }),
-                mk('Window', 'none', p => 0, (p) => p.phase.label, { colors: p => p.phase.color }),
-                mk('Experience', 'none', p => p.yrsExp || 0, (p, v) => v + 'y'),
-                mk('Depth Chart', 'low', p => depthOrd(p), (p) => p.depthChart || '—'),
-                mk('Size', 'none', p => 0, (p) => p.htWt || '—'),
-                // Action = buy/sell verdict row → Pro; free compares raw values.
-                ...(isPro ? [mk('Action', 'none', p => 0, (p) => p.rec, { colors: p => p.recCol })] : []),
-            ];
-            if (list.some(p => p.ctx)) metrics.push(mk('Context', 'none', p => 0, (p) => p.ctx || '—', { wrap: true }));
-
-            const winnersOf = (m) => {
-                const out = new Set();
-                if (m.dir === 'none') return out;
-                const vals = m.values.map(v => Number(v) || 0);
-                if (m.dir === 'high') {
-                    const best = Math.max(...vals);
-                    if (best > 0) vals.forEach((v, i) => { if (v === best) out.add(i); });
-                } else {
-                    const pos = vals.filter(v => v > 0);
-                    if (pos.length) { const best = Math.min(...pos); vals.forEach((v, i) => { if (v > 0 && v === best) out.add(i); }); }
-                }
-                return out;
-            };
-            // "Leads N" per player = unique wins across the countable categories.
-            const leads = {};
-            list.forEach(p => { leads[p.pid] = 0; });
-            metrics.filter(m => m.countable).forEach(m => {
-                const w = winnersOf(m);
-                if (w.size === 1) leads[list[[...w][0]].pid] += 1;
+            if (!base) return { pid, missing: true };
+            const meta = intelReady ? window.App?.LI?.playerMeta?.[pid] || {} : {};
+            const stats = window.App.PlayerComparison.summarize({
+                pid, statsData, priorData: stats2025Data, season: leagueSeason, priorStatsSeason, meta, position: base.pos,
+                calcPPG: row => {
+                    const points = typeof window.App.LeagueStats?.score === 'function'
+                        ? window.App.LeagueStats.score(row, scoringForField, base.pos)
+                        : window.App.calcRawPts?.(row, scoringForField);
+                    return points != null && row.gp > 0 ? points / row.gp : null;
+                },
+                weeklyHistory: typeof window.App?.WeeklyProj?.weeklyHistory === 'function' ? id => window.App.WeeklyProj.weeklyHistory(id) : undefined,
             });
+            const curve = window.App?.getAgeCurve?.(base.pos) || { peak: [24, 29] };
+            const phase = !base.age ? 'Age unavailable' : base.age < curve.peak[0] ? 'Rising' : base.age <= curve.peak[1] ? 'In prime' : 'Veteran';
+            const action = isPro && skinFeatures.showTrades !== false && typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
+            return { ...base, ...stats, name: base.p.full_name || [base.p.first_name, base.p.last_name].filter(Boolean).join(' ') || 'Unknown player',
+                accent: accents[index], tier: tierLabelFromDhq(base.dhq), posRank: posRankMap[pid] || null,
+                phase, action, context: [meta.statusReason, meta.roleLabel, meta.opportunityLabel].filter(Boolean).join(' · ') };
+        });
+        const valid = players.filter(p => !p.missing);
+        const knownValues = valid.filter(p => p.valueKnown);
+        const maxValue = Math.max(0, ...valid.map(p => p.dhq));
+        const leaders = knownValues.filter(p => p.dhq === maxValue);
+        const leader = knownValues.length === valid.length && knownValues.length > 1 && leaders.length === 1 ? leaders[0] : null;
+        const sameSeason = new Set(valid.filter(p => p.ppg != null).map(p => p.season)).size <= 1;
+        const fieldStyle = { '--cmp-count': Math.max(1, players.length) };
+        const focusSearch = () => { if (_phoneKit) setSearchOpen(true); else playerSearchRef.current?.focus(); };
+        const formPoints = valid.flatMap(p => (p.recentGames || []).map(g => g.pts));
+        const formHigh = Math.max(1, ...formPoints);
+        const formLow = Math.min(0, ...formPoints);
 
-            // Field verdict.
-            const byVal = [...list].sort((x, y) => (y.dhq || 0) - (x.dhq || 0));
-            const top = byVal[0], second = byVal[1];
-            const valGap = (top.dhq || 0) - (second?.dhq || 0);
-            const byRunway = [...list].sort((x, y) => (y.valueYrs || 0) - (x.valueYrs || 0));
-            const runwayLeader = byRunway[0];
-            // Only claim "longest window/runway" when it's strictly longest and non-zero.
-            const runwayIsClear = (runwayLeader.valueYrs || 0) > 0 && (runwayLeader.valueYrs || 0) > (byRunway[1]?.valueYrs || 0);
-            let verdict;
-            if (isRedraft) {
-                verdict = valGap > 0
-                    ? `${top.name} is the top play of the ${N} — +${valGap.toLocaleString()} ${valueShortLabel} on the next-best.`
-                    : `${top.name} leads a tight field — separated by weekly scoring, not value.`;
-            } else if (valGap === 0) {
-                verdict = runwayIsClear
-                    ? `Dead even on ${valueShortLabel} at the top — ${runwayLeader.name} has the longest runway (${runwayLeader.valueYrs}yr).`
-                    : `Dead even on ${valueShortLabel} at the top — nothing separates the field on value.`;
-            } else if (runwayLeader.pid === top.pid) {
-                verdict = `${top.name} leads the field — top ${valueShortLabel}${runwayIsClear ? `, and the longest window (${top.valueYrs}yr)` : ''}.`;
-            } else {
-                verdict = runwayIsClear
-                    ? `${top.name} tops the field on value (+${valGap.toLocaleString()}), but ${runwayLeader.name} has the longest runway (${runwayLeader.valueYrs}yr) — value now vs upside later.`
-                    : `${top.name} tops the field on value (+${valGap.toLocaleString()}).`;
-            }
-
-            const totalVal = list.reduce((s, p) => s + (p.dhq || 0), 0);
-
-            const heroCol = (pl) => {
-                const isLead = (pl.dhq || 0) === fieldMaxDhq && fieldMaxDhq > 0;
-                const dhqCol = pl.dhq >= 7000 ? 'var(--good)' : pl.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : pl.dhq >= 1000 ? 'var(--silver)' : 'var(--ov-9, rgba(255,255,255,0.5))';
-                const k = leads[pl.pid] || 0;
-                return (
-                    <div key={'hero-' + pl.pid} style={{ position: 'relative', textAlign: 'center', padding: '2px 2px 0', minWidth: 0 }}>
-                        <button className="cmp-remove-x" title="Remove from compare" onClick={() => removeComparePlayer(pl.pid)} style={{ position: 'absolute', top: 0, right: 0, width: '22px', height: '22px', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: 'rgba(0,0,0,0.42)', color: 'var(--silver)', cursor: 'pointer', fontSize: isPhone ? '14px' : '0.8rem', lineHeight: 1, zIndex: 2 }}>×</button>
-                        <div role="button" tabIndex={0} title="Open full player card" onClick={() => openPlayerCard(pl.pid)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPlayerCard(pl.pid); } }} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                            <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + pl.pid + '.jpg'} onError={e => e.target.style.display = 'none'} style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (isLead ? 'var(--gold)' : (posColors[pl.pos] || 'var(--silver)')) }} />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', maxWidth: '100%' }}>
-                                <span style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 850, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name}</span>
-                                {isLead ? <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.5rem', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 4px', flexShrink: 0 }}>LEAD</span> : null}
-                            </div>
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}><span style={{ color: posColors[pl.pos] || 'var(--silver)', fontWeight: 800 }}>{posLabel(pl.pos)}</span> · {pl.team}{pl.age ? ' · ' + pl.age + 'yo' : ''}</div>
-                            <div style={{ ...mono, fontSize: '1.45rem', fontWeight: 850, color: dhqCol, lineHeight: 1.05 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '—'}</div>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <span style={{ ...mono, fontSize: isPhone ? '14px' : '0.68rem', fontWeight: 850, color: pl.tier.color }}>{pl.tier.label}</span>
-                                {k > 0 ? <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)' }}>· leads {k}</span> : null}
-                            </div>
-                        </div>
-                    </div>
-                );
-            };
-
-            const miniCurve = (pl) => {
-                const cv = pl.ageCurve || { lo: 24, peakHi: 29, declineHi: 32 };
-                const age = pl.age || 0;
-                return (
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <span style={{ ...labelStyle, color: pl.phase.color, opacity: 1 }}>{pl.phase.label}</span>
-                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 }}>{pl.peakYrs > 0 ? pl.peakYrs + 'yr peak left' : pl.valueYrs > 0 ? pl.valueYrs + 'yr value left' : 'past window'}</span>
-                        </div>
-                        <div style={{ display: 'flex', height: '14px', borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', gap: '1px' }}>
-                            {Array.from({ length: 17 }, (_, i) => {
-                                const aa = i + 20;
-                                const col = aa < cv.lo - 3 ? 'rgba(96,165,250,0.3)' : aa < cv.lo ? 'rgba(46,204,113,0.45)' : (aa >= cv.lo && aa <= cv.peakHi) ? 'rgba(46,204,113,0.75)' : aa <= cv.declineHi ? 'var(--acc-line3, rgba(212,175,55,0.45))' : 'rgba(231,76,60,0.35)';
-                                return <div key={aa} style={{ flex: 1, background: col, opacity: aa === age ? 1 : 0.5, outline: aa === age ? '2px solid var(--gold)' : 'none', outlineOffset: '-1px' }}></div>;
-                            })}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '3px' }}>
-                            <span>20</span><span>Peak {cv.lo}–{cv.peakHi}</span><span>36</span>
-                        </div>
-                    </div>
-                );
-            };
-
-            const renderRow = (m) => {
-                const winners = winnersOf(m);
-                const vals = m.values.map(v => Number(v) || 0);
-                const best = winners.size ? (m.dir === 'high' ? Math.max(...vals) : Math.min(...vals.filter(v => v > 0))) : 0;
-                return (
-                    <div key={m.label} style={{ display: 'grid', gridTemplateColumns: gt, minWidth: rowMinW, gap: '10px', alignItems: m.wrap ? 'flex-start' : 'center', padding: isPhone ? '8px 0' : '8px 2px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))' }}>
-                        <div className={isPhone ? 'wr-stick-col' : undefined} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', ...(isPhone ? { opacity: 1, alignSelf: 'stretch', display: 'flex', alignItems: m.wrap ? 'flex-start' : 'center', paddingLeft: '10px', paddingRight: '6px' } : null) }}>{m.label}</div>
-                        {list.map((p, i) => {
-                            const win = winners.has(i);
-                            // Phone: winning cells go gold (shared sticky-table
-                            // accent); desktop keeps the shipped green.
-                            const col = win ? (isPhone ? 'var(--gold)' : 'var(--good)') : (m.colors ? m.colors[i] : 'var(--white)');
-                            if (m.wrap) {
-                                return <div key={i} style={{ textAlign: 'center', minWidth: 0, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, lineHeight: 1.4 }}>{m.display[i]}</div>;
-                            }
-                            const showGap = m.numeric && best > 0 && !win && vals[i] > 0;
-                            return (
-                                <div key={i} style={{ textAlign: 'center', minWidth: 0 }}>
-                                    <div style={{ ...mono, fontWeight: 850, fontSize: isPhone ? '14px' : '0.84rem', color: col, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {m.display[i]}{win ? <span style={{ marginLeft: '4px', fontSize: isPhone ? '14px' : '0.56rem', color: isPhone ? 'var(--gold)' : 'var(--good)' }}>▲</span> : null}
-                                    </div>
-                                    {showGap ? <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '1px' }}>−{m.gapFmt ? m.gapFmt(best - vals[i]) : (best - vals[i])}</div> : null}
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            };
-
-            return (
-                <div>
-                    {/* Phone (P5): verdict hero ABOVE the matrix. The field verdict
-                        is Pro at the EXACT existing isPro boundary; the free hero
-                        carries the raw leader line only (the WrGatedMoreRow teaser
-                        below keeps the existing gate surface). The AssetRow list
-                        rendered by renderPlayerCompare replaces the hero strip. */}
-                    {_phoneKit ? (
-                    <div style={{ marginBottom: '12px' }}>
-                        {isPro ? (
-                            <WrHeroCard kicker="Verdict"
-                                headline={valGap > 0 && second ? (top.name + ' over ' + second.name).toUpperCase() : 'DEAD EVEN FIELD'}
-                                facts={verdict}
-                                ctaGhost="Clear all" onCtaGhost={clearComparePlayers} />
-                        ) : (
-                            <WrHeroCard kicker="Field"
-                                headline={valGap > 0 ? (top.name + ' leads the field').toUpperCase() : ('Even on ' + valueShortLabel).toUpperCase()}
-                                facts={list.length + ' of 4 · straight ' + valueLabel + ' side by side'}
-                                ctaGhost="Clear all" onCtaGhost={clearComparePlayers} />
-                        )}
-                    </div>
-                    ) : null}
-                    {!_phoneKit && (
-                    <div style={{ ...panelStyle, padding: '14px 16px', marginBottom: '12px', background: 'linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.06)), rgba(52,152,219,0.045))' }}>
-                        {/* Phone: hero strip drops the (empty) label column and scrolls
-                            itself — the grid is its own scroll container here since this
-                            panel has no overflowX. */}
-                        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? ('repeat(' + N + ', minmax(120px, 1fr))') : gt, gap: '10px', alignItems: 'end', ...(isPhone ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' } : null) }}>
-                            {isPhone ? null : <div></div>}
-                            {list.map(heroCol)}
-                        </div>
-                        {totalVal > 0 ? (
-                            <div style={{ display: 'flex', height: '8px', borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', marginTop: '14px', background: 'var(--ov-4, rgba(255,255,255,0.06))', gap: '1px' }}>
-                                {list.map(pl => {
-                                    const isLead = (pl.dhq || 0) === fieldMaxDhq;
-                                    return <div key={'bar-' + pl.pid} title={pl.name + ' ' + Math.round((pl.dhq || 0) / totalVal * 100) + '% of field ' + valueShortLabel} style={{ width: ((pl.dhq || 0) / totalVal * 100) + '%', background: isLead ? 'var(--gold)' : 'var(--k-3498db, #3498db)', opacity: isLead ? 1 : 0.5 }}></div>;
-                                })}
-                            </div>
-                        ) : null}
-                    </div>
-                    )}
-
-                    {/* Field verdict = framing advice (Q9) → Pro; free gets the lock-row teaser.
-                        Phone: the Pro read re-pours into the hero card above (same isPro gate);
-                        the free teaser row renders on every tier. */}
-                    {isPro ? (_phoneKit ? null : (
-                    <div style={{ ...panelStyle, padding: '12px 14px', marginBottom: '12px', borderLeft: '3px solid var(--gold)' }}>
-                        <div style={{ ...labelStyle, color: 'var(--gold)', opacity: 1, marginBottom: '4px' }}>The Read</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--white)', lineHeight: 1.5 }}>{verdict}</div>
-                    </div>
-                    )) : window.WrGatedMoreRow ? (
-                    <div style={{ marginBottom: '12px' }}>
-                        {React.createElement(window.WrGatedMoreRow, { title: 'The Read — field verdict', sub: 'Who to value now vs later — Pro calls the field.', feature: 'analytics_depth' })}
-                    </div>
-                    ) : null}
-
-                    {/* Phone (P7): the matrix rides the shared sticky-table classes —
-                        scoped scroll wrap + pinned metric column — with a name header
-                        row (the hero strip no longer carries the column headers). */}
-                    <div className={isPhone ? 'wr-sticky-table-wrap wr-sticky-table' : undefined} style={{ ...panelStyle, padding: isPhone ? '4px 0 12px' : '4px 16px 12px', marginBottom: '12px', overflowX: 'auto', ...(isPhone ? { WebkitOverflowScrolling: 'touch' } : null) }}>
-                        {isPhone ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: gt, minWidth: rowMinW, gap: '10px', alignItems: 'center', padding: '8px 0 2px' }}>
-                                <div className="wr-stick-col" style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', paddingLeft: '10px', paddingRight: '6px', alignSelf: 'stretch' }}>Metric</div>
-                                {list.map(pl => {
-                                    const isLead = (pl.dhq || 0) === fieldMaxDhq && fieldMaxDhq > 0;
-                                    return (
-                                        <div key={'ph-head-' + pl.pid} style={{ textAlign: 'center', minWidth: 0, fontFamily: 'var(--font-title)', fontWeight: 850, fontSize: isPhone ? '14px' : '0.84rem', textTransform: 'uppercase', color: isLead ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.p?.last_name || pl.name}</div>
-                                    );
-                                })}
-                            </div>
-                        ) : null}
-                        {metrics.map(renderRow)}
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '12px' }}>
-                        {list.map(pl => (
-                            <div key={'curve-' + pl.pid} style={{ ...panelStyle, padding: '12px 14px' }}>
-                                <div style={{ ...labelStyle, marginBottom: '9px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name} · Age Curve</div>
-                                {miniCurve(pl)}
-                            </div>
-                        ))}
-                    </div>
+        const formChart = (pl) => {
+            const games = pl.recentGames || [];
+            if (!games.length) return <div className="cmp-form-empty">Completed-game scores unavailable</div>;
+            const y = pts => 6 + (formHigh - pts) / (formHigh - formLow) * 38;
+            const baseline = y(0);
+            const description = games.map(g => 'Week ' + g.week + ': ' + number(g.pts) + ' points').join('; ');
+            return <React.Fragment><svg className="cmp-form-chart" viewBox="0 0 200 46" preserveAspectRatio="none" role="img" aria-label={pl.name + ', recent completed games. ' + description}>
+                <line x1="0" x2="200" y1={baseline} y2={baseline} stroke="currentColor" opacity="0.22" />
+                {games.map((g, i) => {
+                    const width = 200 / games.length;
+                    const top = Math.min(baseline, y(g.pts));
+                    return <g key={g.week}>
+                        <rect x={i * width + 5} y={top} width={width - 10} height={Math.max(2, Math.abs(baseline - y(g.pts)))} rx="3" fill="var(--cmp-accent)" opacity={i === games.length - 1 ? 1 : 0.55} />
+                    </g>;
+                })}
+            </svg><div className="cmp-form-weeks" style={{ '--cmp-games': games.length }} aria-hidden="true">{games.map(g => <span key={g.week}>W{g.week}</span>)}</div></React.Fragment>;
+        };
+        const stat = (label, value, note) => <div><span>{label}</span><strong>{value}</strong>{note ? <small>{note}</small> : null}</div>;
+        const renderCard = (pl) => {
+            if (pl.missing) return <article key={pl.pid} className="cmp-feature-card" style={{ padding: 18 }}>
+                <p>This player is no longer in the player pool.</p><button onClick={() => removeComparePlayer(pl.pid)} style={smallButtonStyle(false)}>Remove player</button>
+            </article>;
+            const first = pl.p.first_name || pl.name.split(' ')[0];
+            const last = pl.p.last_name || pl.name.split(' ').slice(1).join(' ') || pl.name;
+            const valueLead = leader?.pid === pl.pid && valid.length > 1;
+            return <article key={pl.pid} className="cmp-feature-card" style={{ '--cmp-accent': pl.accent }} aria-label={pl.name + ' comparison'}>
+                <div className="cmp-feature-topline">
+                    <span className="cmp-feature-badge">{valueLead ? valueShortLabel + ' leader' : pl.tier.label + ' · ' + posLabel(pl.pos)}</span>
+                    <button className="cmp-feature-remove" aria-label={'Remove ' + pl.name + ' from comparison'} title={'Remove ' + pl.name} onClick={() => removeComparePlayer(pl.pid)}>×</button>
                 </div>
-            );
+                <button className="cmp-feature-identity" onClick={() => openPlayerCard(pl.pid)} aria-label={'Open ' + pl.name + ' player details'}>
+                    <span className="cmp-feature-monogram" aria-hidden="true">{first.slice(0, 1)}{last.slice(0, 1)}</span>
+                    <img className="cmp-feature-portrait" src={'https://sleepercdn.com/content/nfl/players/' + pl.pid + '.jpg'} alt="" onLoad={e => { e.currentTarget.previousElementSibling.style.visibility = 'hidden'; }} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.previousElementSibling.style.visibility = 'visible'; }} />
+                    <span className="cmp-feature-name"><small>{first}</small><strong>{last}</strong></span>
+                    <span className="cmp-feature-bio">{posLabel(pl.pos)} · {pl.team}{pl.age ? ' · Age ' + pl.age : ''}</span>
+                </button>
+                <div className="cmp-feature-score"><span>{valueLabel}</span><strong>{pl.valueKnown ? pl.dhq.toLocaleString() : '—'}</strong><small>{pl.tier.label}</small></div>
+                <div className="cmp-feature-meter" aria-hidden="true"><i style={{ width: (maxValue ? pl.dhq / maxValue * 100 : 0) + '%' }} /></div>
+                <div className="cmp-feature-stats">
+                    {stat(pl.ppgLabel, number(pl.ppg), pl.games != null ? pl.games + (pl.games === 1 ? ' game' : ' games') : 'Sample unavailable')}
+                    {stat('Value rank', pl.posRank ? '#' + pl.posRank : '—', posLabel(pl.pos) + ' only')}
+                    {isRedraft ? stat('Recent PPG', number(pl.recentPPG), (pl.recentGames || []).length + ' completed games') : stat('Runway', pl.age ? pl.valueYrs + ' yr' : '—', 'Age-curve estimate')}
+                </div>
+                {pl.usage?.length ? <div className="cmp-feature-usage"><div className="cmp-feature-stats" data-count="2">{pl.usage.map(u => <React.Fragment key={u.label}>{stat(u.label, number(u.value), u.unit)}</React.Fragment>)}</div></div> : null}
+                <div className="cmp-feature-form"><div><span>{leagueSeason} · Last {pl.recentGames?.length || 5} games</span>{pl.recentPPG != null ? <span>{number(pl.recentPPG)} PPG</span> : null}</div>{formChart(pl)}</div>
+                <div className="cmp-feature-foot"><span>{pl.phase}</span>{isPro && pl.action?.label ? <strong>{pl.action.label}</strong> : null}</div>
+            </article>;
         };
 
-        const headerBlock = (
-            <div style={{ ...panelStyle, padding: '13px 16px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.055)), rgba(52,152,219,0.04))' }}>
-                <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 850, color: 'var(--white)', letterSpacing: 0 }}>{valid.length === 2 ? 'Head-to-Head' : valid.length >= 3 ? valid.length + '-Way Compare' : 'Player Compare'}</div>
-                    <div style={{ fontSize: isPhone ? '14px' : '0.76rem', color: 'var(--silver)', opacity: 0.72 }}>
-                        {valid.length === 2
-                            ? <span>{valid[0].name} vs {valid[1].name} · straight {valueLabel}</span>
-                            : valid.length >= 3
-                                ? <span>{valid.map(p => p.name).join(' · ')} · straight {valueLabel}</span>
-                                : <span>{valid.length} of 4 · straight {valueLabel} side by side{multi && leader ? ' · ' : ''}{multi && leader ? <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{leader.name} leads</span> : ''}</span>}
-                    </div>
-                </div>
-                <button onClick={clearComparePlayers} style={smallButtonStyle(false)}>Clear all</button>
-            </div>
-        );
+        const defaultMetricIds = isRedraft ? ['value', 'ppg', 'recent'] : ['value', 'ppg', 'runway'];
+        const usageLabels = [...new Set(valid.flatMap(p => (p.usageMetrics || []).map(stat => stat.label)))];
+        const metricOptions = [
+            { id: 'value', label: valueLabel, values: valid.map(p => p.valueKnown ? p.dhq : null), format: n => n.toLocaleString() },
+            { id: 'ppg', label: sameSeason ? (valid.find(p => p.ppg != null)?.ppgLabel || 'Season PPG') : 'Season PPG¹', values: valid.map(p => p.ppg), format: n => number(n), comparable: sameSeason },
+            ...(!isRedraft ? [{ id: 'runway', label: 'Dynasty runway', values: valid.map(p => p.age ? p.valueYrs : null), format: n => n + ' yr' }] : []),
+            { id: 'recent', label: 'Recent PPG', values: valid.map(p => p.recentPPG), format: n => number(n) },
+            { id: 'trend', label: 'YoY PPG change', values: valid.map(p => p.trend), format: n => (n > 0 ? '+' : '') + n + '%', comparable: false },
+            { id: 'age', label: 'Age', values: valid.map(p => p.age), format: n => number(n), comparable: false },
+            { id: 'games', label: 'Season games', values: valid.map(p => p.games), format: n => n.toLocaleString(), comparable: false },
+            { id: 'rank', label: 'Rank within position', values: valid.map(p => p.posRank), format: n => '#' + n, comparable: false },
+            ...usageLabels.map(label => ({ id: 'usage:' + label, label: label + ' /game',
+                values: valid.map(p => p.usageMetrics.find(stat => stat.label === label)?.value ?? null),
+                format: n => number(n), comparable: sameSeason,
+            })),
+        ];
+        const chosenIds = playerMetricIds === null ? defaultMetricIds : playerMetricIds;
+        const metrics = metricOptions.filter(metric => chosenIds.includes(metric.id));
+        const toggleMetric = id => {
+            const current = metrics.map(metric => metric.id);
+            const next = current.includes(id) ? current.filter(key => key !== id) : [...current, id];
+            if (next.length > 0 && next.length <= 6) setPlayerMetricIds(next);
+        };
+        const detailRows = [
+            ['Season / sample', p => p.sourceLabel],
+            ['Recent PPG', p => number(p.recentPPG)],
+            ['YoY PPG change', p => p.trend == null ? '—' : (p.trend > 0 ? '+' : '') + p.trend + '%'],
+            ['Age', p => p.age || '—'],
+            ...(!isRedraft ? [['Peak years left', p => p.age ? p.peakYrs + ' yr' : '—']] : []),
+            ['Experience', p => p.yrsExp + ' yr'],
+            ['Role / status', p => p.context || '—'],
+            ...(isPro ? [['Action', p => p.action?.label || '—']] : []),
+        ];
+        const valueSorted = [...knownValues].sort((a, b) => b.dhq - a.dhq);
+        const gap = leader && valueSorted[1] ? leader.dhq - valueSorted[1].dhq : 0;
+        const runwaySorted = [...valid].filter(p => p.age).sort((a, b) => b.valueYrs - a.valueYrs);
+        const runwayLead = runwaySorted.length > 1 && runwaySorted[0].valueYrs > runwaySorted[1].valueYrs ? runwaySorted[0] : null;
+        const verdict = leader
+            ? leader.name + ' leads on ' + valueLabel + ' by ' + gap.toLocaleString() + '.' + (!isRedraft && runwayLead && runwayLead.pid !== leader.pid ? ' ' + runwayLead.name + ' offers the longer estimated runway (' + runwayLead.valueYrs + ' years).' : '')
+            : knownValues.length < valid.length ? 'Value data is incomplete for this field. Compare the reported scoring and role information below.'
+                : 'The leaders are tied on ' + valueLabel + '. Use scoring and role to weigh the tradeoff.';
 
-        if (valid.length >= 2 && valid.length === players.length) {
-            return <div>{_phoneKit ? renderPhoneFieldRows() : headerBlock}{renderComparisonMatrix(valid)}</div>;
-        }
-
-        const slots = [];
-        for (let i = 0; i < 4; i++) slots.push(i < players.length ? renderCompareCard(players[i], i) : renderGhostCell(i));
-        return (
-            <div>
-                {_phoneKit ? renderPhoneFieldRows() : headerBlock}
-                {_phoneKit ? null : (
-                <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                    {slots}
+        return <section className="cmp-showcase" aria-label="Player comparison">
+            <div className="cmp-showcase-heading"><span>DYNASTY HQ / PLAYER COMPARE</span><span>{players.length} OF 4</span></div>
+            {!intelReady && !isRedraft ? <p className="cmp-stat-note" role="status">Player values are loading for this league. Reported scoring remains available.</p> : null}
+            <div className="cmp-showcase-title"><div><h2>{valid.length === 2 ? 'Who gets your edge?' : valid.length > 2 ? 'Size up the field.' : 'Build your matchup.'}</h2><p>{isRedraft ? 'Rest-of-season value. Scoring. Role.' : 'Today’s production. Tomorrow’s value.'}</p></div>{players.length ? <button onClick={clearComparePlayers} style={smallButtonStyle(false)}>Clear all</button> : null}</div>
+            {isPhone && players.length > 2 ? <p className="cmp-stat-note" style={{ margin: '0 0 12px' }}>Swipe the cards to compare all {players.length} players →</p> : null}
+            {players.length ? <div className="cmp-showcase-deck" data-count={players.length} style={fieldStyle}>{players.map(renderCard)}</div> : <div style={{ ...panelStyle, padding: '28px', textAlign: 'center' }}><p>Add up to four players to compare value, scoring, and opportunity.</p><button onClick={focusSearch} style={smallButtonStyle(true)}>Add your first player</button></div>}
+            {players.length > 0 && players.length < 4 ? <button onClick={focusSearch} style={{ ...smallButtonStyle(false), marginTop: 12 }}>+ Add player</button> : null}
+            {valid.length > 1 ? <React.Fragment>
+                {isPro ? <div className="cmp-showcase-read"><strong>The matchup read</strong><p>{verdict}</p></div> : window.WrGatedMoreRow ? React.createElement(window.WrGatedMoreRow, { title: 'The Read — field verdict', sub: 'Who to value now vs later — Pro calls the field.', feature: 'analytics_depth' }) : null}
+                <details className="cmp-stat-picker"><summary>Choose comparison stats <small>{metrics.length} shown</small></summary><div className="cmp-stat-picker-body"><p>Choose 1–6 stats for the comparison below. Cards keep their key numbers.</p><div className="cmp-stat-choices">{metricOptions.map(metric => {
+                    const checked = metrics.some(row => row.id === metric.id);
+                    return <label key={metric.id}><input type="checkbox" checked={checked} disabled={checked ? metrics.length === 1 : metrics.length >= 6} onChange={() => toggleMetric(metric.id)} /><span>{metric.label}</span></label>;
+                })}</div><button type="button" onClick={() => setPlayerMetricIds(null)} style={smallButtonStyle(false)}>Reset to recommended</button><p>Usage stats use each player’s displayed season and sample. Missing stats show —; mixed seasons don’t receive a scoring edge.</p></div></details>
+                <div className="cmp-overview-grid" style={{ '--cmp-count': valid.length }}>
+                    <div className="cmp-edge-row"><span>Where they lead</span>{valid.map(p => <span key={p.pid} style={{ color: p.accent }}>{p.p.last_name || p.name}</span>)}</div>
+                    {metrics.map(metric => {
+                        const available = metric.values.filter(v => v != null);
+                        const best = available.length ? Math.max(...available) : null;
+                        const low = Math.min(0, ...available);
+                        const tied = available.filter(v => v === best).length > 1;
+                        return <div className="cmp-edge-row" key={metric.label}><span>{metric.label}</span>{valid.map((p, i) => {
+                            const value = metric.values[i];
+                            const win = value != null && value === best && available.length === valid.length && valid.length > 1 && metric.comparable !== false;
+                            return <div className="cmp-edge-cell" key={p.pid} style={{ '--cmp-accent': p.accent }}><strong>{value == null ? '—' : metric.format(value)}</strong><small>{win ? tied ? 'Tied' : 'Edge' : '\u00a0'}</small><div className="cmp-edge-track" aria-hidden="true"><i style={{ width: value == null || best === low ? '0%' : ((value - low) / (best - low) * 100) + '%' }} /></div></div>;
+                        })}</div>;
+                    })}
                 </div>
-                )}
-            </div>
-        );
+                {!metrics.length ? <p className="cmp-stat-note">Your selected stats are unavailable for this field. Choose other stats or reset to recommended.</p> : null}
+                {!sameSeason ? <p className="cmp-stat-note">¹ Season PPG uses different years. See each card’s year and sample; no scoring edge is awarded.</p> : null}
+                <details className="cmp-breakdown"><summary>Full stat breakdown</summary><div className="cmp-overview-grid" style={{ '--cmp-count': valid.length }}><div className="cmp-edge-row"><span>Metric</span>{valid.map(p => <span key={p.pid}>{p.p.last_name || p.name}</span>)}</div>{detailRows.map(([label, display]) => <div key={label} className="cmp-edge-row"><span>{label}</span>{valid.map(p => <span key={p.pid}>{display(p)}</span>)}</div>)}</div></details>
+            </React.Fragment> : null}
+            <div className="cmp-showcase-footer"><span>DYNASTY HQ</span><span>League scoring · Charts share a scale · Rank within position{!isRedraft ? ' · Runway is an age-curve estimate' : ''}</span></div>
+        </section>;
     };
 
     // Phone add-player search (P3/P6): same pool filter as the desktop
@@ -1803,511 +1210,7 @@ function CompareTab({
 
         {compareScope === 'players' ? renderPlayerCompare() : compareScope === 'duel' ? (
         <React.Fragment>
-        {compareTeamId && (() => {
-            const theirRoster = (currentLeague.rosters || []).find(r => sameId(r.roster_id, compareTeamId));
-            if (!theirRoster) return null;
-
-            const theirName = getOwnerName(theirRoster, 'Opponent');
-            const myPlayers = myRoster.players || [];
-            const theirPlayers = theirRoster.players || [];
-            const theirTotal = getRosterTotal(theirRoster);
-            const totalDhq = Math.max(1, myTotal + theirTotal);
-            const myDhqPct = (myTotal / totalDhq) * 100;
-            const myWins = myRoster.settings?.wins || 0;
-            const myLosses = myRoster.settings?.losses || 0;
-            const theirWins = theirRoster.settings?.wins || 0;
-            const theirLosses = theirRoster.settings?.losses || 0;
-            const myWinPct = (myWins + myLosses) > 0 ? myWins / (myWins + myLosses) : 0;
-            const theirWinPct = (theirWins + theirLosses) > 0 ? theirWins / (theirWins + theirLosses) : 0;
-            const myColor = 'var(--gold)';
-            const theirColor = 'var(--k-7c6bf8, #7c6bf8)';
-            const statsRef = statsData || {};
-            const stats2025Ref = stats2025Data || {};
-            const derivedStatsRef = window.S?.playerStats || {};
-            const scoring = currentLeague?.scoring_settings || {};
-
-            const calcPlayerPPG = (pid) => {
-                const st = statsRef[pid] || statsRef[String(pid)] || statsData?.[pid] || {};
-                const prev = stats2025Ref?.[pid] || stats2025Ref?.[String(pid)] || {};
-                const curGP = Number(st.gp || 0);
-                const prevGP = Number(prev.gp || 0);
-                const curPts = curGP > 0 && typeof window.App?.calcRawPts === 'function' ? window.App.calcRawPts(st, scoring) : null;
-                const prevPts = prevGP > 0 && typeof window.App?.calcRawPts === 'function' ? window.App.calcRawPts(prev, scoring) : null;
-                const curPPG = curGP > 0 && curPts != null ? +(curPts / curGP).toFixed(1) : 0;
-                const prevPPG = prevGP > 0 && prevPts != null ? +(prevPts / prevGP).toFixed(1) : 0;
-                const derived = derivedStatsRef[pid] || derivedStatsRef[String(pid)] || {};
-                return curPPG > 0 ? curPPG : prevPPG > 0 ? prevPPG : (derived.seasonAvg || derived.prevAvg || 0);
-            };
-
-            const starterDhq = (roster) => (roster?.starters || [])
-                .filter(pid => pid && pid !== '0')
-                .reduce((sum, pid) => sum + (scores[pid] || scores[String(pid)] || 0), 0);
-            const myStarterDhq = starterDhq(myRoster);
-            const theirStarterDhq = starterDhq(theirRoster);
-            const myPickCapital = getDraftCapital(myRoster);
-            const theirPickCapital = getDraftCapital(theirRoster);
-            const myFaab = getFaab(myRoster);
-            const theirFaab = getFaab(theirRoster);
-            const myAssetTotal = myTotal + myPickCapital.totalValue;
-            const theirAssetTotal = theirTotal + theirPickCapital.totalValue;
-            const pickValueDiff = myPickCapital.totalValue - theirPickCapital.totalValue;
-            const pickCountDiff = myPickCapital.count - theirPickCapital.count;
-            const enrich = (pid) => {
-                const p = playersData?.[pid] || playersData?.[String(pid)];
-                if (!p) return null;
-                const pos = normPos(p.position);
-                const curve = typeof window.App?.getAgeCurve === 'function'
-                    ? window.App.getAgeCurve(pos)
-                    : { build: [22, 24], peak: (window.App?.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
-                const [, pHi] = curve.peak || [24, 29];
-                const declineHi = curve.decline?.[1] || 32;
-                const age = p.age || null;
-                return {
-                    pid,
-                    p,
-                    pos,
-                    dhq: scores[pid] || scores[String(pid)] || 0,
-                    age,
-                    team: p.team || 'FA',
-                    yrsExp: p.years_exp || 0,
-                    peakYrs: age ? Math.max(0, pHi - age) : 0,
-                    valueYrs: age ? Math.max(0, declineHi - age) : 0,
-                    ppg: calcPlayerPPG(pid),
-                };
-            };
-
-            const enrichedMine = myPlayers.map(enrich).filter(Boolean);
-            const enrichedTheirs = theirPlayers.map(enrich).filter(Boolean);
-            const positionSummaries = allPositions.map(pos => {
-                const myAtPos = enrichedMine.filter(r => r.pos === pos).sort((a, b) => b.dhq - a.dhq);
-                const theirAtPos = enrichedTheirs.filter(r => r.pos === pos).sort((a, b) => b.dhq - a.dhq);
-                const myPosDHQ = myAtPos.reduce((s, x) => s + x.dhq, 0);
-                const theirPosDHQ = theirAtPos.reduce((s, x) => s + x.dhq, 0);
-                return {
-                    pos,
-                    myAtPos,
-                    theirAtPos,
-                    myPosDHQ,
-                    theirPosDHQ,
-                    diff: myPosDHQ - theirPosDHQ,
-                    topMine: myAtPos[0],
-                    topTheirs: theirAtPos[0],
-                    count: Math.max(myAtPos.length, theirAtPos.length),
-                };
-            }).filter(p => p.count > 0);
-
-            const youLead = positionSummaries.filter(p => p.diff > 0).length;
-            const theyLead = positionSummaries.filter(p => p.diff < 0).length;
-            const biggestEdges = [...positionSummaries].sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff)).slice(0, 4);
-            const leverage = [...positionSummaries].filter(p => p.diff > 0).sort((a, b) => b.diff - a.diff).slice(0, 2);
-            const exposures = [...positionSummaries].filter(p => p.diff < 0).sort((a, b) => a.diff - b.diff).slice(0, 2);
-            const verdict = myTotal >= theirTotal && youLead >= theyLead
-                ? 'You hold the roster edge'
-                : myTotal >= theirTotal
-                    ? 'Your value edge is concentrated'
-                    : youLead > theyLead
-                        ? 'You win more rooms, they win bigger'
-                        : 'Opponent has the roster edge';
-            const verdictColor = myTotal >= theirTotal ? 'var(--good)' : 'var(--bad)';
-
-            const champs = window.App?.LI?.championships || {};
-            const myChamps = Object.values(champs).filter(c => sameId(c.champion, myRoster.roster_id)).length;
-            const theirChamps = Object.values(champs).filter(c => sameId(c.champion, compareTeamId)).length;
-            const brackets = window.App?.LI?.bracketData || {};
-            const rec = window.WrHistory?.playoffRecord;
-            let myPW = 0, myPL = 0, theirPW = 0, theirPL = 0;
-            Object.values(brackets).forEach(({ winners }) => {
-                if (!winners?.length || !rec) return;
-                // Championship-path games only (exclude consolation/placement), via the
-                // single source of truth in league-history.js — not every bracket game.
-                const mine = rec(winners, myRoster.roster_id);
-                const theirs = rec(winners, compareTeamId);
-                myPW += mine.w; myPL += mine.l; theirPW += theirs.w; theirPL += theirs.l;
-            });
-
-            const meetings = h2hState.loadedFor && sameId(h2hState.loadedFor, compareTeamId) ? h2hState.meetings : [];
-            const h2hWins = meetings.filter(m => m.result === 'W').length;
-            const h2hLosses = meetings.filter(m => m.result === 'L').length;
-            const h2hTies = meetings.filter(m => m.result === 'T').length;
-            const avgFor = meetings.length ? meetings.reduce((s, m) => s + m.myPoints, 0) / meetings.length : 0;
-            const avgAgainst = meetings.length ? meetings.reduce((s, m) => s + m.theirPoints, 0) / meetings.length : 0;
-            const lastMeeting = meetings[0];
-            let streak = 'None';
-            if (lastMeeting) {
-                const streakResult = lastMeeting.result;
-                let streakCount = 0;
-                for (const m of meetings) {
-                    if (m.result !== streakResult) break;
-                    streakCount += 1;
-                }
-                streak = (streakResult === 'W' ? 'Won ' : streakResult === 'L' ? 'Lost ' : 'Tied ') + streakCount;
-            }
-
-            const faabDiff = myFaab.remaining - theirFaab.remaining;
-            const statCards = [
-                { label: valueLabel, value: (myAssetTotal - theirAssetTotal > 0 ? '+' : '') + (myAssetTotal - theirAssetTotal).toLocaleString(), sub: myAssetTotal.toLocaleString() + ' vs ' + theirAssetTotal.toLocaleString() + ' incl. picks', color: myAssetTotal >= theirAssetTotal ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Roster ' + valueShortLabel, value: (myTotal - theirTotal > 0 ? '+' : '') + (myTotal - theirTotal).toLocaleString(), sub: myTotal.toLocaleString() + ' vs ' + theirTotal.toLocaleString(), color: myTotal >= theirTotal ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Starter ' + valueShortLabel, value: (myStarterDhq - theirStarterDhq > 0 ? '+' : '') + (myStarterDhq - theirStarterDhq).toLocaleString(), sub: myStarterDhq.toLocaleString() + ' vs ' + theirStarterDhq.toLocaleString(), color: myStarterDhq >= theirStarterDhq ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Pick Value', value: (pickValueDiff > 0 ? '+' : '') + pickValueDiff.toLocaleString(), sub: Math.round(myPickCapital.totalValue / 1000) + 'k vs ' + Math.round(theirPickCapital.totalValue / 1000) + 'k pick ' + valueShortLabel, color: pickValueDiff >= 0 ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Pick Count', value: (pickCountDiff > 0 ? '+' : '') + pickCountDiff, sub: myPickCapital.count + ' picks vs ' + theirPickCapital.count + ' picks', color: pickCountDiff >= 0 ? 'var(--good)' : 'var(--bad)' },
-                { label: 'FAAB', value: myFaab.isFaab ? (faabDiff > 0 ? '+$' + faabDiff.toLocaleString() : faabDiff < 0 ? '-$' + Math.abs(faabDiff).toLocaleString() : '$0') : '—', sub: myFaab.isFaab ? '$' + myFaab.remaining + ' vs $' + theirFaab.remaining + ' left' : 'No FAAB budget', color: !myFaab.isFaab ? 'var(--silver)' : faabDiff > 0 ? 'var(--good)' : faabDiff < 0 ? 'var(--bad)' : 'var(--silver)' },
-                { label: 'Position Edges', value: youLead + '-' + theyLead, sub: 'rooms won', color: youLead >= theyLead ? 'var(--good)' : 'var(--bad)' },
-                { label: 'All-Time H2H', value: h2hState.loading ? 'Loading' : h2hWins + '-' + h2hLosses + (h2hTies ? '-' + h2hTies : ''), sub: meetings.length ? avgFor.toFixed(1) + '-' + avgAgainst.toFixed(1) + ' avg' : (h2hState.error || 'no meetings found'), color: h2hWins >= h2hLosses ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Titles', value: myChamps + '-' + theirChamps, sub: 'championships', color: myChamps >= theirChamps ? 'var(--good)' : 'var(--bad)' },
-                { label: 'Playoffs', value: myPW + '-' + myPL + ' / ' + theirPW + '-' + theirPL, sub: 'you / them', color: myPW >= theirPW ? 'var(--good)' : 'var(--bad)' },
-            ];
-
-            const renderMiniPlayer = (r) => r
-                ? <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.p?.full_name || '?'}</span>
-                : <span style={{ color: 'var(--silver)', opacity: 0.38 }}>No player</span>;
-
-            const openCard = (pid) => {
-                if (!pid) return;
-                if (window.WR && typeof window.WR.openPlayerCard === 'function') window.WR.openPlayerCard(pid);
-                else if (typeof window._wrSelectPlayer === 'function') window._wrSelectPlayer(pid);
-            };
-
-            const renderRosterCell = (r, opponent, rival) => {
-                if (!r) return <span style={{ color: 'var(--silver)', opacity: 0.32, fontSize: isPhone ? '14px' : '0.72rem', padding: '7px 10px', display: 'inline-block' }}>-</span>;
-                const dhqCol = r.dhq >= 7000 ? 'var(--good)' : r.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : r.dhq >= 1000 ? 'var(--silver)' : 'var(--ov-9, rgba(255,255,255,0.5))';
-                const winsDhq = rival && r.dhq > rival.dhq;
-                return (
-                    <div className="la-duel-player"
-                        role="button"
-                        tabIndex={0}
-                        title="Open player card"
-                        onClick={() => openCard(r.pid)}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(r.pid); } }}
-                        style={{
-                        padding: '7px 10px',
-                        minHeight: '44px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: isPhone ? '14px' : '0.78rem',
-                        background: winsDhq ? 'rgba(46,204,113,0.045)' : 'transparent',
-                        cursor: 'pointer',
-                        borderRight: opponent ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.04))',
-                    }}>
-                        {!isPhone && <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'22px',height:'22px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            {/* Phone: "F. Last" + 3 meta chips — five chips wrapped to a
-                                second line in a half-width cell (owner ask 2026-07-12). */}
-                            <div style={{ color: 'var(--white)', fontSize: isPhone ? '16px' : '0.78rem', whiteSpace: isPhone ? 'normal' : 'nowrap', overflow: 'hidden', overflowWrap: 'anywhere', textOverflow: 'ellipsis' }}>{r.p?.full_name || ((r.p?.first_name || '') + ' ' + (r.p?.last_name || '')).trim() || '?'}</div>
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, marginTop: '1px', display: 'flex', gap: '6px', flexWrap: 'wrap', ...(isPhone ? { fontSize: '14px', whiteSpace: 'normal', flexWrap: 'wrap' } : null) }}>
-                                <span>{r.team}</span>
-                                {r.age != null ? <span>{r.age}yo</span> : null}
-                                {r.ppg > 0 ? <span>{r.ppg} PPG</span> : null}
-                                {!isPhone && <span>{r.yrsExp}y exp</span>}
-                                {!isPhone && <span>{r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>}
-                            </div>
-                        </div>
-                        <span style={{ ...mono, fontWeight: 700, fontSize: isPhone ? '14px' : '0.76rem', color: dhqCol, flexShrink: 0 }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '-'}</span>
-                    </div>
-                );
-            };
-
-            return (
-              <div>
-                {/* Phone (P5): the matchup read leads the page as the decision
-                    hero; the desktop 3-col You/Read/Opponent header renders
-                    off-phone only. No gate — the duel read is free today. */}
-                {_phoneKit ? (
-                <div style={{ marginBottom: '12px' }}>
-                    <WrHeroCard kicker="Matchup Read" headline={verdict.toUpperCase()}
-                        facts={<React.Fragment>
-                            <div>{myName} {myWins}-{myLosses} vs {theirName} {theirWins}-{theirLosses}{gm.hasStrategy ? ' · ' + gmPostureFrame.label : ''}</div>
-                            <div>{biggestEdges[0] ? posLabel(biggestEdges[0].pos) : 'Roster'} is the biggest swing: {(biggestEdges[0]?.diff || 0) > 0 ? '+' : ''}{(biggestEdges[0]?.diff || 0).toLocaleString()} {valueShortLabel}.</div>
-                        </React.Fragment>} />
-                </div>
-                ) : null}
-                <ComparePhoneSection phone={isPhone} title="Team values & comparison metrics">
-                <div style={{ ...panelStyle, padding: '18px 20px', marginBottom: '16px', background: 'linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.065)), rgba(124,107,248,0.055))' }}>
-                    {!_phoneKit && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                        <div>
-                            <div style={labelStyle}>You</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem', color: myColor, fontWeight: 800, letterSpacing: 0 }}>{myName}</div>
-                            <div style={{ ...mono, fontSize: isPhone ? '14px' : '0.82rem', color: 'var(--silver)' }}>{myWins}-{myLosses} current record</div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ ...labelStyle, marginBottom: '4px' }}>Matchup Read</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: verdictColor, letterSpacing: 0 }}>{verdict}</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.74rem', color: 'var(--silver)', opacity: 0.72, marginTop: '3px' }}>
-                                {biggestEdges[0] ? posLabel(biggestEdges[0].pos) : 'Roster'} is the biggest swing: {(biggestEdges[0]?.diff || 0) > 0 ? '+' : ''}{(biggestEdges[0]?.diff || 0).toLocaleString()} {valueShortLabel}.
-                            </div>
-                            {gm.hasStrategy ? (
-                                <div title={gmPostureFrame.hint} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '7px', padding: '3px 9px', borderRadius: '999px', border: '1px solid ' + gmPostureFrame.color, background: 'rgba(0,0,0,0.28)' }}>
-                                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: gmPostureFrame.color, flexShrink: 0 }}></span>
-                                    <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: gmPostureFrame.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{gmPostureFrame.label}</span>
-                                </div>
-                            ) : null}
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={labelStyle}>Opponent</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem', color: theirColor, fontWeight: 800, letterSpacing: 0 }}>{theirName}</div>
-                            <div style={{ ...mono, fontSize: isPhone ? '14px' : '0.82rem', color: 'var(--silver)' }}>{theirWins}-{theirLosses} current record</div>
-                        </div>
-                    </div>
-                    )}
-
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: isPhone ? '14px' : '0.78rem', marginBottom: '6px' }}>
-                            <span style={{ ...mono, color: myColor, fontWeight: 800 }}>{myTotal.toLocaleString()} <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>{valueShortLabel}</span></span>
-                            <span style={{ ...labelStyle, alignSelf: 'center' }}>Roster Share</span>
-                            <span style={{ ...mono, color: theirColor, fontWeight: 800 }}>{theirTotal.toLocaleString()} <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>{valueShortLabel}</span></span>
-                        </div>
-                        <div style={{ display: 'flex', height: '12px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', background: 'var(--ov-4, rgba(255,255,255,0.055))' }}>
-                            <div style={{ width: myDhqPct + '%', background: 'linear-gradient(90deg, var(--gold), var(--acc-line4, rgba(212,175,55,0.78)))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-0a0a0a, #0a0a0a)', fontWeight: 800 }}>
-                                {myDhqPct >= 12 ? Math.round(myDhqPct) + '%' : ''}
-                            </div>
-                            <div style={{ width: (100 - myDhqPct) + '%', background: 'linear-gradient(90deg, rgba(124,107,248,0.78), var(--k-7c6bf8, #7c6bf8))', display: 'flex', alignItems: 'center', paddingLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-0a0a0a, #0a0a0a)', fontWeight: 800 }}>
-                                {(100 - myDhqPct) >= 12 ? Math.round(100 - myDhqPct) + '%' : ''}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Phone (P4): the duel stat cards ride a horizontally
-                        snapping .wr-kpi-strip instead of a stacked grid. */}
-                    <div className={isPhone ? 'wr-kpi-strip' : undefined} style={isPhone ? undefined : { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '9px' }}>
-                        {statCards.map(card => (
-                            <div key={card.label} style={{ padding: '10px', background: 'rgba(0,0,0,0.28)', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius-sm, 8px)', ...(isPhone ? { width: '156px' } : null) }}>
-                                <div style={labelStyle}>{card.label}</div>
-                                <div style={{ ...mono, fontSize: '1rem', fontWeight: 800, color: card.color, marginTop: '5px' }}>{card.value}</div>
-                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.64, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.sub}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                </ComparePhoneSection>
-                <ComparePhoneSection phone={isPhone} title="Position edges & past meetings">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '14px', marginBottom: '16px' }}>
-                    <div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                            <div>
-                                <div style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 800, fontSize: 'var(--text-title)', letterSpacing: 0 }}>Position Edge Matrix</div>
-                                <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.66 }}>Total roster value by room, sorted by positional importance.</div>
-                            </div>
-                            <div style={{ ...mono, fontSize: isPhone ? '14px' : '0.82rem', color: youLead >= theyLead ? 'var(--good)' : 'var(--bad)', fontWeight: 800 }}>{youLead}-{theyLead}</div>
-                        </div>
-                        {/* Phone: 2-up compact grid — the 190px-min auto-fit collapsed
-                            to ONE column at 375-430px and stacked 9 full-width cards
-                            (owner ask 2026-07-12: Compare formatting pass). */}
-                        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: isPhone ? '7px' : '9px' }}>
-                            {positionSummaries.map(summary => {
-                                const total = Math.max(1, summary.myPosDHQ + summary.theirPosDHQ);
-                                const minePct = summary.myPosDHQ / total * 100;
-                                const edgeColor = summary.diff > 0 ? 'var(--good)' : summary.diff < 0 ? 'var(--bad)' : 'var(--silver)';
-                                return (
-                                    <div key={summary.pos} style={{ padding: isPhone ? '8px' : '10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
-                                            <span style={{ fontWeight: 900, color: posColors[summary.pos] || 'var(--gold)' }}>{posLabel(summary.pos)}</span>
-                                            <span style={{ ...mono, color: edgeColor, fontWeight: 800, fontSize: isPhone ? '14px' : '0.78rem' }}>{summary.diff > 0 ? '+' : ''}{summary.diff.toLocaleString()}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', height: '5px', borderRadius: '3px', overflow: 'hidden', background: 'var(--ov-4, rgba(255,255,255,0.06))', marginBottom: '8px' }}>
-                                            <div style={{ width: minePct + '%', background: 'var(--gold)' }}></div>
-                                            <div style={{ width: (100 - minePct) + '%', background: theirColor }}></div>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: 'var(--text-micro, 0.6875rem)' }}>
-                                            <div style={{ minWidth: 0 }}>
-                                                <div style={{ color: myColor, fontWeight: 800, marginBottom: '2px' }}>{summary.myPosDHQ.toLocaleString()}</div>
-                                                <div style={muted}>{renderMiniPlayer(summary.topMine)}</div>
-                                            </div>
-                                            <div style={{ minWidth: 0, textAlign: 'right' }}>
-                                                <div style={{ color: theirColor, fontWeight: 800, marginBottom: '2px' }}>{summary.theirPosDHQ.toLocaleString()}</div>
-                                                <div style={muted}>{renderMiniPlayer(summary.topTheirs)}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 800, fontSize: 'var(--text-title)', letterSpacing: 0, marginBottom: '10px' }}>H2H History</div>
-                        {h2hState.loading ? (
-                            <div style={{ color: 'var(--silver)', fontSize: isPhone ? '14px' : '0.82rem', padding: '10px 0' }}>Loading owner-vs-owner history...</div>
-                        ) : meetings.length ? (
-                            <React.Fragment>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
-                                    {[
-                                        ['Record', h2hWins + '-' + h2hLosses + (h2hTies ? '-' + h2hTies : '')],
-                                        ['Last', lastMeeting ? lastMeeting.season + ' W' + lastMeeting.week : '-'],
-                                        ['Streak', streak],
-                                    ].map(([label, value]) => (
-                                        <div key={label} style={{ padding: '8px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
-                                            <div style={labelStyle}>{label}</div>
-                                            <div style={{ ...mono, fontWeight: 800, color: 'var(--white)', fontSize: isPhone ? '14px' : '0.82rem', marginTop: '4px' }}>{value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div style={{ display: 'grid', gap: '6px' }}>
-                                    {meetings.slice(0, 6).map(m => (
-                                        <div key={m.season + '-' + m.week + '-' + m.matchupId} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', alignItems: 'center', gap: '8px', padding: '7px 8px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: isPhone ? '14px' : '0.74rem' }}>
-                                            <div style={{ ...mono, color: 'var(--silver)', opacity: 0.72 }}>{m.season} W{m.week}</div>
-                                            <div style={{ color: m.result === 'W' ? 'var(--good)' : m.result === 'L' ? 'var(--bad)' : 'var(--silver)', fontWeight: 800 }}>{m.result} {m.myPoints.toFixed(2)}-{m.theirPoints.toFixed(2)}</div>
-                                            <div style={{ ...mono, color: m.margin >= 0 ? 'var(--good)' : 'var(--bad)' }}>{m.margin > 0 ? '+' : ''}{m.margin.toFixed(2)}</div>
-                                        </div>
-                                    ))}
-                                    {meetings.length > 6 ? <div style={{ fontSize: isPhone ? '14px' : '0.7rem', color: 'var(--silver)', opacity: 0.58, textAlign: 'center', paddingTop: '4px' }}>+{meetings.length - 6} older meetings cached</div> : null}
-                                </div>
-                            </React.Fragment>
-                        ) : (
-                            <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: isPhone ? '14px' : '0.8rem', lineHeight: 1.45 }}>
-                                {h2hState.error || 'No completed regular-season meetings found between these current owners.'}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                </ComparePhoneSection>
-                {/* Leverage/exposure cards — removed on phone (owner ask). */}
-                {!isPhone && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '16px' }}>
-                    <div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ ...labelStyle, color: 'var(--gold)', opacity: 1, marginBottom: '8px' }}>Where you can press</div>
-                        {leverage.length ? leverage.map(item => (
-                            <div key={item.pos} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))' }}>
-                                <span style={{ color: posColors[item.pos] || 'var(--white)', fontWeight: 800 }}>{posLabel(item.pos)}</span>
-                                <span style={{ color: 'var(--silver)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{renderMiniPlayer(item.topMine)} over {renderMiniPlayer(item.topTheirs)}</span>
-                                <span style={{ ...mono, color: 'var(--good)', fontWeight: 800 }}>+{item.diff.toLocaleString()}</span>
-                            </div>
-                        )) : <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: isPhone ? '14px' : '0.8rem' }}>No clear surplus edge. This matchup is more about player-level choices.</div>}
-                    </div>
-                    <div style={{ ...panelStyle, padding: '14px' }}>
-                        <div style={{ ...labelStyle, color: 'var(--bad)', opacity: 1, marginBottom: '8px' }}>Where they can hurt you</div>
-                        {exposures.length ? exposures.map(item => (
-                            <div key={item.pos} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))' }}>
-                                <span style={{ color: posColors[item.pos] || 'var(--white)', fontWeight: 800 }}>{posLabel(item.pos)}</span>
-                                <span style={{ color: 'var(--silver)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{renderMiniPlayer(item.topTheirs)} over {renderMiniPlayer(item.topMine)}</span>
-                                <span style={{ ...mono, color: 'var(--bad)', fontWeight: 800 }}>{item.diff.toLocaleString()}</span>
-                            </div>
-                        )) : <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: isPhone ? '14px' : '0.8rem' }}>No obvious room where this opponent has a strong value edge.</div>}
-                    </div>
-                </div>
-                )}
-
-                <ComparePhoneSection phone={isPhone} title="Draft picks & FAAB">
-                <div className="la-capital-section" style={{ ...panelStyle, padding: '14px', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline', marginBottom: '10px' }}>
-                        <div>
-                            <div style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 800, fontSize: 'var(--text-title)', letterSpacing: 0 }}>Draft Picks & FAAB</div>
-                            <div style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--silver)', opacity: 0.66 }}>{skinFeatures.showFuturePicks === false ? 'Draft capital' : 'Future capital'} is included in {valueLabel}; FAAB stays separate as waiver leverage.</div>
-                        </div>
-                        <div style={{ ...mono, color: myAssetTotal >= theirAssetTotal ? 'var(--good)' : 'var(--bad)', fontWeight: 850 }}>{myAssetTotal >= theirAssetTotal ? '+' : ''}{(myAssetTotal - theirAssetTotal).toLocaleString()} assets</div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px' }}>
-                        {[
-                            { name: myName, pickCapital: myPickCapital, faab: myFaab, assetTotal: myAssetTotal, mine: true },
-                            { name: theirName, pickCapital: theirPickCapital, faab: theirFaab, assetTotal: theirAssetTotal, mine: false },
-                        ].map(side => (
-                            <div className="la-capital-card" key={side.name} style={{ padding: '10px', borderRadius: 'var(--card-radius-sm, 8px)', background: side.mine ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'rgba(124,107,248,0.055)', border: '1px solid ' + (side.mine ? 'var(--acc-line1, rgba(212,175,55,0.24))' : 'rgba(124,107,248,0.18)') }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline', marginBottom: '8px' }}>
-                                    <div style={{ color: side.mine ? myColor : theirColor, fontWeight: 850, whiteSpace: isPhone ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{side.name}</div>
-                                    <div style={{ ...mono, color: 'var(--white)', fontSize: isPhone ? '16px' : '0.76rem', fontWeight: 850 }}>{side.assetTotal.toLocaleString()}</div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: isPhone ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: '8px' }}>
-                                    <div>
-                                        <div style={labelStyle}>Pick Value</div>
-                                        <div style={{ ...mono, color: side.pickCapital.totalValue >= myPickCapital.totalValue ? 'var(--good)' : 'var(--silver)', fontWeight: 850 }}>{Math.round(side.pickCapital.totalValue / 1000)}k</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.58 }}>draft {valueShortLabel}</div>
-                                    </div>
-                                    <div>
-                                        <div style={labelStyle}>Pick Count</div>
-                                        <div style={{ ...mono, color: side.pickCapital.count >= myPickCapital.count ? 'var(--good)' : 'var(--silver)', fontWeight: 850 }}>{side.pickCapital.count}</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.58 }}>{Object.entries(side.pickCapital.byRound || {}).slice(0, 3).map(([rd, ct]) => 'R' + rd + ':' + ct).join('  ') || 'No picks'}</div>
-                                    </div>
-                                    <div>
-                                        <div style={labelStyle}>Best Picks</div>
-                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.76, whiteSpace: isPhone ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{side.pickCapital.topPicks.length ? side.pickCapital.topPicks.slice(0, 2).map(p => p.label).join(' · ') : 'None'}</div>
-                                    </div>
-                                    <div>
-                                        <div style={labelStyle}>FAAB</div>
-                                        <div style={{ ...mono, color: side.faab.isFaab ? (side.faab.remaining >= myFaab.remaining ? 'var(--good)' : 'var(--silver)') : 'var(--ov-8, rgba(255,255,255,0.32))', fontWeight: 850 }}>{side.faab.isFaab ? '$' + side.faab.remaining : '—'}</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.58 }}>{side.faab.isFaab ? side.faab.pct + '% left' : 'No FAAB'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                </ComparePhoneSection>
-                <ComparePhoneSection phone={isPhone} title="Full rosters by position">
-                <div style={{ marginTop: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Roster by Position</div>
-                        <div style={{ fontSize: isPhone ? '14px' : '0.7rem', color: 'var(--silver)', opacity: 0.62 }}>Click any player to open the player card.</div>
-                    </div>
-                    {positionSummaries.map(summary => {
-                        const maxLen = Math.max(summary.myAtPos.length, summary.theirAtPos.length);
-                        const total = Math.max(1, summary.myPosDHQ + summary.theirPosDHQ);
-                        const myPosPct = summary.myPosDHQ / total * 100;
-                        const isTargetRoom = gmTargetPositions.has(String(summary.pos));
-                        return (
-                            <div key={summary.pos} style={{ marginBottom: '12px', ...panelStyle, overflow: 'hidden', border: isTargetRoom ? '1px solid var(--acc-line2, rgba(212,175,55,0.35))' : panelStyle.border }}>
-                                <div style={{ padding: '9px 10px 10px', background: isTargetRoom ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : (posColors[summary.pos] || 'var(--k-666666, #666666)') + '14', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '10px' }}>
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                                            <span style={{ fontFamily: 'var(--font-body)', fontSize: isPhone ? '14px' : '0.75rem', fontWeight: 900, color: isTargetRoom ? 'var(--gold)' : posColors[summary.pos] || 'var(--silver)' }}>{posLabel(summary.pos)}</span>
-                                            {isTargetRoom ? <span title="Target room from your GM Strategy — win this matchup here" style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)', padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', letterSpacing: '0.04em' }}>TARGET</span> : null}
-                                        </span>
-                                        <div style={{ display: 'flex', gap: '12px', fontSize: isPhone ? '14px' : '0.72rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <span style={{ color: isTargetRoom ? 'var(--gold)' : summary.myPosDHQ >= summary.theirPosDHQ ? 'var(--good)' : 'var(--silver)', fontWeight: isTargetRoom ? 800 : 400 }}>You: {summary.myPosDHQ.toLocaleString()}</span>
-                                            <span style={{ color: summary.theirPosDHQ >= summary.myPosDHQ ? 'var(--good)' : 'var(--silver)' }}>Them: {summary.theirPosDHQ.toLocaleString()}</span>
-                                            <span style={{ fontWeight: 800, color: summary.diff > 0 ? 'var(--good)' : summary.diff < 0 ? 'var(--bad)' : 'var(--silver)' }}>{summary.diff > 0 ? '+' : ''}{summary.diff.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', background: 'var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                        <div title={'You: ' + Math.round(myPosPct) + '%'} style={{ width: myPosPct + '%', background: 'linear-gradient(90deg, var(--gold), var(--acc-line4, rgba(212,175,55,0.78)))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '4px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-0a0a0a, #0a0a0a)', fontWeight: 800 }}>
-                                            {myPosPct >= 18 ? Math.round(myPosPct) + '%' : ''}
-                                        </div>
-                                        <div title={'Them: ' + Math.round(100 - myPosPct) + '%'} style={{ width: (100 - myPosPct) + '%', background: 'linear-gradient(90deg, rgba(124,107,248,0.76), var(--k-7c6bf8, #7c6bf8))', display: 'flex', alignItems: 'center', paddingLeft: '4px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-0a0a0a, #0a0a0a)', fontWeight: 800 }}>
-                                            {(100 - myPosPct) >= 18 ? Math.round(100 - myPosPct) + '%' : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                                {(() => {
-                                    // Top rows per room + per-position expander at EVERY tier
-                                    // (phone crossover, owner ask 2026-07-13): uncapped, 30-man
-                                    // IDP rosters made this section scroll forever on desktop
-                                    // too. Phone shows the top 4; desktop/iPad get more room,
-                                    // so the cap is 6 there.
-                                    const ROW_CAP = isPhone ? 4 : 6;
-                                    const capped = !expandedRosterPos.has(summary.pos) && maxLen > ROW_CAP + 1;
-                                    const shownLen = capped ? ROW_CAP : maxLen;
-                                    return (
-                                        <React.Fragment>
-                                            {Array.from({ length: shownLen }).map((_, i) => {
-                                                const mine = summary.myAtPos[i];
-                                                const theirs = summary.theirAtPos[i];
-                                                return (
-                                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))' }}>
-                                                        {renderRosterCell(mine, false, theirs)}
-                                                        {renderRosterCell(theirs, true, mine)}
-                                                    </div>
-                                                );
-                                            })}
-                                            {maxLen > ROW_CAP + 1 && (
-                                                <button type="button"
-                                                    onClick={() => setExpandedRosterPos(prev => { const next = new Set(prev); if (next.has(summary.pos)) next.delete(summary.pos); else next.add(summary.pos); return next; })}
-                                                    style={{ width: '100%', minHeight: '40px', background: 'var(--ov-1, rgba(255,255,255,0.015))', border: 'none', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                                    {capped ? ('Show all ' + maxLen + ' ▾') : ('Show top ' + ROW_CAP + ' ▴')}
-                                                </button>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })()}
-                            </div>
-                        );
-                    })}
-                </div>
-                </ComparePhoneSection>
-              </div>
-            );
-          })()}
+            {renderFieldAnalysis(opponentOptions.filter(team => sameId(team.rosterId, compareTeamId)), 'Head to head', 'Roster strength. Starting core. Room to build.', { duel: true })}
         </React.Fragment>
         ) : (
         <React.Fragment>
@@ -2316,7 +1219,7 @@ function CompareTab({
                 ? renderFieldAnalysis(
                     selectedGroupTeams,
                     'Custom Group',
-                    cleanManualIds.length >= 2 ? 'Manual selection across the league; your roster is optional.' : 'Showing a default 3-team field until you pick at least 2 teams.',
+                    cleanManualIds.length >= 2 ? 'Your selected teams, compared on equal terms.' : 'Showing a default 3-team field until you pick at least 2 teams.',
                     { includeUser: false }
                 )
                 : compareScope === 'division'
@@ -2326,7 +1229,7 @@ function CompareTab({
                         divisionIncludesUser ? 'Your division includes your roster and division rivals.' : 'Division-only lens; your roster is not added to this field.',
                         { includeUser: divisionIncludesUser }
                     )
-                    : renderFieldAnalysis(selectedLeagueTeams, 'Full League', 'Every opponent in the league, ranked against your roster.')}
+                    : renderFieldAnalysis(selectedLeagueTeams, 'Full League', 'Every franchise. Every position. Find your next advantage.')}
         </React.Fragment>
         )}
 
@@ -2341,21 +1244,21 @@ function CompareTab({
                 onAction={() => setSearchOpen(true)} onOpen={() => setSearchOpen(true)} />
             <WrPhoneSheet open={searchOpen} onClose={() => setSearchOpen(false)} title="Add player to compare" desktop={null}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
-                    <input value={playerQuery} onChange={e => setPlayerQuery(e.target.value)}
+                    <input aria-label="Search players to compare" value={playerQuery} onChange={e => setPlayerQuery(e.target.value)}
                         placeholder={phoneAtMax ? 'Four players max — remove one to swap' : 'Search players by name…'}
                         disabled={phoneAtMax}
                         style={{ ...selectStyle, width: '100%', fontSize: '16px', opacity: phoneAtMax ? 0.5 : 1 }} />
                     {/* Position-group filter */}
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' }}>
-                        {['ALL', ...allPositions].map(pos => { const on = searchPos === pos, c = pos === 'ALL' ? 'var(--gold)' : (posColors[pos] || 'var(--silver)'); return <button key={pos} onClick={() => setSearchPos(pos)} disabled={phoneAtMax} style={{ flex: 'none', minHeight: '38px', padding: '6px 11px', borderRadius: 'var(--card-radius-sm, 8px)', ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? c : 'var(--silver)', background: on ? 'rgba(255,255,255,0.06)' : 'transparent', border: '1px solid ' + (on ? c : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{pos === 'ALL' ? 'All pos' : posLabel(pos)}</button>; })}
+                        {['ALL', ...allPositions].map(pos => { const on = searchPos === pos, c = pos === 'ALL' ? 'var(--gold)' : (posColors[pos] || 'var(--silver)'); return <button key={pos} aria-pressed={on} onClick={() => setSearchPos(pos)} disabled={phoneAtMax} style={{ flex: 'none', minHeight: '38px', padding: '6px 11px', borderRadius: 'var(--card-radius-sm, 8px)', ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? c : 'var(--silver)', background: on ? 'rgba(255,255,255,0.06)' : 'transparent', border: '1px solid ' + (on ? c : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{pos === 'ALL' ? 'All pos' : posLabel(pos)}</button>; })}
                     </div>
                     {/* Owned-by-team filter */}
-                    <select value={searchTeam} onChange={e => setSearchTeam(e.target.value)} disabled={phoneAtMax} style={{ ...selectStyle, width: '100%', fontSize: '16px' }}>
+                    <select aria-label="Filter players by owning team" value={searchTeam} onChange={e => setSearchTeam(e.target.value)} disabled={phoneAtMax} style={{ ...selectStyle, width: '100%', fontSize: '16px' }}>
                         <option value="ALL">Any team — all rosters</option>
                         {searchTeams.map(t => <option key={t.rid} value={t.rid}>{t.name}</option>)}
                     </select>
                     {(searchPos !== 'ALL' || searchTeam !== 'ALL') ? (
-                        <div onClick={() => { setSearchPos('ALL'); setSearchTeam('ALL'); }} style={{ fontSize: isPhone ? '14px' : '0.72rem', color: 'var(--gold)', cursor: 'pointer', padding: '0 2px 2px' }}>{'↺'} Clear filters</div>
+                        <button type="button" onClick={() => { setSearchPos('ALL'); setSearchTeam('ALL'); }} style={{ ...smallButtonStyle(false), alignSelf: 'flex-start' }}>{'↺'} Clear filters</button>
                     ) : null}
                     {phoneSearchResults.map(r => (
                         <WrAssetRow key={r.pid} pos={r.pos} name={r.name} tag={r.team + (r.owner ? ' · ' + r.owner : ' · FA')}

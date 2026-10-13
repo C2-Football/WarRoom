@@ -40,6 +40,8 @@
     "test:dashboard-league": "node tests/dashboard-league-layout.cjs && node tests/dashboard-league-data.cjs && node tests/dashboard-league-widgets.cjs",
     "test:fa-market": "node tests/fa-market-data.cjs && node tests/free-agency-roster.js && node tests/waiver-qb-role.cjs && node tests/waiver-evidence.cjs",
     "test:stats": "node tests/league-stats.js && node tests/league-stats-review.cjs && node tests/league-stats-tab.js && node tests/stats-mobile.cjs",
+    "test:player-comparison": "node tests/player-comparison.cjs",
+    "test:team-comparison": "node tests/team-comparison.cjs && node tests/team-comparison-data.cjs",
     "test:forecast-ledger": "node tests/forecast-ledger.cjs && node tests/forecast-archive.cjs && node tests/forecast-evaluation.cjs",
     "test:chopped": "node tests/chopped.js && node tests/chop-odds.js",
     "test:first-class": "node tests/first-class-modes.js",
