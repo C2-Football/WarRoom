@@ -1585,20 +1585,20 @@
             };
             const name = targetPlayer ? playerName(targetPlayer, acquisitionContext.pid) : acquisitionContext.pid;
             const suggestion = target ? faabSuggest(target.dhq, target.pos || normPos(target.p.position), target.p.age) : null;
-            return <section className="fa-acquisition-plan" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--acc-line2, rgba(212,175,55,.35))', borderRadius: 10, background: 'var(--acc-fill1, rgba(212,175,55,.04))' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); setMissionNotice(''); setFaFilter(''); }}>Close editor</button></div>
+            return <section className="fa-acquisition-plan mc-claim-editor" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--acc-line2, rgba(212,175,55,.35))', borderRadius: 10, background: 'var(--acc-fill1, rgba(212,175,55,.04))' }}>
+                <div className="mc-claim-editor-head" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); setMissionNotice(''); setFaFilter(''); }}>Close editor</button></div>
                 {acquisitionContext.reason && <p style={{ margin: '8px 0', color: 'var(--silver)', fontSize: '.82rem' }}>{acquisitionContext.reason}</p>}
                 {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player below.</p>}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-                    <label style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
-                    {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={myRoster?.settings?.waiver_budget_used != null ? remaining : undefined} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" /></label>}
+                <div className="mc-claim-editor-fields" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                    <label className="mc-claim-drop-field" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
+                    {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={myRoster?.settings?.waiver_budget_used != null ? remaining : undefined} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" />{_faPhone && <small>{myRoster?.settings?.waiver_budget_used == null ? 'Remaining budget unavailable' : '$' + remaining + ' remaining'}</small>}</label>}
                     {target && suggestion && <span style={{ color: 'var(--gold)', fontSize: '.8rem' }}>Historical bid range ${suggestion.lo}–${suggestion.hi}</span>}
                     {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>Player details &amp; notebook</button>}
                 </div>
                 {protectedDrop && <p role="alert" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>You marked this player Untouchable. Choose another drop or revisit that decision in My Team.</p>}
                 {acquisitionContext.dropPid && !dropId && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>The earlier drop candidate is no longer on your roster. No drop is selected.</p>}
-                {target && isPro && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} />}
-                {target && <button type="button" onClick={() => {
+                {target && isPro && !_faPhone && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} />}
+                {target && <button type="button" className="mc-claim-save" onClick={() => {
                     const bid = !hasFAAB || plannedBid === '' ? null : Number(plannedBid);
                     if (bid != null && (!Number.isInteger(bid) || bid < 0 || (myRoster?.settings?.waiver_budget_used != null && bid > remaining))) { setMissionNotice('Enter a whole-dollar bid within your remaining budget.'); return; }
                     if (protectedDrop) { setMissionNotice('Choose another drop before saving; this player is marked Untouchable.'); return; }
@@ -1607,6 +1607,7 @@
                     setMissionNotice(saved ? 'Local claim plan saved. Submit it on your league platform.' : 'Could not save the plan on this device. Your edits remain open.');
                 }}>{window.WR?.WaiverPlans?.get(currentLeague, target.pid) ? 'Update claim plan' : 'Save claim plan'}</button>}
                 {missionNotice && <p role="status">{missionNotice}</p>}
+                {target && hasFAAB && isPro && _faPhone && <details className="mc-claim-bid-evidence"><summary>League bid history</summary><FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} /></details>}
                 {target && window.WR?.PlayerNotebook?.NotebookEditor && React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
                 <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>Planning only. Submit any claim and roster change on your league platform.</small>
             </section>;
@@ -1616,7 +1617,7 @@
             const rows = window.WR?.PlayerNotebook?.list(acquisitionLeagueId) || [];
             return <section className="fa-saved-targets" data-notebook-revision={notebookRevision} style={{ display: 'grid', gap: 12 }}>
                 <div><h2 style={{ color: 'var(--gold)', margin: '0 0 5px' }}>Saved targets</h2><p style={{ color: 'var(--silver)', fontSize: '.85rem' }}>Your watchlist and notes. Personal research follows you across leagues; league plans stay private to this league.</p></div>
-                {!rows.length && <div><p style={{ color: 'var(--silver)' }}>Open a player’s notebook to watch them or save a note. Draft notes and target tags appear here too.</p>{_faPhone && <button type="button" className="fa-mobile-more" onClick={() => window.wrNavigateTab?.('research-players')}>Browse players</button>}</div>}
+                {!rows.length && <div><p style={{ color: 'var(--silver)' }}>Open a player’s notebook to watch them or save a note. Draft notes and target tags appear here too.</p>{_faPhone && <button type="button" className="fa-mobile-more" onClick={() => window.wrNavigateTab?.('stats')}>Browse Stats hub</button>}</div>}
                 {rows.map(row => {
                     const player = playersData[row.pid] || (String(row.pid).startsWith('csv_') ? { full_name: row.pid.slice(4).replace(/_/g, ' ') } : {});
                     const action = window.WR.PlayerNotebook.resolveAction({ pid: row.pid, league: currentLeague, rosters: currentLeague.rosters, myRosterId: myRoster?.roster_id, features: skinFeatures, context: isDraftProspect(row.pid, player) ? 'draft-prospect' : 'saved-targets' });

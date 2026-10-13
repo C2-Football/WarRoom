@@ -84,9 +84,9 @@
   .wr-mission-v8 .wr-mobile-workspace{align-items:center!important;min-height:38px;}
   .wr-mission-v8 .wr-mobile-workspace h1,.wr-mission-v8 .wr-mobile-workspace select{color:var(--cx-ink)!important;font-size:20px!important;font-weight:760!important;letter-spacing:-.035em!important;}
   .wr-mission-v8 .wr-mobile-workspace select{padding:0 20px 0 0!important;background:transparent!important;border:0!important;}
-  .wr-mission-v8 .wr-mobile-help{min-height:34px!important;min-width:0!important;padding:6px 9px!important;border:1px solid var(--gx-edge)!important;border-radius:10px!important;background:rgba(255,255,255,.06)!important;color:var(--cx-muted)!important;font-size:10px!important;}
+  .wr-mission-v8 .wr-mobile-help{min-height:44px!important;min-width:44px!important;padding:6px 9px!important;border:1px solid var(--gx-edge)!important;border-radius:10px!important;background:rgba(255,255,255,.06)!important;color:var(--cx-muted)!important;font-size:11px!important;}
   .wr-mission-v8 .wr-workspace-views{gap:3px!important;margin-top:8px!important;padding:3px!important;border:1px solid var(--gx-edge)!important;border-radius:13px!important;background:rgba(31,46,71,.7)!important;box-shadow:inset 0 1px rgba(255,255,255,.08);}
-  .wr-mission-v8 .wr-workspace-views button{min-height:34px!important;border-radius:9px!important;color:var(--cx-muted)!important;font-size:10px!important;font-weight:720!important;}
+  .wr-mission-v8 .wr-workspace-views button{min-height:44px!important;border-radius:9px!important;color:var(--cx-muted)!important;font-size:12px!important;font-weight:720!important;}
   .wr-mission-v8 .wr-workspace-views button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.2);}
   .wr-mission-v8 .wr-league-wire-entry{margin:0 12px!important;}
   .wr-mission-v8 .wr-content-frame{padding:7px 12px 88px!important;}
@@ -99,9 +99,9 @@
     box-shadow:inset 0 1px rgba(255,255,255,.09),0 10px 28px rgba(0,0,0,.12);
   }
   .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg){padding:3px!important;border:1px solid var(--gx-edge)!important;border-radius:13px!important;background:rgba(25,39,63,.65)!important;box-shadow:inset 0 1px rgba(255,255,255,.08);}
-  .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button{min-height:34px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:var(--cx-muted)!important;font-size:10px!important;font-weight:750!important;letter-spacing:.01em!important;}
+  .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button{min-height:44px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:var(--cx-muted)!important;font-size:12px!important;font-weight:750!important;letter-spacing:.01em!important;}
   .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button[aria-pressed=true],
-  .wr-mission-v8 .wr-seg button.active{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
+  .wr-mission-v8 .wr-seg button.active,.wr-mission-v8 .wr-seg button.is-on,.wr-mission-v8 .wr-seg button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
   .wr-mission-v8 :is(.mc-metric-picker button,.mc-player-actions button,.mc-context-actions button,.mc-next-actions button,.mc-market-tools button,.mc-research-actions button){border-color:var(--acc-line1)!important;background:rgba(183,206,255,.09)!important;color:var(--cx-ink)!important;border-radius:10px!important;}
   .wr-mission-v8 :is(input,select,textarea){border-color:var(--gx-edge)!important;background:rgba(13,24,43,.58)!important;color:var(--cx-ink)!important;}
   .wr-mission-v8 :is(h1,h2,h3,h4,strong){color:var(--cx-ink);}
@@ -176,7 +176,7 @@
      returns to the revision-eight compact scan pattern. */
   .wr-mission-v8 .mc-trades{padding:1px 0 12px!important;gap:8px!important;}
   .wr-mission-v8 .mc-trade-nav{border-color:var(--gx-edge)!important;background:rgba(25,39,63,.7)!important;box-shadow:inset 0 1px rgba(255,255,255,.08)!important;}
-  .wr-mission-v8 .mc-trade-nav button{min-height:34px!important;color:var(--cx-muted)!important;font-size:10px!important;}
+  .wr-mission-v8 .mc-trade-nav button{min-height:44px!important;color:var(--cx-muted)!important;font-size:12px!important;}
   .wr-mission-v8 .mc-trade-nav button.is-on,.wr-mission-v8 .mc-trade-nav button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
   .wr-mission-v8 .wr-asset-row{border-color:var(--gx-edge)!important;border-radius:13px!important;background:rgba(29,44,70,.78)!important;box-shadow:inset 0 1px rgba(255,255,255,.075)!important;}
   .wr-mission-v8 .wr-asset-head{display:grid!important;grid-template-columns:27px minmax(0,1fr) minmax(112px,1.12fr) 15px!important;align-items:center!important;gap:6px!important;min-height:59px!important;padding:8px!important;}
@@ -205,6 +205,36 @@
   .wr-mission-v8 .wr-dock-chip.is-active{background:linear-gradient(135deg,rgba(183,206,255,.28),rgba(183,206,255,.12))!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.19)!important;}
   .wr-mission-v8 .wr-phone-more-menu>section{border-color:var(--gx-edge)!important;background:linear-gradient(135deg,rgba(48,68,101,.92),rgba(28,42,66,.96))!important;}
   .wr-mission-v8 .wr-phone-more-menu>section>button{border-color:rgba(183,206,255,.14)!important;color:var(--cx-ink)!important;}
+
+  /* Carry the phone palette through the secondary workspaces too. */
+  .wr-mission-v8 :is(.gm-office-shell,.wr-settings-module-screen,.la-history,.wr-phone-guide){
+    --off-black:rgba(34,49,74,.9);--charcoal:#263650;
+    --card-border:1px solid var(--gx-edge);
+  }
+  .wr-mission-v8 :is(.gm-office-shell,.wr-settings-module-screen,.la-history,.wr-phone-guide) .wr-mobile-section,
+  .wr-mission-v8 .mc-league .mc-league-panel,
+  .wr-mission-v8 .gd-mobile .gd-season-odds{
+    border-color:var(--gx-edge)!important;
+    background:linear-gradient(135deg,rgba(48,68,101,.78),rgba(28,42,66,.9))!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.08);
+  }
+  .wr-mission-v8 .gd-mobile .gd-season-odds-kpi{border-color:rgba(183,206,255,.2)!important;background:rgba(26,41,65,.66)!important;}
+  .wr-mission-v8 :is(.la-history,.mc-league-leaders) :is(.la-report-row,.la-disclosure){
+    border-color:rgba(183,206,255,.2);background:rgba(26,41,65,.66);
+  }
+  .wr-mission-v8 .mc-league .mc-league-panel-title{font-family:inherit!important;font-size:15px!important;letter-spacing:0!important;}
+  .wr-mission-v8 .mc-league-standings .mc-league-panel-head{display:block!important;margin-bottom:8px!important;}
+  .wr-mission-v8 .mc-league-standings .mc-league-panel-title{display:none;}
+  .wr-mission-v8 .mc-league-standings .mc-league-panel-tools{margin:0!important;}
+  .wr-mission-v8 .mc-league-standings .la-tools{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;gap:6px!important;}
+  .wr-mission-v8 .mc-league-standings .la-tools select{flex:1;min-width:0;width:0;min-height:44px;}
+  .wr-mission-v8 .mc-league-leaders button{min-height:44px!important;font-family:inherit!important;letter-spacing:0!important;}
+  .wr-mission-v8 .mc-league-leaders button[aria-pressed=true],
+  .wr-mission-v8 .mc-league .lct-mode-toggle button[aria-pressed=true]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 .mc-league .la-standings .la-own{background:rgba(183,206,255,.1);}
+  .wr-mission-v8 .wr-settings-module-screen .wr-mobile-section>summary{font-size:14px;}
+  .wr-mission-v8 .gm-settings-preset[aria-pressed=true]{border-color:var(--cx-accent)!important;background:rgba(183,206,255,.14)!important;}
+  .wr-mission-v8 .gm-settings-preset-current{margin-left:8px;font-size:11px;font-weight:600;color:var(--cx-accent);}
 }
 
 @media (max-width:350px){

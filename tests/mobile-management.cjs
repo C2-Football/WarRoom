@@ -90,16 +90,31 @@ test('mobile Rule Lab keeps current results before collapsed scoring without los
     const reception = all(tree, n => n.type === 'label' && text(n) === 'Reception (PPR)')[0];
     assert.ok(reception); all(reception, n => n.type === 'input')[0].props.onChange({ target: { value: '1.5' } }); assert.equal(staged.rec, 1.5);
 });
-test('Wire puts the lead before coverage on phones and retains full provenance and filters', () => {
-    const league = { id: 'L', name: 'League', season: 2026 };
-    const stories = [0, 1].map(i => ({ id: i, league, label: 'Record', text: 'Headline ' + i, body: 'Story body', sources: [{ workbook: 'Archive', sheet: 'Scores', range: 'A1:C4' }] }));
-    const setup = phone => harness(['js/components/league-wire-portfolio.js'], phone, { App: { LeagueLiveScores: { supported: () => true } }, WrWirePortfolio: { headlines: () => stories } });
-    const h = setup(true); let tree = h.render('WrAllLeaguesWire', { leagues: [league] });
-    const nodes = all(tree, n => n.type === 'article' || n.props.className === 'wr-all-wire-coverage');
-    assert.equal(nodes[0].type, 'article'); assert.equal(nodes[1].type, 'details'); assert.ok(!nodes[1].props.open); assert.equal(nodes[2].type, 'article'); assert.match(text(tree), /Archive · Scores!A1:C4/);
-    all(tree, n => n.type === 'select')[0].props.onChange({ target: { value: 'L' } }); tree = h.render('WrAllLeaguesWire', { leagues: [league] }); assert.equal(all(tree, n => n.type === 'select')[0].props.value, 'L');
-    const desktop = setup(false).render('WrAllLeaguesWire', { leagues: [league] });
-    assert.equal(all(desktop, n => n.type === 'article' || n.props.className === 'wr-all-wire-coverage')[0].type, 'details');
+test('Wire keeps coverage collapsed and preserves lead stories, provenance, league filters and search', () => {
+    const leagues = [0, 1].map(i => ({ id: 'L' + i, name: 'League ' + i, season: 2026 }));
+    const stories = [0, 1].map(i => ({ id: i, league: leagues[i], label: 'Record', text: 'Headline ' + i, body: 'Story body', sources: [{ workbook: 'Archive', sheet: 'Scores', range: 'A1:C4' }] }));
+    // Match the browser's dependency order. This fixture does not run loading
+    // effects; only portfolio selection stays stubbed while reading is real.
+    const setup = phone => harness(['js/shared/league-wire-reading.js', 'js/components/league-wire-portfolio.js'], phone, { App: { LeagueLiveScores: { supported: () => true } }, WrWirePortfolio: {
+        headlines: (_entries, _topic, filter) => stories.filter(s => filter === 'all' || s.league.id === filter), lookback: () => null,
+    } });
+    const checkEdition = tree => {
+        const coverage = byClass(tree, 'wr-all-wire-coverage')[0];
+        assert.equal(coverage.type, 'details'); assert.ok(!coverage.props.open);
+        assert.ok(byClass(byClass(tree, 'wr-wire-reader-tools')[0], 'wr-all-wire-coverage').includes(coverage));
+        const articles = all(byClass(tree, 'wr-all-wire-stories')[0], n => n.type === 'article');
+        assert.equal(articles.length, 2); assert.match(articles[0].props.className, /is-lead/);
+        assert.match(text(tree), /Archive · Scores!A1:C4/);
+    };
+    const h = setup(true); let tree = h.render('WrAllLeaguesWire', { leagues }); checkEdition(tree);
+    const leagueSelect = tree => all(tree, n => n.props['aria-label'] === 'Filter Wire by league')[0];
+    leagueSelect(tree).props.onChange({ target: { value: 'L0' } }); tree = h.render('WrAllLeaguesWire', { leagues });
+    assert.equal(leagueSelect(tree).props.value, 'L0'); assert.equal(byClass(tree, 'wr-all-wire-story').length, 1); assert.match(text(tree), /Headline 0/); assert.doesNotMatch(text(tree), /Headline 1/);
+    leagueSelect(tree).props.onChange({ target: { value: 'all' } }); tree = h.render('WrAllLeaguesWire', { leagues });
+    all(tree, n => n.props['aria-label'] === 'Search all-league Wire')[0].props.onChange({ target: { value: 'Headline 1' } }); tree = h.render('WrAllLeaguesWire', { leagues });
+    assert.equal(byClass(tree, 'wr-all-wire-story').length, 1); assert.match(text(tree), /Headline 1/); assert.doesNotMatch(text(tree), /Headline 0/);
+    click(tree, 'Clear search'); tree = h.render('WrAllLeaguesWire', { leagues }); checkEdition(tree);
+    checkEdition(setup(false).render('WrAllLeaguesWire', { leagues }));
 });
 test('Commissioner phone menu uses a modal dialog and restores the opener', () => {
     let focused = 0; let closed = 0; let opened = 0; let cancelled = 0;
@@ -130,5 +145,18 @@ test('phone Preferences keeps controls available inside closed sections and anno
     assert.match(text(sections), /Focus areas & notifications/); assert.match(text(sections), /Asset priorities/);
     const slider = all(tree, n => n.type === 'input' && n.props['aria-label'] === 'Alert threshold')[0]; assert.ok(slider); slider.props.onChange({ target: { value: 80 } }); assert.equal(saved.alertThreshold, 80);
     assert.equal(button(tree, 'Trades').props['aria-pressed'], true); assert.equal(button(tree, 'Email (coming soon)').props.disabled, true);
+    const props = { workspaceView: 'settings', currentLeague: {}, playersData: {}, myRoster: { roster_id: 1, players: [] } };
+    tree = h.render('AlexInsightsTab', props);
+    assert.ok(byClass(tree, 'gm-settings-preset').every(n => n.props['aria-pressed'] === false), 'Custom sensitivity does not falsely select a preset');
+    button(tree, 'Injury watch').props.onClick();
+    tree = h.render('AlexInsightsTab', props);
+    const priorFocus = JSON.stringify(saved.focus), priorChannels = JSON.stringify(saved.channel);
+    byClass(tree, 'gm-settings-preset').find(n => text(n).startsWith('Conservative')).props.onClick();
+    assert.equal(saved.alertThreshold, 85);
+    assert.equal(JSON.stringify(saved.focus), priorFocus, 'Sensitivity presets preserve chosen focus areas');
+    assert.equal(JSON.stringify(saved.channel), priorChannels, 'Sensitivity presets preserve notification choices');
+    tree = h.render('AlexInsightsTab', props);
+    const active = byClass(tree, 'gm-settings-preset').filter(n => n.props['aria-pressed']);
+    assert.equal(active.length, 1); assert.match(text(active[0]), /^ConservativeCurrent/);
 });
 console.log('PASS ' + passed + ' mobile management behavior tests');

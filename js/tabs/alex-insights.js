@@ -1850,18 +1850,23 @@
             h('h3', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 'var(--text-title, 1.125rem)', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
             h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)' } }, label.sub),
         );
-        const presetButton = (label, desc, getPatch) => h('button', {
-            onClick: () => { const p = getPatch(); setSettings(p); saveSettings(p); },
-            title: desc,
-            style: {
-                ...presetBtnStyle,
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px',
-                padding: '8px 10px', textAlign: 'left',
+        const presetButton = (label, desc, getPatch) => {
+            const patch = getPatch();
+            const active = ['alertThreshold', 'maxAlertsPerWeek', 'minPointsDelta'].every(key => Number(settings[key]) === Number(patch[key]));
+            return h('button', {
+                className: 'gm-settings-preset', 'aria-pressed': active,
+                onClick: () => { const p = getPatch(); setSettings(p); saveSettings(p); },
+                title: desc,
+                style: {
+                    ...presetBtnStyle,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px',
+                    padding: '8px 10px', textAlign: 'left',
+                },
             },
-        },
-            h('span', { style: { fontWeight: 700, color: 'var(--white)' } }, label),
-            h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, fontWeight: 400 } }, desc),
-        );
+                h('span', { style: { fontWeight: 700, color: 'var(--white)' } }, label, active && h('span', { className: 'gm-settings-preset-current' }, 'Current')),
+                h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, fontWeight: 400 } }, desc),
+            );
+        };
 
         return h('div', { className: 'gm-settings-content' },
             // Intro card
@@ -1876,11 +1881,11 @@
                     h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Only flag 85%+ confidence \u00B7 ~3 alerts/week',
-                            () => ({ ...DEFAULT_SETTINGS, alertThreshold: 85, maxAlertsPerWeek: 3, minPointsDelta: 4 })),
+                            () => ({ ...settings, alertThreshold: 85, maxAlertsPerWeek: 3, minPointsDelta: 4 })),
                         presetButton('Balanced', 'Tuned defaults \u00B7 70% threshold \u00B7 ~6 alerts/week',
-                            () => ({ ...DEFAULT_SETTINGS })),
+                            () => ({ ...settings, alertThreshold: DEFAULT_SETTINGS.alertThreshold, maxAlertsPerWeek: DEFAULT_SETTINGS.maxAlertsPerWeek, minPointsDelta: DEFAULT_SETTINGS.minPointsDelta })),
                         presetButton('Aggressive', '55% threshold \u00B7 up to 12 alerts/week',
-                            () => ({ ...DEFAULT_SETTINGS, alertThreshold: 55, maxAlertsPerWeek: 12, minPointsDelta: 1 })),
+                            () => ({ ...settings, alertThreshold: 55, maxAlertsPerWeek: 12, minPointsDelta: 1 })),
                     ),
                     h(window.WR.MobileSection, { title: 'Advanced sensitivity', summary: 'Confidence, frequency and projected points' }, sliderRow('Alert threshold', 'Minimum confidence Alex needs before showing an insight. Higher = quieter, only the strong signals.', 'alertThreshold', 0, 100, 1, v => v + '%'),
                     sliderRow('Max alerts per week', 'Caps how many cards Alex shows in Overview. Lower = curated.', 'maxAlertsPerWeek', 1, 20, 1),

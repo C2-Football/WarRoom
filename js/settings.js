@@ -249,7 +249,7 @@
                         </div>
 
                         <div style={moduleColumnStyle}>
-                            <window.WR.MobileSection className="wr-settings-display" title="Display" defaultOpen={true}><div style={moduleSectionStyle}>
+                            <window.WR.MobileSection className="wr-settings-display" title="Display" defaultOpen={false}><div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>DISPLAY</div>
                                 <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                                     Change the visual style of your dashboard widgets.

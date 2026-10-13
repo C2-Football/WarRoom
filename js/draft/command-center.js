@@ -2091,6 +2091,10 @@
             const finalSeed = { ...s, analyzerMode: s.analyzerMode || (hasAssetSeed ? 'build' : 'find') };
             dispatch({ type: 'OPEN_PROPOSER', targetRosterId: rosterId, seed: finalSeed });
         }, [state.userRosterId]);
+        const phoneLastPick = state.picks?.[state.picks.length - 1] || null;
+        const phoneCanUndoManualPick = state.phase === 'drafting' && phoneLastPick && (
+            state.mode === 'manual' || phoneLastPick.source === 'manual-live' || phoneLastPick.source === 'manual-draft'
+        );
 
         // ── Render ───────────────────────────────────────────────────
         // Mobile redirect — MobileFeed only owns the live drafting experience.
@@ -2122,10 +2126,11 @@
                         onResumeYes={onResumeYes}
                         onResumeNo={onResumeNo}
                         forcedMode={forcedMode}
+                        isPhone={true}
                     />
                 );
             }
-            return <MobileFeed state={state} dispatch={dispatch} onStart={onStartDraft} isUserTurn={isUserTurn} currentSlot={currentSlot} onPropose={onPropose} />;
+            return <MobileFeed state={state} dispatch={dispatch} onStart={onStartDraft} onExit={onExit} canUndoManualPick={phoneCanUndoManualPick} isUserTurn={isUserTurn} currentSlot={currentSlot} onPropose={onPropose} />;
         }
 
         // Setup phase
@@ -2144,6 +2149,7 @@
                     onResumeYes={onResumeYes}
                     onResumeNo={onResumeNo}
                     forcedMode={forcedMode}
+                    isPhone={viewport === 'mobile'}
                 />
             );
         }
@@ -2168,7 +2174,7 @@
     }
 
     // ── Setup screen ─────────────────────────────────────────────────
-    function SetupScreen({ state, dispatch, draftMeta, playersData, currentLeague, myRoster, csvReady, showResume, onStartDraft, onResumeYes, onResumeNo, forcedMode }) {
+    function SetupScreen({ state, dispatch, draftMeta, playersData, currentLeague, myRoster, csvReady, showResume, onStartDraft, onResumeYes, onResumeNo, forcedMode, isPhone = false }) {
         const [showPoolOther, setShowPoolOther] = React.useState(false); // custom pool + advanced mock options hide behind "Other" (league settings are the default)
         const selStyle = {
             width: '100%',
@@ -2353,6 +2359,30 @@
                 suffix: ' teams',
             },
         ];
+        const launchPanel = (
+            <section className="draft-setup-panel is-start draft-setup-launch-card">
+                <div className="draft-hq-panel-head">
+                    <span>Launch</span>
+                    <em>{paceLabel}</em>
+                </div>
+                <button
+                    type="button"
+                    className="draft-setup-start"
+                    onClick={() => onStartDraft()}
+                    disabled={state.variant === 'rookie' && !csvReady}
+                    style={{
+                        background: state.variant === 'rookie' && !csvReady ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--gold)',
+                        color: 'var(--black)',
+                        borderColor: state.variant === 'rookie' && !csvReady ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--gold)',
+                    }}
+                >
+                    {state.variant === 'rookie' && !csvReady ? 'LOADING PROSPECTS...' : 'START MOCK DRAFT'}
+                </button>
+                <div className="draft-setup-note" style={{ marginTop: 10 }}>
+                    {setupSummary}. Owner DNA, needs, draft history, and your saved Big Board order will drive the room.
+                </div>
+            </section>
+        );
 
         return (
             <div className="draft-setup-shell">
@@ -2519,6 +2549,10 @@
                             )}
                         </div>
 
+                        {/* Phone: launch after the source and draft rules, before
+                            the optional roster-order editor pushes it below fold. */}
+                        {isPhone && launchPanel}
+
                         {/* Team Order (owner ask) — who sits in which slot, mock-only.
                             Distinct from "Draft Order" above (that's snake vs linear —
                             the turn PATTERN; this is WHICH team picks from which slot).
@@ -2611,30 +2645,7 @@
                             reveal above — no separate toggle row anymore. */}
                     </section>
 
-                    <section className="draft-setup-panel is-start draft-setup-launch-card">
-                        {/* Pick Path Preview removed on all form factors (owner ask) —
-                            this panel is now just the launch button + room summary. */}
-                        <div className="draft-hq-panel-head">
-                            <span>Launch</span>
-                            <em>{paceLabel}</em>
-                        </div>
-                        <button
-                            type="button"
-                            className="draft-setup-start"
-                            onClick={() => onStartDraft()}
-                            disabled={state.variant === 'rookie' && !csvReady}
-	                            style={{
-	                                background: state.variant === 'rookie' && !csvReady ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--gold)',
-	                                color: 'var(--black)',
-	                                borderColor: state.variant === 'rookie' && !csvReady ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--gold)',
-	                            }}
-	                        >
-	                            {state.variant === 'rookie' && !csvReady ? 'LOADING PROSPECTS...' : 'START MOCK DRAFT'}
-	                        </button>
-                        <div className="draft-setup-note" style={{ marginTop: 10 }}>
-                            {setupSummary}. Owner DNA, needs, draft history, and your saved Big Board order will drive the room.
-                        </div>
-                    </section>
+                    {!isPhone && launchPanel}
                         </div>
                         {/* Learning archive merged into the studio (owner ask): one
                             card, with a real-draft-learning toggle instead of the old
@@ -8072,7 +8083,7 @@
         // Panes scroll in place; Ask Alex + Analytics open as WR.Sheets from
         // the chip row; a live trade offer mounts the same TradeModal popup
         // desktop uses. Falls back to the stacked feed if the kit isn't loaded.
-        function MobileFeed({ state, dispatch, onStart, isUserTurn, currentSlot, onPropose }) {
+        function MobileFeed({ state, dispatch, onStart, onExit, canUndoManualPick, isUserTurn, currentSlot, onPropose }) {
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
         const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
@@ -8169,6 +8180,8 @@
 
         const drafting = state.phase === 'drafting';
         const pro = ccIsPro();
+        const isMockRoom = state.mode !== 'live-sync';
+        const canAdjustCpuPace = drafting && isMockRoom && state.mode !== 'manual';
         // (ActionBar removed per owner ask — drafting happens from the Big Board
         // tab, whose rows carry the existing MAKE_PICK handlers.)
         const bpa = (state.pool || [])[0] || null;
@@ -8284,11 +8297,17 @@
                     </div>
                 )}
                 <nav className="mc-draft-tools" aria-label="Draft tools">
-                    <button type="button" aria-expanded={phPanel === 'intel'} onClick={() => setPhPanel('intel')}>Owner intel</button>
-                    <button type="button" aria-expanded={phPanel === 'analytics'} onClick={() => setPhPanel('analytics')}>Analytics</button>
-                    <button type="button" aria-expanded={phPanel === 'trades'} onClick={() => setPhPanel('trades')}>Trades</button>
                     <button type="button" aria-expanded={phPanel === 'alex'} onClick={() => setPhPanel('alex')}>Ask Alex</button>
+                    <button type="button" aria-expanded={phPanel === 'more'} onClick={() => setPhPanel('more')}>More</button>
                 </nav>
+                <Sheet open={phPanel === 'more'} onClose={() => setPhPanel(null)} title="More draft tools" desktop={null}>
+                    <div className="la-mobile la-draft la-draft-sheet mc-draft-more" style={{ padding: '4px 12px 10px' }}>
+                        <button type="button" onClick={() => setPhPanel('intel')}>Owner intel</button>
+                        <button type="button" onClick={() => setPhPanel('analytics')}>Analytics</button>
+                        <button type="button" onClick={() => setPhPanel('trades')}>Trades</button>
+                        {isMockRoom && <button type="button" onClick={() => setPhPanel('controls')}>Room controls</button>}
+                    </div>
+                </Sheet>
                 <Sheet open={phPanel === 'trades'} onClose={() => setPhPanel(null)} title="Draft trades" desktop={null}>
                     <div className="la-mobile la-draft la-draft-sheet" style={{ padding: '4px 12px 10px' }}>{isRedraftLive(state) ? <><p>Open the Trade Desk to build a league offer. Live draft picks remain with your provider.</p><button type="button" onClick={() => window.wrNavigateTab?.('trades')}>Open Trade Desk →</button></> : <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={(rosterId, seed) => { setPhPanel(null); onPropose?.(rosterId, seed); }} />}</div>
                 </Sheet>
@@ -8313,6 +8332,24 @@
                                 : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Analytics', 'draft_live_analytics', 'Live draft analytics are Scout Pro.') : '' }} />)}
                     </div>
                 </Sheet>
+                {isMockRoom && <Sheet open={phPanel === 'controls'} onClose={() => setPhPanel(null)} title="Room controls" desktop={null}>
+                    <div className="la-mobile la-draft la-draft-sheet mc-draft-more" style={{ padding: '4px 12px 10px' }}>
+                        {canAdjustCpuPace && <>
+                            <button type="button" onClick={() => dispatch({ type: 'SET_SPEED', speed: state.speed === 'paused' ? 'medium' : 'paused' })}>
+                                {state.speed === 'paused' ? 'Resume draft' : 'Pause draft'}
+                            </button>
+                            <label className="mc-draft-speed">CPU speed
+                                <select value={state.speed === 'paused' ? 'medium' : state.speed} onChange={event => dispatch({ type: 'SET_SPEED', speed: event.target.value })}>
+                                    <option value="slow">Slow</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="fast">Fast</option>
+                                </select>
+                            </label>
+                        </>}
+                        {canUndoManualPick && <button type="button" onClick={() => { dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true }); setPhPanel(null); }}>Undo last manual pick</button>}
+                        <button type="button" className="is-danger" onClick={() => { setPhPanel(null); onExit?.(); }}>End mock and return to setup</button>
+                    </div>
+                </Sheet>}
                 {/* Trade offer → the same popup desktop uses (room stays paused
                     behind it; Accept/Decline resume it). */}
                 {!isRedraftLive(state) && tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}

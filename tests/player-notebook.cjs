@@ -200,7 +200,7 @@ assert.ok(flatten(tree).some(node => node.type === 'h2' && node.children.include
 window.WR.openAcquisition({ pid: 'fa', position: 'TE', week: 7, dropPid: 'mine', source: 'saved-targets' });
 faRender(null);
 tree = faRender(null);
-assert.ok(flatten(tree).some(node => node.props?.className === 'fa-acquisition-plan'), 'context survives a targets-to-waivers route change');
+assert.ok(flatten(tree).some(node => String(node.props?.className || '').split(/\s+/).includes('fa-acquisition-plan')), 'context survives a targets-to-waivers route change');
 assert.ok(flatten(tree).some(node => node.props?.className === 'mc-waiver-claims'), 'planned additions open the Claims workspace after the route prop effect');
 assert.ok(flatten(tree).some(node => node.type === 'button' && node.children.includes('Claims') && node.props['aria-pressed'] === true), 'Claims remains selected while the plan is open');
 assert.equal(window.WR.acquisitionContext.dropPid, 'mine');

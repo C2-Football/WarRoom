@@ -133,6 +133,13 @@
 .mc-dna-guide p,.mc-dna-guide small { font-size:11px; line-height:1.45; color:var(--silver); }
 @media(max-width:767px) {
  .wr-mission-v8 .mc-trades .mc-trade-filter-bar>button { min-height:44px!important; }
+ /* Keep the compact controls usable when the shared segment skin is applied. */
+ .wr-mission-v8 .mc-trades .mc-trade-nav button,
+ .wr-mission-v8 .mc-trades .mc-owner-sections button,
+ .wr-mission-v8 .mc-trades .wr-seg button { min-height:44px!important; }
+ .mc-trades .mc-trade-packages button { min-width:44px; min-height:44px; flex-shrink:0; }
+ .mc-trades .mc-trade-filter-panel .tc-phone-filters { gap:6px!important; }
+ .mc-trades .mc-trade-filter-panel .tc-phone-filters button { min-height:44px; }
  /* Owner dossiers share the phone's slate surfaces; DNA stays in the small identity badge. */
  .wr-mission-v8 .mc-owner-profile {
   --off-black:var(--cx-paper); --charcoal:var(--cx-soft); --font-title:var(--font-body,"DM Sans",sans-serif);

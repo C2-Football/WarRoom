@@ -2767,19 +2767,12 @@
 
         return (
             <div className={"draft-cc-scope" + (_phone ? " la-mobile la-draft" : "")} style={{ padding: 'var(--card-pad, 16px 18px)' }}>
-                {/* Phone (P2 .wr-seg): same view setters as the desktop module
-                    strip below — navDraftView / launchLiveDraft / Draft History
-                    all preserved; the strip itself never mounts on phone. */}
-                {_phone && (
+                {/* Mock Draft has its own primary phone destination. Keep this
+                    compact header focused on the active Draft-room views. */}
+                {_phone && activeView !== 'mock' && (
                     <div className="mc-draft-navigation">
-                        <nav className="mc-section-tabs mc-draft-workspaces" aria-label="Draft workspaces">
-                            <button type="button" aria-pressed={activeView !== 'mock'} onClick={() => { setShowDraftHistory(false); navDraftView(commandTabAllowed ? 'command' : 'board'); window.wrNavigateTab?.('draft'); }}>Draft room</button>
-                            <button type="button" aria-pressed={activeView === 'mock'} onClick={() => { setShowDraftHistory(false); navDraftView('mock'); }}>Mock draft</button>
-                        </nav>
-                        {activeView !== 'mock' && <>
-                            <nav className="mc-section-tabs" aria-label="Draft views">{[...(commandTabAllowed ? [['command', 'War Room']] : []), ['board', 'Big Board'], ['live', 'Live']].map(([key, label]) => <button type="button" key={key} aria-pressed={!showDraftHistory && activeView === key} onClick={() => { setShowDraftHistory(false); if (key === 'live') launchLiveDraft(); else navDraftView(key); }}>{label}</button>)}</nav>
-                            <div className="mc-context-actions"><button type="button" aria-pressed={showDraftHistory} onClick={() => setShowDraftHistory(true)}>History &amp; recaps</button><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft research →</button></div>
-                        </>}
+                        <nav className="mc-section-tabs" aria-label="Draft views">{[...(commandTabAllowed ? [['command', 'War Room']] : []), ['board', 'Big Board'], ['live', 'Live']].map(([key, label]) => <button type="button" key={key} aria-pressed={!showDraftHistory && activeView === key} onClick={() => { setShowDraftHistory(false); if (key === 'live') launchLiveDraft(); else navDraftView(key); }}>{label}</button>)}</nav>
+                        <div className="mc-context-actions"><button type="button" aria-pressed={showDraftHistory} onClick={() => setShowDraftHistory(true)}>History &amp; recaps</button><button type="button" onClick={() => window.wrNavigateTab?.('draft-review')}>Draft research →</button></div>
                     </div>
                 )}
                 {!_phone && (

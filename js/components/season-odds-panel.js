@@ -185,7 +185,7 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
     const oddsGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.7fr 0.8fr 0.7fr 0.7fr 0.9fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
     const luckGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.7fr 0.9fr 0.8fr 0.7fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
     const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
-    const myRowStyle = { background: 'rgba(212,175,55,0.07)', boxShadow: `inset 3px 0 0 ${GOLD}`, color: TEXT };
+    const myRowStyle = { background: 'var(--acc-fill1, rgba(212,175,55,0.07))', boxShadow: `inset 3px 0 0 ${GOLD}`, color: TEXT };
     const swing = sim && sim.leverage ? Math.abs((sim.leverage.ifWin ?? 0) - (sim.leverage.ifLose ?? 0)) : 0;
 
     return (

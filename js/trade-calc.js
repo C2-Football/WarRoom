@@ -4409,7 +4409,10 @@
                 { key: 'shop', label: 'Shop my players' },
                 { key: 'picks', label: 'Draft picks' },
             ];
-            const intentLabel = (finderIntents.find(i => i.key === finderQuery.intent) || finderIntents[0]).label;
+            const phActiveIntent = effMode === 'picks' || focusR?.kind === 'pick' ? 'picks'
+                : focusR?.kind === 'player' ? (String(focusR.rosterId) === String(myRosterId) ? 'shop' : 'help')
+                : finderQuery.intent;
+            const intentLabel = (finderIntents.find(i => i.key === phActiveIntent) || finderIntents[0]).label;
             const assetBrowserSorts = [
                 { key: 'dhq', label: 'DHQ' },
                 { key: 'age', label: 'Age' },
@@ -4749,7 +4752,7 @@
                 finderPanelEl = finderPanelWrap(
                     <div className="wr-seg">
                         {finderIntents.map(i => (
-                            <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-on' : ''}
+                            <button key={i.key} type="button" className={phActiveIntent === i.key ? 'is-on' : ''}
                                 onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key, focus: null })); setAssetBrowserPos('ALL'); setShowAllDeals(false); setPhFinderPanel(null); }}>{i.label}</button>
                         ))}
                     </div>
@@ -4878,10 +4881,10 @@
                                 onFocus={() => { setPhFinderPanel('search'); setPhFiltersOpen(false); }}
                                 onChange={e => { setFinderSearch(e.target.value); setPhFinderPanel('search'); }}
                                 onKeyDown={e => { if (e.key === 'Escape') { setFinderSearch(''); setPhFinderPanel(null); } }} /> : <span>{intentLabel} · {pinnedPartnerName}</span>}
-                            <button type="button" aria-expanded={phFiltersOpen} onClick={() => { setPhFiltersOpen(v => !v); setPhFinderPanel(null); }}>Filters</button>
+                            {_pro && rosterState.isUsable && <button type="button" aria-expanded={phFiltersOpen} aria-controls="mc-trade-filters" onClick={() => { setPhFiltersOpen(v => !v); setPhFinderPanel(null); }}>Filters</button>}
                         </div>
                         {_pro && rosterState.isUsable && phSearchResults}
-                        {phFiltersOpen && <div className="mc-trade-filter-panel">{pillsEl}{finderPanelEl}</div>}
+                        {_pro && rosterState.isUsable && phFiltersOpen && <div id="mc-trade-filters" className="mc-trade-filter-panel">{pillsEl}{finderPanelEl}</div>}
                         {_pro && rosterState.isUsable && <div className="mc-trade-scope"><span>{intentLabel} · <b>{pinnedPartnerName}</b>{focusR && focusR.kind !== 'owner' ? ' · ' + focusR.label : ''}</span>{focusR && <button type="button" onClick={phClearFocus} aria-label="Clear trade focus">Clear ×</button>}</div>}
                         {_pro && rosterState.isUsable && (
                             (finderPoolOn && !scanArmed)

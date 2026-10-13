@@ -8,7 +8,7 @@ const ctx={window:root,React,console,wrAlpha:c=>c,localStorage:{getItem(){return
 let source=fs.readFileSync('js/draft/command-center.js','utf8').replace('window.DraftCommandCenter = DraftCommandCenter;','window.__PhoneDraft = MobileFeed; window.__DraftGrid = CommandCenterGrid; window.DraftCommandCenter = DraftCommandCenter;');vm.runInContext(Babel.transform(source,{presets:['react']}).code,ctx);
 const walk=n=>n==null||typeof n==='boolean'?[]:Array.isArray(n)?n.flatMap(walk):typeof n==='object'?[n,...walk(n.children)]:[n];const text=n=>walk(n).filter(x=>typeof x!=='object').join('');const find=(tree,pred)=>walk(tree).find(n=>typeof n==='object'&&pred(n));
 const base={phase:'drafting',mode:'live-sync',draftMechanic:'snake',variant:'startup',userRosterId:1,userSlot:1,leagueSize:2,rounds:3,currentIdx:0,picks:[],pool:[],personas:{1:{teamName:'Owner with a long franchise name'},2:{teamName:'Other franchise'}},pickOrder:[{rosterId:1,overall:1,round:1,slot:1}],alex:{stream:[]},liveSync:{}};
-let actions=[];function render(state=base){index=0;return root.__PhoneDraft({state,dispatch:a=>actions.push(a),currentSlot:state.pickOrder[0],isUserTurn:true})}
+let actions=[];function render(state=base, options={}){index=0;return root.__PhoneDraft({state,dispatch:a=>actions.push(a),currentSlot:state.pickOrder[0],isUserTurn:true,onExit:options.onExit,canUndoManualPick:options.canUndoManualPick})}
 for(const mode of ['live-sync','manual','solo']){
  slots=[];let state={...base,mode};let tree=render(state);const nav=find(tree,n=>n.props['aria-label']==='Live draft views');assert(nav,'Inner views are visible for '+mode);assert(text(nav).includes('My roster'));assert.equal(text(nav).includes('Teams'),mode==='live-sync','Team tracking remains live-only');
  assert.equal(find(tree,n=>n.props.className==='la-draft-pane').props.style.minHeight,0);
@@ -35,4 +35,16 @@ assert(find(auctionTree,n=>n.type===boundary&&n.props.title==='Players & roster'
 assert(find(auctionTree,n=>n.type===boundary&&n.props.title==='Draft log & analysis'),'Auction secondary analysis stays disclosed');
 assert(!find(auctionTree,n=>n.props.style?.height==='clamp(420px, 50vh, 560px)'),'Short live auction removes the minimum420px panes');
 assert.equal(actions.length,0,'Reading live auction never dispatches a bid or pick');
-console.log('PASS phone draft snake/manual/solo selection, read-only live auction, short-height/keyboard panes and completed continuation');
+
+// Phone mock controls remain available without keeping four tiny tool buttons
+// in the room. Ask Alex stays direct; the lower-priority actions live in More.
+slots=[];actions=[];let exits=0;const mockState={...base,mode:'solo',speed:'medium'};let mockTree=render(mockState,{canUndoManualPick:true,onExit:()=>{exits++;}});
+const tools=find(mockTree,n=>n.props['aria-label']==='Draft tools');assert.match(text(tools),/Ask Alex/);assert.match(text(tools),/More/);assert.doesNotMatch(text(tools),/Owner intel|Analytics|Trades/,'Secondary draft tools are not permanent phone chips');
+find(mockTree,n=>n.type==='button'&&text(n)==='More').props.onClick();mockTree=render(mockState,{canUndoManualPick:true,onExit:()=>{exits++;}});
+assert(find(mockTree,n=>n.type===boundary&&n.props.title==='More draft tools').props.open,'More opens the consolidated tool sheet');
+find(mockTree,n=>n.type==='button'&&text(n)==='Room controls').props.onClick();mockTree=render(mockState,{canUndoManualPick:true,onExit:()=>{exits++;}});
+assert(find(mockTree,n=>n.type===boundary&&n.props.title==='Room controls').props.open,'Mock room exposes its controls in the sheet');
+find(mockTree,n=>n.type==='button'&&text(n)==='Pause draft').props.onClick();assert.equal(actions.at(-1).type,'SET_SPEED');assert.equal(actions.at(-1).speed,'paused','Phone mock can pause CPU picks');
+find(mockTree,n=>n.type==='button'&&text(n)==='Undo last manual pick').props.onClick();assert.equal(actions.at(-1).type,'UNDO_LAST_PICK');assert.equal(actions.at(-1).manualOnly,true,'Phone mock can undo a manual pick');
+find(mockTree,n=>n.type==='button'&&text(n)==='End mock and return to setup').props.onClick();assert.equal(exits,1,'Phone mock can return to setup');
+console.log('PASS phone draft snake/manual/solo selection, compact room controls, read-only live auction, short-height/keyboard panes and completed continuation');

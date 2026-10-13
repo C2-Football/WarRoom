@@ -71,6 +71,15 @@ test('overview names one primary lineup move and keeps waivers and Alex within r
     assert.equal(walk(tree).some(n=>n.type==='details'),false);
 });
 
+test('live overview uses the headline for the action and reports game state once',()=>{
+    const h=fixture(); h.props.myRoster={starters:['a']}; h.render();
+    h.hooks[0]={key:'l1|2026|6',status:'ready',games:[{home:'KC',away:'NYJ',state:'live'}],now:Date.now()};
+    const tree=h.render();
+    assert.match(text(tree),/Follow your remaining starters\./);
+    assert.match(text(tree),/NFL games are underway/);
+    assert.doesNotMatch(text(tree),/Follow your remaining starters — NFL games are underway/);
+});
+
 test('loading or unavailable kickoff data never surfaces stale replacement advice',()=>{
     const h=fixture(); h.props.myRoster={starters:['c']};
     assert.doesNotMatch(text(h.render()),/Listed Out|listed unavailable|Replace/);

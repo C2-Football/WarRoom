@@ -112,6 +112,8 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert.match(textOf(withoutOpponent.out), /The matchup appears when an opponent and projections are available/, 'Missing opponent context stays in the requested view');
 
     const active = await fixture();
+    const currentWeekOption = all(active.out).find(node => node.type === 'option' && textOf(node) === 'Wk 2 · Current');
+    assert(currentWeekOption, 'the phone week picker identifies the current week with its compact label');
     assert.equal(all(active.out).filter(n => n.props.className === 'gd-scoreboard').length, 1, 'one scoreboard in the existing lineup');
     assert.doesNotMatch(textOf(active.out), /FOLLOW YOUR LINEUP|Submitted starters/);
     assert.equal(select(active.out, n => n.props.className === 'gd-planning-focus'), undefined, 'mobile lineup opens directly on the actionable lineup surface');

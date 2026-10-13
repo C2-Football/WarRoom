@@ -19,7 +19,7 @@ user=null;window.S={platform:'mfl',user:{user_id:'franchise-1'}};assert.equal(st
 const source=fs.readFileSync('js/free-agency.js','utf8'),ast=babel.packages.parser.parse(source,{plugins:['jsx']});
 function take(name){let out;babel.packages.traverse.default(ast,{FunctionDeclaration(p){if(p.node.id?.name===name)out=source.slice(p.node.start,p.node.end)}});assert(out);return out;}
 const h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),walk=n=>n&&typeof n==='object'?[n,...(n.children||[]).flatMap(walk)]:[],text=n=>n&&typeof n==='object'?(n.children||[]).map(text).join(''):String(n??''),button=(tree,label)=>walk(tree).find(n=>n.type==='button'&&text(n)===label);
-Object.assign(ctx,{React:{createElement:h,Fragment:'fragment'},currentLeague:league,acquisitionLeagueId:'league-a',playersData:{'add-a':{full_name:'Target A'},'add-b':{full_name:'Target B'},'drop-a':{full_name:'Drop A'},'drop-b':{full_name:'Drop B'}},availablePlayers:[{pid:'add-a',pos:'WR',p:{position:'WR'},dhq:500},{pid:'add-b',pos:'RB',p:{position:'RB'},dhq:400}],myRoster:{players:['drop-a','drop-b'],settings:{waiver_budget_used:25}},hasFAAB:true,remaining:75,plannedBid:'',acquisitionContext:null,claimPlans:store.list(league),missionNotice:'',isPro:false,playerName:(p,id)=>p.full_name||id,normPos:x=>x,faabSuggest:()=>null,openFaPlayer(){},setFaFilter(){},setFaSection(){},setClaimPlanRevision(){},setPlannedBid:value=>ctx.plannedBid=value,setAcquisitionContext:value=>ctx.acquisitionContext=value,setMissionNotice:value=>ctx.missionNotice=value,renderSavedTargets:()=>h('aside',{},'Watchlist stays separate')});
+Object.assign(ctx,{React:{createElement:h,Fragment:'fragment'},currentLeague:league,acquisitionLeagueId:'league-a',playersData:{'add-a':{full_name:'Target A'},'add-b':{full_name:'Target B'},'drop-a':{full_name:'Drop A'},'drop-b':{full_name:'Drop B'}},availablePlayers:[{pid:'add-a',pos:'WR',p:{position:'WR'},dhq:500},{pid:'add-b',pos:'RB',p:{position:'RB'},dhq:400}],myRoster:{players:['drop-a','drop-b'],settings:{waiver_budget_used:25}},hasFAAB:true,remaining:75,plannedBid:'',acquisitionContext:null,claimPlans:store.list(league),missionNotice:'',isPro:false,_faPhone:false,playerName:(p,id)=>p.full_name||id,normPos:x=>x,faabSuggest:()=>null,openFaPlayer(){},setFaFilter(){},setFaSection(){},setClaimPlanRevision(){},setPlannedBid:value=>ctx.plannedBid=value,setAcquisitionContext:value=>ctx.acquisitionContext=value,setMissionNotice:value=>ctx.missionNotice=value,renderSavedTargets:()=>h('aside',{},'Watchlist stays separate')});
 vm.runInContext(babel.transform(take('renderAcquisitionPlan')+'\n'+take('renderMissionClaims'),{presets:['react']}).code,ctx);
 let tree=ctx.renderMissionClaims();assert.match(text(tree),/Add Target A.*Drop Drop B.*\$9/s);
 const targetRow=walk(tree).find(n=>n.props.className==='mc-claim-row'&&text(n).includes('Target A'));
@@ -33,4 +33,19 @@ store.save(league,{pid:'add-a',dropPid:'drop-b',bid:17});
 let receive;Object.assign(ctx,{useEffect:fn=>fn(),claimScope:store.scope(league),initialView:null,setFaSearch(){},setRookieOnly(){},setRookieTeamFilter(){},setRookieCollegeFilter(){},setRookieSlotFilter(){}});
 window.acquisitionContext={pid:'add-a',dropPid:'drop-a',leagueId:'league-a'};window.WR.acquisitionContext=window.acquisitionContext;window.addEventListener=(name,fn)=>{if(name==='wr:acquisition-context')receive=fn;};window.removeEventListener=()=>{};
 let hook;babel.packages.traverse.default(ast,{CallExpression(p){if(p.node.callee.name==='useEffect'&&source.slice(p.node.start,p.node.end).includes("window.addEventListener('wr:acquisition-context'"))hook=source.slice(p.node.start,p.node.end)}});vm.runInContext(hook,ctx);assert.equal(ctx.plannedBid,'17');assert.equal(ctx.acquisitionContext.dropPid,'drop-b');assert(receive);
+// Phone planning keeps its budget and primary save above optional bid history.
+Object.assign(ctx,{_faPhone:true,isPro:true,FaabCommandCard:()=>null});
+tree=ctx.renderAcquisitionPlan();
+const planNodes=walk(tree),save=button(tree,'Update claim plan'),evidence=planNodes.find(n=>n.props.className==='mc-claim-bid-evidence');
+assert(save);assert(evidence && evidence.type==='details' && !evidence.props.open);
+assert(planNodes.indexOf(save)<planNodes.indexOf(evidence),'Saving a local claim does not require scrolling through bid history');
+assert.match(text(tree),/\$75 remaining/,'Budget stays visible before the save action');
+ctx.hasFAAB=false;tree=ctx.renderAcquisitionPlan();
+assert(!walk(tree).some(n=>n.props.className==='mc-claim-bid-evidence'),'Priority leagues do not show an empty bid-history disclosure');
+ctx.hasFAAB=true;
+// Empty phone watchlists lead to the primary Stats hub, rather than an omitted
+// mobile Players & picks destination.
+Object.assign(ctx,{_faPhone:true,notebookRevision:0});window.WR.PlayerNotebook.list=()=>[];window.wrNavigateTab=tab=>ctx.navigatedTab=tab;
+vm.runInContext(babel.transform(take('renderSavedTargets'),{presets:['react']}).code,ctx);
+tree=ctx.renderSavedTargets();button(tree,'Browse Stats hub').props.onClick();assert.equal(ctx.navigatedTab,'stats');
 console.log('PASS local waiver plans: account/league/season isolation, reload, edit without duplicate notes, zero/unset bids, priority order, remove, failed-storage retention and acquisition hydration');

@@ -119,8 +119,13 @@
   .wr-mission-v8 .la-draft .wr-player-card-embedded .wr-seg { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:10px 12px 0!important; }
   .wr-mission-v8 .la-draft .wr-player-card-embedded .wr-seg button { padding:6px 4px; font-size:11px!important; }
   .wr-mission-v8 .la-draft .wr-player-card-embedded button { font-family:var(--font-body,"DM Sans",sans-serif)!important; }
-  .mc-draft-tools { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:10px 0; }
-  .la-draft .mc-draft-tools button { padding:6px 3px; border:1px solid rgba(255,255,255,.12); color:var(--silver); background:rgba(255,255,255,.045); border-radius:10px; font-size:11px!important; }
+  .mc-draft-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:10px 0; }
+  .la-draft .mc-draft-tools button { min-height:44px; padding:8px 10px; border:1px solid rgba(255,255,255,.12); color:var(--silver); background:rgba(255,255,255,.045); border-radius:10px; font-size:12px!important; }
+  .mc-draft-more { display:grid; gap:8px; }
+  .mc-draft-more > button, .mc-draft-more > label { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--gx-edge,rgba(173,196,231,.25)); border-radius:10px; background:rgba(183,206,255,.06); color:var(--cx-ink,var(--white)); font:600 14px var(--font-body,"DM Sans",sans-serif); text-align:left; }
+  .mc-draft-more > button.is-danger { color:#ffd0cf; border-color:rgba(237,109,105,.38); background:rgba(237,109,105,.08); }
+  .mc-draft-more .mc-draft-speed { display:grid; gap:6px; color:var(--cx-muted,var(--silver)); }
+  .mc-draft-more .mc-draft-speed select { width:100%; min-height:44px; padding:8px 10px; border:1px solid var(--gx-edge,rgba(173,196,231,.25)); border-radius:8px; background:rgba(12,24,42,.5); color:var(--cx-ink,var(--white)); font:600 14px var(--font-body,"DM Sans",sans-serif); }
   .mc-team-profile { padding:0!important; }
   .mc-team-profile .mc-team-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; margin:10px 0; }
   .mc-team-facts > div { padding:8px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); border-radius:10px; }

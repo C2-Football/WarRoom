@@ -32,6 +32,35 @@ handler({detail:{rosterId:'2',leagueId:'league',season:2025,view:'finder'}});ass
 handler({detail:{rosterId:1,leagueId:'league',season:2026,view:'finder'}});assert.equal(ctx.tab,'unchanged');assert.match(ctx.notice,/another owner/,'Owner-scoped trades never select the user as their own partner');
 // Saved scouting and inferred engine behavior retain separate provenance.
 function initializer(name){let out;babel.packages.traverse.default(ast,{VariableDeclarator(p){if(p.node.id.name===name)out=source.slice(p.node.init.start,p.node.init.end)}});assert(out,name);return out;}
+// Phone context follows the generator's resolved ownership, even when a search
+// target overrides the last goal selected in Filters.
+vm.runInContext(fn('deriveFinderMode'),ctx);
+ctx.finderIntents=[{key:'help',label:'Find a player'},{key:'shop',label:'Shop my players'},{key:'picks',label:'Draft picks'}];
+for(const [intent,focus,expected] of [
+  ['help',{kind:'player',rosterId:'1'},'Shop my players'],
+  ['shop',{kind:'player',rosterId:2},'Find a player'],
+  ['help',{kind:'pick',rosterId:1},'Draft picks'],
+  ['shop',{kind:'pick',rosterId:2},'Draft picks'],
+  ['picks',{kind:'player',rosterId:1},'Draft picks'],
+  ['help',{kind:'owner',id:'partner'},'Find a player'],
+  ['shop',null,'Shop my players'],
+]){
+  ctx.finderQuery={intent};ctx.focusR=focus;ctx.effMode=ctx.deriveFinderMode(ctx.finderQuery,focus);
+  ctx.phActiveIntent=vm.runInContext(initializer('phActiveIntent'),ctx);
+  assert.equal(vm.runInContext(initializer('intentLabel'),ctx),expected,'Phone goal describes the effective finder target');
+}
+let phoneFilterBar;
+babel.packages.traverse.default(ast,{JSXElement(p){if(p.node.openingElement.attributes.some(a=>a.name?.name==='className'&&a.value?.value==='mc-trade-filter-bar'))phoneFilterBar=source.slice(p.node.start,p.node.end);}});
+assert(phoneFilterBar);
+const h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)});
+const walk=n=>n&&typeof n==='object'?[n,...(n.children||[]).flatMap(walk)]:[];
+Object.assign(ctx,{React:{createElement:h},finderSearch:'',intentLabel:'Find a player',pinnedPartnerName:'All teams',phFiltersOpen:false,setPhFiltersOpen(){},setPhFinderPanel(){},setFinderSearch(){}});
+for(const [pro,usable] of [[false,true],[true,false],[true,true]]){
+  ctx._pro=pro;ctx.rosterState={isUsable:usable};
+  const bar=vm.runInContext(babel.transform('('+phoneFilterBar+')',{presets:['react']}).code,ctx);
+  assert.equal(walk(bar).some(n=>n.type==='button'),pro&&usable,'Filters are absent when no usable finder is available');
+  assert.equal(walk(bar).some(n=>n.type==='input'),pro&&usable,'Search keeps the existing Pro and roster gates');
+}
 ctx.partnerBoard=[{assessment:{ownerId:'another'}}];ctx.effPartnerId='missing-pinned-owner';assert.equal(vm.runInContext(initializer('selectedItem'),ctx),null,'A missing pinned owner cannot silently become another trade partner');ctx.effPartnerId=null;assert.equal(vm.runInContext(initializer('selectedItem'),ctx),ctx.partnerBoard[0]);
 let dnaLoadHook;babel.packages.traverse.default(ast,{CallExpression(p){const text=source.slice(p.node.start,p.node.end);if(p.node.callee.name==='useEffect'&&text.includes('window.OD?.loadDNA')&&text.includes('setSavedOwnerDnaState'))dnaLoadHook=text;}});assert(dnaLoadHook);
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return{promise,resolve};};

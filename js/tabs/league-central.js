@@ -115,7 +115,7 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
         if (!primaryFlag) {
             if (current.status === 'loading') return { message: 'Checking your remaining decisions — confirming which starters can still be changed.', action: 'Open Game Day', tab: 'lineup' };
             if (current.status !== 'ready') return { message: 'Review your remaining lineup — game timing is unavailable, so verify kickoff before making a change.', action: 'Open Game Day', tab: 'lineup' };
-            if (decision.live) return { message: 'Follow your remaining starters — NFL games are underway, so check your live lineup and remaining players.', action: 'Open Game Day', tab: 'lineup' };
+            if (decision.live) return { message: 'Follow your remaining starters.', action: 'Open Game Day', tab: 'lineup' };
             if (decision.complete) return { message: 'Review this week — NFL games are complete, so see the results across your league.', action: 'Open League', tab: 'central' };
             return { message: 'Set up your week — compare your starters and bench before the next kickoff.', action: 'Open Game Day', tab: 'lineup' };
         }
@@ -378,10 +378,10 @@ function LeagueCentralTab({
     // ── Shells ──
     const renderPanel = ({ title, meta, right, children }) => (
         <div className="mc-league-panel" style={{ minWidth: 0, background: PANEL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: isPhone ? '12px 10px' : '14px 16px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                <span style={{ fontFamily: RAJ, fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.03em', color: WHITE }}>{title}</span>
+            <div className="mc-league-panel-head" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                <span className="mc-league-panel-title" style={{ fontFamily: RAJ, fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.03em', color: WHITE }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-                {right ? <div style={{ marginLeft: 'auto' }}>{right}</div> : null}
+                {right ? <div className="mc-league-panel-tools" style={{ marginLeft: 'auto' }}>{right}</div> : null}
             </div>
             {children}
         </div>
@@ -790,15 +790,15 @@ function LeagueCentralTab({
 
                 <div className="mc-league-leaders">
                 {renderPanel({ title: "Stat leaders", right: <div style={segWrap}>
-                            <button onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
+                            <button aria-pressed={statScope === 'week'} onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
                                 {leaders.week ? 'Week ' + leaders.week : 'Week'}
                             </button>
-                            <button onClick={() => setStatScope('season')} style={segBtn(statScope === 'season')}>Season</button>
+                            <button aria-pressed={statScope === 'season'} onClick={() => setStatScope('season')} style={segBtn(statScope === 'season')}>Season</button>
                         </div>, children: <>
                     <button type="button" onClick={() => setActiveTab?.('stats')} style={{ ...segBtn(false), color: GOLD, padding: '5px 0', marginBottom: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Explore all player stats →</button>
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '3px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '8px', marginBottom: '9px' }}>
                         {['Overall', ...leaguePositions].map(p => (
-                            <button key={p} onClick={() => setLeaderPos(p)} style={{ ...segBtn(leaderPos === p), fontWeight: 700 }}>{p}</button>
+                            <button key={p} aria-pressed={leaderPos === p} onClick={() => setLeaderPos(p)} style={{ ...segBtn(leaderPos === p), fontWeight: 700 }}>{p}</button>
                         ))}
                     </div>
                     {activeLeaders.status === 'loading' ? (

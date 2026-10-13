@@ -35,3 +35,34 @@
   .mc-waiver-board .mc-board-method[open] summary::before{content:'▾'}
 }
 .mc-claim-list{display:grid;gap:8px;margin:14px 0}.mc-claim-row{border:1px solid rgba(235,240,255,.12);border-radius:10px;padding:10px;background:rgba(0,0,0,.12)}.mc-claim-row header{display:flex;align-items:center;gap:8px;min-width:0}.mc-claim-priority{font:600 16px var(--font-mono,monospace);color:var(--gold);min-width:18px}.mc-claim-row header>div{flex:1;min-width:0}.mc-claim-row strong{display:block;font-size:13px;line-height:1.4;overflow-wrap:anywhere}.mc-claim-row small{display:block;font-size:11px;color:var(--silver);line-height:1.4}.mc-claim-row header>b{font:600 12px var(--font-mono,monospace);color:var(--gold);white-space:nowrap}.mc-claim-actions{display:flex;gap:5px;margin-top:8px}.mc-claim-actions button{min-height:44px;min-width:38px;font-size:11px}.mc-claim-actions button:first-child{flex:1}.mc-claim-actions button:disabled{opacity:.3;cursor:default}.mc-claim-empty{padding:12px;font-size:12px;line-height:1.5;border:1px dashed rgba(235,240,255,.15);border-radius:10px}.mc-claim-watchlist{margin-top:16px;border-top:1px solid rgba(235,240,255,.15);padding-top:10px}.mc-claim-watchlist>summary{min-height:44px;font-size:12px;cursor:pointer}.mc-claim-row .mc-risk{font-size:11px;line-height:1.4;color:var(--warn)}
+
+/* Phone planning keeps full player names and the save action inside the card. */
+@media(max-width:767px){
+  .wr-mission-v8 .fa-page .mc-market-tabs button{min-height:44px!important}
+  .fa-page :is(.mc-market-tools,.mc-waiver-coverage,.mc-waiver-claims) button,
+  .fa-page .mc-market-tools input{min-height:44px}
+  .fa-page .mc-feedback button,.fa-page .mc-claim-actions button{min-width:44px}
+  .mc-waiver-coverage>details>summary,.mc-market-views>summary{box-sizing:border-box;min-height:44px;padding:12px 0;cursor:pointer}
+  .mc-waiver-coverage>article>div{flex-wrap:wrap}
+  .mc-waiver-coverage>article>div>span{min-width:0;flex-basis:130px}
+  .mc-waiver-coverage>article p{overflow-wrap:anywhere}
+  .mc-claim-editor{min-width:0}
+  .mc-claim-editor-head{align-items:center}
+  .mc-claim-editor-head>strong{flex:1 1 130px;min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:1.4}
+  .mc-claim-editor-head>button{flex-shrink:0;font-size:11px}
+  .mc-claim-editor-fields{align-items:flex-start!important}
+  .mc-claim-editor-fields>label{display:flex;flex:1 1 110px;flex-direction:column;gap:5px;min-width:0}
+  .mc-claim-editor-fields>.mc-claim-drop-field{flex-basis:100%}
+  .mc-claim-editor-fields :is(select,input){box-sizing:border-box;min-width:0;max-width:100%;width:100%;min-height:44px!important;margin-left:0!important;font-size:16px}
+  .mc-claim-editor-fields>button{flex:1 1 140px;font-size:12px}
+  .mc-claim-editor .mc-claim-save{width:100%;margin-top:10px;border-color:var(--gx-edge,rgba(183,206,255,.3));background:rgba(183,206,255,.16);color:var(--cx-accent,var(--gold));font-size:13px;font-weight:600}
+  .mc-claim-bid-evidence{margin-top:8px;border-top:1px solid var(--gx-edge,rgba(183,206,255,.2))}
+  .mc-claim-bid-evidence>summary{display:flex;align-items:center;min-height:44px;font-size:12px;cursor:pointer}
+  .mc-waiver-claims .fa-saved-target-name{min-width:0;overflow-wrap:anywhere}
+  .mc-waiver-claims :is(button,select,input):focus-visible,.mc-waiver-coverage button:focus-visible,.mc-market-tools :is(button,input):focus-visible{outline:2px solid var(--cx-accent,var(--gold));outline-offset:2px}
+}
+@media(max-width:420px){
+  .mc-market-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .mc-market-tools>input{grid-column:1/-1;width:100%;min-width:0;box-sizing:border-box}
+  .mc-market-tools>button,.mc-market-tools>.mc-metric-picker,.mc-market-tools>.mc-metric-picker>button{width:100%;min-width:0;box-sizing:border-box}
+}
