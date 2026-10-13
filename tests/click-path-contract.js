@@ -105,7 +105,17 @@ const surfaces = [
       ['title="Open roster player detail"', 'roster rows expose their destination'],
       ['onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}', 'roster rows open player context'],
       ["onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedPid(prev => prev === r.pid ? null : r.pid); } }}", 'roster rows support keyboard activation'],
-      ['<InlineCareerStats pid={r.pid}', 'expanded context includes player career stats'],
+      ['<window.RosterPlayerStats pid={r.pid} pos={r.pos} player={r.p} playersData={playersData} currentLeague={currentLeague}', 'expanded context includes player stats with league and player context'],
+    ],
+  },
+  {
+    name: 'roster player career stats',
+    file: 'js/components/roster-player-stats.js',
+    checks: [
+      ["['weekly', 'season', 'career'].map(view => h('button',", 'career view is a native button alongside weekly and season views'],
+      ["'aria-pressed': mode === view, onClick: () => update({ mode: view })", 'view buttons expose and update the selected stats view'],
+      ["if (mode === 'career') return loadCareer(client, pid, years.filter(year => year <= season && year <= latest)", 'career view loads the selected player through the selected season'],
+      ["['Year', 'GP', 'PPG', 'FPTS']", 'career view retains season and scoring columns'],
     ],
   },
   {
@@ -115,10 +125,11 @@ const surfaces = [
       ['const openPlayerCard = (pid) => {', 'centralizes compare player opening'],
       ['window.WR && typeof window.WR.openPlayerCard', 'uses unified player card'],
       ['else if (typeof window._wrSelectPlayer ===', 'keeps shared selector fallback'],
-      ['onClick={() => openPlayerCard(player.pid)}', 'summary player cells open detail'],
-      ['onClick={() => openCard(r.pid)}', 'roster matrix cells open detail'],
-      ['role="button"\n                    tabIndex={0}\n                    title="Open player card"', 'field comparison player cells expose player-card destination'],
-      ['role="button"\n                        tabIndex={0}\n                        title="Open player card"', 'head-to-head roster cells expose player-card destination'],
+      ['<button key={player.pid} title="Open player card" onClick={() => openPlayerCard(player.pid)}', 'summary player cells are native buttons that open player detail'],
+      ['<button title="Open player card" className="tcmp-roster-player" key={player.pid} onClick={() => openPlayerCard(player.pid)}>', 'full-roster player cells are native buttons with their player-card destination'],
+    ],
+    minCounts: [
+      ['onClick={() => openPlayerCard(player.pid)}', 2, 'summary and full-roster cells retain player detail activation'],
     ],
   },
   {

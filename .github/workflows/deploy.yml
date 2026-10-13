@@ -54,6 +54,9 @@ jobs:
       - name: Verify beta release contracts
         run: npm run test:core && npm run test:login-auth && npm run test:game-draft-table && npm run test:timeleague && npm run test:duat
 
+      - name: Verify comparison data contracts
+        run: node --test tests/player-comparison.cjs tests/team-comparison.cjs tests/team-comparison-data.cjs
+
       # Precompile every type="text/babel" entry (index + free-agency + draft-warroom
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of
       # @babel/standalone or runs the in-browser JSX transform on cold load.

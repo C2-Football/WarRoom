@@ -141,13 +141,17 @@ process.stdout.write('  Loading chopped.js … ');
 loadScript(ctx, 'js/shared/chopped.js');
 process.stdout.write('OK\n');
 
+process.stdout.write('  Loading owner-scouting.js … ');
+loadScript(ctx, 'js/shared/owner-scouting.js');
+process.stdout.write('OK\n');
+
 // trade-calc.js uses JSX throughout; extract only the pure function
 process.stdout.write('  Extracting computeWeightedDNA … ');
 const tradeCalcSrc = fs.readFileSync(path.join(ROOT, 'js/trade-calc.js'), 'utf8');
 const dnaFnSrc = extractFunction(tradeCalcSrc, 'function computeWeightedDNA(rosterId)');
-// `allRosters` is a React state variable in the enclosing component scope;
-// stub it here so the frequency ratio never crashes when we override via LI.rosters.
-vm.runInContext(`var allRosters = []; ${dnaFnSrc}`, ctx);
+// These React state values live in the enclosing component scope. The fixtures
+// supply loaded owner intel through LI, with allRosters as the empty fallback.
+vm.runInContext(`var allRosters = []; var ownerIntelReady = true; ${dnaFnSrc}`, ctx);
 process.stdout.write('OK\n\n');
 
 process.stdout.write('  Extracting buildEmpirePortfolioModel … ');

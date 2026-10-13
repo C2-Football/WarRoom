@@ -40,6 +40,7 @@
     "test:dashboard-league": "node tests/dashboard-league-layout.cjs && node tests/dashboard-league-data.cjs && node tests/dashboard-league-widgets.cjs",
     "test:fa-market": "node tests/fa-market-data.cjs && node tests/free-agency-roster.js && node tests/waiver-qb-role.cjs && node tests/waiver-evidence.cjs",
     "test:stats": "node tests/league-stats.js && node tests/league-stats-review.cjs && node tests/league-stats-tab.js && node tests/stats-mobile.cjs",
+    "test:player-comparison": "node tests/player-comparison.cjs",
     "test:mobile": "node tests/mission-overview.cjs && node tests/mobile-shell.cjs && node tests/mobile-dock-customization.cjs && node tests/gameday-mobile.cjs && node tests/roster-mobile.cjs && node --test tests/roster-review.cjs && node tests/roster-player-stats.cjs && node tests/season-odds-mobile.cjs && node tests/draft-phone-layout.cjs && node tests/draft-mobile-profile.cjs && node tests/player-card-fantasy.cjs && node tests/stats-mobile.cjs && node tests/league-live-scoreboard.js && node tests/league-matchup-view.cjs && node tests/mission-trades.cjs && node tests/mission-league-team.cjs && node tests/owner-scouting.cjs",
     "test:forecast-ledger": "node tests/forecast-ledger.cjs && node tests/forecast-archive.cjs && node tests/forecast-evaluation.cjs",
     "test:chopped": "node tests/chopped.js && node tests/chop-odds.js",
@@ -73,7 +74,8 @@
     "capacitor:copy:before": "node scripts/cap-sync-guard.cjs",
     "capacitor:sync:before": "node scripts/cap-sync-guard.cjs",
     "test:account-deletion": "node tests/account-deletion-recovery.cjs && node tests/account-deletion-sql.cjs && node tests/account-deletion-billing-integration.cjs && node tests/account-deletion-checkouts.cjs && node tests/account-deletion-checkouts-sql.cjs",
-    "test:c2-release": "python3 tests/c2-edge-release.py && node tests/c2-edge-release-schema.cjs && node tests/edge-source-recovery.mjs && node tests/game-runtime-artifacts.cjs"
+    "test:c2-release": "python3 tests/c2-edge-release.py && node tests/c2-edge-release-schema.cjs && node tests/edge-source-recovery.mjs && node tests/game-runtime-artifacts.cjs",
+    "test:team-comparison": "node tests/team-comparison.cjs && node tests/team-comparison-data.cjs"
   },
   "keywords": [
     "fantasy",

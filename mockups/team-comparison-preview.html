@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dynasty HQ · Team comparison preview</title>
+    <link rel="icon" href="../icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+    <style>
+        body { margin: 0; background: #080b10; color: #f8fafc; font: 14px system-ui, sans-serif; }
+        .preview-note { max-width: 1492px; margin: 16px auto; padding: 14px 20px; border: 1px solid #d4af3740; border-radius: 12px; color: #c7ced8; line-height: 1.5; }
+        .preview-note b { color: #e7bd58; }
+        .preview-note p { margin: 5px 0 8px; }
+        .preview-links { display: flex; flex-wrap: wrap; gap: 0 18px; }
+        .preview-note a { display: inline-flex; align-items: center; min-height: 44px; color: #e7bd58; text-decoration: underline; text-underline-offset: 3px; }
+        #root { max-width: 1540px; margin: auto; }
+        @media (max-width: 767px) { .preview-note { margin: 12px; padding: 12px 14px; } }
+    </style>
+</head>
+<body>
+    <aside class="preview-note" aria-label="Design preview information">
+        <b>Design preview · Sample data</b>
+        <p>The application’s real comparison component, using an illustrative eight-team league. Values, statistics, records, transfers, and rivalry results are examples. The 2026 draft is complete; draft capital represents 2027 and 2028 rights.</p>
+        <nav class="preview-links" aria-label="Preview versions">
+            <a href="?mode=duel">Duel</a>
+            <a href="?mode=group">Group</a>
+            <a href="?mode=division">Division</a>
+            <a href="?mode=league">League</a>
+            <a href="?mode=duel&amp;pro=0">Free account</a>
+            <a href="?mode=duel&amp;redraft=1">Redraft</a>
+            <a href="?mode=duel&amp;case=missing">Missing data</a>
+            <a href="?mode=duel&amp;case=tied">Tied values</a>
+            <a href="?mode=league&amp;case=long">Long team names</a>
+            <a href="?mode=duel&amp;case=empty">Empty</a>
+        </nav>
+    </aside>
+    <main id="root">Loading team comparison preview…</main>
+    <script>
+    (async function () {
+        // Load the same style sources as the app without starting its account/data bootstrap.
+        const indexURL = new URL('../index.html', location.href);
+        const source = new DOMParser().parseFromString(await (await fetch(indexURL)).text(), 'text/html');
+        source.querySelectorAll('style,link[rel="stylesheet"]').forEach(node => {
+            const clone = node.cloneNode(true);
+            if (clone.tagName === 'LINK') {
+                clone.href = new URL(clone.getAttribute('href'), indexURL).href;
+                clone.media = 'all';
+            } else {
+                clone.textContent = clone.textContent.replace(/url\((['"]?)([^'"\)]+)\1\)/g, (_, quote, path) => 'url("' + new URL(path, indexURL).href + '")');
+            }
+            document.head.appendChild(clone);
+        });
+        const override = document.createElement('style');
+        override.textContent = ':root{--page-bg:#080b10;--black:#0d1623;--off-black:#142236;--white:#f8fafc;--silver:#b5c4d6;--gold:#e7bd58}body{margin:0!important;background:var(--page-bg)!important}.preview-note{margin:16px auto!important}.wr-module-strip{margin-bottom:14px}#root{max-width:1540px;margin:auto}@media(max-width:767px){.preview-note{margin:12px!important}}';
+        document.head.appendChild(override);
+
+        const params = new URLSearchParams(location.search);
+        const scope = ['duel', 'group', 'division', 'league'].includes(params.get('mode')) ? params.get('mode') : 'duel';
+        const pro = params.get('pro') !== '0';
+        const redraft = params.get('redraft') === '1';
+        const fixtureCase = ['missing', 'tied', 'long', 'empty'].includes(params.get('case')) ? params.get('case') : 'normal';
+        const leagueId = ['team-comparison-design-preview', scope, pro ? 'pro' : 'free', redraft ? 'redraft' : 'dynasty', fixtureCase].join('-');
+
+        // Real Sleeper portrait identities, verified against its player metadata.
+        // Everything about this league and its fantasy results is illustrative.
+        const people = [
+            ['4984','Josh','Allen','BUF',30,'QB',8], ['8183','Brock','Purdy','SF',26,'QB',4],
+            ['9509','Bijan','Robinson','ATL',24,'RB',3], ['8138','James','Cook','BUF',27,'RB',4], ['8228','Jaylen','Warren','PIT',27,'RB',4],
+            ['7564','Ja’Marr','Chase','CIN',26,'WR',5], ['9493','Puka','Nacua','LAR',25,'WR',3], ['7569','Nico','Collins','HOU',27,'WR',5], ['10222','Jayden','Reed','GB',26,'WR',3], ['8130','Trey','McBride','ARI',26,'TE',4],
+            ['4881','Lamar','Jackson','BAL',29,'QB',8], ['6804','Jordan','Love','GB',27,'QB',6],
+            ['9221','Jahmyr','Gibbs','DET',24,'RB',3], ['9226','De’Von','Achane','MIA',24,'RB',3], ['7611','Rhamondre','Stevenson','NE',28,'RB',5],
+            ['6794','Justin','Jefferson','MIN',27,'WR',6], ['5859','A.J.','Brown','NE',29,'WR',7], ['6801','Tee','Higgins','CIN',27,'WR',6], ['5045','Courtland','Sutton','DEN',31,'WR',8], ['11604','Brock','Bowers','LV',23,'TE',2],
+            ['6904','Jalen','Hurts','PHI',28,'QB',6], ['6768','Tua','Tagovailoa','ATL',28,'QB',6],
+            ['4866','Saquon','Barkley','PHI',29,'RB',8], ['8155','Breece','Hall','NYJ',25,'RB',4], ['5967','Tony','Pollard','TEN',29,'RB',7],
+            ['6786','CeeDee','Lamb','DAL',27,'WR',6], ['8112','Drake','London','ATL',25,'WR',4], ['7525','DeVonta','Smith','PHI',27,'WR',5], ['8134','Khalil','Shakir','BUF',26,'WR',4], ['4217','George','Kittle','SF',33,'TE',9],
+            ['4046','Patrick','Mahomes','KC',31,'QB',9], ['3163','Jared','Goff','DET',31,'QB',10],
+            ['6813','Jonathan','Taylor','IND',27,'RB',6], ['3198','Derrick','Henry','BAL',32,'RB',10], ['5892','David','Montgomery','HOU',29,'RB',7],
+            ['7547','Amon-Ra','St. Brown','DET',26,'WR',5], ['8146','Garrett','Wilson','NYJ',26,'WR',4], ['5846','DK','Metcalf','PIT',28,'WR',7], ['9756','Jordan','Addison','MIN',24,'WR',3], ['10859','Sam','LaPorta','DET',25,'TE',3],
+            ['11566','Jayden','Daniels','WAS',25,'QB',2], ['4892','Baker','Mayfield','TB',31,'QB',8],
+            ['4034','Christian','McCaffrey','SF',30,'RB',9], ['8151','Kenneth','Walker','KC',25,'RB',4], ['8154','Brian','Robinson','ATL',27,'RB',4],
+            ['11632','Malik','Nabers','NYG',23,'WR',2], ['11628','Marvin','Harrison','HOU',24,'WR',2], ['8144','Chris','Olave','NO',26,'WR',4], ['6783','Jerry','Jeudy','CLE',27,'WR',6], ['5012','Mark','Andrews','BAL',31,'TE',8],
+            ['6770','Joe','Burrow','CIN',29,'QB',6], ['6797','Justin','Herbert','LAC',28,'QB',6],
+            ['5850','Josh','Jacobs','GB',28,'RB',7], ['8150','Kyren','Williams','LAR',26,'RB',4], ['6790','D’Andre','Swift','CHI',27,'RB',6],
+            ['11631','Brian','Thomas','JAX',24,'WR',2], ['11635','Ladd','McConkey','LAC',24,'WR',2], ['8148','Jameson','Williams','DET',25,'WR',4], ['11637','Keon','Coleman','BUF',23,'WR',2], ['10236','Dalton','Kincaid','BUF',26,'TE',3],
+            ['11560','Caleb','Williams','CHI',24,'QB',2], ['7523','Trevor','Lawrence','JAX',27,'QB',5],
+            ['7543','Travis','Etienne','NO',27,'RB',5], ['4199','Aaron','Jones','MIN',31,'RB',9], ['8205','Isiah','Pacheco','DET',27,'RB',4],
+            ['5927','Terry','McLaurin','WAS',31,'WR',7], ['8137','George','Pickens','DAL',25,'WR',4], ['6819','Michael','Pittman','PIT',29,'WR',6], ['11620','Rome','Odunze','CHI',24,'WR',2], ['5844','T.J.','Hockenson','MIN',29,'TE',7],
+            ['11563','Bo','Nix','DEN',26,'QB',2], ['3294','Dak','Prescott','DAL',33,'QB',10],
+            ['7594','Chuba','Hubbard','CAR',27,'RB',5], ['4035','Alvin','Kamara','NO',31,'RB',9], ['9753','Zach','Charbonnet','SEA',25,'RB',3],
+            ['9488','Jaxon','Smith-Njigba','SEA',24,'WR',3], ['9997','Zay','Flowers','BAL',26,'WR',3], ['2216','Mike','Evans','SF',33,'WR',12], ['2133','Davante','Adams','LAR',33,'WR',12], ['4066','Evan','Engram','DEN',32,'TE',9],
+        ];
+        const players = Object.fromEntries(people.map(([id,first,last,team,age,position,experience]) => [id, {
+            player_id:id, first_name:first, last_name:last, full_name:first + ' ' + last, team, age, position,
+            fantasy_positions:[position], years_exp:experience, active:true, status:'Active',
+        }]));
+        const values = [
+            [9800,4400,9400,6900,3200,9950,9000,8100,5200,7600],
+            [10100,5100,9700,8300,3500,9750,8200,6400,4500,9600],
+            [9200,3800,7900,7400,3600,9400,8200,6100,4000,4600],
+            [8500,4100,8000,5400,3700,9300,7600,5400,5800,6500],
+            [9300,3900,6200,6600,3200,9100,7200,5700,4100,4600],
+            [8100,6500,6800,6400,3500,8500,6900,5200,3800,4800],
+            [6900,4900,5100,3100,3400,5800,6500,4700,6200,4200],
+            [7100,3800,5300,3200,4300,8800,6400,3900,3500,3000],
+        ];
+        if (fixtureCase === 'tied') values[1] = [...values[0]];
+        const scores = Object.fromEntries(people.map((row,index) => [row[0],values[Math.floor(index / 10)][index % 10]]));
+        const rosScores = Object.fromEntries(people.map((row,index) => [row[0],Math.round(scores[row[0]] * (row[5] === 'RB' ? 1.04 : row[5] === 'QB' ? 0.88 : 0.94))]));
+        const scoring = { pass_yd:0.04, pass_td:4, pass_int:-2, rush_yd:0.1, rush_td:6, rec:1, rec_yd:0.1, rec_td:6, fum_lost:-2 };
+        const calcRawPts = (row,settings) => Object.entries(settings).reduce((sum,[key,weight]) => sum + Number(row[key] || 0) * weight,0);
+        const statsData = {}, priorData = {}, weekly = {};
+        people.forEach((row,index) => {
+            const [id,,,,,position] = row;
+            const teamIndex = Math.floor(index / 10), slot = index % 10;
+            const quality = 0.76 + scores[id] / 30000;
+            let stats;
+            if (position === 'QB') stats = { pass_yd:Math.round(1220 * quality), pass_td:Math.round(10 * quality), pass_int:3, rush_yd:Math.round((slot === 0 ? 160 : 70) * quality), rush_td:slot === 0 ? 2 : 1 };
+            else if (position === 'RB') stats = { rush_att:Math.round(89 * quality), rush_yd:Math.round(435 * quality), rush_td:Math.max(1,Math.round(4 * quality)), rec:Math.round(20 * quality), rec_tgt:Math.round(25 * quality), rec_yd:Math.round(155 * quality), rec_td:1 };
+            else if (position === 'WR') stats = { rec:Math.round(35 * quality), rec_tgt:Math.round(48 * quality), rec_yd:Math.round(470 * quality), rec_td:Math.max(1,Math.round(4 * quality)) };
+            else stats = { rec:Math.round(26 * quality), rec_tgt:Math.round(34 * quality), rec_yd:Math.round(300 * quality), rec_td:Math.max(1,Math.round(2 * quality)) };
+            statsData[id] = { ...stats, season:2026, gp:5 };
+            priorData[id] = Object.fromEntries(Object.entries(stats).map(([key,value]) => [key,Math.round(value * (3.0 + (teamIndex % 3) * 0.18))]));
+            Object.assign(priorData[id],{season:2025,gp:17});
+            const average = calcRawPts(statsData[id],scoring) / 5;
+            weekly[id] = [0.86,1.12,0.74,1.02,1.26].map((multiplier,week) => ({week:week + 1, pts:+(average * multiplier).toFixed(1)}));
+        });
+
+        const normalNames = ['Crown City Royals','Midway Monsters','Lakefront Legends','Gold Coast Guards','Prairie Fire','Ironclad Dynasty','Northside Knights','River City Renegades'];
+        const longNames = ['The Chicago Windy City Dynasty Development Department','The Midway Monsters and Their Unreasonably Long Team Name','Lakefront Legends of the Greater Metropolitan Conference','The Gold Coast Guards Championship Preservation Society','Prairie Fire Fantasy Football and Future Draft Capital Club','The Ironclad Dynasty Long Term Roster Planning Committee','Northside Knights of the Never Ending Waiver Wire','River City Renegades and the Rebuilding Renaissance'];
+        const names = fixtureCase === 'long' ? longNames : normalNames;
+        const wins = [4,4,3,2,3,2,1,1], pointsFor = [725.4,701.8,664.2,628.7,650.9,605.3,562.8,539.6], pointsAgainst = [610.2,596.6,630.5,663.4,619.8,647.1,692.4,618.7], spent = [28,61,43,12,77,35,56,19];
+        if (fixtureCase === 'tied') { wins[1] = wins[0]; pointsFor[1] = pointsFor[0]; pointsAgainst[1] = pointsAgainst[0]; spent[1] = spent[0]; }
+        let users = names.map((name,index) => ({user_id:index === 0 ? 'me' : 'owner' + (index + 1), display_name:['Jacob','Morgan','Alex','Casey','Jordan','Taylor','Riley','Sam'][index], metadata:{team_name:name}}));
+        let rosters = names.map((name,index) => {
+            const ids = people.slice(index * 10,index * 10 + 10).map(row => row[0]);
+            return {
+                roster_id:index + 1, owner_id:users[index].user_id, league_id:leagueId,
+                players:ids, starters:[ids[0],ids[2],ids[3],ids[5],ids[6],ids[9],ids[7]],
+                settings:{wins:wins[index],losses:5 - wins[index],ties:0,division:index < 4 ? 1 : 2,waiver_budget_used:spent[index],fpts:Math.floor(pointsFor[index]),fpts_decimal:Math.round(pointsFor[index] % 1 * 100),fpts_against:Math.floor(pointsAgainst[index]),fpts_against_decimal:Math.round(pointsAgainst[index] % 1 * 100)},
+            };
+        });
+        let standings = rosters.map((roster,index) => ({
+            rosterId:roster.roster_id, ownerId:roster.owner_id, displayName:names[index], wins:wins[index],losses:5 - wins[index],ties:0,
+            pf:pointsFor[index],pa:pointsAgainst[index],pointsFor:pointsFor[index],pointsAgainst:pointsAgainst[index],rank:index + 1,
+        }));
+        const importedPicks = fixtureCase === 'tied' ? [] : [
+            {season:'2027',round:1,roster_id:7,previous_owner_id:7,owner_id:1},
+            {season:'2028',round:2,roster_id:1,previous_owner_id:1,owner_id:2},
+            {season:'2027',round:2,roster_id:4,previous_owner_id:4,owner_id:5},
+            {season:'2028',round:1,roster_id:8,previous_owner_id:8,owner_id:6},
+        ];
+        if (fixtureCase === 'missing') {
+            rosters[1].players.forEach(id => { delete scores[id]; delete rosScores[id]; delete statsData[id]; delete priorData[id]; delete weekly[id]; });
+            delete standings[1].pf; delete standings[1].pa; delete standings[1].pointsFor; delete standings[1].pointsAgainst;
+            delete rosters[1].settings.fpts; delete rosters[1].settings.fpts_decimal; delete rosters[1].settings.fpts_against; delete rosters[1].settings.fpts_against_decimal;
+        }
+        if (fixtureCase === 'empty') {
+            rosters = [{...rosters[0],players:[],starters:[]}]; users = users.slice(0,1); standings = standings.slice(0,1);
+        }
+        const league = {
+            league_id:leagueId, name:'The Crown League · Design preview', season:'2026', status:'in_season', current_week:6, week:6,
+            rosters, users, scoring_settings:scoring, roster_positions:['QB','RB','RB','WR','WR','TE','FLEX','BN','BN','BN'],
+            metadata:{division_1_name:'Lakeshore Division',division_2_name:'Prairie Division'},
+            settings:{type:redraft ? 0 : 2,draft_rounds:3,divisions:2,waiver_type:2,waiver_budget:100,playoff_week_start:15,leg:6},
+            tradedPicks:importedPicks, _pickFeedState:'ready',
+            _draftInventory:{draftId:'preview-draft-2026',season:'2026',phase:'complete',rounds:3,consumed:[]}, _draftInventoryState:'ready',
+        };
+        if (fixtureCase === 'missing') { delete league.tradedPicks; league._pickFeedState = 'unavailable'; }
+        const skin = {type:redraft ? 'redraft' : 'dynasty',features:{showFuturePicks:!redraft},vocabulary:{valueShortLabel:redraft ? 'ROS' : 'DHQ',valueLabel:redraft ? 'ROS Value' : 'DHQ Value'}};
+        window.S = {currentLeague:league,nflState:{season:'2026',week:6},tradedPicks:fixtureCase === 'missing' ? [] : importedPicks,playerStats:{}};
+        window.App = {
+            LI_LOADED:true,
+            normPos:position => position,
+            POS_COLORS:{QB:'#a89df2',RB:'#70d4b0',WR:'#e7bd58',TE:'#63cbe9'},
+            LI:{sourceLeagueId:leagueId,playerScores:scores,playerMeta:Object.fromEntries(people.map(row => [row[0],{roleLabel:'Featured ' + row[5],opportunityLabel:'Illustrative role'}])),championships:{'2025':{champion:1},'2024':{champion:2}},bracketData:{}},
+            calcRawPts,
+            calcPPG:(row,settings=scoring) => row?.gp ? calcRawPts(row,settings) / row.gp : null,
+            getAgeCurve:position => position === 'QB' ? {build:[21,24],peak:[25,33],decline:[34,38]} : position === 'RB' ? {build:[21,23],peak:[24,27],decline:[28,30]} : position === 'TE' ? {build:[21,25],peak:[26,30],decline:[31,34]} : {build:[21,23],peak:[24,29],decline:[30,32]},
+            WeeklyProj:{weeklyHistory:id => weekly[id] || []},
+            PlayerValue:{ensureRos:() => {},valueMap:() => redraft ? rosScores : scores,getPickValue:(year,round) => ({1:7000,2:3600,3:1700}[round] || 750)},
+        };
+        window.WR = {GmMode:{useGmEffects:() => ({targetPositions:new Set(['WR']),marketPosture:'hold',hasStrategy:true})}};
+        window.wrIsPro = () => pro;
+        window.getPlayerAction = id => ({label: scores[id] >= 8000 ? 'Hold core' : scores[id] >= 5000 ? 'Hold' : 'Watch role'});
+        window.WR.openPlayerCard = id => {
+            const player = players[id]; if (!player) return;
+            const modal = document.createElement('dialog');
+            modal.style.cssText = 'background:#142236;color:#f8fafc;border:1px solid #e7bd58;border-radius:16px;padding:24px;max-width:85vw';
+            const title = document.createElement('h2'); title.textContent = player.full_name;
+            const body = document.createElement('p'); body.textContent = 'Design preview · Sample data. This action opens the full player card in the application.';
+            const close = document.createElement('button'); close.textContent = 'Close'; close.style.cssText = 'min-height:44px;padding:8px 18px'; close.onclick = () => modal.close();
+            modal.append(title,body,close); modal.addEventListener('close',() => modal.remove(),{once:true}); document.body.append(modal); modal.showModal();
+        };
+
+        // Cache owner-based completed meetings so this fixture never fetches live league history.
+        const meetings = [
+            {season:'2026',week:5,myPoints:148.2,theirPoints:139.5,result:'W',margin:8.7,matchupId:1},
+            {season:'2026',week:2,myPoints:122.7,theirPoints:136.4,result:'L',margin:-13.7,matchupId:3},
+            {season:'2025',week:12,myPoints:155.6,theirPoints:142.9,result:'W',margin:12.7,matchupId:2},
+            {season:'2025',week:6,myPoints:117.3,theirPoints:121.8,result:'L',margin:-4.5,matchupId:4},
+            {season:'2025',week:1,myPoints:138.4,theirPoints:128.6,result:'W',margin:9.8,matchupId:1},
+        ];
+        const historyCutoffKey = '2026:5';
+        rosters.filter(roster => roster.owner_id !== 'me').forEach(roster => {
+            localStorage.setItem('wr_compare_h2h_v4_' + leagueId + '_me_' + roster.owner_id,JSON.stringify({ts:Date.now(),cutoffKey:historyCutoffKey,meetings:roster.owner_id === 'owner2' && fixtureCase !== 'missing' ? meetings : []}));
+        });
+        window._wrCompareRawCache = {[leagueId]:{ts:Date.now(),cutoffKey:historyCutoffKey,seasons:[]}};
+        localStorage.setItem('wr_compare_scope_' + leagueId,scope);
+        localStorage.setItem('wr_compare_team_' + leagueId,fixtureCase === 'empty' ? '' : '2');
+        localStorage.setItem('wr_compare_group_' + leagueId,JSON.stringify(fixtureCase === 'empty' ? [] : ['1','2','3','4']));
+        localStorage.setItem('wr_compare_division_' + leagueId,'1');
+        localStorage.setItem('wr_compare_players_' + leagueId,JSON.stringify(['7564','6794']));
+
+        const load = path => new Promise((resolve,reject) => {
+            const script = document.createElement('script'); script.src = path; script.onload = resolve; script.onerror = () => reject(new Error('Unable to load preview dependency: ' + path)); document.body.appendChild(script);
+        });
+        await load('../js/shared/viewport.js');
+        await load('../dist-preview/compiled/js/components/wr-primitives.js');
+        await load('../js/utils/player-comparison.js');
+        await load('../js/utils/team-comparison.js');
+        await load('../dist-preview/compiled/js/tabs/compare.js');
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.CompareTab,{
+            currentLeague:league,leagueSkin:skin,myRoster:rosters[0],playersData:players,statsData,stats2025Data:priorData,standings,sleeperUserId:'me',
+        }));
+    })().catch(error => {
+        document.getElementById('root').textContent = error.message;
+        console.error(error);
+    });
+    </script>
+</body>
+</html>

@@ -3592,8 +3592,9 @@
                     initialSubTab: workspaceRoute.alex,
                     workspaceView: workspaceRoute.alex,
                 }) : viewTab === 'compare' ? React.createElement(CompareTabLazy, {
+                    key: String(currentLeague?.league_id || currentLeague?.id) + ':' + currentLeague?.season,
                     currentLeague, leagueSkin, myRoster, playersData, statsData, stats2025Data,
-                    standings, sleeperUserId,
+                    priorStatsSeason: STATS_YEAR, standings, sleeperUserId,
                 }) : viewTab === 'stats' ? React.createElement(LeagueStatsTabLazy, {
                     key: String(currentLeague?.league_id || currentLeague?.id) + ':' + currentLeague?.season,
                     currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab,

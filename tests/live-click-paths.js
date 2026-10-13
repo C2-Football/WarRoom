@@ -470,7 +470,7 @@ async function main() {
       ['fa', 'Free Agency', ['Waivers', 'Overview', 'Market Explorer']],
       ['alex', 'GM Office', ['Decision Insights', 'Alex Preferences']],
       ['trophies', 'Trophy Room', ['Championship Timeline', 'All-Time Standings']],
-      ['compare', 'Compare', ['Compare', 'Duel', 'Select team to compare']],
+      ['compare', 'Compare', ['Compare', 'Teams', 'Select team to compare']],
       ['calendar', 'Calendar', ['LEAGUE CALENDAR', 'Add Event']],
     ];
 
@@ -536,10 +536,34 @@ async function main() {
       const options = page.getByRole('listbox').getByRole('option');
       if (await options.count() < 2) throw new Error('compare tab has no opponent options');
       await options.nth(1).click();
-      await waitForText(page, 'Position Edge Matrix');
-      await assertSurfaceReady(page, 'Compare selected opponent', ['Matchup Read', 'Position Edge Matrix']);
+      await waitForText(page, 'Position advantages');
+      await assertSurfaceReady(page, 'Compare selected opponent', ['The comparison read', 'Position advantages']);
       await clickVisibleSelector(page, '[title="Open player card"]', 'compare player target');
       await assertPlayerCardOpen(page);
+      await page.close();
+    });
+
+    await run('Compare player stats can be customized and restored', async () => {
+      const page = await newQaPage(context, baseUrl, failures, { tab: 'compare' });
+      await page.getByRole('button', { name: 'Players', exact: true }).click();
+      if (await page.getByRole('button', { name: 'Clear all', exact: true }).count()) await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+      const search = page.getByRole('textbox', { name: 'Search players to compare', exact: true });
+      for (const surname of ['Chase', 'Jefferson']) {
+        await search.fill(surname);
+        await search.locator('..').getByRole('button').first().click();
+      }
+      await page.locator('.cmp-stat-picker summary').click();
+      await page.getByRole('button', { name: 'Reset to recommended', exact: true }).click();
+      await page.getByLabel('Recent PPG', { exact: true }).check();
+      const chosen = await page.locator('.cmp-stat-choices input:checked').count();
+      if (chosen !== 4) throw new Error(`Expected four comparison metrics, got ${chosen}`);
+      if (await page.locator('.cmp-edge-cell').count() !== 8) throw new Error('Chosen metric did not update the two-player comparison');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.cmp-stat-picker', { timeout: 60000 });
+      await page.locator('.cmp-stat-picker summary').click();
+      if (await page.locator('.cmp-stat-choices input:checked').count() !== chosen) throw new Error('Comparison metric preferences did not survive reload');
+      if (!(await page.getByLabel('Recent PPG', { exact: true }).isChecked())) throw new Error('Recent scoring preference was lost');
+      await page.getByRole('button', { name: 'Reset to recommended', exact: true }).click();
       await page.close();
     });
 
