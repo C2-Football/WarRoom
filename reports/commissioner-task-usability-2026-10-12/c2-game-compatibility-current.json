@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "observedAt": "2026-10-13T00:09:04.782076+00:00",
+  "project": "sxshiqyxhhifvtfqawbq",
+  "probeMode": "Read-only fixed C2 catalog query plus selected migration registry metadata via authenticated owner Supabase CLI; no application routine invocation or user-data queries.",
+  "releaseScope": "No game deployment, SQL mutation, or frozen release manifest mutation.",
+  "querySource": "scripts/c2-edge-release.py:SCHEMA_QUERY",
+  "querySha256": "08ccb549f4278ec273d520848e2fbedb8e02ae30ef3f142df5cc2a363e7df375",
+  "currentSchemaSha256": "b8e793ec618f71996a7430099a5604df6b39e93720d7b8f62d1758ca2621ed25",
+  "relationCount": 15,
+  "routineCount": 47,
+  "relationFingerprints": {
+    "app_user_roles": "c865e4587e81ad11ec096fbbba5c78724358a298284cd9672d0c971b625fa321",
+    "app_users": "3dad5ebe9c1aa81409f072ed2f8a43af193720c031aa6504cb12735370ed2770",
+    "cup_honours": "29e5cb72f6d5abdc2532123c585f5f18e5340817176f7f94ebf486b93761a6eb",
+    "duat_campaign_actions": "32f6ccf3e30ba6542b7fa60b2cc519a62a36fc59c87f8c0e5d9483734cacaa5a",
+    "duat_campaign_members": "216fb1eb6b52e4284766a3de50d7718aa88a9050795d8e103a547e6c1c28678b",
+    "duat_campaigns": "b366d46dd7a07531fd498afbad13aa738bf0251d7f77037b0d54794ebcea39f5",
+    "game_guest_sessions": "91be0886c3d427604e86ccd4b0d9a9e6fbd65e6ce089ccdea852cced35589148",
+    "league_cups": "1aa82e3445d95d7cc38f65b23fa2473644fd7b437a4491b9e461b936b8d5be01",
+    "time_league_community_invites": "3891fbf4ed6c6570dd79e53824ce548116adfe1bff3e3f5b9110722247a4fa00",
+    "time_league_members": "946e338021ff71f26f948e85f8fc450f8836a267a1ac8cecbc57f63551e0ef7e",
+    "time_league_messages": "938c6e00663585c4b76bdff728c020ceda7660c1c2af35f2a6b383d73645face",
+    "time_league_profiles": "53932ca0687b8c636b37d356417643cdf999b1ca4f913b156e8e28d070b7b426",
+    "time_league_public_directory": "d5b571def7dd72a3c657336f654497b87b9451ce13633bd793f8385cfab02d75",
+    "time_league_verified_records": "dc135c6d59afbc85ca0913f27ef5835be6cfe7fc4693b8ff19a53f1d7b7e5d69",
+    "time_leagues": "bc1a4cba07ea5e843b851e3898586026042222222bdb1c57d8b3cbcfa8dde12c"
+  },
+  "functions": {
+    "league-cup": {
+      "requiredMigrations": [
+        "20260317000000",
+        "20260502020000",
+        "20260907000000",
+        "20260907010000",
+        "20260909000000",
+        "20260918020000"
+      ],
+      "missingMigrations": [],
+      "prerequisitesPassed": true
+    },
+    "time-league": {
+      "requiredMigrations": [
+        "20260317000000",
+        "20260502020000",
+        "20260907193000",
+        "20260908010000",
+        "20260908020000",
+        "20260908030000",
+        "20260908040000",
+        "20260908050000",
+        "20260909000000",
+        "20260918020000",
+        "20260926010000"
+      ],
+      "missingMigrations": [],
+      "prerequisitesPassed": true
+    },
+    "duat": {
+      "requiredMigrations": [
+        "20260317000000",
+        "20260502020000",
+        "20260908160000",
+        "20260908180000",
+        "20260908210000",
+        "20260908230000",
+        "20260909000000",
+        "20260916010000",
+        "20260918020000",
+        "20260926010000"
+      ],
+      "missingMigrations": [],
+      "prerequisitesPassed": true
+    }
+  },
+  "guestContractPresent": true,
+  "newMigrationRecorded": true,
+  "newAccountRoutines": [
+    {
+      "signature": "change_commish_ignored_task(uuid,integer,text,text,integer,uuid,jsonb)",
+      "sha256": "9e7f3c589e4bf423c0221a47f37c4cef8022b27c9731a7ee2e7641e546c7e794"
+    },
+    {
+      "signature": "commish_ignored_record_json(commish_ignored_tasks)",
+      "sha256": "ce6ce1af3420609401495d38118739578ed52878b63f96913261b07ecb728ea1"
+    },
+    {
+      "signature": "read_commish_ignored_tasks(uuid,integer,text,integer)",
+      "sha256": "d9f6cfbda2a6728e7b971435c2bc492fd6c1f1ec90dfb0fc646e68680bdc3d2c"
+    }
+  ],
+  "newPrivateTablesExcludedFromGameRelationFilter": true,
+  "registryVersionIncludedInSchemaDigest": false,
+  "counterfactualWithoutNewRoutinesSha256": "8870311634ce17c0daeb810bd2dcee21d7d52ff66472ed0e6ef971d19eb4c81f",
+  "counterfactualCaveat": "Calculated from the current snapshot by removing only the three new routines; this is not an observed pre-release snapshot. It still differs from the September frozen fingerprint, so the entire difference cannot be attributed to this account addition.",
+  "frozenManifests": [
+    {
+      "path": ".github/c2-releases/vault-duat-workspace-20260926.json",
+      "fileSha256": "e0125a2f277f0d93130158d9ea649f75d824356ea106e24c2b2b14aa0aeb8c02",
+      "functions": [
+        "duat",
+        "time-league"
+      ],
+      "frozenSchemaSha256": "8a90ac2cf5f0c1ac73ac15cf46f39ab0d203a3e9a59752af92f0186267e10596",
+      "currentSchemaMatches": false
+    },
+    {
+      "path": ".github/c2-releases/vault-duat-workspace-portable-20260926.json",
+      "fileSha256": "d41b9c759c1841cc9a9b79dce9908f2255b283f53ef2f033041a2990057ec934",
+      "functions": [
+        "duat",
+        "time-league"
+      ],
+      "frozenSchemaSha256": "8a90ac2cf5f0c1ac73ac15cf46f39ab0d203a3e9a59752af92f0186267e10596",
+      "currentSchemaMatches": false
+    },
+    {
+      "path": ".github/c2-releases/vault-duat-workspace-source-20260926.json",
+      "fileSha256": "3c9a00449e375441a159be60897d1858a66a27b14852153db6167f74e84f737d",
+      "functions": [
+        "duat",
+        "time-league"
+      ],
+      "frozenSchemaSha256": "8a90ac2cf5f0c1ac73ac15cf46f39ab0d203a3e9a59752af92f0186267e10596",
+      "currentSchemaMatches": false
+    }
+  ],
+  "status": "Prerequisite and guest-contract probes pass for Cup, Vault and Duat. The reviewed historical game-release schema fingerprint is stale against the current catalog; a future game release must prepare and independently review fresh compatibility evidence. No observed game-table mutation or existing Edge Function deployment in this scoped account release.",
+  "evidenceBoundary": "Catalog compatibility and migration presence only; not authenticated game behavior or full backward-compatibility proof. No pre-account full catalog snapshot was captured, so remaining drift from the frozen September fingerprint is unclassified.",
+  "evidenceFiles": [
+    "c2-game-schema-probe.sql",
+    "c2-game-schema-current.json",
+    "c2-game-registry-probe.sql",
+    "c2-game-registry-current.json",
+    "ignored-backend-release-receipt.json"
+  ]
+}

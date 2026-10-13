@@ -49,6 +49,10 @@ verify_jwt = false
 [functions.fw-profile]
 verify_jwt = false
 
+# Private Commissioner preferences validate the active account internally.
+[functions.fw-commish-ignored]
+verify_jwt = false
+
 [functions.fw-request-password-reset]
 verify_jwt = false
 

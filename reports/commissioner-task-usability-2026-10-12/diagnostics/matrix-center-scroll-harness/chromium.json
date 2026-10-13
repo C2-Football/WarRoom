@@ -1,0 +1,18 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:53022/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Two commissioned public-provider fixtures; actual Office, task queue, Prefs, checklist, AccountStorage and schedule generator.",
+  "capabilityBoundary": "Disposable synthetic browser identities and touch/viewport emulation. No authenticated backend persistence or physical-device claim. External writes are blocked before navigation.",
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": false,
+      "checks": [],
+      "touchChecks": [],
+      "matrixChecks": [],
+      "blockedExternalMutations": 0,
+      "pageErrors": [],
+      "error": "AssertionError [ERR_ASSERTION]: League matrix heading Coefficient must be reachable: {\"width\":112,\"height\":44,\"x\":104,\"y\":327.5,\"reachable\":false,\"hit\":\"<div style=\\\"position: sticky; left: 0px; z-index: 1; background: var(--co-surface, #121217);\\\"></div>\",\"element\":\"<button type=\\\"button\\\" style=\\\"background: transparent; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; padding: 8px 6px; margin: 0px; cursor: pointer; text-align: center; font-style: ; font-variant-ligatures: ; font-variant-caps: ; font-variant-numeric: ; font-variant-east-asian: ; font-variant-alternates: ; font-variant-position: ; font-variant-emoji: ; font-weight: ; font-stretch: ; font-size: ; line-height: 1.2; font-family: ; font-optical-sizing: ; fo\",\"computed\":{\"display\":\"block\",\"fontSize\":\"16px\",\"lineHeight\":\"21.6px\",\"height\":\"44px\"},\"coarse\":true,\"maxTouchPoints\":1,\"touchEvents\":true}\n    at reachable (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:135:9)\n    at async checkLeagueMatrix (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:208:11)\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:258:9"
+    }
+  ]
+}

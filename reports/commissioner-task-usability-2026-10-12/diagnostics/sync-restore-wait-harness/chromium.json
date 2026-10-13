@@ -1,0 +1,451 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:54689/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Two public-provider fixtures and a locally fulfilled authenticated task-sync service; actual Office, IgnoreSync, task queue, Prefs, checklist, AccountStorage and schedule generator.",
+  "capabilityBoundary": "Disposable synthetic browser identities, isolated service responses and touch/viewport emulation. This proves frontend integration, not deployed authentication/backend persistence or physical-device behavior. External writes are blocked before navigation.",
+  "testedRelease": null,
+  "results": [
+    {
+      "label": "phone-small",
+      "passed": false,
+      "checks": [
+        "All eight league-matrix headings stay readable and reachable; Schedule Builder and the last workspace open their correct views",
+        "Scoped blocked checklist navigation preserves automatic check truth",
+        "Native modal focus trap, dirty Escape guard, explicit discard and focus return",
+        "Task message copy failure retains saved text; successful clipboard confirmation records one copied event"
+      ],
+      "touchChecks": [
+        {
+          "control": "League matrix heading Coefficient",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading People",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Operations",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Programmes",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Rule Lab",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to last league matrix heading",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Open Schedule Builder from league matrix",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Open last workspace from league matrix",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Manual checklist completion",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 327.953125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Blocked checklist action",
+          "width": 119.34375,
+          "height": 44,
+          "x": 99,
+          "y": 327.953125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.84375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Discard private draft",
+          "width": 257,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.84375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Copy task message",
+          "width": 257,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Ignore task",
+          "width": 287,
+          "height": 44,
+          "x": 17,
+          "y": 554.8125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry task save",
+          "width": 142.953125,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Settings",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 347,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Restore ignored task",
+          "width": 80.625,
+          "height": 44,
+          "x": 206.375,
+          "y": 327.796875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "matrixChecks": [
+        {
+          "heading": "Coefficient",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "People",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Operations",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Programmes",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Rule Lab",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "keyboardReverse": {
+            "heading": "Season Setup",
+            "x": 176,
+            "right": 288,
+            "leftEdge": 173,
+            "rightEdge": 287,
+            "centerReachable": true,
+            "hit": "<button type=\"button\" style=\"background: transparent; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; padding: 8px 6px; margin: 0px; cursor: pointer; text-align: center; font-style: ; font-variant-ligatures: ; font-variant-caps: ; font-variant-numeric: ; fon"
+          }
+        }
+      ],
+      "crossDeviceProof": null,
+      "serviceFixtureEvents": [
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "offline": true
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "52c8e2bf-c573-41f1-b29c-8ffeea4e572e",
+          "state": "ignored",
+          "expectedRevision": 0,
+          "revision": 1,
+          "duplicate": false,
+          "status": 200
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "224bfd67-9a95-40d7-852c-1b781e93d392",
+          "state": "restored",
+          "expectedRevision": 1,
+          "revision": 2,
+          "duplicate": false,
+          "status": 200
+        }
+      ],
+      "blockedExternalMutations": 28,
+      "pageErrors": [],
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   confirmed: true,\n+   item: {\n+     detail: '44% ready · top blocker: Draft scheduled +4 more',\n+     domain: 'genesis',\n+     headline: 'QA Empty Redraft has no draft on the calendar.',\n+     hub: 'genesis',\n+     id: 'genesis:qa-task-alpha',\n+     kind: 'draft_unscheduled',\n+     leagueIds: [\n+       'qa-task-alpha'\n+     ],\n+     leagueNames: [\n+       'QA Empty Redraft'\n+     ]\n+   },\n+   revision: 1,\n+   source: 'cloud',\n+   state: 'ignored',\n+   ts: 1791849806689\n+ }\n- null\n\n    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:640:16"
+    }
+  ]
+}

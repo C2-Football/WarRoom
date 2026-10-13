@@ -5,7 +5,7 @@
 //   window.WrCommishRenewalPanel — RENEWAL FORECAST: who re-signs next
 //     season, riskiest first, for the People wall.
 //
-//   <WrCommishGenesisPanel readiness onToggle />
+//   <WrCommishGenesisPanel readiness onToggle onOpen />
 //     readiness  App.Commish.Genesis.buildAll() → [{ leagueId, leagueName,
 //                pct, items:[{id,label,kind:'auto'|'manual',done,detail}],
 //                blockers:[labels worst-first] }] — ALREADY sorted lowest
@@ -13,6 +13,9 @@
 //     onToggle(leagueId, itemId) — manual-checklist tap. The office owns
 //                the Genesis.toggleManual call + rebuild; the panel never
 //                writes storage and holds no done-state of its own.
+//     onOpen(leagueId, itemId) — opens the existing workspace for an
+//                unfinished automatic check. The office owns navigation;
+//                automatic checks are never completed by a panel tap.
 //
 //   <WrCommishRenewalPanel forecast />
 //     forecast   App.Commish.Renewal.buildForecast() → { people:[...
@@ -27,29 +30,32 @@
 // ══════════════════════════════════════════════════════════════════
 
 // ── SEASON GENESIS ───────────────────────────────────────────────────
-function WrCommishGenesisPanel({ readiness, onToggle }) {
+// Stable identity keeps the league list and focused checklist controls in
+// place when a confirmed manual save updates the readiness props.
+function WrCommishGenesisSection({ meta, children }) {
+    return (
+        <div style={{ background: 'var(--panel, #15151b)', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: 'var(--text, #e8e8ea)', fontWeight: 600, textTransform: 'uppercase' }}>Season Setup</span>
+                {meta ? <span style={{ font: '600 var(--co-readable-small, 0.6875rem) var(--font-mono, "JetBrains Mono", monospace)', color: 'var(--text-muted, #8D887E)' }}>{meta}</span> : null}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function WrCommishGenesisPanel({ readiness, onToggle, onOpen }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', AMBER = 'var(--k-f0a500, #f0a500)';
     const MUTED = 'var(--text-muted, #8D887E)';
-    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
+    const LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
     // Expansion is the panel's only state; done-state always comes back
     // down through `readiness` after the office re-runs the engine.
     const [open, setOpen] = React.useState({});
     const flip = lid => setOpen(o => ({ ...o, [lid]: !o[lid] }));
-
-    const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
 
     // The engine's blocker labels are checklist-precise ("Settings ratified
     // (no unacknowledged drift)") — the Needs line wants terse. Known labels
@@ -74,6 +80,14 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
     };
     // The one decision column on this wall — everything else is silver.
     const pctColor = pct => pct >= 85 ? GREEN : pct >= 60 ? GOLD : AMBER;
+    const actions = {
+        draft_scheduled: 'Open Sleeper for draft date',
+        settings_ratified: 'Review settings',
+        all_seats_filled: 'View open seats',
+        deadline_set: 'Open Sleeper for deadline',
+        rosters_present: 'View rosters',
+        constitution_on_file: 'View bylaws',
+    };
 
     const list = Array.isArray(readiness) ? readiness : null;
     const allReady = !!(list && list.length && list.every(r => r && r.pct === 100));
@@ -82,7 +96,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
         : null;
 
     return (
-        <Section title="Season Setup" meta={meta}>
+        <WrCommishGenesisSection meta={meta}>
             <div style={{ color: TEXT, fontSize: 'var(--co-readable-small, 0.76rem)', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                 Opening-Day readiness — the six weeks before the draft, on one wall.
             </div>
@@ -90,18 +104,19 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>The readiness scan hasn't run yet — it fills in once your commissioned leagues sync.</div>
             ) : !list.length ? (
                 <div style={{ color: TEXT, fontSize: 'var(--co-readable-body, 0.78rem)' }}>No commissioned leagues to score — connect a league you run and the wall lights up.</div>
-            ) : allReady ? (
-                <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', color: GREEN, fontSize: 'var(--co-readable-body, 0.78rem)' }}>
-                    Every league is opening-day ready.
-                </div>
-            ) : list.map((r, i) => {
+            ) : <React.Fragment>
+                {allReady && <div role="status" style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', marginBottom: '10px', color: GREEN, fontSize: 'var(--co-readable-body, 0.78rem)', lineHeight: 1.5 }}>
+                    Every league is opening-day ready. You can still review or update each checklist below.
+                </div>}
+                {list.map((r, i) => {
                 const isOpen = !!open[r.leagueId];
+                const checklistId = 'wr-genesis-checklist-' + encodeURIComponent(r.leagueId);
                 const needs = needsLine(r.blockers);
                 const items = Array.isArray(r.items) ? r.items : [];
                 return (
-                    <div key={r.leagueId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: i === list.length - 1 ? 0 : '10px' }}>
-                        <button onClick={() => flip(r.leagueId)} aria-expanded={isOpen}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div key={r.leagueId} data-testid="genesis-league" data-league-id={r.leagueId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: i === list.length - 1 ? 0 : '10px' }}>
+                        <button type="button" onClick={() => flip(r.leagueId)} aria-expanded={isOpen} aria-controls={checklistId} aria-label={'Season setup for ' + r.leagueName}
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', minHeight: '44px', width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', cursor: 'pointer', textAlign: 'left' }}>
                             <span style={{ ...mono, fontSize: '1.3rem', fontWeight: 700, color: pctColor(r.pct), minWidth: '58px' }}>{r.pct}%</span>
                             <span style={{ flex: 1, minWidth: 0 }}>
                                 <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--co-readable-body, 0.82rem)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.leagueName}</span>
@@ -113,34 +128,42 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
                             </span>
                             <span style={{ ...mono, fontSize: 'var(--co-readable-small, 0.72rem)', color: MUTED, flexShrink: 0 }}>{isOpen ? '▾' : '▸'}</span>
                         </button>
-                        {isOpen ? (
-                            <div style={{ borderTop: `1px solid ${LINE}`, padding: '4px 12px 10px' }}>
+                        <div id={checklistId} hidden={!isOpen} style={{ borderTop: `1px solid ${LINE}`, padding: '4px 12px 10px' }}>
                                 {items.map((it, ii) => (
-                                    <div key={it.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', padding: '7px 0', borderBottom: ii === items.length - 1 ? 'none' : `1px solid ${LINE}` }}>
+                                    <div key={it.id} data-item-id={it.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', padding: '7px 0', borderBottom: ii === items.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                                         {it.kind === 'manual' ? (
-                                            <button onClick={() => { if (typeof onToggle === 'function') onToggle(r.leagueId, it.id); }}
-                                                aria-pressed={it.done} title={it.done ? 'Mark not done' : 'Mark done'}
-                                                style={{ width: '15px', height: '15px', flexShrink: 0, marginTop: '1px', background: 'transparent', border: '1px solid ' + (it.done ? 'rgba(212,175,55,0.7)' : LINE), borderRadius: '3px', color: GOLD, font: '700 var(--co-readable-small, 0.6rem) ' + MONO, lineHeight: '13px', padding: 0, cursor: 'pointer' }}>
-                                                {it.done ? '✓' : ''}
+                                            <button type="button" disabled={typeof onToggle !== 'function'} onClick={() => { if (typeof onToggle === 'function') onToggle(r.leagueId, it.id); }}
+                                                aria-pressed={!!it.done} aria-label={'Mark ' + it.label + ' as ' + (it.done ? 'incomplete' : 'complete') + ' for ' + r.leagueName}
+                                                title={it.done ? 'Mark not done' : 'Mark done'}
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '44px', minWidth: '44px', height: '44px', minHeight: '44px', flexShrink: 0, background: 'transparent', border: 'none', borderRadius: '3px', padding: 0, cursor: typeof onToggle === 'function' ? 'pointer' : 'default' }}>
+                                                <span aria-hidden="true" style={{ display: 'inline-block', width: '18px', height: '18px', border: '1px solid ' + (it.done ? 'rgba(212,175,55,0.7)' : SILVER), borderRadius: '3px', color: GOLD, font: '700 14px ' + MONO, lineHeight: '16px', textAlign: 'center' }}>{it.done ? '✓' : ''}</span>
                                             </button>
                                         ) : (
                                             // Auto item: read-only status dot — filled green when done,
                                             // hollow when the engine says this is still open.
-                                            <i style={{ width: '9px', height: '9px', flexShrink: 0, marginTop: '4px', marginLeft: '3px', marginRight: '3px', borderRadius: '50%', display: 'inline-block', background: it.done ? GREEN : 'transparent', border: it.done ? 'none' : `1px solid ${SILVER}` }} />
+                                            <span role="img" aria-label={it.done ? 'Complete' : 'Needs attention'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', flexShrink: 0 }}>
+                                                <i aria-hidden="true" style={{ width: '9px', height: '9px', borderRadius: '50%', display: 'inline-block', background: it.done ? GREEN : 'transparent', border: it.done ? 'none' : `1px solid ${SILVER}` }} />
+                                            </span>
                                         )}
-                                        <span style={{ flex: 1, minWidth: 0 }}>
+                                        <span style={{ flex: 1, minWidth: 0, paddingTop: '3px', overflowWrap: 'anywhere' }}>
                                             <span style={{ display: 'block', fontSize: 'var(--co-readable-body, 0.78rem)', fontWeight: 600, fontFamily: 'var(--font-body)', color: it.done ? SILVER : TEXT }}>{it.label}</span>
                                             {it.detail ? <span style={{ display: 'block', fontSize: 'var(--co-readable-small, 0.7rem)', color: MUTED, lineHeight: 1.45, marginTop: '1px' }}>{it.detail}</span> : null}
+                                            {it.kind === 'manual' ? <span style={{ display: 'block', fontSize: 'var(--co-readable-small, 0.7rem)', color: MUTED, marginTop: '3px' }}>Manual checklist</span> : null}
+                                            {it.kind === 'auto' && !it.done && actions[it.id] && typeof onOpen === 'function' ? (
+                                                <button type="button" onClick={() => onOpen(r.leagueId, it.id)} aria-label={actions[it.id] + ' for ' + r.leagueName}
+                                                    style={{ minHeight: '44px', maxWidth: '100%', marginTop: '6px', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, font: '600 var(--co-readable-body, 0.78rem) var(--font-body)', lineHeight: 1.4, whiteSpace: 'normal', cursor: 'pointer' }}>
+                                                    {actions[it.id]}
+                                                </button>
+                                            ) : null}
                                         </span>
-                                        {it.kind === 'manual' ? <span style={{ ...microHdr, flexShrink: 0, marginTop: '2px' }}>manual</span> : null}
                                     </div>
                                 ))}
                             </div>
-                        ) : null}
                     </div>
                 );
             })}
-        </Section>
+            </React.Fragment>}
+        </WrCommishGenesisSection>
     );
 }
 

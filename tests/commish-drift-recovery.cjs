@@ -6,7 +6,7 @@ const storage={get:(key,fallback)=>records.has(key)?JSON.parse(records.get(key))
 global.App.AccountStorage=storage;
 const league={league_id:'L1',name:'Isolated league',scoring_settings:{rec:.5,pass_td:4},settings:{trade_deadline:10},roster_positions:['QB','RB']};
 const source=fs.readFileSync('js/tabs/commissioner-office.js','utf8'),hook=source.slice(source.indexOf('function useCommishLocalSave()'),source.indexOf('function CommissionerOffice('));
-const handlers=source.slice(source.indexOf('    const refreshDrift ='),source.indexOf('    const onCopy ='));
+const handlers=source.slice(source.indexOf('    const refreshDrift ='),source.indexOf('    const copyContext ='));
 const slots=[];let cursor=0,guarded;
 const c=vm.createContext({console,C:{Drift,Bylaws},window:{App:{AccountStorage:storage,NavigationGuard:{register:fn=>{guarded=fn;return()=>{};}}},addEventListener(){},removeEventListener(){}},setAckTick(){},React:{
  useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],v=>slots[i]=typeof v==='function'?v(slots[i]):v];},

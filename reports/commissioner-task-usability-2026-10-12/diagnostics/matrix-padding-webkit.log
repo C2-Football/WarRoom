@@ -1,0 +1,10 @@
+AssertionError [ERR_ASSERTION]: Reverse keyboard navigation reaches the preceding matrix heading
++ actual - expected
+
++ 'CoefficientPeopleOperationsProgrammesRule LabSchedule BuilderSeason SetupBylaws + DuesQA Empty Redraft↗QER · 33% ready—WK 15open1open—WK 1··1open1openQA Dynasty With IDP↗QDW · 33% ready—WK 15open1open—WK 1··1open1open'
+- 'Season Setup'
+
+    at checkLeagueMatrix (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:235:16)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:275:9

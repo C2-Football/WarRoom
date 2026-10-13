@@ -1,0 +1,1 @@
+Chromium320 asserted the disposition immediately after starting async account Restore. Corrected harness waits for the Restore row to disappear after server confirmation, then retains the same disposition/queue assertions. This diagnostic is not a source failure.

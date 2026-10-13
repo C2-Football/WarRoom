@@ -6,7 +6,7 @@ copy in this checkout does not authorize this repository to deploy that endpoint
 | Release owner | Scope |
 | --- | --- |
 | `C2-Football/WarRoom` | `league-cup`, `time-league` (Vault), `duat` |
-| `skjjcruz/github.com-skjjcruz-owner-dashboard-dev` | Account/authentication, billing, admin, server AI, scoreboard and native operations; use its reviewed owner release process. The newer `fw-change-password` belongs in this account lane. |
+| `skjjcruz/github.com-skjjcruz-owner-dashboard-dev` | Account/authentication, billing, admin, server AI, scoreboard and native operations; use its reviewed owner release process. `fw-change-password` and the account-owned task choices in `fw-commish-ignored` belong in this account lane. |
 | `skjjcruz/ReconAI-sandbox-dev` | `espn-proxy`, `mfl-proxy`, `yahoo-proxy` |
 | Existing separately managed releases | `report-bug`, `feature-requests`, and any unverified endpoint are excluded from C2 releases. Verify their owning release process before deployment. |
 

@@ -1,0 +1,1 @@
+Genuine native reverse-keyboard defect on53022: after the last matrix heading is visible, Shift+Tab focuses Season Setup beneath the sticky league-name cell. The strict hit-test and full-heading visibility regression remains; acceptance awaits a source fix and new frozen preview.

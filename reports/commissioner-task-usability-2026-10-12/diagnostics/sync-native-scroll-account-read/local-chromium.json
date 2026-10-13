@@ -1,0 +1,1016 @@
+{
+  "engine": "chromium",
+  "url": "http://127.0.0.1:54689/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Two public-provider fixtures and a locally fulfilled authenticated task-sync service; actual Office, IgnoreSync, task queue, Prefs, checklist, AccountStorage and schedule generator.",
+  "capabilityBoundary": "Disposable synthetic browser identities, isolated service responses and touch/viewport emulation. This proves frontend integration, not deployed authentication/backend persistence or physical-device behavior. External writes are blocked before navigation.",
+  "testedRelease": null,
+  "results": [
+    {
+      "label": "phone-small",
+      "viewport": {
+        "width": 320,
+        "height": 700
+      },
+      "touch": true,
+      "passed": true,
+      "checks": [
+        "All eight league-matrix headings stay readable and reachable; Schedule Builder and the last workspace open their correct views",
+        "Scoped blocked checklist navigation preserves automatic check truth",
+        "Native modal focus trap, dirty Escape guard, explicit discard and focus return",
+        "Task message copy failure retains saved text; successful clipboard confirmation records one copied event",
+        "Offline Ignore and newer-note quota rejection block false success; confirmed retry, reload persistence, changed finding, league isolation and Settings restore",
+        "Done returns on changed finding; A→B→A preserves separate account and league choices",
+        "All100% checklists remain editable across reload; missing ignored findings remain recoverable in Settings",
+        "Clipboard pending/success confirmation and workspace invalidation; rejected and unavailable clipboard expose selectable manual text/CSV fallback"
+      ],
+      "touchChecks": [
+        {
+          "control": "League matrix heading Coefficient",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading People",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Operations",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Programmes",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Rule Lab",
+          "width": 112,
+          "height": 44,
+          "x": 175,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Return to last league matrix heading",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Open Schedule Builder from league matrix",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Open last workspace from league matrix",
+          "width": 112,
+          "height": 59.1875,
+          "x": 175,
+          "y": 320.3125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Manual checklist completion",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 327.953125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Blocked checklist action",
+          "width": 119.34375,
+          "height": 44,
+          "x": 99,
+          "y": 327.953125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.84375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Discard private draft",
+          "width": 257,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.84375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Copy task message",
+          "width": 257,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Ignore task",
+          "width": 287,
+          "height": 44,
+          "x": 17,
+          "y": 554.8125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Retry task save",
+          "width": 142.953125,
+          "height": 44,
+          "x": 32,
+          "y": 231.5625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Settings",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 347,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Restore ignored task",
+          "width": 80.625,
+          "height": 44,
+          "x": 206.375,
+          "y": 327.796875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.59375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Mark task done",
+          "width": 134.15625,
+          "height": 44,
+          "x": 17,
+          "y": 502.8125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.84375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 259,
+          "height": 44,
+          "x": 32,
+          "y": 327.65625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Complete checklist rules_reratified",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 327.765625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Complete checklist welcome_drafted",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 341.65625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 319.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Complete checklist dues_noted",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 327.5,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Complete checklist rules_reratified",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 328.28125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Complete checklist welcome_drafted",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 328.171875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Ratify changed settings",
+          "width": 191.578125,
+          "height": 44,
+          "x": 48,
+          "y": 327.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Ratify changed settings",
+          "width": 191.578125,
+          "height": 44,
+          "x": 48,
+          "y": 327.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Reopen completed checklist item",
+          "width": 44,
+          "height": 44,
+          "x": 46,
+          "y": 327.6875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 252,
+          "height": 61.484375,
+          "x": 34,
+          "y": 434.234375,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Settings",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 347,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Generate schedule",
+          "width": 179.65625,
+          "height": 44,
+          "x": 33,
+          "y": 442.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Copy schedule text",
+          "width": 124.09375,
+          "height": 44,
+          "x": 33,
+          "y": 327.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 72,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 263,
+          "height": 44,
+          "x": 16,
+          "y": 128,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Select manual copy text",
+          "width": 127.40625,
+          "height": 44,
+          "x": 54.6875,
+          "y": 500,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Copy schedule CSV",
+          "width": 127.140625,
+          "height": 44,
+          "x": 33,
+          "y": 327.75,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "Close manual copy",
+          "width": 70.90625,
+          "height": 44,
+          "x": 190.09375,
+          "y": 500,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "matrixChecks": [
+        {
+          "heading": "Coefficient",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "People",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Operations",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Programmes",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Rule Lab",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "keyboardReverse": {
+            "heading": "Season Setup",
+            "x": 176,
+            "right": 288,
+            "leftEdge": 173,
+            "rightEdge": 287,
+            "centerReachable": true,
+            "hit": "<button type=\"button\" style=\"background: transparent; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; padding: 8px 6px; margin: 0px; cursor: pointer; text-align: center; font-style: ; font-variant-ligatures: ; font-variant-caps: ; font-variant-numeric: ; fon"
+          }
+        }
+      ],
+      "crossDeviceProof": null,
+      "serviceFixtureEvents": [
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "offline": true
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "51eef4a3-857b-4e4f-9930-6ebb755f39c0",
+          "state": "ignored",
+          "expectedRevision": 0,
+          "revision": 1,
+          "duplicate": false,
+          "status": 200
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "49d24942-dc33-47c8-aac3-da5dbe499478",
+          "state": "restored",
+          "expectedRevision": 1,
+          "revision": 2,
+          "duplicate": false,
+          "status": 200
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "9fcb3805-6f9e-43fd-9e2b-b8ff198c22b6",
+          "state": "ignored",
+          "expectedRevision": 2,
+          "revision": 3,
+          "duplicate": false,
+          "status": 200
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000002",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000002",
+          "method": "POST",
+          "taskId": "genesis:qa-task-beta",
+          "operationId": "8b683fce-dc2b-4178-baea-85737a4e2ccb",
+          "state": "ignored",
+          "expectedRevision": 0,
+          "revision": 1,
+          "duplicate": false,
+          "status": 200
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        },
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "POST",
+          "taskId": "genesis:qa-task-alpha",
+          "operationId": "0fa2686c-4ccb-42d6-82fa-cf19abf71cd9",
+          "state": "restored",
+          "expectedRevision": 3,
+          "revision": 4,
+          "duplicate": false,
+          "status": 200
+        }
+      ],
+      "blockedExternalMutations": 90,
+      "pageErrors": []
+    },
+    {
+      "label": "phone",
+      "passed": false,
+      "checks": [],
+      "touchChecks": [
+        {
+          "control": "League matrix heading Coefficient",
+          "width": 112,
+          "height": 44,
+          "x": 177,
+          "y": 407.90625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading People",
+          "width": 112,
+          "height": 44,
+          "x": 245,
+          "y": 407.90625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Operations",
+          "width": 112,
+          "height": 44,
+          "x": 245,
+          "y": 407.90625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Programmes",
+          "width": 112,
+          "height": 44,
+          "x": 245,
+          "y": 407.90625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Rule Lab",
+          "width": 112,
+          "height": 44,
+          "x": 245,
+          "y": 407.90625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "x": 245,
+          "y": 392.71875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "x": 245,
+          "y": 392.71875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        },
+        {
+          "control": "League matrix heading Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "x": 245,
+          "y": 392.71875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 1,
+          "touchEvents": true
+        }
+      ],
+      "matrixChecks": [
+        {
+          "heading": "Coefficient",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "People",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Operations",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Programmes",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Rule Lab",
+          "width": 112,
+          "height": 44,
+          "fontSize": 16,
+          "textLines": 1
+        },
+        {
+          "heading": "Schedule Builder",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Season Setup",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        },
+        {
+          "heading": "Bylaws + Dues",
+          "width": 112,
+          "height": 59.1875,
+          "fontSize": 16,
+          "textLines": 2
+        }
+      ],
+      "crossDeviceProof": null,
+      "serviceFixtureEvents": [
+        {
+          "accountId": "10000000-0000-4000-8000-000000000001",
+          "method": "GET",
+          "offset": 0
+        }
+      ],
+      "blockedExternalMutations": 0,
+      "pageErrors": [],
+      "error": "AssertionError [ERR_ASSERTION]: Native reverse keyboard navigation must reveal the complete heading beside the pinned league column: {\"heading\":\"Season Setup\",\"x\":129,\"right\":241,\"leftEdge\":173,\"rightEdge\":357,\"centerReachable\":true,\"hit\":\"<button type=\\\"button\\\" style=\\\"background: transparent; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; padding: 8px 6px; margin: 0px; cursor: pointer; text-align: center; font-style: ; font-variant-ligatures: ; font-variant-caps: ; font-variant-numeric: ; fon\"}\n    at checkLeagueMatrix (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:335:9)\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:545:9"
+    }
+  ]
+}

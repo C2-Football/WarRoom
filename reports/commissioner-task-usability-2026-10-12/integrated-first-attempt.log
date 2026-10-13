@@ -1,0 +1,96 @@
+
+> fantasy-war-room@1.0.0 test
+> node scripts/run-tests.cjs
+
+
+Running 44 test suites…
+
+  ✓ core
+  ✗ design-tokens
+  ✓ landing-content
+  ✓ login-auth
+  ✓ sleeper-connect
+  ✓ sleeper-portfolio
+  ✓ regression
+  ✓ click-paths
+  ✓ intelligence-surfaces
+  ✓ draft-context
+  ✓ game-draft-table
+  ✓ draft-analyst-mock
+  ✓ draft-trade-simulator
+  ✓ draft-live-sync
+  ✓ draft-live-decision
+  ✓ draft-live-room
+  ✓ draft-recap
+  ✓ post-draft-craze
+  ✓ draft-strategy-studio
+  ✓ ai
+  ✓ ai-scale
+  ✓ billing
+  ✓ security
+  ✓ native
+  ✓ bug-capture
+  ✓ analytics
+  ✓ tutorial
+  ✓ rookies
+  ✓ rookie-capital
+  ✓ rookie-fields
+  ✓ redraft
+  ✓ live-scores
+  ✓ dashboard-league
+  ✓ fa-market
+  ✓ stats
+  ✓ forecast-ledger
+  ✓ cup
+  ✓ chopped
+  ✓ first-class
+  ✗ workspaces
+  ✓ empire
+  ✓ commish
+  ✓ timeleague
+  ✓ duat
+
+────────────────────────────────────────────────────────────────
+FAILED: design-tokens
+────────────────────────────────────────────────────────────────
+War Room design-token contract tests
+..F.
+
+  FAIL: rounded identity: no hardcoded 4-14px radius literals in js/ or index.html
+        3 hardcoded radius literal(s) bypass the tokens — run `node scripts/radius-codemod.cjs` to migrate them:
+        js/tabs/commissioner-office.js: border-radius: 12px
+        js/tabs/commissioner-office.js: border-radius: 8px
+        js/tabs/commissioner-office.js: border-radius: 8px
+
+FAIL 4 tests - 3 passed, 1 failed
+
+────────────────────────────────────────────────────────────────
+FAILED: workspaces
+────────────────────────────────────────────────────────────────
+    at Object.<anonymous> (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/portfolio-consolidation.cjs:244:1)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+Node.js v25.8.1
+✖ tests/portfolio-consolidation.cjs (362.68325ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 368.7475
+
+✖ failing tests:
+
+test at tests/portfolio-consolidation.cjs:1:1
+✖ tests/portfolio-consolidation.cjs (362.68325ms)
+  'test failed'
+
+FAIL  44 suites in 135.2s — 42 passed, 2 failed, 0 quarantined

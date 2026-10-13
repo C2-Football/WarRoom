@@ -83,6 +83,22 @@
 // as a SURFACE — the CO_* fill tokens exist for exactly the tinted-status-
 // banner case and are used here instead).
 // ══════════════════════════════════════════════════════════════════
+// Keep section identity stable when an Office update rerenders the panel, so
+// copy controls and schedule inputs stay mounted and retain keyboard focus.
+function WrCommishScheduleSection({ title, meta, children }) {
+    const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)', TEXT = 'var(--white, #F5F2EA)';
+    const microHdr = { font: '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) var(--font-mono, "JetBrains Mono", monospace)', color: '#8D887E', letterSpacing: '0.08em', textTransform: 'uppercase' };
+    return (
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+            </div>
+            {children}
+        </div>
+    );
+}
+
 function WrCommishSchedulePanel({
     leagues, selectedLeagueId, onSelectLeague,
     teams, weeksConfig, onWeeksConfigChange,
@@ -96,7 +112,7 @@ function WrCommishSchedulePanel({
 }) {
     const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
     const MUTED = '#8D887E';
-    const PANEL = 'var(--co-surface, #121217)', PANEL2 = 'var(--co-surface-2, #1B1B22)', LINE = 'var(--co-line, #27262E)';
+    const PANEL2 = 'var(--co-surface-2, #1B1B22)', LINE = 'var(--co-line, #27262E)';
     const GOOD = 'var(--k-2ecc71, #2ecc71)', BAD = 'var(--k-e74c3c, #e74c3c)', WARN = 'var(--k-f0a500, #f0a500)';
     const FILL_GOOD = 'var(--co-fill-good, #14281C)', FILL_WARN = 'var(--co-fill-warn, #2A2010)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
@@ -110,15 +126,7 @@ function WrCommishSchedulePanel({
         color: active ? 'var(--co-accent, #5DADE2)' : SILVER,
     });
 
-    const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: 'var(--co-readable-small, 0.72rem)', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
+    const Section = WrCommishScheduleSection;
 
     const nameFor = (id) => (teams || []).find(t => String(t.id) === String(id))?.name || ('Team ' + id);
 

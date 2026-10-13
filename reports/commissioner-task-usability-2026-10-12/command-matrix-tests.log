@@ -1,0 +1,26 @@
+Commissioner command panel — responsive grid
+  ok  desktop (no phone, no narrowGrid) keeps the fluid eight-column grid
+  ok  phone with no narrowGrid prop still gets the narrow grid (back-compat)
+  ok  portrait tablet — narrowGrid true while phone is false — gets the narrow grid
+  ok  narrowGrid false overrides phone true — the prop wins when given
+  ok  narrow grid scrolls horizontally and pins the league column
+  ok  phone and tablet matrix exposes a labelled keyboard scroll region and visible sideways hint
+  ok  narrow matrix preserves words, touch header targets, all eight destinations and final-column filters
+  ok  keyboard reveal covers all domain headings and counts, excluding pinned league controls
+  ok  reverse keyboard focus reveals the whole control when partly behind the pinned league
+  ok  visible keyboard cells and cells already revealed by native scrolling do not jump
+  ok  touch or mouse focus, pinned controls and wide matrices retain native scrolling
+  ok  queued matrix reveal never scrolls an old or no-longer-keyboard focused control
+  ok  desktop grid has no scroll wrapper and nothing pinned
+  ok  desk cards go two-up when narrow, four-up on desktop
+  ok  every domain column renders a header button that opens its hub
+  ok  task action preserves league scope and action intent when opening a workspace
+  ok  task review is a separate native button on phone and desktop
+  ok  tablet task rows use cards instead of desktop columns for every priority
+  ok  tablet direct actions keep 44px targets and do not open task review
+  ok  wide desktop retains dense task columns and compact direct actions
+  ok  phone task cards remain readable even when narrowGrid is explicitly false
+  ok  1024px landscape matrix scrolls while desktop task and desk layouts remain dense
+PASS: 22 passed, 0 failed
+(node:29308) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)

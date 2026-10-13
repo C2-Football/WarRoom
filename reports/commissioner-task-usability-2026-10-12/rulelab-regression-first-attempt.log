@@ -1,0 +1,24 @@
+Replay diagnostics {"runs":[],"rendered":[]}
+locator.tap: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('.hub-experience-card.commish-hero')[22m
+[2m    - locator resolved to <button disabled type="button" class="hub-experience-card commish-hero">…</button>[22m
+[2m  - attempting tap action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying tap action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying tap action[22m
+[2m      - waiting 100ms[22m
+[2m    56 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not enabled[22m
+[2m     - retrying tap action[22m
+[2m       - waiting 500ms[22m
+
+    at activate (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:77:56)
+    at open (/Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:113:15)
+    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-rulelab-browser.cjs:191:89 {
+  name: 'TimeoutError'
+}

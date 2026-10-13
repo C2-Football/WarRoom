@@ -15,8 +15,9 @@
 //                 Sleeper has no "recruit accepted" signal to gate on, so
 //                 each folder is labelled a draft and names who it was
 //                 written for rather than reading as a done deal.
-//   onCopy(text)  clipboard fallback — navigator.clipboard is undefined on
-//                 non-HTTPS/older WebViews, so the host app owns plan B
+//   onCopy(text)  preferred host copy flow, including manual fallback.
+//                 Returns true (or resolves true) only after a confirmed
+//                 clipboard write. Without it, this panel tries navigator.
 // ══════════════════════════════════════════════════════════════════
 function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, onCopy, phone = false }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
@@ -29,31 +30,46 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
 
     // Transient "Copied" flash per button; keyed so two buttons never share it.
     const [copiedKey, setCopiedKey] = React.useState(null);
+    const [copyPendingKey, setCopyPendingKey] = React.useState(null);
+    const [copyError, setCopyError] = React.useState(null);
     const [peopleView, setPeopleView] = React.useState('people');
     const [query, setQuery] = React.useState('');
     const [needsOnly, setNeedsOnly] = React.useState(true);
     const [peopleLimit, setPeopleLimit] = React.useState(8);
     const copyTimer = React.useRef(null);
-    React.useEffect(() => () => clearTimeout(copyTimer.current), []);
-    const doCopy = (key, text) => {
-        const fallback = () => { try { if (typeof onCopy === 'function') onCopy(text); } catch (_) { /* no clipboard, no handler — nothing left to try */ } };
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback);
-            else fallback();
-        } catch (_) { fallback(); }
-        setCopiedKey(key);
+    const copyRun = React.useRef(null);
+    React.useEffect(() => () => { copyRun.current = null; clearTimeout(copyTimer.current); }, []);
+    const doCopy = async (key, text) => {
+        if (copyRun.current) return false;
+        const run = { key };
+        copyRun.current = run;
         clearTimeout(copyTimer.current);
-        copyTimer.current = setTimeout(() => setCopiedKey(k => (k === key ? null : k)), 1500);
+        setCopiedKey(null);
+        setCopyError(null);
+        setCopyPendingKey(key);
+        let copied = false;
+        try {
+            if (typeof onCopy === 'function') copied = (await onCopy(text)) === true;
+            else if (typeof window.navigator?.clipboard?.writeText === 'function') {
+                await window.navigator.clipboard.writeText(text);
+                copied = true;
+            }
+        } catch (_) { /* Keep the message visible; only confirmed writes flash Copied. */ }
+        if (copyRun.current !== run) return false;
+        copyRun.current = null;
+        setCopyPendingKey(null);
+        if (copied) {
+            setCopiedKey(key);
+            copyTimer.current = setTimeout(() => setCopiedKey(k => (k === key ? null : k)), 1500);
+        } else setCopyError({ key, message: 'Copy was not confirmed. Select the message text to copy manually.' });
+        return copied;
     };
 
     // ── Shells ───────────────────────────────────────────────────────
     const Section = WrCommishPeopleSection;
-    const CopyBtn = ({ k, text, label }) => (
-        <button onClick={() => doCopy(k, text)}
-            style={{ padding: '4px 10px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.62rem) ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start' }}>
-            {copiedKey === k ? 'Copied' : (label || 'Copy')}
-        </button>
-    );
+    const copyButton = (key, text, label) => <WrCommishPeopleCopyButton copyKey={key} text={text} label={label}
+        copied={copiedKey === key} pending={copyPendingKey === key} busy={copyPendingKey != null}
+        error={copyError?.key === key ? copyError.message : null} onCopy={doCopy} />;
     // Drafted-message block: same left-gold quote idiom as Alex reads elsewhere.
     const Quote = ({ children }) => (
         <div style={{ flex: 1, minWidth: 0, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '0 6px 6px 0', padding: '8px 11px', fontStyle: 'italic', fontSize: 'var(--co-readable-body, 0.78rem)', color: '#C9C9D2', lineHeight: 1.5 }}>
@@ -115,7 +131,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                     if (phone) return <details className="co-person" key={p.userId}>
                         <summary><strong>{p.name}{p.isMe ? ' (you)' : ''}</strong><span style={{ color: chip.color }}>{chip.label}</span><small>{(p.teams || []).length} league{(p.teams || []).length === 1 ? '' : 's'} · View details</small></summary>
                         <div className="co-person-details">{(p.teams || []).map(t => <p key={t.leagueId + ':' + t.rosterId}><strong>{t.leagueName}</strong><span>{sigTitle(t).replace(t.leagueName + ': ', '')}</span></p>)}
-                            {isDark && p.checkin ? <><blockquote>{p.checkin}</blockquote><CopyBtn k={'checkin:' + p.userId} text={p.checkin} label="Copy check-in" /></> : null}
+                            {isDark && p.checkin ? <><blockquote>{p.checkin}</blockquote>{copyButton('checkin:' + p.userId, p.checkin, 'Copy check-in')}</> : null}
                         </div>
                     </details>;
                     return (
@@ -135,7 +151,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                             {isDark && p.checkin ? (
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginTop: '8px' }}>
                                     <Quote>“{p.checkin}”</Quote>
-                                    <CopyBtn k={'checkin:' + p.userId} text={p.checkin} />
+                                    {copyButton('checkin:' + p.userId, p.checkin)}
                                 </div>
                             ) : null}
                         </div>
@@ -180,7 +196,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                             {pros && pros.pitch ? (
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginTop: '8px' }}>
                                     <Quote>{pros.pitch}</Quote>
-                                    <CopyBtn k={'pitch:' + seat.leagueId + ':' + seat.rosterId} text={pros.pitch} label="Copy pitch" />
+                                    {copyButton('pitch:' + seat.leagueId + ':' + seat.rosterId, pros.pitch, 'Copy pitch')}
                                 </div>
                             ) : null}
                         </div>
@@ -198,7 +214,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                         <div key={fi} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderTop: `2px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px', marginBottom: fi === folderList.length - 1 ? 0 : '10px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '9px' }}>
                                 <span style={{ ...microHdr, color: GOLD }}>Day One Folder{f.leagueName ? ' — ' + f.leagueName : ''}</span>
-                                <CopyBtn k={'folder:' + fi} text={copyAll} label="Copy all" />
+                                {copyButton('folder:' + fi, copyAll, 'Copy all')}
                             </div>
                             {/* Nobody has accepted anything — Sleeper only tells us a
                                 seat is EMPTY, never that a recruit said yes. Say whose
@@ -225,6 +241,23 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
 }
 
 window.WrCommishPeoplePanel = WrCommishPeoplePanel;
+
+// A stable component keeps the focused copy button mounted while its async
+// outcome arrives. aria-disabled prevents repeat actions without moving focus.
+function WrCommishPeopleCopyButton({ copyKey, text, label, copied, pending, busy, error, onCopy }) {
+    const errorId = 'wr-people-copy-error-' + encodeURIComponent(copyKey);
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px', flexShrink: 0, alignSelf: 'flex-start', maxWidth: '45%' }}>
+            <button type="button" data-testid="people-copy-button" data-copy-key={copyKey}
+                aria-disabled={!!busy} aria-busy={!!pending} aria-describedby={error ? errorId : undefined} aria-live="polite"
+                onClick={() => busy ? false : onCopy(copyKey, text)}
+                style={{ minWidth: '44px', minHeight: '44px', maxWidth: '100%', padding: '9px 10px', background: 'transparent', color: 'var(--gold, #d4af37)', border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 var(--co-readable-small, 0.7rem) var(--font-mono, monospace)', letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'normal', overflowWrap: 'anywhere', cursor: busy ? 'wait' : 'pointer' }}>
+                {pending ? 'Copying…' : copied ? 'Copied' : (label || 'Copy')}
+            </button>
+            {error && <span id={errorId} role="alert" style={{ maxWidth: '140px', color: 'var(--text-muted, #8D887E)', fontSize: 'var(--co-readable-small, 0.7rem)', lineHeight: 1.45 }}>{error}</span>}
+        </div>
+    );
+}
 
 function WrCommishPeopleSection({ title, meta, children, phone, peopleView }) {
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))', TEXT = 'var(--text, #e8e8ea)';

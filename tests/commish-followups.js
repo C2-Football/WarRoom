@@ -35,7 +35,16 @@ test('summary counts open, done and due follow-ups', () => {
   F.save(item, { dueAt:'2000-01-01' }, { nowMs:10 });
   const other = { ...item, id:'q2', headline:'Second item' };
   F.save(other, { status:'DONE' }, { nowMs:20 });
-  assert.deepStrictEqual(F.summary(), { total:2, open:1, done:1, due:1 });
+  assert.deepStrictEqual(F.summary(), { total:2, open:1, done:1, ignored:0, due:1 });
+});
+test('ignored follow-ups are remembered separately from resolved and overdue work', () => {
+  F.save(item, { dueAt:'2000-01-01', note:'Leave this aside' }, { nowMs:10 });
+  F.record(item, 'IGNORED', 'Ignored until restored', { nowMs:20 });
+  assert.strictEqual(F.get(item.id).status, 'IGNORED');
+  assert.deepStrictEqual(F.summary(), { total:1, open:0, done:0, ignored:1, due:0 });
+  F.record(item, 'RESTORED', '', { nowMs:30 });
+  assert.strictEqual(F.get(item.id).note, 'Leave this aside');
+  assert.deepStrictEqual(F.summary(), { total:1, open:1, done:0, ignored:0, due:1 });
 });
 
 if (!process.exitCode) console.log('\nPASS ' + passed + ' tests');

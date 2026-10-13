@@ -1,0 +1,11 @@
+webkit ipad-portrait checked: Scoped blocked checklist navigation preserves automatic check truth
+webkit ipad-portrait Tab boundary 5: {"inside":false,"modal":true,"tag":"BODY","documentFocused":false,"active":"<body class=\"is-pro\" style=\"overflow: hidden;\"><div class=\"wr-dev-banner\" style=\"position: fixed; top: 0px; left: 0px; right: 0px; height: 18px; box-sizing: border-box; z-index: 99999; background: var(--k-d4af37, #d4af37); color: var(--k-000000, #000000); font-size: var(--text-label, 0.75rem); font-"}
+webkit ipad-portrait Tab boundary 11: {"inside":false,"modal":true,"tag":"BODY","documentFocused":false,"active":"<body class=\"is-pro\" style=\"overflow: hidden;\"><div class=\"wr-dev-banner\" style=\"position: fixed; top: 0px; left: 0px; right: 0px; height: 18px; box-sizing: border-box; z-index: 99999; background: var(--k-d4af37, #d4af37); color: var(--k-000000, #000000); font-size: var(--text-label, 0.75rem); font-"}
+webkit ipad-portrait Tab boundary 17: {"inside":false,"modal":true,"tag":"BODY","documentFocused":false,"active":"<body class=\"is-pro\" style=\"overflow: hidden;\"><div class=\"wr-dev-banner\" style=\"position: fixed; top: 0px; left: 0px; right: 0px; height: 18px; box-sizing: border-box; z-index: 99999; background: var(--k-d4af37, #d4af37); color: var(--k-000000, #000000); font-size: var(--text-label, 0.75rem); font-"}
+webkit ipad-portrait checked: Native modal focus trap, dirty Escape guard, explicit discard and focus return
+webkit ipad-portrait checked: Task message copy failure retains saved text; successful clipboard confirmation records one copied event
+webkit ipad-portrait checked: Ignore save rejection/retry, reload persistence, changed metric/urgency suppression, league isolation and Settings restore
+webkit ipad-portrait checked: Done returns on changed finding; A→B→A preserves separate account and league choices
+webkit ipad-portrait checked: All100% checklists remain editable across reload; missing ignored findings remain recoverable in Settings
+page.waitForFunction: Timeout 3000ms exceeded.
+    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:390:20

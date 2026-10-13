@@ -193,5 +193,55 @@ async function test(name, fn) { await fn(); passed++; console.log('PASS ' + name
         current = false; vm.runInContext('onRetryActivity();', c); assert.equal(restarts, 1);
         current = true; allowed = false; vm.runInContext('onRetryActivity();', c); assert.equal(restarts, 1);
     });
+    await test('schedule sections keep React identity across parent and settings rerenders', () => {
+        const Babel = require('@babel/standalone');
+        const panel = fs.readFileSync('js/components/commish-schedule-panel.js', 'utf8');
+        // Retain component types instead of expanding them: React remounts a
+        // subtree when that function changes, detaching the focused control.
+        const c = vm.createContext({ window: { App: {} }, React: {
+            Fragment: Symbol('Fragment'),
+            createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+            useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
+            useMemo: compute => compute(), useEffect() {},
+        } });
+        vm.runInContext(Babel.transform(panel, { presets: ['react'] }).code, c);
+        const copies = [], changes = [];
+        const props = { leagues: [{ id: 'L1', name: 'Test League' }], selectedLeagueId: 'L1', teams: defaults().teams,
+            weeksConfig: { weeks: 3, doubleRoundRobin: false }, schedule: plan().schedule, currentWeek: 1,
+            onCopyText: () => copies.push('text'), onCopyCSV: () => copies.push('csv'),
+            onWeeksConfigChange: next => changes.push(next) };
+        const walk = (node, predicate, found = []) => {
+            if (Array.isArray(node)) node.forEach(child => walk(child, predicate, found));
+            else if (node && typeof node === 'object') {
+                if (predicate(node)) found.push(node);
+                walk(node.children, predicate, found);
+            }
+            return found;
+        };
+        const sectionsOf = tree => walk(tree, node => typeof node.type === 'function');
+        const initial = sectionsOf(c.WrCommishSchedulePanel(props));
+        assert.equal(initial.length, 3, 'Schedule Builder, Build, and Weeks sections');
+        for (const next of [props, { ...props, weeksConfig: { ...props.weeksConfig, weeks: 4 }, saveState: 'saved' }]) {
+            const sections = sectionsOf(c.WrCommishSchedulePanel(next));
+            assert.equal(sections.length, initial.length);
+            sections.forEach((section, index) => assert.equal(section.type, initial[index].type,
+                'same section type lets React retain its button/input DOM nodes'));
+        }
+        const empty = c.WrCommishSchedulePanel({ leagues: [] });
+        assert.equal(empty.type, initial[0].type, 'empty state uses the same stable section');
+        const build = initial.find(section => section.props.title === 'Build');
+        const copyButtons = walk(build, node => node.type === 'button' && /^Copy as /.test(node.children.join('')));
+        assert.equal(copyButtons.length, 2); copyButtons.forEach(button => button.props.onClick());
+        assert.deepEqual(copies, ['text', 'csv']);
+        const weeks = walk(build, node => node.type === 'input' && node.props.type === 'number')[0];
+        weeks.props.onChange({ target: { value: '4' } });
+        assert.equal(changes[0].weeks, 4, 'Weeks input still forwards the edited configuration');
+        const shell = initial[0].type({ title: 'Schedule Builder', meta: 'Test meta', children: 'Contents' });
+        assert.equal(shell.props.style.background, 'var(--co-surface, #121217)');
+        assert.equal(shell.props.style.padding, '14px 16px');
+        assert.equal(shell.children[0].children[1].props.style.font,
+            '600 var(--text-micro, var(--co-readable-small, 0.6875rem)) var(--font-mono, "JetBrains Mono", monospace)');
+        assert.equal(shell.children[1], 'Contents');
+    });
     console.log(passed + ' actual schedule and Office recovery groups passed');
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });

@@ -184,14 +184,49 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
 
     const C = window.App && window.App.Commish;
     const localSave = useCommishLocalSave();
-    const onBack = () => { if (localSave.canLeave()) leaveOffice(); };
+    const onBack = () => { if (!ignoreBusy.current && localSave.canLeave()) leaveOffice(); };
     const [state, setState] = React.useState({ status: 'idle' });
+    const [ignoreSync, setIgnoreSync] = React.useState(() => C?.IgnoreSync?.snapshot?.() || { phase: 'unavailable', records: {}, error: 'Account task syncing is still loading.' });
+    const [ignoreIntent, setIgnoreIntent] = React.useState(null);
+    const ignoreRun = React.useRef(0);
+    const ignoreBusy = React.useRef(false);
+    React.useEffect(() => window.App?.NavigationGuard?.register(() => !ignoreBusy.current), []);
+    React.useEffect(() => {
+        const warn = event => { if (ignoreBusy.current) { event.preventDefault(); event.returnValue = ''; } };
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+    }, []);
+    React.useEffect(() => {
+        const sync = C?.IgnoreSync;
+        if (!sync) return undefined;
+        const update = () => {
+            const snapshot = sync.snapshot();
+            setIgnoreSync(snapshot);
+            setPrefTick(value => value + 1);
+            if (snapshot.pending?.uncertain && !snapshot.pending.inFlight) {
+                const pending = snapshot.pending;
+                setIgnoreIntent(previous => previous?.status === 'saving' ? previous : ({
+                    item: { ...(pending.snapshot || {}), id: pending.taskId, headline: pending.snapshot?.headline || 'Previous task choice' },
+                    state: pending.state, status: 'failed', message: snapshot.error || 'A previous task choice could not be confirmed. Retry it before making another change.',
+                }));
+            }
+        };
+        const unsubscribe = sync.subscribe(update);
+        update();
+        sync.load();
+        return () => { ignoreRun.current++; unsubscribe(); };
+    }, [C?.IgnoreSync]);
     // View state. 'command' is the front door — the office used to land on the
     // Coefficient, which is an empty table all offseason, which is a large part
     // of why it read as broken. Hubs are reached FROM the command view and
     // always have one fixed way back.
     const [tab, setTab] = React.useState('command'); // command | network | people | ops | programmes | rulelab | genesis | governance | schedule
     const [scopeLeagueId, setScopeLeagueId] = React.useState(null);
+    const [copyFeedback, setCopyFeedback] = React.useState(null);
+    const copyRequest = React.useRef(0);
+    const copyScope = React.useRef(null);
+    const copyOpener = React.useRef(null);
+    React.useEffect(() => () => { copyRequest.current++; }, []);
     // Rule Lab league scope: a league id, or '__all' for the omnibus. null =
     // "not chosen yet" and resolves to the first league — the owner amends ONE
     // constitution at a time, so single-league is the default posture.
@@ -224,7 +259,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // multi-thousand-pixel audit log before the commissioner has acted today.
     const [queueFilter, setQueueFilter] = React.useState({ tier: 'NOW', leagueId: null, domain: null });
     const openHub = React.useCallback((hub, opts) => {
-        if (!localSave.canLeave()) return;
+        if (ignoreBusy.current || !localSave.canLeave()) return;
         // Accept BOTH shapes: openHub(hub, {leagueId}) and the older
         // openHub(hub, leagueId) the command panel emits. Before this, a bare
         // string made opts.leagueId undefined and scoping silently no-opped.
@@ -248,6 +283,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     // signal shape as every other storage-backed piece of the office.
     const [tasksTick, setTasksTick] = React.useState(0);
     const [actionItem, setActionItem] = React.useState(null); // the open action drawer
+    const actionItemRef = React.useRef(actionItem);
+    actionItemRef.current = actionItem;
     const [navOpen, setNavOpen] = React.useState(false);      // phone sidebar
     // Rule Lab data loads lazily on first open — 18 weeks of league-independent
     // stat lines plus per-league as-played lineups is too heavy for office boot.
@@ -697,7 +734,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const cur = schedules[scheduleActiveId];
         if (!cur || !cur.schedule || !C?.Schedule) return;
         const nameFor = (id) => (cur.teams.find(t => t.id === String(id)) || {}).name || ('Team ' + id);
-        onCopy(C.Schedule.toText(cur.schedule, nameFor));
+        return onCopy(C.Schedule.toText(cur.schedule, nameFor), 'Schedule text');
     };
     // toCSV existed and was tested from the first commit but had no button —
     // clipboard, not a file download: nothing else in the office downloads a
@@ -708,7 +745,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         const cur = schedules[scheduleActiveId];
         if (!cur || !cur.schedule || !C?.Schedule) return;
         const nameFor = (id) => (cur.teams.find(t => t.id === String(id)) || {}).name || ('Team ' + id);
-        onCopy(C.Schedule.toCSV(cur.schedule, nameFor));
+        return onCopy(C.Schedule.toCSV(cur.schedule, nameFor), 'Schedule CSV');
     };
     const scheduleValidation = React.useMemo(() => {
         const cur = schedules[scheduleActiveId];
@@ -1064,7 +1101,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     };
     const onCopyBallot = (leagueName, result) => {
         if (hasUnanalyzedChanges) return false;
-        try { onCopy(C.RuleLab.ballotText(leagueName, result, proposalSummaryText())); return true; } catch (e) { return false; }
+        try { return onCopy(C.RuleLab.ballotText(leagueName, result, proposalSummaryText()), 'Ballot text'); } catch (e) { return false; }
     };
     const onExportBallot = (leagueName) => {
         if (hasUnanalyzedChanges) return false;
@@ -1173,9 +1210,11 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         return m;
     }, [managedLeagues]);
     const handleEnterLeague = (leagueId) => {
-        if (!localSave.canLeave()) return;
+        if (!localSave.canLeave()) return false;
         const full = leagueById.get(String(leagueId));
-        if (full && onEnterLeague) onEnterLeague(full);
+        if (!full || !onEnterLeague) return false;
+        onEnterLeague(full);
+        return true;
     };
 
     // Declared above rawQueue, which consumes treasuries: these are real
@@ -1265,7 +1304,8 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             counts: P.countTiers(split.visible),
             byCell,
             suppressed: split.suppressed,
-            hiddenByMe: split.suppressed.filter(s => s.state),
+            hiddenByMe: split.suppressed.filter(s => s.state && !['ignored', 'hidden'].includes(s.state)),
+            ignored: P.ignoredItems ? P.ignoredItems(rawQueue.items, { states: prefs.states }) : split.suppressed.filter(s => s.state === 'hidden'),
             visibleIds,
         };
     }, [rawQueue, prefs, managedIdSet]);
@@ -1358,6 +1398,18 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         if (result.ok && result.value) setGenTick(t => t + 1);
         return result.ok && !!result.value;
     };
+    const onGenesisOpen = (leagueId, itemId) => {
+        const lid = String(leagueId);
+        if (!localSave.canLeave() || !leagueById.has(lid)) return false;
+        if (itemId === 'draft_scheduled' || itemId === 'deadline_set') {
+            window.open('https://sleeper.com/leagues/' + encodeURIComponent(lid), '_blank', 'noopener,noreferrer');
+        } else if (itemId === 'rosters_present') return handleEnterLeague(lid);
+        else if (itemId === 'all_seats_filled') openHub('people', { leagueId: lid });
+        else if (itemId === 'settings_ratified') openHub('ops', { leagueId: lid });
+        else if (itemId === 'constitution_on_file') openHub('governance', { leagueId: lid });
+        else return false;
+        return true;
+    };
 
     // Governance state: treasuries re-read on any bookkeeping change.
     const changeDues = (key, save) => { const result = localSave.run(key, 'dues', save); if (result.ok && result.value) setTreasuryTick(t => t + 1); return result; };
@@ -1436,14 +1488,28 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         setAckTick(t => t + 1);
         return result.ok;
     };
-    const onCopy = (text) => { try { navigator.clipboard?.writeText?.(text); } catch (e) { /* clipboard unavailable */ } };
+    const copyContext = [tab, scopeLeagueId, scheduleActiveId, rlActiveId, ruleLab.season, hasUnanalyzedChanges].join('|');
+    if (copyScope.current !== copyContext) { copyScope.current = copyContext; copyRequest.current++; }
+    const onCopy = async (text, label = 'Text') => {
+        const request = ++copyRequest.current;
+        const scope = copyScope.current;
+        const opener = copyOpener.current || document.activeElement;
+        const owner = window.App?.AccountStorage?.owner?.();
+        setCopyFeedback(null);
+        const result = await copyCommishText(text, navigator.clipboard?.writeText?.bind(navigator.clipboard));
+        if (request !== copyRequest.current || scope !== copyScope.current || window.App?.AccountSession?.isCurrent?.() === false || window.App?.AccountStorage?.owner?.() !== owner) return false;
+        setCopyFeedback({ ...result, label, request, opener });
+        return result.copied;
+    };
 
     // ── Preference + action mutations ────────────────────────────────
     // Every one of these writes to storage then bumps prefTick; the queue,
     // grid, badges and settings all re-derive from that single signal.
     const bumpPrefs = () => setPrefTick(t => t + 1);
-    const savePreference = (key, save) => {
-        const result = localSave.run(key, 'settings', () => { save(); return true; });
+    const savePreference = (key, save, retry) => {
+        const result = localSave.run(key, 'settings', () => { save(); return true; }, {
+            retryLabel: 'Retry save', retry: retry || (() => savePreference(key, save)),
+        });
         if (result.ok) bumpPrefs();
         return result.ok;
     };
@@ -1458,7 +1524,9 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         if (result.ok) bumpFollowups();
         return result.ok;
     };
-    const itemForFollowup = (id) => ((rawQueue && rawQueue.items) || []).find(it => String(it.id) === String(id)) || actionItem || { id, headline: F?.get?.(id)?.headline || 'Commissioner follow-up' };
+    const itemForFollowup = (id) => ((rawQueue && rawQueue.items) || []).find(it => String(it.id) === String(id))
+        || P?.stateOf(id)?.item || (actionItem && String(actionItem.id) === String(id) ? actionItem : null)
+        || { id, headline: F?.get?.(id)?.headline || 'Commissioner follow-up' };
     const onSaveFollowup = (item, patch) => {
         const result = localSave.run('followup:' + item.id, 'followups', () => F.save(item, patch, { nowMs: Date.now(), recordSaved: true }));
         if (result.ok) bumpFollowups();
@@ -1473,14 +1541,14 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     const onRemoveFollowup = id => {
         const result = localSave.run('remove-followup:' + id, 'followups', () => F.remove(id));
         if (result.ok && result.value) {
-            localSave.resolve(['followup:' + id, ...['OPENED', 'COPIED', 'NAVIGATED', 'DONE', 'SKIPPED', 'HIDDEN', 'RESTORED'].map(type => 'activity:' + id + ':' + type)]);
+            localSave.resolve(['followup:' + id, ...['OPENED', 'COPIED', 'NAVIGATED', 'DONE', 'SKIPPED', 'HIDDEN', 'IGNORED', 'RESTORED'].map(type => 'activity:' + id + ':' + type)]);
             bumpFollowups();
         }
         return result.ok && !!result.value;
     };
     const changeItemState = (item, type, detail, save) => {
-        if (!savePreference('item-state:' + item.id, save)) return false;
-        localSave.resolve(['DONE', 'SKIPPED', 'HIDDEN', 'RESTORED'].map(previous => 'activity:' + item.id + ':' + previous));
+        if (!savePreference('item-state:' + item.id, save, () => changeItemState(item, type, detail, save))) return false;
+        localSave.resolve(['DONE', 'SKIPPED', 'HIDDEN', 'IGNORED', 'RESTORED'].map(previous => 'activity:' + item.id + ':' + previous));
         // Queue preferences and activity are separate existing records. Reflect
         // the saved preference immediately; if activity fails, keep the drawer
         // open and offer a retry for that entry without replaying typed notes.
@@ -1490,10 +1558,44 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
     };
     const onItemDone = item => changeItemState(item, 'DONE', 'Marked done', () => P.markDone(item, { nowMs: Date.now() }));
     const onItemSkip = item => changeItemState(item, 'SKIPPED', 'Snoozed for ' + P.SKIP_DAYS + ' days', () => P.skip(item, { nowMs: Date.now() }));
-    const onItemHide = item => changeItemState(item, 'HIDDEN', 'Hidden from Command', () => P.hide(item, { nowMs: Date.now() }));
-    const onItemRestore = id => changeItemState(itemForFollowup(id), 'RESTORED', 'Restored to Command', () => P.restore(id));
+    const changeAccountIgnore = async (item, state) => {
+        if (ignoreBusy.current) return false;
+        ignoreBusy.current = true;
+        const run = ++ignoreRun.current;
+        const owner = window.App?.AccountStorage?.owner?.();
+        const initiatingDrawer = actionItemRef.current;
+        setIgnoreIntent({ item, state, status: 'saving' });
+        let confirmed = false;
+        try {
+            const pending = C?.IgnoreSync?.snapshot?.().pending;
+            confirmed = pending?.uncertain && pending.taskId === item.id && pending.state === state
+                ? await C.IgnoreSync.retryPending()
+                : await C?.IgnoreSync?.change?.(item, state);
+        }
+        catch { /* The module's error state or the fallback below keeps retry visible. */ }
+        finally { ignoreBusy.current = false; }
+        if (run !== ignoreRun.current || window.App?.AccountSession?.isCurrent?.() === false || window.App?.AccountStorage?.owner?.() !== owner) return false;
+        if (confirmed !== true) {
+            setIgnoreIntent({ item, state, status: 'failed', message: C?.IgnoreSync?.snapshot?.().error || 'This task choice has not synced. Check your connection, then retry.' });
+            return false;
+        }
+        setIgnoreIntent(null);
+        bumpPrefs();
+        const type = state === 'ignored' ? 'IGNORED' : 'RESTORED';
+        localSave.resolve(['DONE', 'SKIPPED', 'HIDDEN', 'IGNORED', 'RESTORED'].map(previous => 'activity:' + item.id + ':' + previous));
+        if (!recordFollowup(item, type, state === 'ignored' ? 'Ignored on your account until restored' : 'Restored on your account', 'The task choice synced to your account, but its local activity entry was not saved. ')) return false;
+        if (initiatingDrawer?.id === item.id && actionItemRef.current === initiatingDrawer) setActionItem(null);
+        return true;
+    };
+    const onItemIgnore = item => changeAccountIgnore(item, 'ignored');
+    const onItemRestore = id => {
+        const item = itemForFollowup(id), state = P?.stateOf(id);
+        return state && ['ignored', 'hidden'].includes(state.state)
+            ? changeAccountIgnore(item, 'restored')
+            : changeItemState(item, 'RESTORED', 'Restored to Command', () => P.restore(id));
+    };
     // Opening a draft does not imply sending or publishing its contents.
-    const onQueueItem = item => { setActionItem(item); recordFollowup(item, 'OPENED', 'Action drawer opened'); };
+    const onQueueItem = item => { if (ignoreBusy.current) return; setActionItem(item); recordFollowup(item, 'OPENED', 'Action drawer opened'); };
     const onActionOpen = item => {
         if (!recordFollowup(item, 'NAVIGATED', item.action?.label || 'Opened desk')) return false;
         if (!localSave.canLeave()) return false;
@@ -1553,7 +1655,7 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
         // shell that every other view gets for free), so it has to carve out its
         // own safe-area-inset-top — without it, the header row sits under the iOS
         // status bar/notch on phone and its buttons become untappable.
-        <div className="co-office" style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}>
+        <div className="co-office" onClickCapture={event => { const control = event.target.closest?.('button, a, input, textarea'); if (control) copyOpener.current = control; }} style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}>
         {isPhone && navOpen && window.WrCommishSidebar ? (
             <window.WrCommishSidebar
                 groups={sidebarGroups} active={tab} counts={hubCounts}
@@ -1568,18 +1670,21 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 saveFailure={localSave.failure}
                 onDismissFailure={() => { if (localSave.failure) localSave.resolve([localSave.failure.key]); }}
                 onDiscard={() => localSave.resolve(['followup:' + actionItem.id])}
-                item={actionItem} state={P ? P.stateOf(actionItem.id) : null} followup={actionFollowup}
+                item={actionItem} state={P ? P.activeStateOf(actionItem, { nowMs: Date.now() }) : null} followup={actionFollowup}
                 skipDays={(P && P.SKIP_DAYS) || 7}
                 onOpen={() => onActionOpen(actionItem)}
                 onDone={() => onItemDone(actionItem)}
                 onSkip={() => onItemSkip(actionItem)}
-                onHide={() => onItemHide(actionItem)}
+                onIgnore={() => onItemIgnore(actionItem)}
                 onRestore={() => onItemRestore(actionItem.id)}
+                taskSync={ignoreIntent?.item.id === actionItem.id ? ignoreIntent : null}
+                onRetrySync={() => ignoreIntent ? changeAccountIgnore(ignoreIntent.item, ignoreIntent.state) : false}
                 onSaveFollowup={(patch) => onSaveFollowup(actionItem, patch)}
                 onCopyMessage={(text) => onCopyFollowup(actionItem, text)}
                 onClose={() => { if (localSave.canLeave()) setActionItem(null); }}
             />
         ) : null}
+        <CommishCopyFeedback feedback={copyFeedback?.request === copyRequest.current ? copyFeedback : null} onClose={() => setCopyFeedback(null)} />
         <style>{`
             .co-office { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
             .co-office-frame { max-width: 1320px; margin: 0 auto; padding: 28px 28px 64px; }
@@ -1593,6 +1698,15 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             .co-office button { text-transform: none !important; }
             .co-office :is(button, summary, input, select, textarea, [role=button]):focus-visible { outline: 2px solid var(--co-accent) !important; outline-offset: 3px; }
             .co-office button:disabled { cursor: default; }
+            .co-copy-confirmation { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 90; display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--co-accent-line); border-radius: var(--card-radius-sm); background: var(--co-surface-2); color: var(--white); font-size: 16px; box-shadow: 0 8px 32px #0006; }
+            .co-copy-confirmation button, .co-copy-dialog button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--co-accent-line); border-radius: var(--card-radius-xs); background: var(--co-accent-fill); color: var(--white); font: inherit; cursor: pointer; }
+            .co-copy-dialog { box-sizing: border-box; width: min(680px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border: 1px solid var(--co-line); border-radius: var(--card-radius); background: var(--co-surface); color: var(--white); font-size: 16px; }
+            .co-copy-dialog::backdrop { background: #0009; }
+            .co-copy-dialog h2 { font-size: 22px; margin: 0 0 12px; }
+            .co-copy-dialog p { line-height: 1.5; }
+            .co-copy-dialog label { display: block; margin-bottom: 8px; }
+            .co-copy-dialog textarea { box-sizing: border-box; width: 100%; height: min(340px, 45dvh); padding: 12px; border: 1px solid var(--co-line); border-radius: var(--card-radius-xs); background: var(--co-well); color: var(--white); font: 16px/1.5 var(--font-body); resize: vertical; }
+            .co-copy-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
             .co-workspace-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-bottom: 22px; min-height: 48px; padding: 12px 16px; cursor: pointer; background: var(--co-surface); border: 1px solid var(--co-line); border-radius: var(--card-radius-sm); color: var(--white); font: 600 14px var(--font-body); }
             .co-view-switcher { display: flex; flex-wrap: wrap; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; margin-bottom: 22px; background: var(--co-well); border: 1px solid var(--co-line); border-radius: var(--card-radius-sm); }
             .co-view-switcher button { min-height: 40px; padding: 9px 14px; border: 0; border-radius: var(--card-radius-xs); background: transparent; color: var(--co-muted); font: 500 13px var(--font-body); cursor: pointer; }
@@ -1630,6 +1744,9 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                 </div>
                 <button type="button" className="co-office-back" onClick={onBack}>‹ Hub</button>
             </header>
+            <CommishIgnoreSyncStatus sync={ignoreSync} intent={ignoreIntent}
+                onRefresh={() => C?.IgnoreSync?.refresh?.()}
+                onRetry={() => ignoreIntent ? changeAccountIgnore(ignoreIntent.item, ignoreIntent.state) : false} />
             <CommishSessionNotice />
             {localSave.failure && <div role="alert" data-testid="commish-save-error" style={{ padding: 14, marginBottom: 16, background: 'var(--co-fill-bad)', border: `1px solid ${LINE}`, fontSize: '16px', lineHeight: 1.5 }}><strong>Change not saved</strong><div>{localSave.failure.message} Your inputs remain here. Retry the action, or discard the unsaved inputs before leaving.</div><div className="co-recovery-actions">{localSave.failure.retry && <button type="button" onClick={localSave.failure.retry}>{localSave.failure.retryLabel || 'Retry save'}</button>}<button type="button" onClick={localSave.discard}>Discard unsaved inputs</button></div></div>}
             {state.status === 'ready' && state.mine.some(l => state.activityByLeague?.[String(l.league_id || l.id)]?.status !== 'fresh') ? (
@@ -1715,7 +1832,10 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                         onSetFloor={onSetFloor}
                         domainLabels={DOMAIN_ALERT_LABELS}
                         suppressed={(queue && queue.hiddenByMe) || []}
+                        ignored={(queue && queue.ignored) || []}
                         onRestore={onItemRestore}
+                        onSyncChoice={onItemIgnore}
+                        taskSync={ignoreIntent}
                         followups={followups}
                         onRemoveFollowup={onRemoveFollowup}
                     />
@@ -1810,12 +1930,12 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
                     />
                 ) : missing('Schedule Builder')) : null}
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
-                    genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Setup')
+                    genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} onOpen={onGenesisOpen} /> : missing('Season Setup')
                 ) : missing('Season Setup')) : null}
                 {(tab === 'governance' || tab === 'dues') ? (window.WrCommishGovernancePanel ? (
                     <window.WrCommishGovernancePanel
                         key={tab + ':' + localSave.reset} section={tab === 'dues' ? 'dues' : 'bylaws'}
-                        leagues={state.mine} graph={state.graph}
+                        leagues={state.mine} graph={state.graph} selectedLeagueId={scopeLeagueId}
                         constitutions={state.constitutions || {}} amendments={bylawAmendments} treasuries={treasuries}
                         onMarkPaid={onMarkPaid} onSetLeagueSafe={onSetLeagueSafe} onSetSheet={onSetSheet}
                         onFetchSheet={onFetchSheet} onPasteCsv={onPasteCsv} onAsk={onAsk}
@@ -1824,6 +1944,62 @@ function CommissionerOffice({ leagues, myUserId, onBack: leaveOffice, onEnterLea
             </div>
         </React.Fragment>
     );
+}
+
+async function copyCommishText(text, writer) {
+    const value = String(text ?? '');
+    try {
+        if (typeof writer !== 'function') throw new Error('Clipboard unavailable');
+        await writer(value);
+        return { copied: true, text: value };
+    } catch {
+        return { copied: false, text: value, error: 'Your browser could not copy this text. Select it below and copy it manually.' };
+    }
+}
+
+function CommishIgnoreSyncStatus({ sync, intent, onRefresh, onRetry }) {
+    const busy = ['checking', 'loading', 'saving'].includes(sync?.phase) || intent?.status === 'saving';
+    const failed = intent?.status === 'failed' || ['error', 'auth-required', 'unavailable'].includes(sync?.phase);
+    const message = (sync?.phase === 'auth-required' || sync?.errorCode === 'AUTH_REQUIRED') ? 'Sign in with your Dynasty HQ email account to sync ignored tasks. Use email and password on the sign-in page.'
+        : intent?.status === 'saving' ? 'Saving task choice…'
+        : intent?.status === 'failed' ? intent.message
+            : sync?.phase === 'ready' ? 'Ignored tasks synced to your account. Your signed-in devices refresh these choices when you return to the app.'
+                : sync?.error || 'Checking ignored tasks on your account…';
+    const button = { minHeight: '44px', padding: '8px 12px', borderRadius: 'var(--card-radius-sm)', border: '1px solid var(--co-line)', color: 'var(--co-accent)', background: 'transparent', cursor: 'pointer' };
+    return <div data-testid="commish-ignore-sync" data-phase={sync?.phase || 'unavailable'} role={failed ? 'alert' : 'status'} style={{ marginBottom: 16, padding: '12px 14px', border: '1px solid var(--co-line)', borderRadius: 'var(--card-radius-sm)', color: 'var(--white)', fontSize: 14, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+        <div>{message}</div>
+        {sync?.cacheError && <div>{sync.cacheError}{sync.phase === 'ready' && !sync.pending ? ' Your confirmed account choice is saved online.' : ''}</div>}
+        {failed && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+            {intent?.status === 'failed' && <button type="button" style={button} disabled={busy} onClick={onRetry}>Retry task sync</button>}
+            <button type="button" style={button} disabled={busy} onClick={onRefresh}>Retry sync</button>
+            {(sync?.phase === 'auth-required' || sync?.errorCode === 'AUTH_REQUIRED') && <a style={button} href={window.location.pathname.includes('/dist-preview/') ? '../login.html' : 'login.html'}>Sign in to sync tasks</a>}
+        </div>}
+    </div>;
+}
+
+function CommishCopyFeedback({ feedback, onClose }) {
+    const dialog = React.useRef(null), text = React.useRef(null);
+    React.useEffect(() => {
+        if (!feedback || feedback.copied || !dialog.current) return undefined;
+        const opener = feedback.opener || document.activeElement, node = dialog.current;
+        node.showModal();
+        text.current?.focus(); text.current?.select();
+        return () => { node.close(); if (opener?.isConnected && !['BODY', 'HTML'].includes(opener.tagName)) opener.focus(); else document.querySelector('.co-office button:not([disabled])')?.focus(); };
+    }, [feedback]);
+    if (!feedback) return null;
+    if (feedback.copied) return <div className="co-copy-confirmation" role="status" data-testid="commish-copy-success">
+        <span>{feedback.label} copied.</span><button type="button" onClick={onClose} aria-label="Dismiss copy confirmation">Close</button>
+    </div>;
+    return <dialog ref={dialog} className="co-copy-dialog" aria-labelledby="co-copy-heading"
+        onCancel={event => { event.preventDefault(); onClose(); }}
+        onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+        <h2 id="co-copy-heading">Copy manually</h2>
+        <p>{feedback.error}</p>
+        <label htmlFor="co-copy-text">{feedback.label}</label>
+        <textarea ref={text} id="co-copy-text" readOnly value={feedback.text} />
+        <div className="co-copy-actions"><button type="button" onClick={() => { text.current?.focus(); text.current?.select(); }}>Select all text</button>
+            <button type="button" onClick={onClose}>Close</button></div>
+    </dialog>;
 }
 
 function CommishSessionNotice() {

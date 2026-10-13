@@ -5,6 +5,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const Prefs = require('../js/shared/commish-prefs.js');
 
 let passed = 0, failed = 0;
@@ -70,6 +72,7 @@ test('done RELEASES when the underlying number moves — the honesty rule', () =
   const worse = item({ metric: { value: 5, unit: 'changes' } });  // 2 changes became 5
   const { visible } = Prefs.applyStates([worse], { states: Prefs.allItemStates(), nowMs: 2000 });
   assert.strictEqual(visible.length, 1, 'a resolved item that got worse comes back as new work');
+  assert.strictEqual(Prefs.activeStateOf(worse, { nowMs: 2000 }), null, 'returned work offers normal actions instead of claiming it is still done');
 });
 
 test('skip snoozes until its deadline, then returns on its own', () => {
@@ -77,6 +80,7 @@ test('skip snoozes until its deadline, then returns on its own', () => {
   Prefs.skip(it, { nowMs: 0, days: 7 });
   assert.strictEqual(Prefs.applyStates([it], { states: Prefs.allItemStates(), nowMs: 6 * 86400000 }).visible.length, 0, 'still snoozed on day 6');
   assert.strictEqual(Prefs.applyStates([it], { states: Prefs.allItemStates(), nowMs: 8 * 86400000 }).visible.length, 1, 'back on day 8');
+  assert.strictEqual(Prefs.activeStateOf(it, { nowMs: 8 * 86400000 }), null, 'expired snooze does not replace normal task actions with Restore');
 });
 
 test('hidden stays hidden regardless of age, but is recoverable', () => {
@@ -87,6 +91,79 @@ test('hidden stays hidden regardless of age, but is recoverable', () => {
   assert.strictEqual(far.suppressed[0].state, 'hidden');
   Prefs.restore(it.id);
   assert.strictEqual(Prefs.applyStates([it], { states: Prefs.allItemStates(), nowMs: 0 }).visible.length, 1, 'Settings can always bring it back');
+});
+
+test('ignored tasks stay ignored when their urgency and numbers change', () => {
+  const before = item({ headline: 'Review league settings' });
+  Prefs.ignore(before, { nowMs: 100 });
+  const changed = item({ tier: 'BACKLOG', metric: { value: 99, unit: 'changes' } });
+  const out = Prefs.applyStates([changed], { states: Prefs.allItemStates(), nowMs: 400 * 86400000 });
+  assert.strictEqual(out.visible.length, 0);
+  assert.deepStrictEqual(out.suppressed[0].reasons, ['ignored']);
+  assert.strictEqual(Prefs.countTiers(out.visible).now, 0, 'ignored work must not inflate badges');
+});
+
+test('older hidden choices remain ignored when the finding changes', () => {
+  const before = item();
+  Prefs.hide(before, { nowMs: 100 });
+  const changed = item({ metric: { value: 99, unit: 'changes' } });
+  assert.strictEqual(Prefs.applyStates([changed], { states: Prefs.allItemStates() }).visible.length, 0);
+  assert.strictEqual(Prefs.ignoredItems([changed])[0].state, 'ignored');
+});
+
+test('ignored choices remain recoverable while the original finding is absent', () => {
+  const before = item({ headline: 'Review league settings', leagueNames: ['Fixture League'] });
+  Prefs.ignore(before, { nowMs: 100 });
+  const rows = Prefs.ignoredItems([]);
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].item.headline, 'Review league settings');
+  assert.strictEqual(rows[0].missing, true);
+  Prefs.restore(before.id);
+  assert.deepStrictEqual(Prefs.ignoredItems([]), []);
+  assert.strictEqual(Prefs.applyStates([before], { states: Prefs.allItemStates() }).visible.length, 1);
+});
+
+test('ignoring one league task leaves a different league task visible', () => {
+  const first = item(), second = item({ id: 'drift:L2', leagueIds: ['L2'] });
+  Prefs.ignore(first);
+  assert.deepStrictEqual(Prefs.applyStates([first, second], { states: Prefs.allItemStates() }).visible.map(it => it.id), [second.id]);
+});
+
+test('ignored choice survives a new module session and stays isolated to its account', () => {
+  const records = new Map(); let account = 'one';
+  const storage = {
+    get(key, fallback) { const value = records.get(account + ':' + key); return value ? JSON.parse(value) : fallback; },
+    set(key, value) { records.set(account + ':' + key, JSON.stringify(value)); return true; },
+  };
+  const source = fs.readFileSync(require.resolve('../js/shared/commish-prefs.js'), 'utf8');
+  const load = () => {
+    const context = vm.createContext({ App: { AccountStorage: storage } });
+    vm.runInContext(source, context);
+    return context.App.Commish.Prefs;
+  };
+  load().ignore(item({ headline: 'Keep this ignored' }), { nowMs: 100 });
+  let fresh = load();
+  assert.strictEqual(fresh.applyStates([item()], { states: fresh.allItemStates() }).visible.length, 0);
+  account = 'two'; fresh = load();
+  assert.strictEqual(fresh.applyStates([item()], { states: fresh.allItemStates() }).visible.length, 1);
+  account = 'one'; fresh = load(); fresh.restore(item().id);
+  assert.strictEqual(load().ignoredItems([]).length, 0);
+});
+
+test('rejected ignore or restore saves never report a remembered choice', () => {
+  const records = new Map(); let reject = false;
+  global.App.AccountStorage = {
+    get(key, fallback) { return records.has(key) ? JSON.parse(records.get(key)) : fallback; },
+    set(key, value) { if (reject) return false; records.set(key, JSON.stringify(value)); return true; },
+  };
+  try {
+    reject = true;
+    assert.throws(() => Prefs.ignore(item()), /not saved/);
+    assert.strictEqual(Prefs.stateOf(item().id), null);
+    reject = false; Prefs.ignore(item()); reject = true;
+    assert.throws(() => Prefs.restore(item().id), /not saved/);
+    assert.strictEqual(Prefs.stateOf(item().id).state, 'ignored');
+  } finally { delete global.App.AccountStorage; }
 });
 
 // ── The filter ──────────────────────────────────────────────────────

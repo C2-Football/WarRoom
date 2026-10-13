@@ -1,0 +1,119 @@
+{
+  "engine": "webkit",
+  "url": "http://127.0.0.1:51625/dist-preview/?dev=true&user=readiness-fixture",
+  "fixture": "Two commissioned public-provider fixtures; actual Office, task queue, Prefs, checklist, AccountStorage and schedule generator.",
+  "capabilityBoundary": "Disposable synthetic browser identities and touch/viewport emulation. No authenticated backend persistence or physical-device claim. External writes are blocked before navigation.",
+  "results": [
+    {
+      "label": "ipad-portrait",
+      "passed": false,
+      "checks": [
+        "Scoped blocked checklist navigation preserves automatic check truth"
+      ],
+      "touchChecks": [
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 208,
+          "height": 44,
+          "x": 28,
+          "y": 196.890625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 448,
+          "height": 61.484375,
+          "x": 274,
+          "y": 417.0625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Manual checklist completion",
+          "width": 44,
+          "height": 44,
+          "x": 286,
+          "y": 489.703125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Blocked checklist action",
+          "width": 119.328125,
+          "height": 44,
+          "x": 339,
+          "y": 489.703125,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace /^Season & Schedule/",
+          "width": 208,
+          "height": 44,
+          "x": 28,
+          "y": 196.890625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Season checklist header",
+          "width": 448,
+          "height": 61.484375,
+          "x": 274,
+          "y": 417.0625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Workspace Overview",
+          "width": 208,
+          "height": 44,
+          "x": 28,
+          "y": 140.890625,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Review task",
+          "width": 455,
+          "height": 44,
+          "x": 272,
+          "y": 489.671875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        },
+        {
+          "control": "Discard private draft",
+          "width": 357,
+          "height": 44,
+          "x": 380,
+          "y": 631.21875,
+          "reachable": true,
+          "coarse": true,
+          "maxTouchPoints": 0,
+          "touchEvents": true
+        }
+      ],
+      "blockedExternalMutations": 4,
+      "pageErrors": [],
+      "error": "AssertionError [ERR_ASSERTION]: Clean Escape must return focus to Office: <body class=\"is-pro\" style=\"\"><div class=\"wr-dev-banner\" style=\"position: fixed; top: 0px; left: 0px; right: 0px; height: 18px; box-sizing: border-box; z-index: 99999; background: var(--k-d4af37, #d4af37); color: var(--k-000000, #000000); font-size: var(--text-label, 0.75rem); font-weight: 700; text-align: center; padding: 3px; letter-spacing: 0.05em; font-family: monospace; line-height: 12px; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\">⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked</div>\n    <!-- Static boot splash: pure HTML/CSS, visibl\n    at /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:248:18\n    at async /Users/jacobc/Projects/work/warroom-commissioner-readiness/tests/commish-task-browser.cjs:247:9"
+    }
+  ]
+}

@@ -179,7 +179,7 @@ console.log('\nWrCommishPeoplePanel contract');
     const t = textOf(render(Panel({ folders: [{ leagueName: 'Empire', sections: [{ title: 'Welcome', body: 'Hi.' }] }] }))).join('|');
     assert.ok(t.includes('the top shortlist candidate'));
   });
-  test('copy buttons fall back to onCopy when navigator.clipboard is absent', () => {
+  test('copy buttons pass their message to onCopy when navigator.clipboard is absent', () => {
     const btns = findAll(tree, n => n.type === 'button');
     const plainCopies = btns.filter(b => btnLabel(b) === 'Copy');
     assert.strictEqual(plainCopies.length, 2, 'one per dark check-in');
@@ -187,7 +187,10 @@ console.log('\nWrCommishPeoplePanel contract');
     assert.strictEqual(copied[copied.length - 1], fx.radar.people[0].checkin);
   });
   test('folder Copy all concatenates titles + bodies', () => {
-    const btns = findAll(tree, n => n.type === 'button');
+    // Independent panel: the earlier check-in write is deliberately still
+    // pending until the microtask turn, so a second tap there is refused.
+    const folderTree = render(Panel({ ...fx, onCopy: t => copied.push(t) }));
+    const btns = findAll(folderTree, n => n.type === 'button');
     const all = btns.find(b => btnLabel(b) === 'Copy all');
     assert.ok(all, 'Copy all button exists');
     all.props.onClick();
@@ -203,11 +206,11 @@ console.log('\nWrCommishPeoplePanel contract');
   const Panel = loadPanel(ctx);
   const fx = fixtures();
   const tree = render(Panel(Object.assign({}, fx, { onCopy: t => copied.push(t) })));
-  test('navigator.clipboard.writeText is preferred over onCopy', () => {
+  test('host onCopy is preferred over navigator.clipboard.writeText', () => {
     const btn = findAll(tree, n => n.type === 'button').find(b => btnLabel(b) === 'Copy pitch');
     btn.props.onClick();
-    assert.strictEqual(written[0], fx.prospectuses[0].pitch);
-    assert.strictEqual(copied.length, 0);
+    assert.strictEqual(copied[0], fx.prospectuses[0].pitch);
+    assert.strictEqual(written.length, 0);
   });
 })();
 
@@ -265,8 +268,174 @@ console.log('\nWrCommishPeoplePanel contract');
   });
 })();
 
-console.log('\n' + (failed ? 'FAIL' : 'PASS') + ': ' + passed + ' passed, ' + failed + ' failed');
-if (failed) {
-  failures.forEach(f => console.error('  ' + f.name + ': ' + (f.e && f.e.stack || f.e)));
-  process.exit(1);
+// ── Async copy outcomes (actual panel handlers + stateful rerenders) ──
+function statefulCopy(props = {}, extra = {}) {
+  const slots = [];
+  const timers = new Map();
+  const cleanups = [];
+  let cursor = 0, timerId = 0, raw, writes = 0;
+  const ctx = makeCtx({ ...extra, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } });
+  ctx.React.useState = initial => {
+    const index = cursor++;
+    if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial;
+    return [slots[index], next => { writes++; slots[index] = typeof next === 'function' ? next(slots[index]) : next; }];
+  };
+  ctx.React.useRef = initial => {
+    const index = cursor++;
+    if (!(index in slots)) slots[index] = { current: initial };
+    return slots[index];
+  };
+  ctx.React.useEffect = effect => {
+    const index = cursor++;
+    if (!(index in slots)) { slots[index] = true; cleanups.push(effect()); }
+  };
+  const Panel = loadPanel(ctx);
+  const currentProps = { ...fixtures(), ...props };
+  const ui = {
+    render() { cursor = 0; raw = Panel(currentProps); return render(raw); },
+    button(key = 'checkin:u9') {
+      const found = findAll(ui.render(), node => node.type === 'button' && node.props['data-copy-key'] === key);
+      assert.strictEqual(found.length, 1, 'one copy control for ' + key);
+      return found[0];
+    },
+    identity(key = 'checkin:u9') {
+      return findAll(raw, node => node.props?.copyKey === key)[0]?.type;
+    },
+    expire() { for (const fn of timers.values()) fn(); timers.clear(); },
+    unmount() { cleanups.forEach(fn => fn?.()); },
+    timerCount: () => timers.size,
+    stateWrites: () => writes,
+  };
+  return ui;
 }
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+const asyncCases = [];
+const asyncTest = (name, run) => asyncCases.push({ name, run });
+
+asyncTest('host copy stays pending, blocks duplicate taps and flashes only after true', async () => {
+  const pending = deferred();
+  const messages = [], native = [];
+  const ui = statefulCopy({ onCopy: text => { messages.push(text); return pending.promise; } }, {
+    navigator: { clipboard: { writeText: async text => native.push(text) } },
+  });
+  const button = ui.button();
+  const identity = ui.identity();
+  const result = button.props.onClick();
+  assert.strictEqual(btnLabel(ui.button()), 'Copying…');
+  assert.strictEqual(ui.button().props['aria-busy'], true);
+  assert.strictEqual(ui.button().props['aria-disabled'], true);
+  assert.strictEqual(ui.identity(), identity, 'copy state does not replace the focused component');
+  assert.strictEqual(ui.button('pitch:L2:7').props.onClick(), false);
+  assert.strictEqual(await button.props.onClick(), false, 'stale pre-render handler also refuses duplicate taps');
+  assert.strictEqual(ui.timerCount(), 0, 'success timer cannot begin before confirmation');
+  assert.deepStrictEqual(messages, [fixtures().radar.people[0].checkin]);
+  assert.strictEqual(native.length, 0, 'host owns clipboard and fallback');
+  pending.resolve(true);
+  assert.strictEqual(await result, true);
+  assert.strictEqual(btnLabel(ui.button()), 'Copied');
+  assert.strictEqual(ui.button().props['aria-busy'], false);
+  assert.strictEqual(ui.button().props['aria-disabled'], false);
+  assert.strictEqual(ui.identity(), identity);
+  assert.strictEqual(btnLabel(ui.button('pitch:L2:7')), 'Copy pitch', 'success belongs only to the copied message');
+  ui.expire();
+  assert.strictEqual(btnLabel(ui.button()), 'Copy');
+});
+
+for (const [label, host] of [
+  ['false from the host/manual fallback', async () => false],
+  ['undefined from a legacy void host', () => undefined],
+  ['a rejected host write', async () => { throw new Error('Clipboard denied'); }],
+]) asyncTest(label + ' never claims Copied or retries outside the host flow', async () => {
+  let nativeCalls = 0;
+  const ui = statefulCopy({ onCopy: host }, { navigator: { clipboard: { writeText: async () => { nativeCalls++; } } } });
+  assert.strictEqual(await ui.button().props.onClick(), false);
+  const button = ui.button();
+  assert.strictEqual(btnLabel(button), 'Copy');
+  assert.strictEqual(ui.timerCount(), 0);
+  assert.strictEqual(nativeCalls, 0);
+  const alerts = findAll(ui.render(), node => node.props?.role === 'alert');
+  assert.strictEqual(alerts.length, 1);
+  assert.ok(textOf(alerts[0]).join('').includes('Copy was not confirmed'));
+  assert.strictEqual(button.props['aria-describedby'], alerts[0].props.id);
+  assert.ok(textOf(ui.render()).join('').includes(fixtures().radar.people[0].checkin), 'original message remains available');
+});
+
+asyncTest('without a host, native write fulfillment confirms success only after settlement', async () => {
+  const pending = deferred();
+  const messages = [];
+  const ui = statefulCopy({}, { navigator: { clipboard: { writeText: text => { messages.push(text); return pending.promise; } } } });
+  const result = ui.button('folder:0').props.onClick();
+  assert.strictEqual(btnLabel(ui.button('folder:0')), 'Copying…');
+  assert.strictEqual(ui.timerCount(), 0);
+  pending.resolve(); // Standard Clipboard API resolves void on confirmed success.
+  assert.strictEqual(await result, true);
+  assert.strictEqual(btnLabel(ui.button('folder:0')), 'Copied');
+  assert.deepStrictEqual(messages, ['WELCOME\nWelcome to Empire.\n\nHOUSE RULES\nNo constitution on file for this league yet.']);
+});
+
+asyncTest('missing or rejected native clipboard shows local recovery and never Copied', async () => {
+  for (const navigator of [undefined, {}, { clipboard: { writeText: async () => { throw new Error('Not allowed'); } } }]) {
+    const ui = statefulCopy({}, navigator ? { navigator } : {});
+    assert.strictEqual(await ui.button().props.onClick(), false);
+    assert.strictEqual(btnLabel(ui.button()), 'Copy');
+    assert.strictEqual(ui.timerCount(), 0);
+    const alerts = findAll(ui.render(), node => node.props?.role === 'alert');
+    assert.strictEqual(alerts.length, 1);
+    assert.ok(textOf(alerts[0]).join('').includes('Select the message text to copy manually'));
+  }
+});
+
+asyncTest('retry clears old failure and shows success only for the confirmed attempt', async () => {
+  let calls = 0;
+  const ui = statefulCopy({ onCopy: async () => ++calls > 1 });
+  assert.strictEqual(await ui.button('pitch:L2:7').props.onClick(), false);
+  assert.strictEqual(findAll(ui.render(), node => node.props?.role === 'alert').length, 1);
+  const result = ui.button('pitch:L2:7').props.onClick();
+  assert.strictEqual(findAll(ui.render(), node => node.props?.role === 'alert').length, 0);
+  assert.strictEqual(btnLabel(ui.button('pitch:L2:7')), 'Copying…');
+  assert.strictEqual(await result, true);
+  assert.strictEqual(btnLabel(ui.button('pitch:L2:7')), 'Copied');
+});
+
+asyncTest('unmount abandons an outstanding result without state writes or timer', async () => {
+  const pending = deferred();
+  const ui = statefulCopy({ onCopy: () => pending.promise });
+  const result = ui.button().props.onClick();
+  ui.unmount();
+  const writes = ui.stateWrites();
+  pending.resolve(true);
+  assert.strictEqual(await result, false);
+  assert.strictEqual(ui.stateWrites(), writes);
+  assert.strictEqual(ui.timerCount(), 0);
+});
+
+asyncTest('phone and desktop copy controls retain native keyboard semantics and 44px targets', async () => {
+  for (const phone of [false, true]) {
+    const ui = statefulCopy({ phone, onCopy: async () => true });
+    const buttons = findAll(ui.render(), node => node.props?.['data-testid'] === 'people-copy-button');
+    assert.ok(buttons.length >= 2);
+    buttons.forEach(button => {
+      assert.strictEqual(button.type, 'button');
+      assert.strictEqual(button.props.type, 'button');
+      assert.strictEqual(button.props.style.minWidth, '44px');
+      assert.strictEqual(button.props.style.minHeight, '44px');
+      assert.notStrictEqual(button.props.disabled, true, 'pending status can preserve focus without remounting or disabling the native element');
+    });
+  }
+});
+
+(async () => {
+  for (const { name, run } of asyncCases) {
+    try { await run(); passed++; console.log('  ok  ' + name); }
+    catch (e) { failed++; failures.push({ name, e }); console.log('  FAIL ' + name + '\n       ' + (e && e.message)); }
+  }
+  console.log('\n' + (failed ? 'FAIL' : 'PASS') + ': ' + passed + ' passed, ' + failed + ' failed');
+  if (failed) {
+    failures.forEach(f => console.error('  ' + f.name + ': ' + (f.e && f.e.stack || f.e)));
+    process.exitCode = 1;
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

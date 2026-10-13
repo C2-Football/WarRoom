@@ -1,0 +1,1 @@
+All nine local browser cases passed on the immutable 52262 snapshot before the final league-grid readability change. These are preserved precursor results, not acceptance evidence for the later matrix fix. Both browser processes exited 0 and closed their contexts.

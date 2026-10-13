@@ -93,8 +93,8 @@ const base = {
 };
 const render = (extra) => Panel({ ...base, ...extra });
 
-// The 140px/56px template is the narrow one; minmax(0,1fr) is the fluid one.
-const NARROW = '140px repeat(8, 56px)';
+// Narrow columns preserve full words; minmax(0,1fr) is the fluid desktop one.
+const NARROW = '140px repeat(8, 112px)';
 const FLUID = '190px repeat(8, minmax(0,1fr))';
 
 console.log('Commissioner command panel — responsive grid');
@@ -130,12 +130,138 @@ test('narrow grid scrolls horizontally and pins the league column', () => {
   assert.ok(sticky.length >= 1, 'league names must stay pinned while the columns scroll');
 });
 
+test('phone and tablet matrix exposes a labelled keyboard scroll region and visible sideways hint', () => {
+  for (const layout of [{ phone: true }, { phone: false, narrowGrid: true }]) {
+    const tree = render(layout);
+    const scroller = findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+    assert.strictEqual(scroller.props.role, 'region');
+    assert.strictEqual(scroller.props['aria-label'], 'Workspaces across your leagues');
+    assert.strictEqual(scroller.props.tabIndex, 0, 'keyboard users can focus and scroll the overflow region');
+    const matrix = findAll(scroller, n => n.props.style?.gridTemplateColumns)[0];
+    const pinnedWidth = parseInt(matrix.props.style.gridTemplateColumns, 10);
+    const gap = parseInt(matrix.props.style.gap, 10);
+    assert.ok(parseInt(scroller.props.style.scrollPaddingInlineStart, 10) >= pinnedWidth + gap,
+      'native focus scrolling must leave enough space for the pinned league column and gap');
+    const hint = findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll-hint')[0];
+    assert.ok(hint, 'horizontal scrolling cannot rely on discovering a hidden scrollbar');
+    assert.deepStrictEqual(hint.children, ['Scroll sideways for all ', 8, ' workspaces. League names stay in view.']);
+    assert.notStrictEqual(hint.props.style.display, 'none');
+  }
+});
+
+test('narrow matrix preserves words, touch header targets, all eight destinations and final-column filters', () => {
+  const opened = [], filtered = [];
+  const tree = render({ phone: false, narrowGrid: true, onOpenHub: (...args) => opened.push(args), onFilter: value => filtered.push(value) });
+  const scroller = findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+  const headers = findAll(scroller, n => n.type === 'button' && n.props.onMouseEnter && n.props.style?.alignSelf === 'end');
+  assert.deepStrictEqual(headers.map(header => header.children[0]), DOMAINS.map(domain => domain.label), 'overflow must retain every workspace heading');
+  headers.forEach(header => {
+    assert.strictEqual(header.props.style.wordBreak, 'normal', 'never split Schedule/Builder into arbitrary fragments');
+    assert.strictEqual(header.props.style.overflowWrap, 'normal');
+    assert.ok(parseInt(header.props.style.minHeight, 10) >= 44, 'headings remain touch targets');
+  });
+  headers.at(-1).props.onClick();
+  assert.deepStrictEqual(opened, [['governance', { leagueId: null }]], 'eighth heading still opens its workspace');
+  const finalCells = findAll(scroller, n => n.type === 'button' && n.props.title?.includes(' · Bylaws + Dues'));
+  assert.strictEqual(finalCells.length, grid.leagues.length, 'each league retains its eighth matrix cell');
+  finalCells[0].props.onClick();
+  assert.deepStrictEqual(filtered, [{ tier: null, leagueId: 'L1', domain: 'bylaws' }]);
+});
+
+function withMatrixFocus({ layout = { narrowGrid: true }, marked = true, keyboard = true,
+  rect = { left: 129, right: 241 } } = {}, check) {
+  const previousDocument = global.document;
+  const previousFrame = window.requestAnimationFrame;
+  const frames = [], revealed = [];
+  const state = { keyboard, rect };
+  const target = {
+    matches(selector) {
+      return selector === ':focus-visible' ? state.keyboard : marked && state.keyboard;
+    },
+    getBoundingClientRect() { return state.rect; },
+    scrollIntoView(options) { revealed.push(options); },
+  };
+  const scroller = { getBoundingClientRect: () => ({ left: 29, right: 357 }) };
+  try {
+    global.document = { activeElement: target };
+    window.requestAnimationFrame = callback => { frames.push(callback); };
+    const region = findAll(render(layout), n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+    region.props.onFocusCapture({ target, currentTarget: scroller });
+    check({ frames, revealed, state, target, flush: () => frames.splice(0).forEach(callback => callback()) });
+  } finally {
+    if (previousDocument === undefined) delete global.document;
+    else global.document = previousDocument;
+    if (previousFrame === undefined) delete window.requestAnimationFrame;
+    else window.requestAnimationFrame = previousFrame;
+  }
+}
+
+test('keyboard reveal covers all domain headings and counts, excluding pinned league controls', () => {
+  const region = findAll(render({ narrowGrid: true }), n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+  const controls = findAll(region, n => n.type === 'button');
+  const cells = controls.filter(n => n.props['data-commish-matrix-cell'] !== undefined);
+  assert.strictEqual(cells.length, DOMAINS.length * (grid.leagues.length + 1), 'every domain heading and league count participates');
+  assert.ok(cells.every(n => !n.props.title?.startsWith('Open ')), 'pinned league buttons must not trigger horizontal reveal');
+  assert.strictEqual(controls.length - cells.length, grid.leagues.length);
+});
+
+test('reverse keyboard focus reveals the whole control when partly behind the pinned league', () => {
+  withMatrixFocus({}, ({ frames, revealed, flush }) => {
+    assert.strictEqual(frames.length, 1, 'wait for native focus scrolling before checking visibility');
+    assert.deepStrictEqual(revealed, []);
+    flush();
+    assert.deepStrictEqual(revealed, [{ block: 'nearest', inline: 'end', behavior: 'instant' }]);
+  });
+  withMatrixFocus({ rect: { left: 300, right: 412 } }, ({ revealed, flush }) => {
+    flush();
+    assert.strictEqual(revealed.length, 1, 'forward focus beyond the right edge must also reveal the whole control');
+  });
+});
+
+test('visible keyboard cells and cells already revealed by native scrolling do not jump', () => {
+  withMatrixFocus({ rect: { left: 173, right: 285 } }, ({ revealed, flush }) => {
+    flush();
+    assert.deepStrictEqual(revealed, []);
+  });
+  withMatrixFocus({}, ({ state, revealed, flush }) => {
+    state.rect = { left: 173, right: 285 };
+    flush();
+    assert.deepStrictEqual(revealed, [], 'use settled bounds, not the focus-event position');
+  });
+});
+
+test('touch or mouse focus, pinned controls and wide matrices retain native scrolling', () => {
+  for (const options of [{ keyboard: false }, { marked: false }, { layout: { narrowGrid: false } }]) {
+    withMatrixFocus(options, ({ frames, revealed, flush }) => {
+      flush();
+      assert.deepStrictEqual(frames, []);
+      assert.deepStrictEqual(revealed, []);
+    });
+  }
+});
+
+test('queued matrix reveal never scrolls an old or no-longer-keyboard focused control', () => {
+  withMatrixFocus({}, ({ revealed, flush }) => {
+    document.activeElement = {};
+    flush();
+    assert.deepStrictEqual(revealed, []);
+  });
+  withMatrixFocus({}, ({ state, revealed, flush }) => {
+    state.keyboard = false;
+    flush();
+    assert.deepStrictEqual(revealed, []);
+  });
+});
+
 test('desktop grid has no scroll wrapper and nothing pinned', () => {
   const tree = render({});
   const scrollers = findAll(tree, n => n.props && n.props.style && n.props.style.overflowX === 'auto');
   assert.strictEqual(scrollers.length, 0);
   const sticky = findAll(tree, n => n.props && n.props.style && n.props.style.position === 'sticky' && n.props.style.left === 0);
   assert.strictEqual(sticky.length, 0);
+  assert.strictEqual(findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll-hint').length, 0);
+  const matrix = findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+  assert.strictEqual(matrix.props.tabIndex, undefined, 'wide desktop does not add an unnecessary scroll stop');
 });
 
 test('desk cards go two-up when narrow, four-up on desktop', () => {
@@ -162,15 +288,96 @@ test('task action preserves league scope and action intent when opening a worksp
 });
 
 test('task review is a separate native button on phone and desktop', () => {
-  for (const phone of [true, false]) {
+  for (const layout of [{ phone: true }, { phone: false, narrowGrid: true }, { phone: false }]) {
     const selected = [];
     const item = { id: 'draft-date', tier: 'NOW', headline: 'Set a draft date', leagueIds: ['league-42'] };
-    const tree = render({ phone, queue: { items: [item] }, onSelectItem: it => selected.push(it.id) });
+    const tree = render({ ...layout, queue: { items: [item] }, onSelectItem: it => selected.push(it.id) });
     const review = findAll(tree, n => n.type === 'button' && n.props['aria-label'] === 'Review Set a draft date')[0];
     assert.ok(review, 'keyboard-accessible review control');
     review.props.onClick({ stopPropagation() {} });
     assert.deepStrictEqual(selected, ['draft-date']);
     assert.equal(findAll(review.children, n => n.type === 'button').length, 0, 'no nested controls');
+  }
+});
+
+const rowItems = ['NOW', 'SOON', 'BACKLOG'].map(tier => ({
+  id: 'task-' + tier.toLowerCase(), tier, hub: 'ops', leagueIds: ['league-42'],
+  headline: 'QA Empty Redraft has no draft on the calendar.',
+  metric: { value: 2, unit: 'days' },
+  action: { label: 'Open draft settings', kind: 'draft-date' },
+}));
+const taskRows = tree => findAll(tree, n => n.props['data-testid'] === 'commish-task-row');
+
+test('tablet task rows use cards instead of desktop columns for every priority', () => {
+  const tree = render({ phone: false, narrowGrid: true, queue: { items: rowItems } });
+  const rows = taskRows(tree);
+  assert.strictEqual(rows.length, 3);
+  rows.forEach(row => {
+    assert.strictEqual(row.props['data-layout'], 'card');
+    assert.strictEqual(row.props.style.display, 'flex');
+    assert.strictEqual(findAll(row, n => n.props.style?.gridTemplateColumns).length, 0,
+      'fixed task columns must not squeeze the tablet headline to zero width');
+    const review = findAll(row, n => n.type === 'button' && n.props['aria-label']?.startsWith('Review '))[0];
+    assert.strictEqual(review.props.style.width, '100%');
+    assert.strictEqual(review.props.style.minHeight, '44px');
+    assert.strictEqual(review.props.style.WebkitLineClamp, 2, 'long headlines stay bounded');
+    assert.strictEqual(review.props.title, rowItems[0].headline, 'full headline remains available');
+  });
+});
+
+test('tablet direct actions keep 44px targets and do not open task review', () => {
+  const opened = [], selected = [];
+  const tree = render({ phone: false, narrowGrid: true, queue: { items: rowItems },
+    onOpenHub: (...args) => opened.push(args), onSelectItem: item => selected.push(item.id) });
+  const rows = taskRows(tree);
+  const actions = findAll(rows, n => n.type === 'button' && n.children.includes('Open draft settings'));
+  assert.strictEqual(actions.length, 2, 'NOW and SOON retain direct actions; backlog stays compact');
+  let stopped = 0;
+  actions.forEach(action => {
+    assert.strictEqual(action.props.style.height, '44px');
+    assert.strictEqual(action.props.style.width, '100%');
+    action.props.onClick({ stopPropagation() { stopped++; } });
+  });
+  assert.strictEqual(stopped, 2);
+  assert.deepStrictEqual(selected, []);
+  assert.deepStrictEqual(opened, Array(2).fill(['ops', { leagueId: 'league-42', action: 'draft-date' }]));
+});
+
+test('wide desktop retains dense task columns and compact direct actions', () => {
+  const tree = render({ phone: false, narrowGrid: false, queue: { items: rowItems } });
+  const rows = taskRows(tree);
+  assert.strictEqual(rows.length, 3);
+  rows.forEach(row => {
+    assert.strictEqual(row.props['data-layout'], 'table');
+    assert.strictEqual(row.props.style.gridTemplateColumns, '3px 60px minmax(0,1fr) 120px 92px 112px 20px');
+    const action = findAll(row, n => n.type === 'button' && n.children.includes('Open draft settings'))[0];
+    assert.strictEqual(action.props.style.height, '28px');
+  });
+});
+
+test('phone task cards remain readable even when narrowGrid is explicitly false', () => {
+  const tree = render({ phone: true, narrowGrid: false, queue: { items: rowItems } });
+  assert.ok(taskRows(tree).every(row => row.props['data-layout'] === 'card'));
+});
+
+test('1024px landscape matrix scrolls while desktop task and desk layouts remain dense', () => {
+  const previousWidth = window.innerWidth;
+  try {
+    window.innerWidth = 1024;
+    const tree = render({ phone: false, narrowGrid: false, queue: { items: rowItems } });
+    assert.ok(gridTemplates(tree).includes(NARROW), 'landscape tablet must not inherit squeezed fluid matrix columns');
+    assert.ok(taskRows(tree).every(row => row.props['data-layout'] === 'table'), 'matrix breakpoint does not change task rows');
+    assert.ok(gridTemplates(tree).includes('repeat(4, 1fr)'), 'matrix breakpoint does not change desktop desk density');
+    const region = findAll(tree, n => n.props['data-testid'] === 'commish-league-grid-scroll')[0];
+    assert.strictEqual(region.props.role, 'region');
+    assert.strictEqual(region.props.style.overflowX, 'auto');
+    window.innerWidth = 1440;
+    const wide = render({ phone: false, narrowGrid: false });
+    assert.ok(gridTemplates(wide).includes(FLUID), 'wide desktop keeps the existing fluid density after a resize');
+    assert.strictEqual(findAll(wide, n => n.props['data-testid'] === 'commish-league-grid-scroll-hint').length, 0);
+  } finally {
+    if (previousWidth === undefined) delete window.innerWidth;
+    else window.innerWidth = previousWidth;
   }
 });
 

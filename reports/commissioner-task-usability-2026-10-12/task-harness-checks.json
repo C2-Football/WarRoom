@@ -1,0 +1,20 @@
+{
+  "harnessSha256": "f2c2e8f3cbdacf4407c419964ce32a8e02e15233656da089c061813909a28021",
+  "checks": [
+    {
+      "check": "syntax",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "check": "lint",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "check": "whitespace",
+      "exitCode": 0,
+      "output": ""
+    }
+  ]
+}
