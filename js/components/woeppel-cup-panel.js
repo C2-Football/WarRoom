@@ -109,7 +109,7 @@ function WoeppelCupPanel(props) {
     };
     React.useEffect(() => { load(); }, []);
     const save = async next => {
-        if (!access?.canManage || busy || sample || inFlight.current) return;
+        if (!access?.canManage || connection || busy || sample || inFlight.current) return;
         try { engine.validate(next); } catch (e) { setError(e.message); return; }
         inFlight.current = true;
         setBusy(true);
@@ -216,6 +216,12 @@ function WoeppelCupPanel(props) {
     };
     const roundLabel = (index, count) => count - index === 1 ? 'Final' : count - index === 2 ? 'Semifinals' : count - index === 3 ? 'Quarterfinals' : 'Round ' + (index + 1);
     const canManage = access?.canManage && !sample;
+    const signInUrl = (window.location?.pathname?.includes('/dist-preview/') ? '../login.html' : 'login.html') + '?reauth=1';
+    const saveBlocked = !canManage || !!connection || busy || !!setupError;
+    const saveStatus = saving ? 'Saving your Cup…' : busy || !access && !connection ? 'Checking your Cup connection…'
+        : connection ? 'Couldn’t connect. Retry or sign in to save your Cup.'
+        : !canManage ? 'Sign in as this league’s commissioner to save your Cup.'
+        : error || setupError || (saved ? (touched.current ? 'Unsaved changes · save & lock when ready.' : 'Draft saved · ready to lock in.') : 'Ready to save for your league.');
     const points = value => Number.isFinite(value) ? value.toFixed(2) : '—';
     const fixtures = active && isQualifier(active) && selectedWeek < active.knockoutStart ? engine.fixtures(active).filter(f => f.week === selectedWeek) : rounds.flat().filter(f => f.week === selectedWeek);
     return <section className="cup-panel cup-studio" aria-label="League Cup">
@@ -252,9 +258,10 @@ function WoeppelCupPanel(props) {
                     </details>
                     {setupError && <p className="cup-validation" role="status">{setupError}</p>}
                     <div className="cup-plan-actions"><button type="button" disabled={!!setupError || busy} onClick={startSample}>Try a sample Cup <span aria-hidden="true">→</span></button></div>
-                    {access?.canManage && !saved?.locked && <div className="cup-save-actions" aria-label="Save league Cup" aria-busy={busy}>
-                        <p className="cup-note" role="status">{error || setupError || (saving ? 'Saving your Cup…' : busy ? 'Refreshing Cup…' : saved ? (touched.current ? 'Unsaved changes · save & lock when ready.' : 'Draft saved · ready to lock in.') : 'Ready to save for your league.')}</p>
-                        <div className="cup-plan-actions"><button type="button" className="cup-primary" disabled={busy || !!setupError} onClick={() => save({ ...draft, enabled: true, locked: true })}>{saving ? 'Saving…' : 'Save & lock Cup'}</button><button type="button" disabled={busy || !!setupError} onClick={() => save({ ...draft, enabled: true, locked: false })}>Save draft</button></div>
+                    {!saved?.locked && <div className="cup-save-actions" aria-label="Save league Cup" aria-busy={busy}>
+                        <p className="cup-note" role="status">{saveStatus}</p>
+                        {!busy && (connection || access && !canManage) && <div className="cup-save-recovery">{connection && <button type="button" onClick={load}>Retry connection</button>}<a href={signInUrl}>Sign in to save</a></div>}
+                        <div className="cup-plan-actions"><button type="button" className="cup-primary" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: true })}>{saving ? 'Saving…' : 'Save & lock Cup'}</button><button type="button" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: false })}>Save draft</button></div>
                     </div>}
                     <p className="cup-note">Save &amp; lock confirms the teams, format and dates for everyone. You can edit setup until the first week is finalized. One shared Cup per league season.</p>
                     </fieldset>

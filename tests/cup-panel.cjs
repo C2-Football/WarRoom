@@ -11,10 +11,18 @@ const text = node => walk(node).filter(value => typeof value !== 'object').join(
 const find = (tree, predicate) => walk(tree).find(node => typeof node === 'object' && predicate(node));
 const button = (tree, label) => find(tree, node => node.type === 'button' && text(node).startsWith(label));
 const writes = app => app.calls.filter(call => call.action !== 'load');
-function harness({ canManage = false, saved = null, deny = false, saveError = '', deferSaves = false, legacy = false } = {}) {
+const saveActions = tree => find(tree, node => node.props?.className?.split(' ').includes('cup-save-actions'));
+const assertSaveBlocked = (tree, reason) => {
+    for (const label of ['Save & lock Cup', 'Save draft']) {
+        const action = button(tree, label);
+        assert(action, reason + ': ' + label + ' stays discoverable');
+        assert(action.props.disabled, reason + ': ' + label + ' cannot save');
+    }
+};
+function harness({ canManage = false, saved = null, deny = false, saveError = '', deferSaves = false, deferLoads = false, legacy = false } = {}) {
     let slots = [], dependencies = [], pendingEffects = [], index = 0, dirty = true, tree;
     const calls = [], storage = new Map(), intervals = [];
-    const config = { canManage, saved, deny, saveError, deferSaves, pendingSaves: [], deferLoads: false, pendingLoads: [], matchups: [] };
+    const config = { canManage, saved, deny, saveError, deferSaves, pendingSaves: [], deferLoads, pendingLoads: [], matchups: [] };
     const React = {
         useState(initial) { const i = index++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], value => { const next = typeof value === 'function' ? value(slots[i]) : value; if (next !== slots[i]) { slots[i] = next; dirty = true; } }]; },
         useRef(initial) { const i = index++; if (!(i in slots)) slots[i] = { current: initial }; return slots[i]; },
@@ -50,6 +58,17 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     return { calls, config, storage, flush, click, choose, rename, finishSave, backgroundRefresh, finishLoad, get tree() { return tree; } };
 }
 (async () => {
+    const loading = harness({ canManage: true, deferLoads: true }); await loading.flush();
+    assertSaveBlocked(loading.tree, 'Initial permission check');
+    assert.match(text(saveActions(loading.tree)), /connect|checking/i, 'Pending save actions explain that connection is being checked');
+    button(loading.tree, 'Save & lock Cup').props.onClick();
+    button(loading.tree, 'Save draft').props.onClick();
+    find(loading.tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    await loading.flush();
+    assert.equal(writes(loading).length, 0, 'Initial loading never authorizes a write through a tap or submit');
+    await loading.finishLoad();
+    assert(!button(loading.tree, 'Save & lock Cup').props.disabled, 'Verified commissioner can save once the connection completes');
+
     // Rejected authentication never hides the usable gallery or authorizes writes.
     for (const format of Cup.tournament.formats) {
         const app = harness({ deny: true }); await app.flush();
@@ -57,11 +76,19 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
         assert(text(app.tree).includes('Explore now. Connect to save.'));
         assert(text(app.tree).includes('A member sign-in is required.'));
         assert.equal(find(app.tree, node => node.type === 'a' && text(node) === 'Open sign-in').props.href, '../login.html?reauth=1');
-        assert(!button(app.tree, 'Save & lock Cup'));
-        assert(!button(app.tree, 'Save draft'));
+        assertSaveBlocked(app.tree, 'Failed connection');
+        assert.match(text(saveActions(app.tree)), /connect|sign.in/i, 'Connection guidance is next to the save actions');
+        assert(button(saveActions(app.tree), 'Retry connection'), 'Failed connection can be retried beside the save actions');
+        button(app.tree, 'Save & lock Cup').props.onClick();
+        button(app.tree, 'Save draft').props.onClick();
+        find(app.tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+        await app.flush();
+        assert.equal(writes(app).length, 0, 'Rejected authentication cannot save through a tap or submit');
         await app.choose(format.id);
         assert.equal(writes(app).length, 0, 'Choosing ' + format.id + ' is local');
         await app.click('Try a sample Cup');
+        assert(!button(app.tree, 'Save & lock Cup'), 'Sample mode has no creation save action');
+        assert(!button(app.tree, 'Save draft'), 'Sample mode has no draft save action');
         assert(text(app.tree).includes('SAMPLE CUP · MADE-UP SCORES'));
         assert(text(app.tree).includes('Your league Cup is unchanged.'));
         let played = 0;
@@ -76,13 +103,42 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     }
     const member = harness(); await member.flush();
     assert.equal(walk(member.tree).filter(node => node.props?.role === 'radio').length, 6);
-    assert(!button(member.tree, 'Save & lock Cup'));
-    assert(!button(member.tree, 'Save draft'));
+    assertSaveBlocked(member.tree, 'View-only member');
+    assert.match(text(saveActions(member.tree)), /commissioner|sign.in/i, 'Member save actions explain the required sign-in');
+    assert(find(saveActions(member.tree), node => node.type === 'a' && node.props.href === '../login.html?reauth=1'), 'Member sign-in is available beside the save actions');
     assert.equal(find(member.tree, node => node.type === 'a' && text(node) === 'Open sign-in').props.href, '../login.html?reauth=1', 'Read-only members can reopen sign-in instead of returning to the current session');
     // A retained setup form must not authorize a member's write through Enter/submit.
     const memberForm = find(member.tree, node => node.type === 'form');
     if (memberForm) { memberForm.props.onSubmit({ preventDefault() {} }); await member.flush(); }
+    button(member.tree, 'Save & lock Cup').props.onClick();
+    button(member.tree, 'Save draft').props.onClick();
+    await member.flush();
     assert.equal(writes(member).length, 0);
+
+    const reconnecting = harness({ deny: true }); await reconnecting.flush();
+    await reconnecting.choose('knockout'); await reconnecting.rename('Keep My Connection Draft');
+    reconnecting.config.deny = false;
+    reconnecting.config.canManage = true;
+    await reconnecting.click('Retry connection');
+    assert(!button(reconnecting.tree, 'Save & lock Cup').props.disabled, 'Successful retry enables commissioner saving');
+    assert.equal(find(reconnecting.tree, node => node.type === 'input' && node.props.maxLength === 80).props.value, 'Keep My Connection Draft', 'Retry preserves the edited Cup name');
+    assert(text(find(reconnecting.tree, node => node.props?.role === 'radio' && node.props['aria-checked'])).includes(Cup.tournament.formats.find(format => format.id === 'knockout').name), 'Retry preserves the selected format');
+    assert.equal(writes(reconnecting).length, 0, 'Reconnecting does not automatically publish the draft');
+    await reconnecting.click('Save & lock Cup');
+    assert.equal(writes(reconnecting)[0].state.name, 'Keep My Connection Draft');
+    assert.equal(writes(reconnecting)[0].state.format, 'knockout');
+
+    const lostConnection = harness({ canManage: true }); await lostConnection.flush();
+    await lostConnection.rename('Retain After Refresh');
+    lostConnection.config.deny = true;
+    await lostConnection.click('Refresh Cup');
+    assertSaveBlocked(lostConnection.tree, 'Previously authorized connection failed');
+    button(lostConnection.tree, 'Save & lock Cup').props.onClick();
+    button(lostConnection.tree, 'Save draft').props.onClick();
+    find(lostConnection.tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    await lostConnection.flush();
+    assert.equal(writes(lostConnection).length, 0, 'Stale commissioner access cannot save after a failed refresh');
+    assert.equal(find(lostConnection.tree, node => node.type === 'input' && node.props.maxLength === 80).props.value, 'Retain After Refresh', 'Connection failure retains the edited draft');
 
     const commissioner = harness({ canManage: true }); await commissioner.flush();
     await commissioner.choose('knockout');
@@ -230,5 +286,5 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     const backup = JSON.parse(legacyRace.storage.get('wr_woeppel_v1_' + league.league_id + '_' + league.season));
     assert.equal(backup.locked, true, 'Legacy local backup records the confirmed server lock');
     assert.deepEqual(backup.groups, legacyDraw.groups);
-    console.log('PASS Cup panel: explicit save-and-lock, draft/remount persistence, retry and duplicate-tap guards, six sample formats, permissions, score overrides, refresh preservation, legacy routing and save/refresh races');
+    console.log('PASS Cup panel: discoverable permission-aware saves, connection retry and draft preservation, explicit save-and-lock, draft/remount persistence, duplicate-tap guards, six sample formats, score overrides, refresh preservation, legacy routing and save/refresh races');
 })().catch(error => { console.error(error); process.exitCode = 1; });

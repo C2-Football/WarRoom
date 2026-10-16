@@ -39,6 +39,8 @@
 .cup-save-actions { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--cup-line); border-radius: 8px; background: var(--cup-ground); }
 .cup-save-actions .cup-note { margin: 0; color: #d2e5e1; overflow-wrap: anywhere; }
 .cup-save-actions .cup-primary { flex: 1; }
+.cup-save-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.cup-save-recovery a { display: inline-flex; align-items: center; min-height: 44px; color: var(--cup-teal); font-size: .8rem; }
 .cup-locked-status { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 14px; border: 1px solid var(--cup-line); border-radius: 8px; background: var(--cup-ground); font-size: .8rem; }
 .cup-locked-status strong { color: var(--cup-teal); }
 .cup-locked-status span { color: #d2e5e1; overflow-wrap: anywhere; }
@@ -129,8 +131,9 @@
     .la-mobile .cup-panel.cup-studio .cup-format-card { min-height:56px; }
 }
 @media(max-width:767px) {
-    .cup-studio:has(.cup-save-actions) { padding-bottom: 155px; }
-    .cup-save-actions { position: fixed; bottom: var(--wr-bottom-inset, env(safe-area-inset-bottom, 0px)); left: var(--wr-phone-gutter, 12px); right: var(--wr-phone-gutter, 12px); z-index: var(--wr-z-actionbar, 150); padding: 12px; box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
+    .cup-studio:has(.cup-save-actions) { padding-bottom: 220px; }
+    /* Resolve the dock height here so the current mobile shell's override is used. */
+    .cup-save-actions { position: fixed; bottom: calc(var(--wr-tab-bar-h, 0px) + var(--sab, env(safe-area-inset-bottom, 0px)) + 8px); left: var(--wr-phone-gutter, 12px); right: var(--wr-phone-gutter, 12px); z-index: var(--wr-z-actionbar, 150); padding: 12px; background: var(--surf-solid, #101b21); box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
     .cup-save-actions .cup-note { max-height: 20vh; overflow-y: auto; font-size: .78rem; }
     .cup-save-actions .cup-plan-actions { flex-wrap: nowrap; }
     .cup-save-actions button { min-height: 48px; padding: 10px 12px; }
