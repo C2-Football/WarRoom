@@ -5,6 +5,13 @@
 
 /* Cup Studio: choose a format, personalize it, then try the tournament. */
 .cup-studio { gap: 18px; }
+.cup-standings .cup-standings-team { font-weight: 400; text-align: left; }
+.cup-standing-identity { display: flex; align-items: flex-start; gap: 8px; }
+.cup-standing-identity .cup-rank { flex: 0 0 2ch; width: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.cup-standing-owner { display: grid; gap: 3px; min-width: 0; }
+.cup-standing-name { overflow-wrap: anywhere; }
+.cup-standing-played { display: none; }
+.cup-standings abbr { text-decoration: none; }
 .cup-studio .cup-hero { padding: 22px; }
 .cup-studio .cup-hero h2 { font-size: clamp(1.5rem, 2.6vw, 2.15rem); letter-spacing: .01em; }
 .cup-studio-emblem { display: grid; place-items: center; width: 60px; height: 66px; font-size: 2.4rem; flex: none; }
@@ -131,6 +138,16 @@
     .la-mobile .cup-panel.cup-studio .cup-format-card { min-height:56px; }
 }
 @media(max-width:767px) {
+    /* Keep the whole qualification race in view; the played count travels with the team. */
+    .la-mobile .cup-panel.cup-studio .cup-qualification { overflow: visible; }
+    .la-mobile .cup-panel.cup-studio .cup-qualification > section { overflow: visible; }
+    .la-mobile .cup-panel.cup-studio .cup-standings { width: 100%; min-width: 0; table-layout: fixed; }
+    .la-mobile .cup-panel.cup-studio .cup-standings :is(th,td) { min-width: 0; padding: 10px 6px; font-size: 14px; line-height: 1.35; vertical-align: middle; }
+    .la-mobile .cup-panel.cup-studio .cup-standings thead th { font-size: 12px; }
+    .la-mobile .cup-panel.cup-studio .cup-standings .cup-standings-played { display: none; }
+    .la-mobile .cup-panel.cup-studio .cup-standings :is(.cup-standings-points,.cup-standings-pf) { width: 76px; text-align: right; font-variant-numeric: tabular-nums; }
+    .la-mobile .cup-panel.cup-studio .cup-standings tbody :is(.cup-standings-points,.cup-standings-pf) { white-space: nowrap; }
+    .la-mobile .cup-panel.cup-studio .cup-standing-played { display: block; color: var(--silver); font-size: 12px; }
     .cup-studio:has(.cup-save-actions) { padding-bottom: 220px; }
     /* Resolve the dock height here so the current mobile shell's override is used. */
     .cup-save-actions { position: fixed; bottom: calc(var(--wr-tab-bar-h, 0px) + var(--sab, env(safe-area-inset-bottom, 0px)) + 8px); left: var(--wr-phone-gutter, 12px); right: var(--wr-phone-gutter, 12px); z-index: var(--wr-z-actionbar, 150); padding: 12px; background: var(--surf-solid, #101b21); box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
