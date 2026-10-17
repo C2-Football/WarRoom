@@ -319,6 +319,8 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     assert.equal(text(find(editPending.tree, node => node.type === 'h2')), 'Pending correction');
     const readonlyStarted = harness({ saved: structuredClone(started) }); await readonlyStarted.flush();
     assert(!button(readonlyStarted.tree, 'Edit Cup'), 'View-only members never receive commissioner edits');
+    assert(text(readonlyStarted.tree).includes('View only'), 'Member status stays clear without setup instructions');
+    assert(!text(readonlyStarted.tree).includes('Commissioner access is needed'), 'A running Cup does not show members a commissioner setup banner');
     await readonlyStarted.click('Explore formats'); await readonlyStarted.choose('round-robin-double');
     assert(!button(readonlyStarted.tree, 'Save Cup changes'), 'Format exploration never becomes edit authority');
     assert.equal(writes(readonlyStarted).length, 0);
