@@ -50,14 +50,15 @@ const weeks = [
     { week: 2, rows: [row(1, 120), row(2, 110), row(3, 90, 2), row(4, 70, 2)] },
     { week: 3, rows: [row(1, 140, 1, { starters: ['p1', 'bench'], players_points: { p1: 30, bench: 20, unused: 60 } }), row(2, 139), row(3, 85, 2), row(4, 80, 2)] },
 ];
-const build = (data = weeks, end = 3, extras = {}) => app.engine.build({ weeks: data, start: 1, end, nameFor: id => 'Team ' + id, playerName: id => 'Player ' + id, ...extras });
+const build = (data = weeks, end = 3, extras = {}) => app.engine.build({ weeks: data, start: 1, end, nameFor: id => 'Team ' + id, playerName: id => id === 'p1' ? 'Amon-Ra St. Brown' : 'Player ' + id, ...extras });
 const edition = build();
 assert.equal(edition.high, 140);
 assert.equal(edition.stories.filter(s => s.kind === 'recap').length, 6);
 assert(!edition.stories.some(s => s.week === 1 && s.kind === 'record'), 'opening baseline is not a broken record');
 assert(edition.stories.some(s => /3 straight/.test(s.text)));
 assert(edition.stories.some(s => s.category === 'Hard luck' && /139\.00.*loss/.test(s.text)));
-assert(edition.stories.some(s => /Player p1 led/.test(s.body)));
+assert(edition.stories.some(s => /Amon-Ra St\. Brown.*30\.00/.test(s.body)));
+assert(!build(weeks, 3, { playerName: id => 'Player ' + id }).stories.some(s => /Player (?:p1|bench|unused)/.test(s.body)), 'unresolved player names cannot become starter contributions');
 assert(!edition.stories.some(s => /unused/.test(s.body)), 'bench players cannot earn winning-starter credit');
 assert.equal(build(weeks, 2).high, 120, 'current and future weeks excluded');
 assert.equal(build([weeks[0], weeks[2]]).high, 100, 'missing week stops record and streak claims');

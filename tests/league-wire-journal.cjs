@@ -244,3 +244,97 @@ const oldReversed = historyOf([[90, 100], [90, 100]]);
 const reversedVoice = build([], { end: 0, priorSeasons: [oldReversed], board: { week: 1, rows: [row(1, 0), row(2, 0)] }, rivalries: [{ owners: ['a', 'b'] }], nameFor: accountNames }).previews[0];
 assert.match(reversedVoice.body, /Dirty Mike and the Boys won the last meeting 100.00–90.00 in 2025, Week 2/);
 console.log('PASS newsroom facts: tied results, exact milestones and dated winner-first history');
+
+// A short brief needs real detail without promoting an incomplete lineup,
+// a bench score or a later week into evidence for its leading player.
+vm.runInContext(fs.readFileSync('js/shared/league-wire-reading.js', 'utf8'), context);
+const briefLeague = league(2026, {
+    settings: { playoff_week_start: 5, playoff_teams: 2 },
+    rosters: [1, 2, 3, 4].map(rid => ({ roster_id: rid, owner_id: `owner-${rid}` })),
+});
+const briefNames = { alpha: 'Amon-Ra St. Brown', support: 'James Cook', bravo: 'Lamar Jackson', charlie: 'Ja’Marr Chase', third: 'CeeDee Lamb', bench: 'Bench Only', future: 'Future Week Star' };
+const playerForBrief = pid => briefNames[pid] || 'A starting player';
+const briefWeekOne = { week: 1, rows: [row(1, 100), row(2, 90), row(3, 80, 2), row(4, 70, 2)] };
+const briefWeekTwo = { week: 2, rows: [
+    row(1, 150, 1, { starters: ['0', 'alpha', 'support', 'alpha'], players_points: { alpha: 40, support: 20, bench: 9000 } }),
+    row(2, 120, 1, { starters: ['bravo'], players_points: { bravo: 35 } }),
+    row(3, 125, 2, { starters: ['charlie'], players_points: { charlie: 30 } }),
+    row(4, 110, 2),
+] };
+const briefBuild = (second = briefWeekTwo, extra = {}) => build([briefWeekOne, second], { league: briefLeague, end: 2, nameFor: names, playerName: playerForBrief, ...extra });
+const briefRecord = output => output.stories.find(story => story.week === 2 && story.kind === 'record' && story.metricLabel === 'fantasy points');
+const replaceBriefLeader = changes => ({ ...briefWeekTwo, rows: briefWeekTwo.rows.map((entry, index) => index ? entry : { ...entry, ...changes }) });
+const richBriefs = briefBuild(), richRecord = briefRecord(richBriefs);
+assert(richRecord);
+assert.match(richRecord.body.split('\n\n')[0], /Amon-Ra St\. Brown.*40\.00/);
+assert.match(context.WrWireReading.deck(richRecord), /Amon-Ra St\. Brown.*40\.00/, 'the card summary includes the concrete contribution, not only the expanded story');
+assert.match(richRecord.body.split('\n\n')[1], /Alpha.*Bravo|Bravo.*Alpha/);
+assert.match(richRecord.body.split('\n\n')[1], /150\.00[–-]120\.00/);
+assert.match(richRecord.body.split('\n\n')[1], /2–0/, 'record context includes this week’s result, not the previous record');
+assert.doesNotMatch(richRecord.body, /9000|Bench Only/);
+assert.equal((richRecord.body.match(/Amon-Ra St\. Brown/g) || []).length, 1, 'duplicate starter IDs do not duplicate the leading contribution');
+assert(richRecord.body.split(/\s+/).length <= 110, 'a richer brief remains a short read');
+const richCrown = richBriefs.stories.find(story => story.week === 2 && story.category === 'Scoring crown');
+assert.match(richCrown.body, /Amon-Ra St\. Brown.*40\.00/);
+
+for (const incomplete of [undefined, null, '20', Number.NaN, Number.POSITIVE_INFINITY]) {
+    const output = briefBuild(replaceBriefLeader({ players_points: { alpha: 40, support: incomplete, bench: 9000 } }));
+    const record = briefRecord(output), recap = output.stories.find(story => story.week === 2 && story.kind === 'recap' && story.rosterIds.includes(1));
+    assert.doesNotMatch(record.body, /Amon-Ra St\. Brown/, 'an incomplete starter score cannot establish a lineup leader');
+    assert.doesNotMatch(recap.body, /Amon-Ra St\. Brown/, 'recaps use the same completeness guard');
+    assert.doesNotMatch(record.body + recap.body, /Bench Only|9000/);
+}
+const noLineup = briefRecord(briefBuild(replaceBriefLeader({ starters: ['0', 0], players_points: { bench: 9000 } })));
+assert.doesNotMatch(noLineup.body, /Amon-Ra St\. Brown|James Cook|Bench Only/);
+for (const placeholder of ['Player alpha', 'Player 12345', 'A starting player', '']) {
+    const unknown = briefRecord(briefBuild(briefWeekTwo, { playerName: pid => pid === 'alpha' ? placeholder : playerForBrief(pid) }));
+    assert.doesNotMatch(unknown.body, /Player alpha|Player 12345|A starting player/);
+    assert.doesNotMatch(unknown.body, /James Cook/, 'an unnamed high scorer does not promote the runner-up');
+}
+const zeroLeader = briefRecord(briefBuild(replaceBriefLeader({ players_points: { alpha: 0, support: -4, bench: 9000 } })));
+assert.match(zeroLeader.body, /Amon-Ra St\. Brown.*0\.00/, 'a valid zero is not mistaken for missing data');
+const negativeLeader = briefRecord(briefBuild(replaceBriefLeader({ players_points: { alpha: -1, support: -4, bench: 9000 } })));
+assert.match(negativeLeader.body, /Amon-Ra St\. Brown.*-1\.00/, 'negative scoring remains signed and factual');
+assert.doesNotMatch(negativeLeader.body, /powered|carried|accounted for/);
+
+const tiedPlayers = briefRecord(briefBuild(replaceBriefLeader({ players_points: { alpha: 40, support: 40, bench: 9000 } })));
+assert.match(tiedPlayers.body, /Amon-Ra St\. Brown/); assert.match(tiedPlayers.body, /James Cook/);
+assert.match(tiedPlayers.body, /40\.00/);
+assert.equal((tiedPlayers.body.match(/Amon-Ra St\. Brown/g) || []).length, 1);
+const threeLeaders = briefRecord(briefBuild(replaceBriefLeader({ starters: ['alpha', 'support', 'third'], players_points: { alpha: 40, support: 40, third: 40 } })));
+assert.match(threeLeaders.body, /shared.*lineup lead.*40\.00|shared.*lead.*40\.00/, 'a bounded player mention cannot imply a sole leader when more players tie');
+const partlyNamedTie = briefRecord(briefBuild(replaceBriefLeader({ starters: ['alpha', 'unknown'], players_points: { alpha: 40, unknown: 40 } })));
+assert.match(partlyNamedTie.body, /Amon-Ra St\. Brown.*shared.*lead.*40\.00/);
+
+const tiedTeams = briefBuild({ ...briefWeekTwo, rows: briefWeekTwo.rows.map(entry => entry.roster_id === 3 ? { ...entry, points: 150 } : entry) });
+for (const article of [briefRecord(tiedTeams), tiedTeams.stories.find(story => story.week === 2 && story.category === 'Scoring crown')]) {
+    assert.match(article.body, /For Alpha,.*Amon-Ra St\. Brown.*40\.00/);
+    assert.match(article.body, /For Charlie,.*Ja’Marr Chase.*30\.00/, 'tied teams retain their own leading player and points');
+}
+const cutoffBriefs = briefBuild(briefWeekTwo, { weeks: [briefWeekOne, briefWeekTwo, { week: 3, rows: [row(1, 8888, 1, { starters: ['future'], players_points: { future: 7777 } }), row(2, 100), row(3, 100, 2), row(4, 90, 2)] }] });
+assert.doesNotMatch(JSON.stringify(cutoffBriefs.stories), /Future Week Star|7777|8888/, 'later results cannot enrich an earlier edition');
+const adjusted = briefRecord(briefBuild(replaceBriefLeader({ points: 500, custom_points: 151 })));
+assert.match(adjusted.body, /151\.00/); assert.match(adjusted.body, /40\.00/);
+assert.doesNotMatch(adjusted.body, /500\.00|%|percent|accounted for|share of/, 'individual points do not become a claimed share of an adjusted official total');
+const medianBrief = briefRecord(briefBuild(briefWeekTwo, { league: { ...briefLeague, settings: { ...briefLeague.settings, league_average_match: 1 } } }));
+assert.match(medianBrief.body, /4–0.*including median results/, 'richer record context includes the current week’s median result');
+const nonHeadToHeadBriefs = briefBuild(briefWeekTwo, { headToHead: false });
+assert.match(briefRecord(nonHeadToHeadBriefs).body, /Amon-Ra St\. Brown.*40\.00/);
+assert.doesNotMatch(briefRecord(nonHeadToHeadBriefs).body, /\bbeat\b|\bwon\b|2–0|4–0/, 'a scoring contribution does not manufacture a head-to-head result for another format');
+const losingLeaderWeeks = [
+    { week: 1, rows: [row(1, 120), row(2, 105), row(3, 130, 2), row(4, 90, 2)] },
+    { ...briefWeekTwo, rows: briefWeekTwo.rows.map(entry => ({ ...entry, points: { 1: 150, 2: 160, 3: 80, 4: 90 }[entry.roster_id] })) },
+];
+const losingLeader = briefBuild(briefWeekTwo, { weeks: losingLeaderWeeks, league: { ...briefLeague, settings: { ...briefLeague.settings, league_average_match: 1 } } }).stories.find(story => story.week === 2 && story.category === 'Power shift');
+assert(losingLeader && losingLeader.rosterIds.includes(1));
+assert.match(losingLeader.body, /Amon-Ra St\. Brown.*40\.00/);
+assert.match(losingLeader.body, /lost.*Bravo|Bravo.*beat.*Alpha/, 'moving first via median results does not invent a head-to-head win');
+assert.match(losingLeader.body, /3–1/);
+const rollingWeeks = [1, 2, 3, 4].map(week => ({ ...briefWeekTwo, week, rows: briefWeekTwo.rows.map(entry => ({ ...entry, points: entry.roster_id === 1 ? 300 : entry.points })) }));
+const rollingBriefs = briefBuild(briefWeekTwo, { weeks: rollingWeeks, end: 4 });
+assert.match(rollingBriefs.stories.find(story => story.week === 4 && story.category === 'Milestone').body, /Amon-Ra St\. Brown.*40\.00/);
+assert.match(rollingBriefs.stories.find(story => story.week === 4 && story.category === 'Milestone').body, /4–0/);
+assert.match(rollingBriefs.stories.find(story => story.week === 4 && story.category === 'On a roll' && story.rosterIds.includes(1)).body, /Amon-Ra St\. Brown.*40\.00/);
+const hardLuck = briefBuild({ ...briefWeekTwo, rows: briefWeekTwo.rows.map(entry => entry.roster_id === 2 ? { ...entry, points: 140 } : entry) }).stories.find(story => story.week === 2 && story.category === 'Hard luck');
+assert.match(hardLuck.body, /Lamar Jackson.*35\.00/, 'a hard-luck feature names the losing team’s actual contributor');
+console.log('PASS richer Wire briefs: useful card detail, actual starter evidence, missing/zero/signed points, tie attribution, bench and cutoff isolation, adjusted totals and median scope');

@@ -19,6 +19,22 @@
         const user = league.users?.find(u => u.user_id === roster?.owner_id);
         return String(user?.metadata?.team_name || user?.display_name || user?.username || `Team ${rid}`).trim();
     }
+    function starterLead(row, playerName, week) {
+        const starters = [...new Set((row.starters || []).filter(pid => pid && id(pid) !== '0').map(id))];
+        // A partial box score cannot establish the lineup leader. Bench points
+        // and today's roster are never evidence for a completed week's story.
+        if (!starters.length || starters.some(pid => typeof row.players_points?.[pid] !== 'number' || !Number.isFinite(row.players_points[pid]))) return null;
+        const best = Math.max(...starters.map(pid => row.players_points[pid]));
+        const leaders = starters.filter(pid => row.players_points[pid] === best);
+        const named = leaders.map(pid => ({ pid, name: String(playerName(pid) || '').trim() })).filter(p => p.name && p.name !== p.pid && !/^(?:Player\s+\S+|A starting player|Unknown(?: player)?)$/i.test(p.name));
+        if (!named.length) return null;
+        const name = named[0].name;
+        const solo = [`${name} led the lineup with ${fmt(best)} points.`, `${name} was the leading starter at ${fmt(best)} points.`, `${name}’s ${fmt(best)} points led the starting lineup.`];
+        const text = leaders.length === 1 ? (best > 0 ? choose(solo, week, row.roster_id) : solo[0])
+            : leaders.length === 2 && named.length === 2 ? `${named[0].name} and ${named[1].name} shared the lineup lead with ${fmt(best)} points each.`
+            : `${named[0].name} shared the lineup lead at ${fmt(best)} points.`;
+        return { text, pid: named[0].pid };
+    }
     function inspect(rows, league) {
         if (!Array.isArray(rows) || !rows.length || rows.some(r => !r || r.roster_id == null || points(r) == null)) return null;
         const ids = new Set(rows.map(r => id(r.roster_id)));
@@ -219,12 +235,29 @@
         const seats = Number(league.settings?.playoff_teams) || 0;
         const lastReg = bounds(league).end;
         const simpleRace = headToHead && seats > 0 && Number(league.settings?.divisions || 0) < 2 && !league.settings?.playoff_seed_type;
+        const briefCategories = new Set(['Record book', 'History made', 'Scoring crown', 'Milestone', 'Career milestone', 'Streak snapped', 'Back in business', 'On a roll', 'Hard luck', 'Power shift']);
         for (let week = start; week <= end; week++) {
             const rows = previous.get(week), pairs = inspect(rows, league);
             if (!pairs) break;
             completedThrough = week;
+            const weeklyBriefs = [], rowsById = new Map(rows.map(row => [id(row.roster_id), row]));
+            const leads = new Map(rows.map(row => [id(row.roster_id), starterLead(row, playerName, week)]));
             const add = (kind, category, text, body, rosterIds = [], extra = {}) => {
                 const story = { id: `${season}:${week}:${category}:${rosterIds.join(':')}:${stories.length}`, kind, category, week, season, label: `WK ${week} · ${category.toUpperCase()}`, text, body, rosterIds, ...extra };
+                if (briefCategories.has(category)) {
+                    const sharedHigh = rosterIds.length > 1 && ['Record book', 'History made', 'Scoring crown'].includes(category);
+                    const subjects = sharedHigh ? (rosterIds.length <= 2 ? rosterIds : []) : rosterIds.slice(0, 1);
+                    const detail = subjects.map(rid => {
+                        const lead = leads.get(id(rid));
+                        return lead ? `${rosterIds.length > 1 ? `For ${nameFor(rid)}, ` : ''}${lead.text}` : '';
+                    }).filter(Boolean).join(' ');
+                    if (detail) {
+                        const paragraphs = story.body.split('\n\n');
+                        paragraphs[0] += ` ${detail}`;
+                        story.body = paragraphs.join('\n\n');
+                    }
+                    weeklyBriefs.push(story);
+                }
                 stories.push(story); return story;
             };
             rows.forEach(r => { if (!stats.has(id(r.roster_id))) stats.set(id(r.roster_id), { rid: r.roster_id, wins: 0, losses: 0, ties: 0, pf: 0 }); });
@@ -232,8 +265,8 @@
             const before = new Map(previousTable.map(t => [id(t.rid), t]));
             const sorted = rows.slice().sort((a, b) => points(b) - points(a)), best = points(sorted[0]);
             const top = sorted.filter(r => points(r) === best), winners = top.map(r => nameFor(r.roster_id)).join(' & ');
-            if (high !== null && best >= high) add('record', 'Record book', `${best > high ? 'A new season scoring high' : 'Season scoring high matched'}: ${winners}`, `A ${fmt(best)}-point week ${best > high ? 'beats' : 'matches'} the previous season high of ${fmt(high)}.`, top.map(r => r.roster_id), { weight: 85, metric: fmt(best), metricLabel: 'fantasy points' });
-            if (priorSeasons.length > 0 && archiveHigh !== null && best > archiveHigh) add('record', 'History made', `An archive scoring high for ${winners}`, `A ${fmt(best)}-point week beats the previous archived high of ${fmt(archiveHigh)}. ${archiveComplete && !rulesChanged ? 'Every linked season has been checked.' : 'Compared with loaded seasons using the same scoring and starting positions.'}`, top.map(r => r.roster_id), { weight: 100, metric: fmt(best), metricLabel: 'new archive high' });
+            if (high !== null && best >= high) add('record', 'Record book', `${best > high ? 'A new season scoring high' : 'Season scoring high matched'}: ${winners}`, `A ${fmt(best)}-point week ${best > high ? 'beats' : 'matches'} the season’s previous high of ${fmt(high)}.`, top.map(r => r.roster_id), { weight: 85, metric: fmt(best), metricLabel: 'fantasy points' });
+            if (priorSeasons.length > 0 && archiveHigh !== null && best > archiveHigh) add('record', 'History made', `An archive scoring high for ${winners}`, `A ${fmt(best)}-point week beats the previous archived high of ${fmt(archiveHigh)}.\n\n${archiveComplete && !rulesChanged ? 'Every linked season has been checked.' : 'Compared with loaded seasons using the same scoring and starting positions.'}`, top.map(r => r.roster_id), { weight: 100, metric: fmt(best), metricLabel: 'new archive high' });
             if (high === null || best >= high) {
                 if (high === null || best > high) records.length = 0;
                 top.forEach(r => records.push({ week, rosterId: r.roster_id, ...recordIdentity(league, r.roster_id, nameFor(r.roster_id)), points: best })); high = best;
@@ -260,8 +293,7 @@
                 const last = meetings[meetings.length - 1];
                 const revenge = gap > 0 && last && (last.a === oa ? last.pa < last.pb : last.pb < last.pa);
                 margins.push({ a, b, gap });
-                const starters = (a.starters || []).filter(pid => pid && id(pid) !== '0').map(pid => ({ pid, value: a.players_points?.[pid] })).filter(x => typeof x.value === 'number' && Number.isFinite(x.value)).sort((x, y) => y.value - x.value);
-                const star = starters[0];
+                const star = leads.get(ra);
                 const title = gap === 0 ? `${nameFor(a.roster_id)} and ${nameFor(b.roster_id)} tied at ${fmt(points(a))}`
                     : runB >= 3 ? `${nameFor(a.roster_id)} ended a ${runB}-game winning streak for ${nameFor(b.roster_id)}`
                     : runA <= -3 ? `${nameFor(a.roster_id)} back in the win column after ${Math.abs(runA)} losses`
@@ -273,7 +305,7 @@
                     : gap <= 3 ? `Just ${fmt(gap)} points separated them: ${nameFor(a.roster_id)} beat ${nameFor(b.roster_id)} ${fmt(points(a))}–${fmt(points(b))}.`
                     : `${nameFor(a.roster_id)} beat ${nameFor(b.roster_id)} ${fmt(points(a))}–${fmt(points(b))} in Week ${week}.`;
                 const recap = add('recap', revenge ? 'Revenge game' : gap > 0 && gap <= 3 ? 'Down to the wire' : 'Game recap', title,
-                    `${lede}${star && gap > 0 ? ` ${playerName(star.pid)} led the starting lineup with ${fmt(star.value)} points.` : ''}`,
+                    `${lede}${star && gap > 0 ? ` ${star.text}` : ''}`,
                     [a.roster_id, b.roster_id], { featuredPid: gap > 0 ? star?.pid : null, weight: revenge ? 83 : gap > 0 && gap <= 3 ? 78 : 35, matchup: [{ name: nameFor(a.roster_id), score: points(a), rid: a.roster_id }, { name: nameFor(b.roster_id), score: points(b), rid: b.roster_id }], related: [] });
                 recaps.push({ recap, a, b, gap });
                 if (last) recap.related.push({ label: 'Last meeting', text: `${last.season} · Week ${last.week}: ${ownerName(a.roster_id)} ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} ${ownerName(b.roster_id)}.` });
@@ -288,7 +320,7 @@
                     currentForm.push({ rid: r.roster_id, opponentId: opponent.roster_id, points: points(r), opponentPoints: points(opponent), run: runs.get(rid), previousRun: currentRun });
                     if (runs.get(rid) >= 3) add('story', 'On a roll', `${runs.get(rid)} straight wins for ${nameFor(r.roster_id)}`, `${nameFor(r.roster_id)} beat ${nameFor(opponent.roster_id)} ${fmt(points(r))}–${fmt(points(opponent))}, extending the head-to-head winning streak to ${runs.get(rid)}.`, [r.roster_id], { weight: 65, metric: String(runs.get(rid)), metricLabel: 'straight wins' });
                 });
-                if (gap > 0 && sorted.filter(r => points(r) > points(b)).length < Math.floor(rows.length / 2)) add('story', 'Hard luck', `${fmt(points(b))} points, still a loss for ${nameFor(b.roster_id)}`, `Even ${fmt(points(b))} points weren’t enough for ${nameFor(b.roster_id)}. ${nameFor(a.roster_id)} won with ${fmt(points(a))}, leaving one of the week’s top-half scores on the losing side of a head-to-head matchup.`, [b.roster_id], { weight: 57 });
+                if (gap > 0 && sorted.filter(r => points(r) > points(b)).length < Math.floor(rows.length / 2)) add('story', 'Hard luck', `${fmt(points(b))} points, still a loss for ${nameFor(b.roster_id)}`, `A top-half score still wasn’t enough: ${nameFor(b.roster_id)} lost ${fmt(points(b))}–${fmt(points(a))} to ${nameFor(a.roster_id)}.`, [b.roster_id], { weight: 57 });
                 if (oa && ob && oa !== ob) games.push({ a: oa, b: ob, pa: points(a), pb: points(b), week, season });
                 if (gap > 0 && oa) {
                     const wins = (careerWins.get(oa) || 0) + 1; careerWins.set(oa, wins);
@@ -319,7 +351,7 @@
             });
             if (week > start && latestTable.length > 1 && latestTable[0].rank !== latestTable[1].rank && before.get(id(latestTable[0].rid))?.rank > 1) {
                 const leader = latestTable[0];
-                add('story', 'Power shift', `A new No. 1: ${nameFor(leader.rid)}`, `A ${recordText(leader)} record and ${fmt(leader.pf)} points through Week ${week} put ${nameFor(leader.rid)} on top of The Wire’s standings, up from No. ${before.get(id(leader.rid)).rank} last week.`, [leader.rid], { weight: 82, related: [{ label: 'How we rank teams', text: `The Wire ranks completed results by record, then points scored${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}. Your league’s official seeds may differ because of division or tiebreak rules.` }] });
+                add('story', 'Power shift', `A new No. 1: ${nameFor(leader.rid)}`, `At ${recordText(leader)} with ${fmt(leader.pf)} points through Week ${week}, ${nameFor(leader.rid)} moved from No. ${before.get(id(leader.rid)).rank} to No. 1 in The Wire’s standings.`, [leader.rid], { weight: 82, related: [{ label: 'How we rank teams', text: `The Wire ranks completed results by record, then points scored${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}. Your league’s official seeds may differ because of division or tiebreak rules.` }] });
             }
             const biggest = margins.slice().sort((a, b) => b.gap - a.gap)[0];
             if (biggest && biggest.gap > 0) {
@@ -331,6 +363,23 @@
                 const inside = latestTable[seats - 1], outside = latestTable[seats], remaining = Math.max(0, lastReg - week), separation = round((inside.wins + inside.ties / 2) - (outside.wins + outside.ties / 2));
                 add('story', 'Playoff race', separation === 0 ? 'The cutline has no breathing room' : `${nameFor(inside.rid)} and ${nameFor(outside.rid)} frame the cutline`, `${nameFor(inside.rid)} (${recordText(inside)}) sit at No. ${inside.rank}; ${nameFor(outside.rid)} (${recordText(outside)}) at No. ${outside.rank}. ${separation === 0 ? 'Their records are level; compare points for and the league tiebreak rules.' : `${separation} result${separation === 1 ? '' : 's'} separate them.`} ${remaining} regular-season week${remaining === 1 ? '' : 's'} remain. Official seeding and tiebreak rules still apply.`, [inside.rid, outside.rid], { weight: 75 });
             }
+            // Add the consequence after this week's H2H and median results are
+            // settled. Never borrow a later week's record for an earlier story.
+            weeklyBriefs.forEach(story => {
+                if (story.rosterIds.length !== 1 || !['Record book', 'History made', 'Scoring crown', 'Milestone', 'Power shift'].includes(story.category)) return;
+                const rid = id(story.rosterIds[0]), row = rowsById.get(rid);
+                const pair = pairs.find(pair => pair.some(r => id(r.roster_id) === rid));
+                if (!row || !pair) return;
+                const opponent = pair.find(r => id(r.roster_id) !== rid), total = points(row), other = points(opponent);
+                const team = nameFor(row.roster_id), against = nameFor(opponent.roster_id);
+                const result = total === other ? `${team} tied ${against} at ${fmt(total)} apiece.`
+                    : `${team} ${total > other ? 'beat' : 'lost to'} ${against} ${fmt(total)}–${fmt(other)}.`;
+                const tableRow = after.get(rid);
+                const record = story.category === 'Power shift' ? '' : ` That leaves ${team} at ${recordText(tableRow)} through Week ${week}${Number(league.settings?.league_average_match) === 1 ? ', including median results' : ''}.`;
+                const paragraphs = story.body.split('\n\n');
+                paragraphs.splice(1, 0, result + record);
+                story.body = paragraphs.join('\n\n');
+            });
         }
         // Selections add editorial priority, not invented head-to-head history.
         const previews = [], rivals = [], followed = new Map();
