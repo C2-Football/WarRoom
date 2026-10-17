@@ -29,7 +29,7 @@ s.seedRuling={reason:'League tiebreak',ids:s.teams.slice(0,8)};assert.equal(C.qu
 s.seedRuling.ids[1]='1';assert.throws(()=>C.qualifiers(s),/different/);
 console.log('Configurable Cup: league sizes, odd-team byes, round robin fairness, seed placement, calendar bounds and ties passed');
 
-assert.deepEqual(T.formats.map(f=>f.id),['points','round-robin','all-play','median','knockout','survivor']);
+assert.deepEqual(T.formats.map(f=>f.id),['points','round-robin','all-play','median','knockout','survivor','round-robin-double']);
 assert.ok(T.formats.every(f=>f.name&&f.tagline&&f.description));
 for(const format of T.formats.map(f=>f.id))for(const teams of [[],['2']]){
  const incomplete=T.configure(league(6),format,{teams});

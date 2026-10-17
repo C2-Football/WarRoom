@@ -51,6 +51,17 @@
 .cup-locked-status { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 14px; border: 1px solid var(--cup-line); border-radius: 8px; background: var(--cup-ground); font-size: .8rem; }
 .cup-locked-status strong { color: var(--cup-teal); }
 .cup-locked-status span { color: #d2e5e1; overflow-wrap: anywhere; }
+.cup-studio .cup-options { position: relative; margin: 0; padding: 0; border: 0; background: transparent; }
+.cup-studio .cup-options > summary { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--cup-line); border-radius: 8px; color: var(--silver); cursor: pointer; list-style: none; white-space: nowrap; }
+.cup-options > summary::-webkit-details-marker { display: none; }
+.cup-options > div { position: absolute; z-index: 4; right: 0; top: calc(100% + 6px); display: grid; min-width: 170px; padding: 6px; gap: 4px; border: 1px solid var(--cup-line); border-radius: 10px; background: var(--surf-solid, #15243a); box-shadow: 0 10px 24px rgba(0,0,0,.3); }
+.cup-options > div button { width: 100%; text-align: left; }
+.cup-edit-notice, .cup-rules { padding: 12px 14px; border: 1px solid var(--cup-line); border-radius: 10px; background: var(--cup-ground); }
+.cup-edit-notice strong { color: var(--cup-teal); font-size: .85rem; }
+.cup-edit-notice p, .cup-rules p { margin: 6px 0 0; font-size: .8rem; line-height: 1.5; }
+.cup-match-stage { display: block; padding: 5px 0; color: var(--cup-teal); font: 600 .65rem var(--font-mono); }
+.cup-bracket-lower { border-left: 3px solid var(--gold); }
+.cup-bracket-final, .cup-bracket-reset { border-color: var(--cup-teal); }
 .cup-studio .cup-primary { background: var(--cup-teal); color: #102421; font-weight: 700; border-color: var(--cup-teal); }
 .cup-studio .cup-primary:hover { filter: brightness(1.08); }
 .cup-plan-preview { background: radial-gradient(ellipse at 100% 0,rgba(101,222,198,.09),transparent 70%),#101b21; border-color: var(--cup-line); }
@@ -121,6 +132,7 @@
     .la-mobile .cup-panel.cup-studio .cup-format-chooser .cup-section-heading h3 { font-size:12px; }
     .la-mobile .cup-panel.cup-studio .cup-format-chooser .cup-section-heading > span { font-size:11px !important; line-height:1.25; }
     .la-mobile .cup-panel.cup-studio .cup-format-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .la-mobile .cup-panel.cup-studio .cup-format-card[data-format="round-robin-double"] { grid-column:1 / -1; }
     .la-mobile .cup-panel.cup-studio .cup-format-card { min-height:64px; align-items:center; gap:7px; padding:8px; }
     .la-mobile .cup-panel.cup-studio .cup-format-icon { flex-basis:26px; width:26px; height:28px; font-size:1rem; }
     .la-mobile .cup-panel.cup-studio .cup-format-copy { gap:1px; }

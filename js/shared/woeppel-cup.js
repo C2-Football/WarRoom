@@ -58,12 +58,84 @@
         {id:'all-play',name:'All-play',tagline:'Face the whole field',description:'Each week earn one point per opponent beaten and half a point per tied opponent, then qualify for knockouts.'},
         {id:'median',name:'Beat the median',tagline:'Clear the weekly midpoint',description:'Earn one point above the weekly median and half a point when tied with it, then qualify for knockouts.'},
         {id:'knockout',name:'Knockout',tagline:'Win and advance',description:'Go straight into a seeded elimination bracket. Participant order sets the seeds; top seeds receive any byes.'},
-        {id:'survivor',name:'Survivor',tagline:'Stay above the cut',description:'Cut the lowest scores each week until one team remains. Ties at the cut require a commissioner ruling.'}
+        {id:'survivor',name:'Survivor',tagline:'Stay above the cut',description:'Cut the lowest scores each week until one team remains. Ties at the cut require a commissioner ruling.'},
+        {id:'round-robin-double',name:'Round robin + double elimination',tagline:'Qualify, then get a second chance',description:'Play complete round-robin cycles for Cup points. Qualifiers enter upper and lower brackets; a second loss eliminates a team. An undefeated finalist must be beaten twice.'}
     ];
-    const qualifyingFormats = new Set(['points','round-robin','all-play','median']);
+    const qualifyingFormats = new Set(['points','round-robin','all-play','median','round-robin-double']);
+    const isDoubleElimination = s => (typeof s === 'string' ? s : s?.format) === 'round-robin-double';
+    const isRoundRobin = s => s.format === 'round-robin' || isDoubleElimination(s);
     const cents = value => Math.round(value * 100);
     function roundCount(s) {
-        return s.format === 'survivor' ? 0 : s.format === 'knockout' ? Math.ceil(Math.log2(Math.max(2,s.teams.length))) : Math.log2(s.qualifierCount);
+        return s.format === 'survivor' ? 0 : s.format === 'knockout' ? Math.ceil(Math.log2(Math.max(2,s.teams.length))) : isDoubleElimination(s) ? 2 * Math.log2(s.qualifierCount) + 1 : Math.log2(s.qualifierCount);
+    }
+    function stageLabel(s, week) {
+        if (!isDoubleElimination(s)) return null;
+        const offset = Number(week) - s.knockoutStart, upperRounds = Math.log2(s.qualifierCount);
+        if (offset < 0) return Number(week) >= s.startWeek && Number(week) < s.startWeek + s.groupWeeks ? 'Round-robin qualifying' : null;
+        if (offset === upperRounds * 2 - 1) return 'Championship';
+        if (offset === upperRounds * 2) return 'Championship reset · if needed';
+        const labels = [];
+        if (offset < upperRounds) labels.push('Upper round ' + (offset + 1));
+        if (offset >= 1 && offset <= upperRounds * 2 - 2) labels.push('Lower round ' + offset);
+        return labels.join(' + ') || null;
+    }
+    // Each array is one fantasy week. Upper and lower matches can share a
+    // week, but their participants are disjoint: a team never uses one score
+    // for two games. Lower-bracket entrants cross adjacent upper branches to
+    // avoid an immediate rematch where the field permits it.
+    function doubleElimination(s) {
+        if (!isDoubleElimination(s)) return [];
+        const initial = tournament.bracket(s), count = Math.log2(s.qualifierCount);
+        const upperWins = {}, upperLosses = {}, lowerWins = {}, rounds = [];
+        let championship = null;
+        const pair = ids => Array.from({ length: ids.length / 2 }, (_, i) => [ids[i * 2], ids[i * 2 + 1]]);
+        const play = (pairs, week, bracket, round, label, conditional = false) => pairs.map(([a, b]) => {
+            const record = s.weeks[week], x = record?.scores?.[a], y = record?.scores?.[b];
+            const ruling = s.tieRulings?.[week + ':' + a + ':' + b];
+            const complete = record?.final && Number.isFinite(x) && Number.isFinite(y);
+            const winner = complete ? x !== y ? (x > y ? a : b) : ruling?.reason?.trim() && [a, b].includes(ruling.winner) ? ruling.winner : null : null;
+            return { week, a, b, x, y, winner, loser: winner ? winner === a ? b : a : null, bye: false,
+                bracket, round, stageLabel: label, conditional, blocked: !winner,
+                reason: winner ? null : !record?.final ? 'Finalize this week before advancing.'
+                    : !Number.isFinite(x) || !Number.isFinite(y) ? 'Finalized week has missing scores.' : 'The match is tied. Record a commissioner tiebreak ruling.' };
+        });
+        for (let offset = 0; offset < roundCount(s); offset++) {
+            const week = s.knockoutStart + offset, matches = [];
+            if (offset < count) {
+                const round = offset + 1;
+                const upper = play(round === 1 ? initial : pair(upperWins[round - 1]), week, 'upper', round, 'Upper bracket · Round ' + round);
+                matches.push(...upper);
+                upperWins[round] = upper.map(match => match.winner);
+                upperLosses[round] = upper.map(match => match.loser);
+            }
+            if (offset >= 1 && offset <= count * 2 - 2) {
+                const round = offset;
+                let pairs;
+                if (round === 1) pairs = pair(upperLosses[1]);
+                else if (round % 2 === 1) pairs = pair(lowerWins[round - 1]);
+                else {
+                    const entrants = upperLosses[round / 2 + 1], waiting = lowerWins[round - 1];
+                    pairs = entrants.map((id, i) => [id, waiting[waiting.length > 1 ? i ^ 1 : i]]);
+                }
+                const lower = play(pairs, week, 'lower', round, 'Lower bracket · Round ' + round);
+                matches.push(...lower);
+                lowerWins[round] = lower.map(match => match.winner);
+            }
+            if (offset === count * 2 - 1) {
+                const upper = upperWins[count][0], lower = count === 1 ? upperLosses[1][0] : lowerWins[count * 2 - 2][0];
+                championship = play([[upper, lower]], week, 'final', 1, 'Championship')[0];
+                matches.push(championship);
+            }
+            if (offset === count * 2) {
+                // The upper finalist arrived undefeated. Only its first loss
+                // opens the reserved reset week; otherwise the Cup is complete.
+                if (championship.winner === championship.a) break;
+                matches.push(...play([[championship.a, championship.b]], week, 'reset', 2, 'Championship reset', true));
+            }
+            rounds.push(matches);
+            if (matches.some(match => !match.winner)) break;
+        }
+        return rounds;
     }
     function survivorStages(s) {
         const stages = [], usedRulings = new Set();
@@ -102,18 +174,23 @@
         return stages;
     }
     const tournament = {
-        formats, roundCount,
+        formats, roundCount, isDoubleElimination, doubleElimination, stageLabel,
         configure(league,format,existing) {
             if(!formats.some(f=>f.id===format))throw Error('Choose a tournament format.');
             const all=(league.rosters||[]).map(r=>String(r.roster_id));
             const selected=Array.isArray(existing?.teams)?existing.teams.filter(id=>all.includes(id)):[];
             const teams=Array.isArray(existing?.teams)?selected:all;
-            const size=2**Math.floor(Math.log2(Math.max(2,Math.min(8,teams.length))));
+            let size=2**Math.floor(Math.log2(Math.max(2,Math.min(8,teams.length))));
+            const cycleWeeks=Math.max(1,teams.length%2?teams.length:teams.length-1);
+            // Prefer the largest practical final field, keeping the full RR
+            // cycle and a possible reset. Even two qualifiers cannot make an
+            // oversized participating field fit; validation explains that case.
+            if(isDoubleElimination(format))while(size>2&&cycleWeeks+2*Math.log2(size)+1>18)size/=2;
             const end=Math.max(3,Math.min(18,(Number(league.settings?.playoff_week_start)||15)-1));
             const s={version:2,name:existing?.name||'League Cup',enabled:existing?.enabled===true,locked:false,teams,format,startWeek:1,groupWeeks:3,knockoutStart:1,qualifierCount:size,drawMargin:Number.isFinite(existing?.drawMargin)?existing.drawMargin:0,weeks:{}};
             if(format==='knockout') {s.groupWeeks=0;s.qualifierCount=teams.length;s.startWeek=Math.max(1,end-Math.ceil(Math.log2(Math.max(2,teams.length)))+1);s.knockoutStart=s.startWeek;}
             else if(format==='survivor') {s.qualifierCount=1;s.groupWeeks=Math.max(1,Math.min(3,teams.length-1,end));s.startWeek=end-s.groupWeeks+1;s.knockoutStart=s.startWeek;}
-            else {const rounds=Math.log2(size);s.groupWeeks=format==='round-robin'?Math.max(1,teams.length%2?teams.length:teams.length-1):Math.min(3,end-rounds);s.startWeek=Math.max(1,end-rounds-s.groupWeeks+1);s.knockoutStart=s.startWeek+s.groupWeeks;}
+            else {const rounds=isDoubleElimination(format)?2*Math.log2(size)+1:Math.log2(size);s.groupWeeks=isRoundRobin(s)?cycleWeeks:Math.min(3,end-rounds);s.startWeek=Math.max(1,end-rounds-s.groupWeeks+1);s.knockoutStart=s.startWeek+s.groupWeeks;}
             return s;
         },
         defaults(league) {return tournament.configure(league,'points');},
@@ -132,14 +209,15 @@
                 survivorStages(s);
             } else {
                 if(!Number.isInteger(s.qualifierCount)||s.qualifierCount<2||s.qualifierCount>s.teams.length||!Number.isInteger(Math.log2(s.qualifierCount)))throw Error('Knockout field must be 2, 4, 8, 16, 32 or 64 teams, within the participating field.');
-                if(s.startWeek<1||s.groupWeeks<1||s.knockoutStart<s.startWeek+s.groupWeeks||s.knockoutStart+roundCount(s)-1>18)throw Error('Choose non-overlapping qualifying and knockout weeks within Weeks 1–18.');
+                if(isDoubleElimination(s)&&s.groupWeeks+roundCount(s)>18)throw Error('This round robin + double-elimination field needs '+(s.groupWeeks+roundCount(s))+' weeks, including a possible championship reset. Choose fewer teams or fewer qualifiers to fit Weeks 1–18.');
+                if(s.startWeek<1||s.groupWeeks<1||s.knockoutStart<s.startWeek+s.groupWeeks||s.knockoutStart+roundCount(s)-1>18)throw Error(isDoubleElimination(s)?'Choose non-overlapping round-robin and double-elimination weeks, including a possible championship reset, within Weeks 1–18.':'Choose non-overlapping qualifying and knockout weeks within Weeks 1–18.');
                 const cycle=s.teams.length%2?s.teams.length:s.teams.length-1;
-                if(s.format==='round-robin'&&s.groupWeeks%cycle!==0)throw Error('Round robin needs a complete '+cycle+'-week cycle so every team plays equally.');
+                if(isRoundRobin(s)&&s.groupWeeks%cycle!==0)throw Error('Round robin needs a complete '+cycle+'-week cycle so every team plays equally.');
             }
         },
         schedule(s){return s.format==='survivor'?Array.from({length:s.groupWeeks},(_,i)=>s.startWeek+i):s.format==='knockout'?Array.from({length:roundCount(s)},(_,i)=>s.startWeek+i):[...Array.from({length:s.groupWeeks},(_,i)=>s.startWeek+i),...Array.from({length:roundCount(s)},(_,i)=>s.knockoutStart+i)];},
         fixtures(s){
-            tournament.validate(s);if(s.format!=='round-robin')return s.format==='knockout'?tournament.bracket(s).map(([a,b])=>({week:s.startWeek,a,b,bye:b===null})):[];
+            tournament.validate(s);if(!isRoundRobin(s))return s.format==='knockout'?tournament.bracket(s).map(([a,b])=>({week:s.startWeek,a,b,bye:b===null})):[];
             const ring=[...s.teams];if(ring.length%2)ring.push(null);const out=[];
             for(let i=0;i<s.groupWeeks;i++){
                 for(let j=0;j<ring.length/2;j++)if(ring[j]!==null&&ring[ring.length-1-j]!==null)out.push({week:s.startWeek+i,a:ring[j],b:ring[ring.length-1-j]});
@@ -190,6 +268,7 @@
         },
         knockout(s){
             if(s.format==='survivor'){tournament.validate(s);return [];}
+            if(isDoubleElimination(s))return doubleElimination(s);
             let pairs=tournament.bracket(s);const rounds=[];
             for(let i=0;i<roundCount(s);i++){
                 const week=s.knockoutStart+i,w=s.weeks[week];
@@ -213,7 +292,7 @@
                 return [...stage.active];
             }
             const matches=tournament.knockout(s).flat().filter(m=>m.week===week);
-            if(!matches.length)throw Error('Resolve prior knockout rounds before finalizing this week.');
+            if(!matches.length)throw Error(isDoubleElimination(s)&&tournament.result(s)?'This Cup is complete; no championship reset is needed.':'Resolve prior knockout rounds before finalizing this week.');
             return matches.filter(m=>!m.bye).flatMap(m=>[m.a,m.b]);
         },
         result(s){
@@ -226,11 +305,17 @@
             }
             let rounds;try{rounds=tournament.knockout(s);}catch(e){if(/Finalize|tied|missing scores/.test(e.message))return null;throw e;}
             const final=rounds.at(-1)?.[0];
+            if(isDoubleElimination(s)){
+                if(!final?.winner||!['final','reset'].includes(final.bracket))return null;
+                if(final.bracket==='final'&&final.winner!==final.a)return null;
+                const runnerUp=final.winner===final.a?final.b:final.a;
+                return {champion:final.winner,runnerUp,winnerScore:final.winner===final.a?final.x:final.y,runnerScore:final.winner===final.a?final.y:final.x,week:final.week};
+            }
             if(rounds.length!==roundCount(s)||rounds.at(-1).length!==1||!final?.winner)return null;
             const runnerUp=final.winner===final.a?final.b:final.a;
             return {champion:final.winner,runnerUp,winnerScore:final.winner===final.a?final.x:final.y,runnerScore:final.winner===final.a?final.y:final.x,week:final.week};
         }
     };
-    const api={tournament,formats,configure:tournament.configure,roundCount,survivor:tournament.survivor,result:tournament.result,schedule:tournament.schedule,requiredScoreIds:tournament.requiredScoreIds,...Object.fromEntries(Object.keys(legacy).map(k=>[k,s=>s?.version===2?tournament[k](s):legacy[k](s)]))};root.WoeppelCup=api;
+    const api={tournament,formats,configure:tournament.configure,roundCount,isDoubleElimination,doubleElimination,stageLabel,survivor:tournament.survivor,result:tournament.result,schedule:tournament.schedule,requiredScoreIds:tournament.requiredScoreIds,...Object.fromEntries(Object.keys(legacy).map(k=>[k,s=>s?.version===2?tournament[k](s):legacy[k](s)]))};root.WoeppelCup=api;
     if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

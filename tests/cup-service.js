@@ -58,5 +58,6 @@ const scores=Object.fromEntries(state.teams.map(id=>[id,10]));
  assert.equal((await call(state,-1)).status,400);assert.equal((await call(state,'1')).status,400);
  conflict=true;assert.equal((await call(state,1)).status,409);conflict=false;
  duplicate=true;assert.equal((await call(state,0)).status,409);duplicate=false;
- console.log('Cup service: six formats, byes, permissions, scores, rulings, pending ties and revision conflicts passed');
+ await require('./cup-service-transitions.cjs')({Cup,code,rosters});
+ console.log('Cup service: supported formats, byes, permissions, scores, rulings, pending ties and revision conflicts passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

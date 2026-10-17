@@ -55,7 +55,7 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     async function finishSave() { assert.equal(config.pendingSaves.length, 1, 'Exactly one save is awaiting the server'); config.pendingSaves.shift()(); return flush(); }
     async function backgroundRefresh() { intervals.forEach(fn => fn()); return flush(); }
     async function finishLoad() { assert.equal(config.pendingLoads.length, 1, 'Exactly one refresh is awaiting the server'); config.pendingLoads.shift()(); return flush(); }
-    return { calls, config, storage, flush, click, choose, rename, finishSave, backgroundRefresh, finishLoad, get tree() { return tree; } };
+    return { calls, config, storage, flush, click, choose, rename, finishSave, backgroundRefresh, finishLoad, prepareEdit: (original, draft) => structuredClone(context.prepareCupEdit(original, draft, Cup.tournament)), get tree() { return tree; } };
 }
 (async () => {
     const loading = harness({ canManage: true, deferLoads: true }); await loading.flush();
@@ -72,7 +72,7 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     // Rejected authentication never hides the usable gallery or authorizes writes.
     for (const format of Cup.tournament.formats) {
         const app = harness({ deny: true }); await app.flush();
-        assert.equal(walk(app.tree).filter(node => node.props?.role === 'radio').length, 6);
+        assert.equal(walk(app.tree).filter(node => node.props?.role === 'radio').length, Cup.tournament.formats.length);
         assert(text(app.tree).includes('Explore now. Connect to save.'));
         assert(text(app.tree).includes('A member sign-in is required.'));
         assert.equal(find(app.tree, node => node.type === 'a' && text(node) === 'Open sign-in').props.href, '../login.html?reauth=1');
@@ -102,7 +102,7 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
         assert(button(app.tree, 'Play next sample week'));
     }
     const member = harness(); await member.flush();
-    assert.equal(walk(member.tree).filter(node => node.props?.role === 'radio').length, 6);
+    assert.equal(walk(member.tree).filter(node => node.props?.role === 'radio').length, Cup.tournament.formats.length);
     assertSaveBlocked(member.tree, 'View-only member');
     assert.match(text(saveActions(member.tree)), /commissioner|sign.in/i, 'Member save actions explain the required sign-in');
     assert(find(saveActions(member.tree), node => node.type === 'a' && node.props.href === '../login.html?reauth=1'), 'Member sign-in is available beside the save actions');
@@ -239,7 +239,104 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     assert(text(connected.tree).includes('Real Shared Cup'));
     assert(!text(connected.tree).includes('SAMPLE CUP'));
     assert.equal(Object.keys(connected.config.saved.weeks).length, 0, 'Exploring sample scores never mutates saved Cup');
-    assert.equal(find(connected.tree, node => node.type === 'input' && node.props.maxLength === 80).props.value, 'Real Shared Cup', 'Returning to active Cup restores its saved name, not the sample name');
+    assert.equal(text(find(connected.tree, node => node.type === 'h2')), 'Real Shared Cup', 'Returning to active Cup restores its saved name, not the sample name');
+
+    // Started Cups stay editable without unlocking or writing on entry/cancel.
+    const started = { ...Cup.tournament.defaults(league), name: 'Started Cup', locked: true, enabled: true };
+    const originalScores = Object.fromEntries(started.teams.map((id, i) => [id, 110 - i * 10]));
+    for (let w = started.startWeek; w < started.startWeek + started.groupWeeks; w++) started.weeks[w] = { final: true, scores: structuredClone(originalScores) };
+    started.weeks[started.knockoutStart] = { final: true, scores: structuredClone(originalScores) };
+    const editor = harness({ canManage: true, saved: structuredClone(started) }); await editor.flush();
+    assert(button(editor.tree, 'Edit Cup'), 'Started Cup has a visible commissioner edit action');
+    assert(!find(editor.tree, node => node.props?.className === 'cup-rules'), 'Rules are absent from the live view by default');
+    await editor.click('Rules');
+    assert(find(editor.tree, node => node.props?.className === 'cup-rules'), 'Rules remain available on request');
+    await editor.click('Close rules');
+    assert(!find(editor.tree, node => node.props?.className === 'cup-rules'));
+    await editor.click('Edit Cup');
+    assert.equal(writes(editor).length, 0, 'Entering editing never unlocks or writes the Cup');
+    assert(button(editor.tree, 'Save Cup changes').props.disabled, 'Unchanged saved setup does not create a revision');
+    await editor.rename('Cup Name Only');
+    await editor.click('Save Cup changes');
+    assert.equal(writes(editor).at(-1).revision, 3);
+    assert.equal(writes(editor).at(-1).state.locked, true, 'Editing preserves the shared lock');
+    assert.deepEqual(writes(editor).at(-1).state.weeks, started.weeks, 'Name edits preserve all finalized scores');
+    assert(text(editor.tree).includes('Cup changes saved.'));
+    await editor.click('Edit Cup'); await editor.rename('Discard this name'); await editor.click('Cancel');
+    assert.equal(writes(editor).length, 1, 'Cancel does not save or unlock');
+    assert.equal(text(find(editor.tree, node => node.type === 'h2')), 'Cup Name Only');
+
+    const structural = harness({ canManage: true, saved: structuredClone(started) }); await structural.flush();
+    await structural.click('Edit Cup');
+    const advancing = find(structural.tree, node => node.type === 'select' && node.props.value === started.qualifierCount);
+    advancing.props.onChange({ target: { value: '2' } }); await structural.flush();
+    assert(text(structural.tree).includes('1 finalized score week will need review'), 'Impact is visible before saving a changed bracket');
+    assert.deepEqual(structural.config.saved, started, 'Draft edits leave the shared Cup unchanged');
+    await structural.click('Save Cup changes');
+    const adjusted = writes(structural).at(-1).state;
+    assert.equal(adjusted.locked, true);
+    assert.equal(adjusted.qualifierCount, 2);
+    for (let w = started.startWeek; w < started.knockoutStart; w++) assert.deepEqual(adjusted.weeks[w], started.weeks[w], 'Unaffected qualifying result stays final');
+    assert.deepEqual(adjusted.weeks[started.knockoutStart].scores, originalScores, 'Affected score evidence remains available');
+    assert.equal(adjusted.weeks[started.knockoutStart].final, false, 'Changed bracket needs review before its results count');
+
+    const robin = { ...Cup.tournament.configure(league, 'round-robin'), locked: true, enabled: true, startWeek: 1, groupWeeks: 5, knockoutStart: 6, weeks: {} };
+    for (let w = 1; w <= 6; w++) robin.weeks[w] = { final: true, scores: structuredClone(originalScores) };
+    const robinToDouble = structural.prepareEdit(robin, { ...robin, format: 'round-robin-double' });
+    for (let w = 1; w <= 5; w++) assert.deepEqual(robinToDouble.state.weeks[w], robin.weeks[w], 'Choosing double elimination keeps an unchanged round-robin qualifying stage final');
+    assert.equal(robinToDouble.state.weeks[6].final, false);
+    assert.equal(robinToDouble.reviewWeeks, 1, 'Only the changed bracket needs review');
+
+    const survivalEditState = { ...Cup.tournament.configure(league, 'survivor', { teams: ['1', '2', '3', '4'] }), locked: true, enabled: true, startWeek: 1, knockoutStart: 1, groupWeeks: 2,
+        weeks: { 1: { final: true, scores: { '1': 20, '2': 10, '3': 10, '4': 0 } } }, survivorRulings: { 1: { ids: ['1', '2'], reason: 'Agreed cutoff tiebreak' } } };
+    const survivalEditor = harness({ canManage: true, saved: survivalEditState }); await survivalEditor.flush();
+    await survivalEditor.click('Edit Cup');
+    find(survivalEditor.tree, node => node.type === 'input' && node.props.type === 'number' && node.props.value === 2).props.onChange({ target: { value: '3' } }); await survivalEditor.flush();
+    assert(!button(survivalEditor.tree, 'Save Cup changes').props.disabled, 'Obsolete cutoff rulings do not block a valid duration change');
+    await survivalEditor.click('Save Cup changes');
+    const survivalAdjusted = writes(survivalEditor).at(-1).state;
+    assert.equal(survivalAdjusted.weeks[1].final, false, 'Survivor duration changes require review from the first cut');
+    assert.deepEqual(survivalAdjusted.weeks[1].scores, survivalEditState.weeks[1].scores);
+    assert.deepEqual(survivalAdjusted.survivorRulings, {}, 'Old cut-size rulings are cleared before validation');
+
+    const editFailure = harness({ canManage: true, saved: structuredClone(started), saveError: 'The Cup changed in another session. Refresh before editing.' }); await editFailure.flush();
+    await editFailure.click('Edit Cup'); await editFailure.rename('Keep this correction'); await editFailure.click('Save Cup changes');
+    assert.equal(editFailure.config.saved.name, 'Started Cup', 'Conflict cannot overwrite the server Cup');
+    assert(button(editFailure.tree, 'Save Cup changes'), 'Rejected edit remains open for recovery');
+    assert.equal(find(editFailure.tree, node => node.type === 'input' && node.props.maxLength === 80).props.value, 'Keep this correction');
+    assert(!text(editFailure.tree).includes('Cup changes saved.'), 'Conflict never claims a confirmed save');
+
+    const editPending = harness({ canManage: true, saved: structuredClone(started), deferSaves: true }); await editPending.flush();
+    await editPending.click('Edit Cup'); await editPending.rename('Pending correction');
+    const saveCorrection = button(editPending.tree, 'Save Cup changes').props.onClick;
+    saveCorrection(); saveCorrection(); await editPending.flush();
+    assert.equal(writes(editPending).length, 1, 'Rapid edit saves send one revision');
+    assert(button(editPending.tree, 'Cancel').props.disabled, 'Cancel cannot race a pending save');
+    assert.equal(editPending.config.saved.name, started.name);
+    await editPending.finishSave();
+    assert.equal(text(find(editPending.tree, node => node.type === 'h2')), 'Pending correction');
+    const readonlyStarted = harness({ saved: structuredClone(started) }); await readonlyStarted.flush();
+    assert(!button(readonlyStarted.tree, 'Edit Cup'), 'View-only members never receive commissioner edits');
+    await readonlyStarted.click('Explore formats'); await readonlyStarted.choose('round-robin-double');
+    assert(!button(readonlyStarted.tree, 'Save Cup changes'), 'Format exploration never becomes edit authority');
+    assert.equal(writes(readonlyStarted).length, 0);
+
+    const doubleState = { ...Cup.tournament.configure(league, 'round-robin-double', { teams: ['1', '2'] }), locked: true, enabled: true };
+    doubleState.weeks[doubleState.startWeek] = { final: true, scores: { '1': 200, '2': 100 } };
+    doubleState.weeks[doubleState.knockoutStart] = { final: true, scores: { '1': 90, '2': 110 } };
+    const oneLoss = harness({ saved: structuredClone(doubleState) }); await oneLoss.flush();
+    const yourCup = app => find(app.tree, node => node.props?.className === 'cup-your-team');
+    assert.match(text(yourCup(oneLoss)), /Still in the hunt/, 'First double-elimination loss does not mark your team knocked out');
+    doubleState.weeks[doubleState.knockoutStart + 1] = { final: true, scores: { '1': 90, '2': 110 } };
+    const twoLosses = harness({ saved: structuredClone(doubleState) }); await twoLosses.flush();
+    assert.match(text(yourCup(twoLosses)), /Knocked out/, 'Second double-elimination loss ends the run');
+    assert(text(twoLosses.tree).includes('Not needed · champion decided'), 'An unbeaten champion does not leave a pending reset');
+    doubleState.weeks[doubleState.knockoutStart + 1].scores = { '1': 120, '2': 100 };
+    const resetPending = harness({ saved: structuredClone(doubleState) }); await resetPending.flush();
+    assert.match(text(yourCup(resetPending)), /Still in the hunt/, 'Both finalists stay alive after the first championship upset');
+    doubleState.weeks[doubleState.knockoutStart + 2] = { final: true, scores: { '1': 120, '2': 100 } };
+    const resetChampion = harness({ saved: structuredClone(doubleState) }); await resetChampion.flush();
+    assert.match(text(yourCup(resetChampion)), /Champion/, 'A champion who previously lost is displayed correctly');
 
     const scoreApp = harness({ canManage: true, saved: structuredClone(saved) }); await scoreApp.flush();
     scoreApp.config.matchups = league.rosters.map((roster, i) => ({ roster_id: roster.roster_id, points: 100 + i, ...(i === 0 ? { custom_points: 0 } : i === 1 ? { custom_points: -2.25 } : {}) }));
@@ -286,5 +383,5 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     const backup = JSON.parse(legacyRace.storage.get('wr_woeppel_v1_' + league.league_id + '_' + league.season));
     assert.equal(backup.locked, true, 'Legacy local backup records the confirmed server lock');
     assert.deepEqual(backup.groups, legacyDraw.groups);
-    console.log('PASS Cup panel: discoverable permission-aware saves, connection retry and draft preservation, explicit save-and-lock, draft/remount persistence, duplicate-tap guards, six sample formats, score overrides, refresh preservation, legacy routing and save/refresh races');
+    console.log('PASS Cup panel: discoverable permission-aware saves, connection retry and draft preservation, explicit save-and-lock, draft/remount persistence, duplicate-tap guards, all sample formats, score overrides, refresh preservation, legacy routing and save/refresh races');
 })().catch(error => { console.error(error); process.exitCode = 1; });

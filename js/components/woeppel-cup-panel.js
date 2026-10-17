@@ -60,6 +60,35 @@ function LegacyWoeppelCupPanel({ league, getOwnerName, myRoster }) {
 }
 
 
+// Editing changes the tournament plan, never the underlying fantasy scores.
+// Keep unaffected results final and require review from the first changed stage.
+function prepareCupEdit(original, draft, engine) {
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const fieldChanged = !same(original.teams, draft.teams);
+    const roundRobinStage = format => ['round-robin', 'round-robin-double'].includes(format);
+    const bracketChanged = original.format !== draft.format && roundRobinStage(original.format) && roundRobinStage(draft.format);
+    const qualifyingChanged = fieldChanged || original.format !== draft.format && !bracketChanged || original.startWeek !== draft.startWeek || original.drawMargin !== draft.drawMargin;
+    let reviewFrom = qualifyingChanged ? Math.min(original.startWeek, draft.startWeek) : Infinity;
+    if (original.groupWeeks !== draft.groupWeeks) reviewFrom = Math.min(reviewFrom, original.format === 'survivor' || draft.format === 'survivor' ? Math.min(original.startWeek, draft.startWeek) : Math.min(original.startWeek + original.groupWeeks, draft.startWeek + draft.groupWeeks));
+    if (bracketChanged || original.qualifierCount !== draft.qualifierCount || original.knockoutStart !== draft.knockoutStart) reviewFrom = Math.min(reviewFrom, original.knockoutStart, draft.knockoutStart);
+    const scheduled = new Set(engine.schedule(draft));
+    const state = { ...draft, locked: true, enabled: original.enabled, weeks: {} };
+    let omittedWeeks = 0, reviewWeeks = 0;
+    for (const [week, record] of Object.entries(original.weeks || {})) {
+        if (!scheduled.has(Number(week))) { omittedWeeks++; continue; }
+        const scores = Object.fromEntries(Object.entries(record.scores || {}).filter(([id]) => draft.teams.includes(id)));
+        const final = record.final && Number(week) < reviewFrom;
+        if (record.final && !final) reviewWeeks++;
+        state.weeks[week] = { ...record, scores, final };
+    }
+    const keepRuling = key => Number(key.split(':')[0]) < reviewFrom && scheduled.has(Number(key.split(':')[0]));
+    state.tieRulings = Object.fromEntries(Object.entries(original.tieRulings || {}).filter(([key]) => keepRuling(key)));
+    state.survivorRulings = Object.fromEntries(Object.entries(original.survivorRulings || {}).filter(([key]) => keepRuling(key)));
+    state.seedRuling = qualifyingChanged || original.groupWeeks !== draft.groupWeeks || original.qualifierCount !== draft.qualifierCount ? null : original.seedRuling || null;
+    engine.validate(state);
+    return { state, reviewWeeks, omittedWeeks, changed: original.name !== draft.name || Number.isFinite(reviewFrom), structural: Number.isFinite(reviewFrom) };
+}
+
 function WoeppelCupPanel(props) {
     const { league, getOwnerName, myRoster } = props;
     const engine = window.WoeppelCup.tournament;
@@ -73,6 +102,8 @@ function WoeppelCupPanel(props) {
     const [error, setError] = React.useState('');
     const [notice, setNotice] = React.useState('');
     const [explore, setExplore] = React.useState(false);
+    const [editing, setEditing] = React.useState(false);
+    const [showRules, setShowRules] = React.useState(false);
     const [sample, setSample] = React.useState(null);
     const [week, setWeek] = React.useState(null);
     const [scores, setScores] = React.useState({});
@@ -83,7 +114,9 @@ function WoeppelCupPanel(props) {
     const inFlight = React.useRef(false);
     const name = id => id == null ? 'Bye' : getOwnerName?.(Number(id)) || 'Team ' + id;
     const myId = String(myRoster?.roster_id || '');
-    const icons = { points: '◎', 'round-robin': '↔', 'all-play': '✦', median: '↑', knockout: '⚡', survivor: '♜' };
+    const icons = { points: '◎', 'round-robin': '↔', 'round-robin-double': '⇄', 'all-play': '✦', median: '↑', knockout: '⚡', survivor: '♜' };
+    const isRoundRobin = s => ['round-robin', 'round-robin-double'].includes(s.format);
+    const isDouble = s => s.format === 'round-robin-double';
     const isQualifier = s => !['knockout', 'survivor'].includes(s.format);
     const formatOf = s => formats.find(f => f.id === s.format) || formats[0];
     const call = async body => {
@@ -95,7 +128,7 @@ function WoeppelCupPanel(props) {
         return data;
     };
     const load = async () => {
-        if (inFlight.current) return;
+        if (inFlight.current || editing) return;
         inFlight.current = true;
         setBusy(true);
         try {
@@ -120,6 +153,8 @@ function WoeppelCupPanel(props) {
             setSaved(data.cup.state); setDraft(data.cup.state); touched.current = false;
             setAccess({ ...access, revision: data.cup.revision }); setError('');
             setNotice(next.locked ? 'Saved & locked for your league.' : 'Draft saved for your league. Save & lock when you’re ready.');
+            if (editing) setNotice('Cup changes saved.' + (editPreview?.reviewWeeks ? ' ' + editPreview.reviewWeeks + ' affected score week' + (editPreview.reviewWeeks === 1 ? ' needs' : 's need') + ' review.' : editPreview?.structural ? '' : ' Existing results kept.'));
+            setEditing(false);
             if (next.locked) setExplore(false);
         } catch (e) { setError(e.message); }
         finally { inFlight.current = false; setBusy(false); setSaving(false); }
@@ -129,14 +164,18 @@ function WoeppelCupPanel(props) {
     const chooseFormat = id => {
         editDraft(d => {
             const next = engine.configure(league, id, d);
+            if (editing && isRoundRobin(d) && ['round-robin', 'round-robin-double'].includes(id)) {
+                Object.assign(next, { startWeek: d.startWeek, groupWeeks: d.groupWeeks, knockoutStart: d.knockoutStart, qualifierCount: d.qualifierCount });
+            }
             if (d.name === 'League Cup' || formats.some(f => f.name === d.name)) next.name = formats.find(f => f.id === id).name;
             return next;
         });
     };
-    const active = sample || (saved?.locked && !explore ? saved : null);
+    const active = sample || (saved?.locked && !explore && !editing ? saved : null);
     const state = active || draft;
     let schedule = [], setupError = '', rows = [], rounds = [], survival = [], result = null, bracketNote = '';
-    try { engine.validate(draft); } catch (e) { setupError = e.message; }
+    let editPreview = null;
+    try { if (editing) editPreview = prepareCupEdit(saved, draft, engine); else engine.validate(draft); } catch (e) { setupError = e.message; }
     try { schedule = engine.schedule(state); } catch {}
     const selectedWeek = schedule.includes(week) ? week : schedule[0];
     React.useEffect(() => { setScores(active?.weeks?.[selectedWeek]?.scores || {}); setSurvivorIds([]); }, [active, selectedWeek]);
@@ -221,29 +260,51 @@ function WoeppelCupPanel(props) {
     const saveStatus = saving ? 'Saving your Cup…' : busy || !access && !connection ? 'Checking your Cup connection…'
         : connection ? 'Couldn’t connect. Retry or sign in to save your Cup.'
         : !canManage ? 'Sign in as this league’s commissioner to save your Cup.'
-        : error || setupError || (saved ? (touched.current ? 'Unsaved changes · save & lock when ready.' : 'Draft saved · ready to lock in.') : 'Ready to save for your league.');
+        : error || setupError || (editing ? (touched.current ? 'Unsaved Cup changes.' + (editPreview?.reviewWeeks ? ' ' + editPreview.reviewWeeks + ' score week' + (editPreview.reviewWeeks === 1 ? ' needs' : 's need') + ' review.' : '') + (editPreview?.omittedWeeks ? ' ' + editPreview.omittedWeeks + ' outside the new schedule will be removed.' : '') : 'Your saved Cup is ready to edit.') : saved ? (touched.current ? 'Unsaved changes · save & lock when ready.' : 'Draft saved · ready to lock in.') : 'Ready to save for your league.');
+    const beginEditing = () => {
+        if (!access?.canManage || !saved?.locked || busy || inFlight.current || connection || sample) return;
+        setDraft(saved); touched.current = false; setEditing(true); setExplore(false); setShowRules(false); setNotice(''); setError('');
+    };
+    const cancelEditing = () => {
+        if (inFlight.current) return;
+        setDraft(saved || engine.defaults(league)); touched.current = false; setEditing(false); setExplore(false); setSample(null); setError(''); setNotice('');
+    };
+    const saveEdits = () => { if (editing && editPreview?.changed && !saveBlocked) save(editPreview.state); };
     const points = value => Number.isFinite(value) ? value.toFixed(2) : '—';
     const fixtures = active && isQualifier(active) && selectedWeek < active.knockoutStart ? engine.fixtures(active).filter(f => f.week === selectedWeek) : rounds.flat().filter(f => f.week === selectedWeek);
+    const rulesPanel = active && showRules && <section className="cup-rules" aria-label="Cup rules"><div className="cup-section-heading"><h3>{viewFormat.name} rules</h3><button type="button" onClick={() => setShowRules(false)}>Close rules</button></div><p>{viewFormat.description} {active.format === 'all-play' ? 'Earn 1 Cup point for every opponent beaten and half a point for each tied opponent.' : active.format === 'median' ? 'Earn 1 Cup point above the field’s median score, half a point on the median, and 0 below it.' : isRoundRobin(active) ? 'Wins earn 3 Cup points and draws earn 1; PF breaks standings ties.' : active.format === 'points' ? 'Total qualifying fantasy points set the seeds.' : active.format === 'survivor' ? 'Each round removes enough low scorers to leave one champion in the final week. Only that week’s score determines survival.' : 'Seed order sets the opening bracket. Highest seeds receive byes when needed.'} {isQualifier(active) && (isDouble(active) ? 'Qualifiers enter upper and lower brackets. A second loss eliminates a team. If the unbeaten finalist loses the championship, both finalists play a reset the following week.' : 'The selected qualifiers enter a seeded knockout bracket; PF breaks Cup-points ties.')} Finalized scores count; unresolved exact ties require a commissioner ruling. {sample ? 'This is a sample with illustrative scores.' : 'One shared Cup is stored per league season.'}</p></section>;
     return <section className="cup-panel cup-studio" aria-label="League Cup">
         <header className="cup-hero">
             <span className="cup-studio-emblem" aria-hidden="true">🏆</span>
-            <div><span className="cup-eyebrow">{league.name} · {league.season}</span><h2>{active ? active.name : 'Make it a Cup season.'}</h2><p>{active ? viewFormat.tagline : 'Six ways to compete. One more reason to care about every week.'}</p></div>
-            <div className="cup-hero-actions">{active && <button onClick={() => { setSample(null); setExplore(true); setError(''); }}>Explore formats</button>}{saved?.locked && !active && <button onClick={() => { setExplore(false); setSample(null); setDraft(saved); touched.current = false; }}>Back to your Cup</button>}<button disabled={busy} onClick={load}>{busy ? 'Connecting…' : 'Refresh Cup'}</button></div>
+            <div><span className="cup-eyebrow">{league.name} · {league.season}</span><h2>{editing ? 'Edit ' + saved.name : active ? active.name : 'Make it a Cup season.'}</h2><p>{active ? viewFormat.tagline : 'Choose your competition. Make every week count.'}</p></div>
+            <div className="cup-hero-actions">
+                {active && canManage && <button type="button" className="cup-primary" disabled={busy || !!connection} onClick={beginEditing}>Edit Cup</button>}
+                {active && <details className="cup-options"><summary>Cup options</summary><div>
+                    <button type="button" onClick={event => { setShowRules(value => !value); event?.currentTarget?.closest('details')?.removeAttribute('open'); }}>{showRules ? 'Hide rules' : 'Rules'}</button>
+                    <button type="button" disabled={busy} onClick={() => { setSample(null); setExplore(true); setShowRules(false); setError(''); }}>Explore formats</button>
+                    <button type="button" disabled={busy} onClick={load}>{busy ? 'Connecting…' : 'Refresh Cup'}</button>
+                </div></details>}
+                {saved?.locked && !active && <button type="button" disabled={busy} onClick={cancelEditing}>{editing ? 'Cancel editing' : 'Back to your Cup'}</button>}
+                {!active && !editing && <button type="button" disabled={busy} onClick={load}>{busy ? 'Connecting…' : 'Refresh Cup'}</button>}
+            </div>
         </header>
         {error && <p className="cup-message" role="alert">{error}</p>}{notice && <p className="cup-message" role="status">{notice}</p>}
+        {editing && /changed.*session|refresh before/i.test(error) && <p className="cup-note">Your edits are kept here. Cancel editing and refresh to review the newer saved Cup.</p>}
+        {rulesPanel}
         {!sample && (connection || (access && !access.canManage)) && <div className="cup-connection"><strong>{connection ? 'Explore now. Connect to save.' : 'Commissioner access is needed to save & lock.'}</strong><span>{connection ? 'Format previews work here. Shared setup needs a verified commissioner account.' : 'This sign-in can view the Cup. To save, use your commissioner’s Sleeper username and Dynasty HQ password, or a site administrator account.'}</span>{connection && <details><summary>Connection details</summary><p>{connection}</p></details>}<a href={(window.location?.pathname?.includes('/dist-preview/') ? '../login.html' : 'login.html') + '?reauth=1'}>Open sign-in</a></div>}
         {!active && <>
+            {editing && <section className="cup-edit-notice" aria-label="Cup changes"><strong>Your saved Cup stays active until you save.</strong><p>{editPreview?.reviewWeeks ? editPreview.reviewWeeks + ' finalized score week' + (editPreview.reviewWeeks === 1 ? ' will need' : 's will need') + ' review. Earlier results and compatible scores are kept.' : 'Existing scores are kept. Changes to the field, format or dates may require results to be reviewed.'}</p>{!!editPreview?.omittedWeeks && <p>{editPreview.omittedWeeks} score week{editPreview.omittedWeeks === 1 ? ' falls' : 's fall'} outside the new schedule and will be removed from this Cup.</p>}</section>}
             <div className="cup-format-chooser">
                 <div className="cup-section-heading"><h3>CHOOSE YOUR COMPETITION</h3><span>Uses your league’s weekly fantasy scores</span></div>
                 <div className="cup-format-grid" role="radiogroup" aria-label="Cup format">
-                    {formats.map(f => <button type="button" role="radio" disabled={busy} aria-checked={draft.format === f.id} className={'cup-format-card' + (draft.format === f.id ? ' is-selected' : '')} key={f.id} onClick={() => chooseFormat(f.id)}>
+                    {formats.map(f => <button type="button" role="radio" data-format={f.id} disabled={busy} aria-checked={draft.format === f.id} className={'cup-format-card' + (draft.format === f.id ? ' is-selected' : '')} key={f.id} onClick={() => chooseFormat(f.id)}>
                         <span className="cup-format-icon" aria-hidden="true">{icons[f.id]}</span><span className="cup-format-copy"><strong>{f.name}</strong><span>{f.tagline}</span><small>{f.description}</small></span><span className="cup-format-check" aria-hidden="true">{draft.format === f.id ? '✓' : '○'}</span>
                     </button>)}
                 </div>
                 <div className="cup-format-detail" aria-live="polite"><span className="cup-eyebrow">Selected · {chosen.name}</span><span>{formatWeeks(draft)} · {draft.teams.length} teams</span><p>{chosen.description}</p></div>
             </div>
             <div className="cup-plan-layout">
-                <form className="cup-plan-form" onSubmit={e => { e.preventDefault(); if (!saved?.locked) save({ ...draft, enabled: true, locked: true }); }}>
+                <form className="cup-plan-form" onSubmit={e => { e.preventDefault(); if (editing) saveEdits(); else if (!saved?.locked) save({ ...draft, enabled: true, locked: true }); }}>
                     <fieldset className="cup-plan-controls" disabled={busy}>
                     <h3>Make it yours</h3><label className="cup-field">Cup name<input maxLength={80} required value={draft.name} onChange={e => update('name', e.target.value)} placeholder="Your league’s next tradition"/></label>
                     <div className="cup-plan-fields"><label className="cup-field">First week<input type="number" min="1" max="18" value={draft.startWeek} onChange={e => { const start = Number(e.target.value); editDraft(d => ({ ...d, startWeek: start, knockoutStart: d.knockoutStart + start - d.startWeek })); }}/></label>
@@ -253,20 +314,20 @@ function WoeppelCupPanel(props) {
                         <div className="cup-participants">{(league.rosters || []).map(r => { const id = String(r.roster_id); return <label key={id}><input type="checkbox" checked={draft.teams.includes(id)} onChange={e => { const teams = e.target.checked ? [...draft.teams, id] : draft.teams.filter(x => x !== id); editDraft(d => engine.configure(league, d.format, { ...d, teams })); }}/>{name(id)}</label>; })}</div>
                         {draft.format === 'knockout' && <div className="cup-seeding"><p>Seed order sets the bracket. The highest seeds receive any first-round byes.</p>{draft.teams.map((id, i) => <div key={id}><span><b>{i + 1}</b> {name(id)}</span><button type="button" disabled={i === 0} aria-label={'Move ' + name(id) + ' up one seed'} onClick={() => { const teams = [...draft.teams]; [teams[i - 1], teams[i]] = [teams[i], teams[i - 1]]; update('teams', teams); }}>↑</button></div>)}</div>}
                         {isQualifier(draft) && <label className="cup-field">First knockout week<input type="number" min="2" max="18" value={draft.knockoutStart} onChange={e => update('knockoutStart', Number(e.target.value))}/></label>}
-                        {draft.format === 'round-robin' && <label className="cup-field">Draw margin · fantasy points<input type="number" min="0" max="100" step="0.01" value={draft.drawMargin} onChange={e => update('drawMargin', Number(e.target.value))}/></label>}
+                        {isRoundRobin(draft) && <label className="cup-field">Draw margin · fantasy points<input type="number" min="0" max="100" step="0.01" value={draft.drawMargin} onChange={e => update('drawMargin', Number(e.target.value))}/></label>}
                         <button type="button" onClick={() => editDraft(d => engine.configure(league, d.format, d))}>Suggest dates for this field</button>
                     </details>
                     {setupError && <p className="cup-validation" role="status">{setupError}</p>}
-                    <div className="cup-plan-actions"><button type="button" disabled={!!setupError || busy} onClick={startSample}>Try a sample Cup <span aria-hidden="true">→</span></button></div>
-                    {!saved?.locked && <div className="cup-save-actions" aria-label="Save league Cup" aria-busy={busy}>
+                    {!editing && <div className="cup-plan-actions"><button type="button" disabled={!!setupError || busy} onClick={startSample}>Try a sample Cup <span aria-hidden="true">→</span></button></div>}
+                    {(!saved?.locked || editing) && <div className="cup-save-actions" aria-label={editing ? 'Save Cup changes' : 'Save league Cup'} aria-busy={busy}>
                         <p className="cup-note" role="status">{saveStatus}</p>
                         {!busy && (connection || access && !canManage) && <div className="cup-save-recovery">{connection && <button type="button" onClick={load}>Retry connection</button>}<a href={signInUrl}>Sign in to save</a></div>}
-                        <div className="cup-plan-actions"><button type="button" className="cup-primary" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: true })}>{saving ? 'Saving…' : 'Save & lock Cup'}</button><button type="button" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: false })}>Save draft</button></div>
+                        <div className="cup-plan-actions">{editing ? <><button type="button" className="cup-primary" disabled={saveBlocked || !editPreview?.changed} onClick={saveEdits}>{saving ? 'Saving…' : 'Save Cup changes'}</button><button type="button" disabled={busy} onClick={cancelEditing}>Cancel</button></> : <><button type="button" className="cup-primary" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: true })}>{saving ? 'Saving…' : 'Save & lock Cup'}</button><button type="button" disabled={saveBlocked} onClick={() => save({ ...draft, enabled: true, locked: false })}>Save draft</button></>}</div>
                     </div>}
-                    <p className="cup-note">Save &amp; lock confirms the teams, format and dates for everyone. You can edit setup until the first week is finalized. One shared Cup per league season.</p>
+                    <p className="cup-note">{editing ? 'Saving keeps the Cup locked for your league. Review affected results before finalizing them again.' : 'Save & lock confirms the teams, format and dates for everyone. Commissioners can return to Edit Cup to adjust the setup.'}</p>
                     </fieldset>
                 </form>
-                <aside className="cup-plan-preview" aria-label="Tournament preview"><span className="cup-eyebrow">YOUR CUP AT A GLANCE</span><h3>{draft.name || chosen.name}</h3><p>{chosen.description}</p><div className="cup-plan-numbers"><div><strong>{draft.teams.length}</strong><span>teams</span></div><div><strong>{setupError ? '—' : engine.schedule(draft).length}</strong><span>game weeks</span></div><div><strong>1</strong><span>champion</span></div></div><div className="cup-plan-road"><span>{formatWeeks(draft)}</span><strong>{draft.format === 'survivor' ? 'Survive each cut → Last team standing' : draft.format === 'knockout' ? 'Win and advance → Championship' : 'Qualify → ' + draft.qualifierCount + '-team bracket → Championship'}</strong></div><p className="cup-note">{draft.format === 'round-robin' ? 'Every team plays a full cycle. Odd fields get rotating byes.' : draft.format === 'survivor' ? 'Only this week’s score decides the cut. Earlier points cannot save you.' : draft.format === 'knockout' ? 'One loss ends the run. Set seeds before starting.' : 'Your normal lineup counts. No extra roster to manage.'}</p><p className="cup-note">Suggested dates aim to finish before your league playoffs. You can choose any valid schedule through Week 18.</p></aside>
+                <aside className="cup-plan-preview" aria-label="Tournament preview"><span className="cup-eyebrow">YOUR CUP AT A GLANCE</span><h3>{draft.name || chosen.name}</h3><p>{chosen.description}</p><div className="cup-plan-numbers"><div><strong>{draft.teams.length}</strong><span>teams</span></div><div><strong>{setupError ? '—' : engine.schedule(draft).length}</strong><span>game weeks</span></div><div><strong>1</strong><span>champion</span></div></div><div className="cup-plan-road"><span>{formatWeeks(draft)}</span><strong>{draft.format === 'survivor' ? 'Survive each cut → Last team standing' : draft.format === 'knockout' ? 'Win and advance → Championship' : 'Qualify → ' + draft.qualifierCount + '-team ' + (isDouble(draft) ? 'double-elimination' : '') + ' bracket → Championship'}</strong></div><p className="cup-note">{isDouble(draft) ? 'A full round robin sets the seeds. Two bracket losses eliminate a team; the final can reset.' : isRoundRobin(draft) ? 'Every team plays a full cycle. Odd fields get rotating byes.' : draft.format === 'survivor' ? 'Only this week’s score decides the cut. Earlier points cannot save you.' : draft.format === 'knockout' ? 'One loss ends the run. Set seeds before starting.' : 'Your normal lineup counts. No extra roster to manage.'}</p><p className="cup-note">Suggested dates aim to finish before your league playoffs. You can choose any valid schedule through Week 18.</p></aside>
             </div>
         </>}
         {active && <>
@@ -274,23 +335,23 @@ function WoeppelCupPanel(props) {
             {sample && <div className="cup-sample-banner"><div><strong>SAMPLE CUP · MADE-UP SCORES</strong><span>Play through the format. Your league Cup is unchanged.</span></div><button className="cup-primary" disabled={!!result || engine.schedule(sample).every(w => sample.weeks[w]?.final)} onClick={sampleWeek}>{result ? 'Sample complete' : 'Play next sample week'}</button><button onClick={() => { setSample({ ...sample, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} }); setWeek(null); }}>Restart sample</button></div>}
             <div className="cup-live-summary"><span>{viewFormat.name}</span><span>{active.teams.length} teams</span><span>{formatWeeks(active)}</span><span>{sample ? 'Preview' : active.enabled ? 'Active' : 'Paused'}</span></div>
             {result && <div className="cup-champion"><span className="cup-studio-emblem" aria-hidden="true">🏆</span><div><span className="cup-eyebrow">{sample ? 'SAMPLE CHAMPION' : active.name + ' CHAMPION'}</span><h3>{name(result.champion)}</h3>{result.runnerUp && <p>Runner-up: {name(result.runnerUp)} · {points(result.winnerScore)}–{points(result.runnerScore)}</p>}{canManage && <button disabled={busy} onClick={archive}>Record in Hall of Fame</button>}</div></div>}
-            {active.teams.includes(myId) && <div className="cup-your-team"><div><span className="cup-eyebrow">YOUR CUP</span><strong>{name(myId)}</strong></div><div><strong>{active.format === 'survivor' ? survival.some(r => r.eliminated?.includes(myId)) ? 'Eliminated' : result?.champion === myId ? 'Champion' : 'Still in the hunt' : rounds.flat().some(r => r.winner && [r.a, r.b].includes(myId) && r.winner !== myId) ? 'Knocked out' : result?.champion === myId ? 'Champion' : 'Follow your road to the trophy'}</strong><span>{sample ? 'Sample results' : 'Finalized results only'}</span></div></div>}
-            <div className="cup-tools"><label>Week<select aria-label="Tournament week" value={selectedWeek} onChange={e => setWeek(Number(e.target.value))}>{schedule.map(w => <option key={w} value={w}>Week {w}{active.weeks[w]?.final ? ' · Final' : ''}</option>)}</select></label><span className="cup-note">{active.weeks[selectedWeek]?.final ? 'Finalized' : active.weeks[selectedWeek] ? 'Score preview · not counted yet' : 'Awaiting scores'}</span></div>
+            {active.teams.includes(myId) && <div className="cup-your-team"><div><span className="cup-eyebrow">YOUR CUP</span><strong>{name(myId)}</strong></div><div><strong>{result?.champion === myId ? 'Champion' : active.format === 'survivor' ? survival.some(r => r.eliminated?.includes(myId)) ? 'Eliminated' : 'Still in the hunt' : rounds.flat().filter(r => r.winner && [r.a, r.b].includes(myId) && r.winner !== myId).length >= (isDouble(active) ? 2 : 1) ? 'Knocked out' : isDouble(active) ? 'Still in the hunt' : 'Follow your road to the trophy'}</strong><span>{sample ? 'Sample results' : 'Finalized results only'}</span></div></div>}
+            <div className="cup-tools"><label>Week<select aria-label="Tournament week" value={selectedWeek} onChange={e => setWeek(Number(e.target.value))}>{schedule.map(w => <option key={w} value={w}>Week {w}{isDouble(active) && w >= active.knockoutStart ? ' · ' + (w === active.knockoutStart + engine.roundCount(active) - 1 ? 'Reset' : w === active.knockoutStart + engine.roundCount(active) - 2 ? 'Final' : 'Bracket') : ''}{active.weeks[w]?.final ? ' · Final' : ''}</option>)}</select></label><span className="cup-note">{active.weeks[selectedWeek]?.final ? 'Finalized' : active.weeks[selectedWeek] ? 'Score preview · not counted yet' : 'Awaiting scores'}</span></div>
             {isQualifier(active) && <div className="cup-groups cup-qualification"><section>
                 <div className="cup-section-heading"><h3>Qualification race</h3><span>Top {active.qualifierCount} advance</span></div>
                 <table className="cup-standings" aria-label="Cup qualification standings">
                     <thead><tr><th scope="col">Team</th><th scope="col" className="cup-standings-played">Weeks / games</th><th scope="col" className="cup-standings-points">{active.format === 'points' ? 'Fantasy points' : 'Cup points'}</th><th scope="col" className="cup-standings-pf"><abbr title="Fantasy points for">PF</abbr></th></tr></thead>
                     <tbody>{rows.map((r, i) => <tr key={r.id} className={r.id === myId ? 'is-mine' : ''}>
-                        <th scope="row" className="cup-standings-team"><div className="cup-standing-identity"><span className="cup-rank" aria-label={'Rank ' + (i + 1)}>{i + 1}</span><span className="cup-standing-owner"><span className="cup-standing-name">{name(r.id)}</span><span className="cup-standing-played">{r.played} {active.format === 'round-robin' ? (r.played === 1 ? 'game' : 'games') : (r.played === 1 ? 'week' : 'weeks')}</span></span></div></th>
+                        <th scope="row" className="cup-standings-team"><div className="cup-standing-identity"><span className="cup-rank" aria-label={'Rank ' + (i + 1)}>{i + 1}</span><span className="cup-standing-owner"><span className="cup-standing-name">{name(r.id)}</span><span className="cup-standing-played">{r.played} {isRoundRobin(active) ? (r.played === 1 ? 'game' : 'games') : (r.played === 1 ? 'week' : 'weeks')}</span></span></div></th>
                         <td className="cup-standings-played">{r.played}</td><td className="cup-standings-points"><b>{points(r.points)}</b></td><td className="cup-standings-pf">{points(r.pf)}</td>
                     </tr>)}</tbody>
                 </table>
                 <p className="cup-note">Finalized weeks only. Positions are provisional until qualifying ends.</p>
             </section></div>}
             {active.format === 'survivor' && <section className="cup-survival"><div className="cup-section-heading"><h3>THE SURVIVAL LINE</h3><span>Week {selectedWeek}{currentSurvival ? ' · ' + currentSurvival.active.length + ' entered · ' + currentSurvival.cutCount + ' to leave' : ''}</span></div>{currentSurvival ? <><div className="cup-survival-rows">{(currentSurvival.ranked.length ? currentSurvival.ranked.map(r => r.id) : currentSurvival.active).map(id => <div key={id} className={currentSurvival.eliminated.includes(id) ? 'is-eliminated' : ''}><strong>{name(id)}</strong><b>{points(active.weeks[selectedWeek]?.scores[id])}</b><span>{currentSurvival.eliminated.includes(id) ? 'OUT' : currentSurvival.survivors.includes(id) ? 'THROUGH' : currentSurvival.pendingTie?.ids.includes(id) ? 'TIE AT CUT' : 'PENDING'}</span></div>)}</div>{currentSurvival.pendingTie && <p className="cup-validation">A tie at the cut needs a commissioner ruling before anyone advances.</p>}</> : <p>Finalize the previous cut to reveal this round’s field.</p>}</section>}
-            {!!fixtures.length && <div className="cup-fixtures">{fixtures.map(f => <article className="cup-match" key={f.a + ':' + f.b}><div><strong>{name(f.a)}</strong><b>{points(active.weeks[selectedWeek]?.scores[f.a])}</b></div><div><strong>{name(f.b)}</strong><b>{f.b == null ? 'BYE' : points(active.weeks[selectedWeek]?.scores[f.b])}</b></div>{f.winner && <small>{name(f.winner)} advances</small>}</article>)}</div>}
+            {!!fixtures.length && <div className="cup-fixtures">{fixtures.map(f => <article className="cup-match" key={f.a + ':' + f.b}>{f.stageLabel && <span className="cup-match-stage">{f.stageLabel}</span>}<div><strong>{name(f.a)}</strong><b>{points(active.weeks[selectedWeek]?.scores[f.a])}</b></div><div><strong>{name(f.b)}</strong><b>{f.b == null ? 'BYE' : points(active.weeks[selectedWeek]?.scores[f.b])}</b></div>{f.winner && <small>{name(f.winner)} advances</small>}</article>)}</div>}
             {bracketNote && <p className="cup-message">{bracketNote}</p>}
-            {active.format !== 'survivor' && <><div className="cup-section-heading"><h3>ROAD TO THE TROPHY</h3><span>{engine.roundCount(active)} rounds</span></div><div className="cup-bracket cup-studio-bracket">{Array.from({ length: engine.roundCount(active) }, (_, i) => <section className="cup-round" key={i}><h4>{roundLabel(i, engine.roundCount(active))} · W{active.knockoutStart + i}</h4>{rounds[i]?.map(r => <article className="cup-bracket-match" key={r.a + ':' + r.b}>{[r.a, r.b].map((id, j) => <div key={j} className={id && r.winner === id ? 'is-winner' : ''}><span>{name(id)}</span><b>{id == null ? 'BYE' : points(j ? r.y : r.x)}</b></div>)}</article>) || <p className="cup-note">Awaiting previous results</p>}</section>)}</div></>}
+            {active.format !== 'survivor' && <><div className="cup-section-heading"><h3>ROAD TO THE TROPHY</h3><span>{isDouble(active) ? 'Up to ' : ''}{engine.roundCount(active)} {isDouble(active) ? 'bracket weeks' : 'rounds'}</span></div><div className="cup-bracket cup-studio-bracket">{Array.from({ length: engine.roundCount(active) }, (_, i) => <section className="cup-round" key={i}><h4>{isDouble(active) ? engine.stageLabel(active, active.knockoutStart + i) : roundLabel(i, engine.roundCount(active))} · W{active.knockoutStart + i}</h4>{rounds[i]?.map(r => <article className={'cup-bracket-match' + (r.bracket ? ' cup-bracket-' + r.bracket : '')} key={r.a + ':' + r.b}>{r.stageLabel && <span className="cup-match-stage">{r.stageLabel}</span>}{[r.a, r.b].map((id, j) => <div key={j} className={id && r.winner === id ? 'is-winner' : ''}><span>{name(id)}</span><b>{id == null ? 'BYE' : points(j ? r.y : r.x)}</b></div>)}</article>) || <p className="cup-note">{isDouble(active) && i === engine.roundCount(active) - 1 ? result ? 'Not needed · champion decided' : 'Only needed if the unbeaten finalist loses the championship.' : 'Awaiting previous results'}</p>}</section>)}</div></>}
             {canManage && <>
                 <details><summary>Manage Week {selectedWeek} scores</summary>{scoresBlocked && <p className="cup-note">{scoresBlocked}</p>}<fieldset disabled={busy || !active.enabled || !!scoresBlocked || active.weeks[selectedWeek]?.final} className="cup-settings"><button onClick={pull}>Fetch Sleeper scores</button><p>Review actual fantasy points for the teams competing this week. The Cup uses your existing lineups; eliminated teams and knockout byes need no score.</p><div className="cup-setup">{requiredTeams.map(id => <label key={id}>{name(id)}<input type="number" step="0.01" value={scores[id] ?? ''} onChange={e => setScores({ ...scores, [id]: e.target.value })}/></label>)}</div><div className="cup-plan-actions"><button onClick={() => persistScores(false)}>Save score preview</button><button onClick={() => { if (window.confirm('Confirm all Week ' + selectedWeek + ' scores are final?')) persistScores(true); }}>Finalize week</button></div></fieldset>{active.weeks[selectedWeek]?.final && <button disabled={busy || !active.enabled} onClick={() => { if (window.confirm('Reopen this week? Later weeks and rulings will need review again.')) save(clearAfter(active, selectedWeek)); }}>Reopen week</button>}</details>
                 <details><summary>Commissioner tiebreak rulings</summary><fieldset disabled={busy || !active.enabled} className="cup-settings"><p>Ties never advance a team automatically. Apply your league’s agreed tiebreak and record the evidence.</p>
@@ -298,9 +359,8 @@ function WoeppelCupPanel(props) {
                     {currentSurvival?.pendingTie && <><p>Select {currentSurvival.requiredSurvivors} survivors. Teams above the tied cutoff must advance.</p><div className="cup-participants">{currentSurvival.active.map(id => <label key={id}><input type="checkbox" checked={survivorIds.includes(id)} onChange={e => setSurvivorIds(ids => e.target.checked ? [...ids, id] : ids.filter(x => x !== id))}/>{name(id)} · {points(active.weeks[selectedWeek]?.scores[id])}</label>)}</div><label>Survival tiebreak evidence<input maxLength={1000} value={reason} onChange={e => setReason(e.target.value)}/></label><button onClick={() => { try { if (!reason.trim()) throw Error('Record the tiebreak evidence.'); const base = clearAfter(active, selectedWeek, false); const next = { ...base, survivorRulings: { ...base.survivorRulings, [selectedWeek]: { ids: survivorIds, reason } } }; engine.survivor(next); save(next); } catch (e) { setError(e.message); } }}>Apply survival ruling</button></>}
                     {rounds.flat().filter(r => r.a && r.b && active.weeks[r.week]?.final && r.x === r.y && !r.winner).map(r => <div key={r.a}><p>Week {r.week}: {name(r.a)} / {name(r.b)} tied</p>{[r.a, r.b].map(id => <button key={id} onClick={() => { const explanation = window.prompt('Record the tiebreak evidence for advancing ' + name(id)); if (explanation?.trim()) { const next = clearAfter(active, r.week, false); save({ ...next, tieRulings: { ...next.tieRulings, [r.week + ':' + r.a + ':' + r.b]: { winner: id, reason: explanation } } }); } }}>Advance {name(id)}</button>)}</div>)}
                 </fieldset></details>
-                <details><summary>Tournament settings</summary><fieldset disabled={busy} className="cup-settings"><label>Name<input maxLength={80} value={draft.name} onChange={e => update('name', e.target.value)}/></label><div className="cup-plan-actions"><button onClick={() => save({ ...active, name: draft.name })}>Save name</button><button onClick={() => save({ ...active, enabled: !active.enabled })}>{active.enabled ? 'Pause tournament' : 'Resume tournament'}</button>{!Object.values(active.weeks).some(w => w.final) && <button onClick={() => save({ ...active, locked: false, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} })}>Edit setup</button>}</div></fieldset></details>
+                <details><summary>Cup controls</summary><fieldset disabled={busy} className="cup-settings"><button onClick={() => save({ ...active, enabled: !active.enabled })}>{active.enabled ? 'Pause tournament' : 'Resume tournament'}</button></fieldset></details>
             </>}
-            <details><summary>How {viewFormat.name} works</summary><p>{viewFormat.description} {active.format === 'all-play' ? 'Earn 1 Cup point for every opponent beaten and half a point for each tied opponent.' : active.format === 'median' ? 'Earn 1 Cup point above the field’s median score, half a point on the median, and 0 below it.' : active.format === 'round-robin' ? 'Wins earn 3 Cup points and draws earn 1; PF breaks standings ties.' : active.format === 'points' ? 'Total qualifying fantasy points set the seeds.' : active.format === 'survivor' ? 'Each round removes enough low scorers to leave one champion in the final week. Only that week’s score determines survival.' : 'Seed order sets the opening bracket. Highest seeds receive byes when needed.'} {isQualifier(active) && 'The selected qualifiers enter a seeded knockout bracket; PF breaks Cup-points ties.'} Finalized scores count; unresolved exact ties require a commissioner ruling. {sample ? 'This is a sample with illustrative scores.' : 'One shared Cup is stored per league season.'}</p></details>
         </>}
     </section>;
 }
