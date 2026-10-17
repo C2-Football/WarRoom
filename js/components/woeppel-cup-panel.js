@@ -162,6 +162,7 @@ function WoeppelCupPanel(props) {
     const editDraft = value => { if (inFlight.current) return; touched.current = true; setDraft(value); setError(''); setNotice(''); };
     const update = (key, value) => editDraft(d => ({ ...d, [key]: value }));
     const chooseFormat = id => {
+        if (id === draft.format) return;
         editDraft(d => {
             const next = engine.configure(league, id, d);
             if (editing && isRoundRobin(d) && ['round-robin', 'round-robin-double'].includes(id)) {

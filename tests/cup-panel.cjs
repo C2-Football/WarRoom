@@ -242,7 +242,7 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     assert.equal(text(find(connected.tree, node => node.type === 'h2')), 'Real Shared Cup', 'Returning to active Cup restores its saved name, not the sample name');
 
     // Started Cups stay editable without unlocking or writing on entry/cancel.
-    const started = { ...Cup.tournament.defaults(league), name: 'Started Cup', locked: true, enabled: true };
+    const started = { ...Cup.tournament.defaults(league), name: 'Started Cup', locked: true, enabled: true, startWeek: 1, knockoutStart: 6 };
     const originalScores = Object.fromEntries(started.teams.map((id, i) => [id, 110 - i * 10]));
     for (let w = started.startWeek; w < started.startWeek + started.groupWeeks; w++) started.weeks[w] = { final: true, scores: structuredClone(originalScores) };
     started.weeks[started.knockoutStart] = { final: true, scores: structuredClone(originalScores) };
@@ -256,6 +256,8 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     await editor.click('Edit Cup');
     assert.equal(writes(editor).length, 0, 'Entering editing never unlocks or writes the Cup');
     assert(button(editor.tree, 'Save Cup changes').props.disabled, 'Unchanged saved setup does not create a revision');
+    await editor.choose('points');
+    assert(button(editor.tree, 'Save Cup changes').props.disabled, 'Tapping the selected format preserves the saved custom dates');
     await editor.rename('Cup Name Only');
     await editor.click('Save Cup changes');
     assert.equal(writes(editor).at(-1).revision, 3);
