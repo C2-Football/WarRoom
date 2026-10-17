@@ -23,3 +23,146 @@
 @media(max-width:600px){.wr-studio-meeting-timeline li{flex-basis:150px}.wr-studio-scenario{padding:16px}.wr-studio-trajectory-detail{padding:14px}.wr-studio-chart-legend{font-size:11px}}
 
 .wr-studio-game-id{display:block;font-size:12px;font-weight:750;color:var(--ws-ink);margin-bottom:7px}
+
+/* Keep the desk controls in view; only the selected breakdown scrolls. */
+.wr-wire-studio[open]{display:flex;flex-direction:column;overflow:hidden}
+.wr-studio-mast{position:relative;flex-shrink:0;padding:14px 24px}
+.wr-studio-tabs{flex-shrink:0;display:grid;grid-template-columns:repeat(var(--studio-tabs,3),minmax(0,1fr));gap:14px;overflow:visible}
+.wr-studio-tabs>button{white-space:nowrap}
+.wr-studio-panel{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px;scroll-padding:16px}
+.wr-wire-studio select{-webkit-appearance:none;appearance:none;min-height:44px;height:44px;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%2359616a' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.wr-studio-editions{flex-direction:row;align-items:end;gap:8px;margin-bottom:12px}
+.wr-studio-editions>label{max-width:none;gap:4px}
+.wr-studio-editions>button{align-self:auto;width:44px;padding:6px;font-size:24px;line-height:1}
+.wr-studio-edition-status{display:flex;align-items:center;flex-wrap:wrap;gap:3px 12px;margin:0 0 18px;font-size:12px;line-height:1.5;color:var(--ws-muted)}
+.wr-studio-edition-status strong{color:var(--ws-ink);font-weight:650}
+.wr-studio-edition-status.is-provisional strong{color:var(--ws-gold)}
+.wr-studio-edition-status strong::before{content:'';display:inline-block;width:6px;height:6px;margin:0 6px 1px 0;border-radius:50%;background:currentColor}
+.wr-wire-studio h3{font-size:30px;line-height:1.13;margin-bottom:18px}
+.wr-studio-team-owner{display:block;color:var(--ws-muted);font-size:12px;font-weight:400;line-height:1.4;margin-top:3px;letter-spacing:0}
+.wr-studio-view-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.wr-studio-view-heading h3{margin:0}
+.wr-studio-all-rounds{flex-shrink:0;font-size:12px!important;padding:7px 9px!important}
+
+/* One connected round at a time, with an optional whole-bracket overview. */
+.wr-studio-round-nav{display:flex;margin-bottom:16px;border:1px solid var(--ws-line);border-radius:6px;background:var(--ws-panel);padding:3px;gap:3px}
+.wr-studio-round-nav>button{flex:1;min-width:0;position:relative;border:0;background:transparent;border-radius:4px;padding:8px 5px;text-align:center;line-height:1.25}
+.wr-studio-round-nav>button>span{display:block;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.wr-studio-round-nav>button>small{display:block;margin-top:3px;font-size:11px}
+.wr-studio-round-nav>button[aria-pressed=true]{background:var(--ws-ink);color:var(--ws-bg)}
+.wr-studio-round-nav>button[aria-pressed=true]>small{color:inherit;opacity:.85}
+.wr-studio-round-nav>button:not(:last-child)::after{content:'›';position:absolute;right:-5px;top:50%;transform:translateY(-50%);color:var(--ws-muted);z-index:1;background:var(--ws-panel);border-radius:50%;width:12px;font-size:14px}
+.wr-studio-rounds.is-focused{display:block}
+.wr-studio-rounds.is-overview{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}
+.wr-studio-round>header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-top:0;padding:0;margin:0 0 10px}
+.wr-studio-round>header h4{font-size:15px;margin:0}
+.wr-studio-rounds.is-focused .wr-studio-round-games{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wr-studio-byes{background:var(--ws-panel);border-left:3px solid var(--ws-gold);padding:10px 12px;margin-bottom:14px;font-size:13px}
+.wr-studio-byes>strong{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px}
+.wr-studio-byes>strong>small{font-size:11px;font-weight:400;text-align:right}
+.wr-studio-byes>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px}
+.wr-studio-byes>div>span{overflow-wrap:anywhere;font-weight:600;line-height:1.4}
+.wr-studio-bracket-game{padding:0 12px;margin:0 0 12px;background:var(--ws-bg);border-radius:6px;scroll-margin:8px}
+.wr-studio-rounds.is-focused .wr-studio-bracket-game{margin:0}
+.wr-studio-game-heading{display:flex;justify-content:space-between;gap:8px;color:var(--ws-muted);font-size:11px;line-height:1.3;padding:9px 0;border-bottom:1px solid var(--ws-line)}
+.wr-studio-game-heading>span:first-child{color:var(--ws-ink);font-weight:700}
+.wr-studio-bracket-game>.wr-studio-bracket-team{padding:10px 0;min-height:57px;gap:8px}
+.wr-studio-bracket-game>.wr-studio-bracket-team>span{font-size:14px;font-weight:600;line-height:1.35}
+.wr-studio-bracket-game>.wr-studio-bracket-team>strong{font-size:21px}
+.wr-studio-bracket-game>.wr-studio-bracket-links{border-top:1px solid var(--ws-line);padding:0;margin:0}
+.wr-studio-bracket-links button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;border-radius:0;background:transparent;padding:8px 0;font-size:12px;font-weight:600;color:var(--ws-accent)}
+.wr-studio-bracket-links button>span{font-size:11px;white-space:nowrap;font-weight:400}
+.wr-studio-bracket-game .wr-studio-feeder{padding:4px 0;border:0;background:transparent;text-align:left;font-size:13px;font-weight:500;color:var(--ws-accent);width:100%}
+.wr-studio-feeder>span{float:right;margin-left:8px}
+.wr-studio-game-origins{border-top:1px solid var(--ws-line);font-size:12px;color:var(--ws-muted)}
+.wr-studio-game-origins>summary{min-height:44px;cursor:pointer;padding:12px 0}
+.wr-studio-game-origins>button{width:100%;margin-bottom:6px;text-align:left;font-size:12px}
+.wr-studio-bracket-game>.wr-studio-game-note{font-size:12px;line-height:1.5;margin:8px 0 12px}
+
+/* Follow a route without repeating the selected team above every stop. */
+.wr-studio-path .wr-studio-select{max-width:none;margin-bottom:16px}
+.wr-studio-path-stops{margin:16px 0;gap:7px}
+.wr-studio-path-stops>button{padding:0 4px 0 0;line-height:1.3}
+.wr-studio-path-stops>button::after{left:27px;top:12px}
+.wr-studio-dot{display:flex;align-items:center;justify-content:center;width:25px;height:25px;border:1px solid var(--ws-line);outline:0;background:var(--ws-bg);color:var(--ws-muted);font-size:11px;font-weight:700;margin-bottom:8px}
+.wr-studio-path-stops>button[aria-pressed=true] .wr-studio-dot{color:var(--ws-bg);border-color:var(--ws-accent)}
+.wr-studio-path-stops strong{font-size:13px}
+.wr-studio-path-stops small{margin-top:3px;font-size:11px}
+.wr-studio-path-result{padding:14px 16px;border:1px solid var(--ws-line);border-top:3px solid var(--ws-accent);border-radius:5px;background:var(--ws-bg)}
+.wr-studio-path-result-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid var(--ws-line);padding-bottom:10px;margin-bottom:10px}
+.wr-studio-path-result-heading h4{font-size:15px;margin:0}
+.wr-studio-path-result-heading>span{font-size:12px;color:var(--ws-muted);white-space:nowrap}
+.wr-studio-path-score{padding:11px 0;gap:10px}
+.wr-studio-path-score>span{font-size:15px;font-weight:650;line-height:1.4}
+.wr-studio-path-score>strong{font-size:27px}
+.wr-studio-path-result .wr-studio-status{font-size:11px;letter-spacing:.3px;margin:0}
+.wr-studio-path-opponent{padding:10px 0 14px;line-height:1.4}
+.wr-studio-path-opponent>*{display:block}
+.wr-studio-path-opponent>strong{font-size:21px;line-height:1.25;margin:5px 0;overflow-wrap:anywhere}
+.wr-studio-path-opponent>span{font-size:13px;color:var(--ws-muted)}
+.wr-studio-path-result>.wr-studio-path-condition{font-size:13px;margin:0;color:var(--ws-accent);font-weight:650}
+.wr-studio-path-result>.wr-studio-path-caption{font-size:12px;line-height:1.5;color:var(--ws-muted);margin:0 0 12px}
+.wr-studio-path-next{width:100%;text-align:left;font-size:12px!important;color:var(--ws-accent)!important;background:var(--ws-panel)!important;margin-top:8px}
+.wr-studio-champion{font-size:13px;color:var(--ws-gold);font-weight:650;margin:0 0 16px!important}
+
+/* A standings-sized race, with scenario controls on demand. */
+.wr-studio-race .wr-studio-eyebrow{margin-bottom:7px;letter-spacing:.7px}
+.wr-studio-race h3{margin-bottom:14px}
+.wr-studio-race-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;border-block:1px solid var(--ws-line);padding:11px 0;margin-bottom:11px}
+.wr-studio-race-summary>div{display:flex;align-items:center;gap:9px;min-width:0}
+.wr-studio-race-summary strong{font-size:30px;line-height:1;font-weight:750;font-variant-numeric:tabular-nums}
+.wr-studio-race-summary span{font-size:12px;line-height:1.35;max-width:15ch;color:var(--ws-muted)}
+.wr-studio-race-context,.wr-studio-race-caveat{font-size:12px;line-height:1.5;color:var(--ws-muted);margin:8px 0!important}
+.wr-studio-race-caveat{border-left:2px solid var(--ws-gold);padding-left:9px}
+.wr-studio-race-table{width:100%;border-collapse:collapse;table-layout:auto;margin-top:14px}
+.wr-studio-race-table caption{text-align:left;color:var(--ws-muted);font-size:11px;line-height:1.5;padding-bottom:9px}
+.wr-studio-race-table thead{border-block:1px solid var(--ws-line);background:var(--ws-panel)}
+.wr-studio-race-table thead th{font-size:11px;text-align:left;font-weight:600;padding:7px 8px}
+.wr-studio-race-table thead th:nth-child(n+2){text-align:right}
+.wr-studio-race-table tbody tr{border-bottom:1px solid var(--ws-line)}
+.wr-studio-race-table tbody th{padding:0;text-align:left;font-weight:400;min-width:0}
+.wr-studio-race-table td{text-align:right;padding:8px;vertical-align:middle}
+.wr-studio-race-table .wr-studio-race-team{display:block;width:100%;min-height:58px;padding:10px 8px;border:0;border-radius:0;background:transparent;text-align:left;line-height:1.3}
+.wr-studio-race-team-name{font-size:14px;font-weight:650;overflow-wrap:anywhere;display:block}
+.wr-studio-race-team .wr-studio-team-owner{font-size:11px}
+.wr-studio-race-table tr.is-selected{background:var(--ws-panel)}
+.wr-studio-race-team:hover .wr-studio-race-team-name,.wr-studio-race-team[aria-expanded=true] .wr-studio-race-team-name{color:var(--ws-accent)}
+.wr-studio-race-record{font-size:16px;font-weight:650;white-space:nowrap;width:1%;font-variant-numeric:tabular-nums}
+.wr-studio-race-status{width:1%;font-size:11px;white-space:nowrap;color:var(--ws-muted)}
+.wr-studio-race-status .is-clinched{color:#226044;font-weight:700}
+.wr-studio-race-status .is-eliminated{color:var(--ws-accent)}
+.wr-studio-race-explore{margin-top:14px;width:100%;font-size:13px!important}
+.wr-studio-scenario{margin:20px 0 0;scroll-margin:12px;border-radius:5px;padding:16px}
+.wr-studio-scenario:focus{outline:2px solid var(--ws-accent);outline-offset:3px}
+.wr-studio-scenario-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.wr-studio-scenario-heading h4{font-size:18px;margin:0}
+.wr-studio-scenario-heading button{font-size:11px;padding:7px 9px}
+.wr-studio-race-team-detail{font-size:12px;line-height:1.5;margin-top:12px}
+.wr-studio-race-team-detail>strong{display:block;font-size:19px;margin-bottom:5px}
+.wr-studio-race-team-detail>span{color:var(--ws-muted)}
+.wr-studio-race-team-detail p{margin:6px 0 0}
+.wr-studio-scenario-slider{margin-top:14px}
+.wr-studio-scenario-result{margin-top:14px}
+.wr-studio-scenario-result>strong{font-size:34px}
+.wr-studio-scenario-result>span{margin-bottom:12px}
+.wr-studio-scenario-result p{font-size:13px;line-height:1.5}
+.wr-studio-sources{margin-top:18px;padding-top:4px}
+@media(max-width:600px){
+ .wr-studio-mast{padding:calc(10px + env(safe-area-inset-top,0px)) 15px 10px}
+ .wr-studio-mast h2{font-size:25px}.wr-studio-mast p{font-size:11px;line-height:1.35}
+ .wr-studio-mast>button{font-size:12px;padding:8px 10px}
+ .wr-studio-tabs{padding:0 12px;gap:9px}.wr-studio-tabs>button{font-size:12px;min-height:46px;padding:10px 0}
+ .wr-studio-panel{padding:14px 15px calc(24px + env(safe-area-inset-bottom,0px));scroll-padding:12px}
+ .wr-wire-studio h3{font-size:25px;letter-spacing:-.03em}
+ .wr-studio-view-heading{gap:8px;margin-bottom:12px}.wr-studio-view-heading h3{font-size:24px}
+ .wr-studio-edition-status{gap:2px 9px;font-size:11px;margin-bottom:16px}
+ .wr-studio-rounds.is-focused .wr-studio-round-games{grid-template-columns:minmax(0,1fr);gap:12px}
+ .wr-studio-rounds.is-overview{grid-template-columns:minmax(0,1fr)}
+ .wr-studio-round-nav>button>span{font-size:12px}
+ .wr-studio-path .wr-studio-select{margin-bottom:13px}
+ .wr-studio-path-stops strong{font-size:12px}
+ .wr-studio-path-stops small{font-size:10px}
+ .wr-studio-path-result{padding:12px}
+ .wr-studio-race-table .wr-studio-race-team{padding:9px 5px}
+ .wr-studio-race-table td,.wr-studio-race-table thead th{padding-left:5px;padding-right:5px}
+}

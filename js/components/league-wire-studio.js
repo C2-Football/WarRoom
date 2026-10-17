@@ -1,6 +1,7 @@
 // Optional, evidence-backed graphics. This dialog opens only on an explicit action.
 function WrWireStudio({ league, story = null, seasons = [], race = null, initialTab, onClose }) {
     const dialog = React.useRef(null);
+    const panel = React.useRef(null);
     const opener = React.useRef(document.activeElement);
     const closeRef = React.useRef(onClose);
     closeRef.current = onClose;
@@ -25,6 +26,7 @@ function WrWireStudio({ league, story = null, seasons = [], race = null, initial
     const needsPlayoffs = activeTab === 'bracket' || activeTab === 'path';
     const current = entry.key === selectedScope ? entry : { status: 'loading', data: null };
     const retry = () => { forceKey.current = selectedScope; setRevision(n => n + 1); };
+    React.useEffect(() => { panel.current?.scrollTo?.({ top: 0 }); }, [activeTab, selectedScope]);
 
     React.useEffect(() => {
         dialog.current?.showModal();
@@ -71,18 +73,18 @@ function WrWireStudio({ league, story = null, seasons = [], race = null, initial
     const data = current.data;
     return <dialog ref={dialog} className="wr-wire-studio" aria-labelledby={id('title')} onCancel={close} onClose={close}>
         <header className="wr-studio-mast"><div><h2 id={id('title')}>The Wire<span>.</span> <small>Studio</small></h2><p>{league?.name || 'Your league'}</p></div><button type="button" onClick={close} aria-label="Close Wire Studio">Close ×</button></header>
-        <nav className="wr-studio-tabs" role="tablist" aria-label="Wire Studio views" onKeyDown={keyTabs}>{tabs.map(([value, label]) => <button type="button" key={value} role="tab" id={id(value + '-tab')} aria-controls={id('panel')} aria-selected={activeTab === value} tabIndex={activeTab === value ? 0 : -1} onClick={() => setTab(value)}>{label}</button>)}</nav>
-        <section className="wr-studio-panel" id={id('panel')} role="tabpanel" aria-labelledby={id(activeTab + '-tab')} tabIndex={0}>
-            {needsPlayoffs && <><div className="wr-studio-editions"><label>Playoff season<select aria-label="Playoff season" value={selectedScope} onChange={event => setSelectedKey(event.target.value)}>{choices.map(l => <option key={keyFor(l)} value={keyFor(l)}>{l.season} · {l.name || 'League'}</option>)}</select></label><button type="button" onClick={retry} disabled={current.status === 'loading'}>{current.status === 'loading' ? 'Loading…' : 'Refresh playoffs'}</button></div>{unavailableStorySeason && <p className="wr-studio-notice">This story covers {story.eventSeason}, whose playoff bracket is not available in the loaded seasons. The selector above identifies the separate edition shown here.</p>}</>}
+        <nav className="wr-studio-tabs" style={{ '--studio-tabs': tabs.length }} role="tablist" aria-label="Wire Studio views" onKeyDown={keyTabs}>{tabs.map(([value, label]) => <button type="button" key={value} role="tab" id={id(value + '-tab')} aria-controls={id('panel')} aria-selected={activeTab === value} tabIndex={activeTab === value ? 0 : -1} onClick={() => setTab(value)}>{label}</button>)}</nav>
+        <section ref={panel} className="wr-studio-panel" id={id('panel')} role="tabpanel" aria-labelledby={id(activeTab + '-tab')} tabIndex={0}>
+            {needsPlayoffs && <><div className="wr-studio-editions"><label>Season<select aria-label="Playoff season" value={selectedScope} onChange={event => setSelectedKey(event.target.value)}>{choices.map(l => <option key={keyFor(l)} value={keyFor(l)}>{l.season} · {l.name || 'League'}</option>)}</select></label><button type="button" onClick={retry} disabled={current.status === 'loading'} aria-label="Refresh playoffs" title="Refresh playoffs">↻</button></div>{unavailableStorySeason && <p className="wr-studio-notice">This story covers {story.eventSeason}, whose playoff bracket is not available in the loaded seasons. The selector above identifies the separate edition shown here.</p>}</>}
             {activeTab === 'comparison' && model && <WrWireStudioComparison key={story?.id || model.headline} model={model} />}
             {activeTab === 'race' && race && <WrWireStudioRace race={race} season={league?.season} />}
             {needsPlayoffs && <>
                 {current.status === 'loading' && <p role="status" className="wr-studio-notice">{data ? 'Refreshing this playoff edition…' : 'Loading the verified playoff picture…'}</p>}
                 {current.status === 'error' && <div role="alert" className="wr-studio-notice"><p>{current.message}</p>{data && <p>Showing the last available edition for this season.</p>}<button type="button" onClick={retry}>Try again</button></div>}
-                {data && <><div className="wr-studio-eyebrow">{data.season || selectedLeague?.season}{data.provisional ? ' · Current provisional snapshot' : ' postseason'}{data.checkedAt ? ' · Checked ' + new Date(data.checkedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</div>
-                    {data.message && <p className="wr-studio-notice">{data.message}</p>}
+                {data && <><div className={'wr-studio-edition-status' + (data.provisional ? ' is-provisional' : '')}><strong>{data.provisional ? 'Provisional field' : `${data.season || selectedLeague?.season} postseason`}</strong><span>{data.provisional ? 'Places and byes can change' : 'Official bracket'}</span></div>
+                    {data.message && (!data.provisional || !data.message.startsWith('If the season ended today:')) && <p className="wr-studio-notice">{data.message}</p>}
                     {activeTab === 'bracket' ? <WrWireStudioBracket key={selectedScope} data={data} ownerFirst={Number(data.season) < Number(window.S?.nflState?.season || league?.season)} /> : <WrWireStudioPath key={selectedScope} data={data} ownerFirst={Number(data.season) < Number(window.S?.nflState?.season || league?.season)} />}
-                    <WrWireStudioSources notes={data.notes} sources={data.sources} />
+                    <WrWireStudioSources notes={[...(data.notes || []), ...(data.message ? [data.message] : []), ...(data.checkedAt ? ['Checked ' + new Date(data.checkedAt).toLocaleString()] : [])]} sources={data.sources} />
                 </>}
             </>}
         </section>
@@ -91,7 +93,8 @@ function WrWireStudio({ league, story = null, seasons = [], race = null, initial
 
 function WrWireStudioSources({ notes = [], sources = [] }) {
     const unique = [...new Map(sources.map(s => [s.url || JSON.stringify(s), s])).values()];
-    return notes.length || unique.length ? <details className="wr-studio-sources"><summary>Data & context</summary>{notes.map((note, i) => <p key={'note-' + i}>{typeof note === 'string' ? note : note.text || note.label}</p>)}{unique.map((source, i) => <p key={'source-' + i}>{source.url && /^https?:\/\//.test(source.url) ? <a href={source.url} target="_blank" rel="noopener noreferrer">{source.label || 'View source'}</a> : source.workbook ? source.workbook + ' · ' + source.sheet + '!' + source.range : source.label || source.text}</p>)}</details> : null;
+    const context = [...new Set(notes.map(note => typeof note === 'string' ? note : note.text || note.label).filter(Boolean))];
+    return context.length || unique.length ? <details className="wr-studio-sources"><summary>Data & context</summary>{context.map((note, i) => <p key={'note-' + i}>{note}</p>)}{unique.map((source, i) => <p key={'source-' + i}>{source.url && /^https?:\/\//.test(source.url) ? <a href={source.url} target="_blank" rel="noopener noreferrer">{source.label || 'View source'}</a> : source.workbook ? source.workbook + ' · ' + source.sheet + '!' + source.range : source.label || source.text}</p>)}</details> : null;
 }
 
 function WrWireStudioComparison({ model }) {
@@ -160,11 +163,47 @@ function WrWireStudioTeamName({ team, ownerFirst = false }) {
 function WrWireStudioBracket({ data, ownerFirst = false }) {
     const rounds = data.rounds || [];
     const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
-    const [activeGame, setActiveGame] = React.useState('');
+    const [roundIndex, setRoundIndex] = React.useState(0);
+    const [showAll, setShowAll] = React.useState(false);
+    const [activeGame, setActiveGame] = React.useState(null);
+    const index = Math.min(roundIndex, Math.max(0, rounds.length - 1));
     const anchor = gameId => `wr-studio-game-${uid}-${gameId}`;
-    const follow = gameId => { setActiveGame(gameId); document.getElementById?.(anchor(gameId))?.focus(); };
+    const follow = gameId => {
+        const next = rounds.findIndex(round => round.games?.some(game => String(game.id) === String(gameId)));
+        if (next < 0) return;
+        setRoundIndex(next); setActiveGame({ id: String(gameId) });
+    };
+    React.useEffect(() => {
+        if (!activeGame) return;
+        const target = document.getElementById?.(anchor(activeGame.id));
+        target?.focus({ preventScroll: true }); target?.scrollIntoView?.({ block: 'nearest' });
+    }, [activeGame, index, showAll]);
     const format = points => typeof points === 'number' && Number.isFinite(points) ? points.toFixed(2) : '—';
-    return <div className="wr-studio-bracket"><h3>{data.provisional ? 'Provisional playoff bracket' : 'The playoff bracket'}</h3>{!rounds.length && <p>No verified playoff matchups are available for this season yet.</p>}{rounds.some(round => round.games?.some(game => game.nextGames?.length)) && <p className="wr-studio-scope">Follow the winner connections to trace the route through the bracket.</p>}<div className="wr-studio-rounds">{rounds.map((round, index) => <section key={round.id || index} className="wr-studio-round"><header><h4>{round.label}</h4>{round.weeks?.length > 0 && <small>Week{round.weeks.length > 1 ? 's ' : ' '}{round.weeks.join('–')}</small>}</header>{(round.byes || []).map(team => <p key={'bye-' + team.id} className="wr-studio-round-bye"><WrWireStudioTeamName team={team} ownerFirst={ownerFirst} /> · {data.provisional ? 'Provisional bye' : 'Bye'}</p>)}{(round.games || []).map((game, i) => <article key={game.id || i} id={anchor(game.id)} tabIndex={-1} className={'wr-studio-bracket-game' + (activeGame === game.id ? ' is-selected' : '')} aria-label={`${round.label} game ${game.id || i + 1}`}><span className="wr-studio-game-id">Game {game.id || i + 1}</span><span className="wr-studio-status">{data.provisional ? 'Provisional matchup' : game.status === 'final' ? 'Final' : game.status === 'scheduled' ? 'Scheduled' : 'Awaiting verification'}</span>{game.fromGames?.length > 0 && <div className="wr-studio-bracket-links">{game.fromGames.map((source, j) => <button key={source.id + ':' + j} type="button" onClick={() => follow(source.id)}>← {source.label} · Game {source.id}</button>)}</div>}{(game.teams || []).map((team, j) => <div className={!data.provisional && team.id != null && String(team.id) === String(game.winnerId) ? 'is-winner' : ''} key={team.id || j}><span><WrWireStudioTeamName team={team} ownerFirst={ownerFirst} />{!data.provisional && team.id != null && String(team.id) === String(game.winnerId) && <small>Bracket winner</small>}</span><strong>{data.provisional ? '—' : format(team.points)}</strong></div>)}{game.note && <p>{game.note}</p>}{game.nextGames?.length > 0 && <div className="wr-studio-bracket-links">{game.nextGames.map((next, j) => <button key={next.id + ':' + j} type="button" onClick={() => follow(next.id)}>Winner → {next.label} · Game {next.id}</button>)}</div>}</article>)}</section>)}</div></div>;
+    const routineNotes = new Set(['A current-field matchup; playoff qualification and this assignment are not final.', 'A provisional field; later-round participants have not been decided.', 'Waiting for the previous round or an official matchup assignment.']);
+    const shortRound = label => label === 'Championship' ? 'Final' : label;
+    return <div className="wr-studio-bracket">
+        <div className="wr-studio-view-heading"><h3>The playoff bracket</h3>{rounds.length > 1 && <button className="wr-studio-all-rounds" type="button" aria-pressed={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? 'One round' : 'All rounds'}</button>}</div>
+        {!rounds.length && <p>No verified playoff matchups are available for this season yet.</p>}
+        {rounds.length > 1 && <nav className="wr-studio-round-nav" aria-label="Bracket rounds">{rounds.map((round, i) => <button key={round.id || i} type="button" aria-pressed={!showAll && index === i} onClick={() => { setRoundIndex(i); setShowAll(false); setActiveGame(null); }}><span>{shortRound(round.label)}</span><small>{round.weeks?.length ? 'Wk ' + round.weeks.join('–') : 'Timing unverified'}</small></button>)}</nav>}
+        <div className={'wr-studio-rounds' + (showAll ? ' is-overview' : ' is-focused')}>{rounds.map((round, i) => <section key={round.id || i} className="wr-studio-round" hidden={!showAll && index !== i} aria-label={round.label}>
+            <header><h4>{round.label}</h4><small>{round.weeks?.length ? 'Week ' + round.weeks.join('–') : 'Week unverified'}</small></header>
+            {round.byes?.length > 0 && <div className="wr-studio-byes"><strong>{data.provisional ? 'Current byes' : 'First-round byes'}<small>{data.provisional ? 'Would enter ' : 'Through to '}{rounds[i + 1]?.label || 'the next round'}</small></strong><div>{round.byes.map(team => <span key={team.id}><WrWireStudioTeamName team={team} ownerFirst={ownerFirst} /></span>)}</div></div>}
+            <div className="wr-studio-round-games">{(round.games || []).map((game, n) => <article key={game.id || n} id={anchor(game.id)} tabIndex={-1} className={'wr-studio-bracket-game' + (activeGame?.id === String(game.id) ? ' is-selected' : '')} aria-label={`${round.label} game ${game.id || n + 1}`}>
+                <header className="wr-studio-game-heading"><span>Game {game.id || n + 1}</span>{!data.provisional && <span>{game.status === 'final' ? 'Final' : game.status === 'scheduled' ? 'Scheduled' : 'Awaiting verification'}</span>}</header>
+                {(game.teams || []).map((team, side) => {
+                    const source = game.fromGames?.find(item => item.side === side);
+                    const winner = !data.provisional && team.id != null && String(team.id) === String(game.winnerId);
+                    return <div className={'wr-studio-bracket-team' + (winner ? ' is-winner' : '')} key={team.id || 'side-' + side}>
+                        <span>{team.id == null && source ? <button className="wr-studio-feeder" type="button" onClick={() => follow(source.id)}>Winner of Game {source.id} <span aria-hidden="true">↗</span></button> : <WrWireStudioTeamName team={team} ownerFirst={ownerFirst} />}{winner && <small>Advanced</small>}</span>
+                        {!data.provisional && <strong>{format(team.points)}</strong>}
+                    </div>;
+                })}
+                {game.note && !routineNotes.has(game.note) && <p className="wr-studio-game-note">{game.note}</p>}
+                {game.nextGames?.length > 0 && <footer className="wr-studio-bracket-links">{game.nextGames.map((next, j) => <button key={next.id + ':' + j} type="button" onClick={() => follow(next.id)}>Winner → {shortRound(next.label)} <span>Game {next.id} ↗</span></button>)}</footer>}
+                {!data.provisional && game.fromGames?.length > 0 && <details className="wr-studio-game-origins"><summary>Earlier games</summary>{game.fromGames.map((source, j) => <button key={source.id + ':' + j} type="button" onClick={() => follow(source.id)}>{source.label} · Game {source.id}</button>)}</details>}
+            </article>)}</div>
+        </section>)}</div>
+    </div>;
 }
 
 function WrWireStudioPath({ data, ownerFirst = false }) {
@@ -177,17 +216,95 @@ function WrWireStudioPath({ data, ownerFirst = false }) {
     const index = roundIndex != null && roundIndex < rounds.length ? roundIndex : latestKnown;
     const round = rounds[index];
     const score = value => typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—';
-    return <div className="wr-studio-path"><h3>{data.provisional ? 'A provisional playoff path' : 'The road through the playoffs'}</h3>{path ? <><label className="wr-studio-select">Follow a team<select aria-label="Playoff path team" value={String(path.team.id)} onChange={event => { setTeamId(event.target.value); setRoundIndex(null); }}>{paths.map(p => <option key={p.team.id} value={String(p.team.id)}>{[ownerFirst ? p.team.ownerName || p.team.name : p.team.name, ownerFirst ? p.team.name : p.team.ownerName].filter((name, i, all) => name && all.indexOf(name) === i).join(' · ')}</option>)}</select></label><h4 className="wr-studio-path-name"><WrWireStudioTeamName team={path.team} ownerFirst={ownerFirst} />{!data.provisional && path.champion && <small>{data.season} champion</small>}</h4><div className="wr-studio-path-stops" aria-label="Playoff rounds">{rounds.map((r, i) => <button type="button" key={i} aria-pressed={index === i} onClick={() => setRoundIndex(i)}><span className="wr-studio-dot" aria-hidden="true" /><strong>{r.label}</strong><small>{r.weeks?.length ? 'Week ' + r.weeks.join('–') : 'Week unverified'}{r.conditional ? ' · If advancing' : r.bye ? data.provisional ? ' · Provisional bye' : ' · Bye' : ''}</small></button>)}</div>{round ? <div className="wr-studio-path-result" aria-live="polite"><h4>{round.label}</h4>{round.conditional ? <p className="wr-studio-bye">If {path.team.ownerName || path.team.name} advances</p> : round.bye ? <p className="wr-studio-bye">{data.provisional ? 'Provisional bye' : 'First-round bye'}</p> : <><span className="wr-studio-status">{data.provisional ? 'Provisional matchup' : round.status === 'final' ? 'Final' : round.status === 'scheduled' ? 'Scheduled' : 'Awaiting verification'}</span><div className="wr-studio-path-score"><span><WrWireStudioTeamName team={path.team} ownerFirst={ownerFirst} /></span><strong>{data.provisional ? '—' : score(round.points?.[0])}</strong></div><div className="wr-studio-path-score"><span>{typeof round.opponent === 'string' ? round.opponent : <WrWireStudioTeamName team={round.opponent} ownerFirst={ownerFirst} />}</span><strong>{data.provisional ? '—' : score(round.points?.[1])}</strong></div></>}{data.provisional ? <p>The field can change before the playoffs begin. This is not a confirmed matchup or bye.</p> : round.caption && <p>{round.caption}</p>}</div> : <p>No verified rounds are available for this team yet.</p>}</> : <p>No verified playoff paths are available for this season yet.</p>}</div>;
+    const primary = team => ownerFirst ? team?.ownerName || team?.name : team?.name;
+    const allGames = (data.rounds || []).flatMap(r => r.games || []);
+    const game = round && allGames.find(g => String(g.id) === String(round.gameId));
+    const previousGameId = rounds[index - 1]?.gameId;
+    const incoming = game?.fromGames?.find(source => String(source.id) === String(previousGameId));
+    const otherSide = incoming ? 1 - incoming.side : -1;
+    const possibleTeam = otherSide >= 0 ? game.teams?.[otherSide] : null;
+    const possibleSource = game?.fromGames?.find(source => source.side === otherSide);
+    const next = rounds[index + 1];
+    return <div className="wr-studio-path"><h3>The road to the title</h3>{path ? <>
+        <label className="wr-studio-select">Follow a team<select aria-label="Playoff path team" value={String(path.team.id)} onChange={event => { setTeamId(event.target.value); setRoundIndex(null); }}>{paths.map(p => <option key={p.team.id} value={String(p.team.id)}>{[primary(p.team), ownerFirst ? p.team.name : p.team.ownerName].filter((name, i, all) => name && all.indexOf(name) === i).join(' · ')}</option>)}</select></label>
+        {!data.provisional && path.champion && <p className="wr-studio-champion">{data.season} champion · {primary(path.team)}</p>}
+        {rounds.length > 1 && <nav className="wr-studio-path-stops" aria-label="Playoff rounds">{rounds.map((r, i) => <button type="button" key={i} aria-pressed={index === i} onClick={() => setRoundIndex(i)}><span className="wr-studio-dot" aria-hidden="true">{i + 1}</span><strong>{r.label === 'Championship' ? 'Final' : r.label}</strong><small>{r.weeks?.length ? 'Wk ' + r.weeks.join('–') : 'Timing unverified'}{r.bye ? ' · Bye' : r.conditional ? ' · If advancing' : ''}</small></button>)}</nav>}
+        {round ? <div className="wr-studio-path-result" aria-live="polite">
+            <header className="wr-studio-path-result-heading"><h4>{round.label}</h4><span>{round.weeks?.length ? 'Week ' + round.weeks.join('–') : 'Week unverified'}</span></header>
+            {round.conditional ? <><p className="wr-studio-path-condition">If {primary(path.team)} advances</p><div className="wr-studio-path-opponent"><small>Possible next opponent</small><strong>{possibleTeam?.id != null ? primary(possibleTeam) : possibleSource ? 'Winner of Game ' + possibleSource.id : 'Opponent to be decided'}</strong></div><p className="wr-studio-path-caption">This round depends on advancing. No opponent is confirmed.</p></>
+                : round.bye ? <><div className="wr-studio-path-opponent"><small>{data.provisional ? 'Current position' : 'First round'}</small><strong>{data.provisional ? 'Bye in this snapshot' : 'First-round bye'}</strong><span>{next ? `Next: ${next.label}${next.weeks?.length ? ' · Week ' + next.weeks.join('–') : ''}` : 'No matchup this round'}</span></div></>
+                    : <><span className="wr-studio-status">{data.provisional ? 'Matchup in the current field' : round.status === 'final' ? 'Final' : round.status === 'scheduled' ? 'Scheduled' : 'Awaiting verification'}</span><div className="wr-studio-path-score"><span><WrWireStudioTeamName team={path.team} ownerFirst={ownerFirst} /></span>{!data.provisional && <strong>{score(round.points?.[0])}</strong>}</div><div className="wr-studio-path-score"><span>{typeof round.opponent === 'string' ? round.opponent : <WrWireStudioTeamName team={round.opponent} ownerFirst={ownerFirst} />}</span>{!data.provisional && <strong>{score(round.points?.[1])}</strong>}</div>{!data.provisional && round.caption && <p className="wr-studio-path-caption">{round.caption}</p>}</>}
+            {next && <button className="wr-studio-path-next" type="button" onClick={() => setRoundIndex(index + 1)}>{round.bye ? 'Next round' : data.provisional || round.status !== 'final' ? 'If advancing' : 'Next round'} → {next.label}</button>}
+        </div> : <p>No verified rounds are available for this team yet.</p>}
+    </> : <p>No verified playoff paths are available for this season yet.</p>}</div>;
 }
 
 function WrWireStudioRace({ race, season }) {
-    const [teamId, setTeamId] = React.useState('');
-    const [wins, setWins] = React.useState(0);
-    const selected = race.rows?.find(row => String(row.id) === teamId) || race.rows?.[0];
+    const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+    const rows = [...(race.rows || [])];
+    const recordOrder = rows.length > 0 && rows.every(row => [row.wins, row.losses, row.ties].every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0));
+    if (recordOrder) rows.sort((a, b) => (b.wins + b.ties / 2) - (a.wins + a.ties / 2) || String(a.name || a.id).localeCompare(String(b.name || b.id)));
+    const scope = [season, race.throughWeek, race.futureDecisions, rows.map(row => String(row.id)).sort().join(',')].join(':');
+    const [tools, setTools] = React.useState({ scope: '', open: false, teamId: '', wins: 0, focus: 0 });
+    const state = tools.scope === scope ? tools : { scope, open: false, teamId: '', wins: 0, focus: 0 };
+    const selected = rows.find(row => String(row.id) === state.teamId) || rows[0];
     const future = race.futureDecisions;
-    const chosenWins = typeof future === 'number' ? Math.min(wins, future) : 0;
-    const scenario = selected && window.WrWirePlayoffs?.scenario?.({ race, teamId: selected.id, wins: chosenWins });
-    return <div className="wr-studio-race"><div className="wr-studio-eyebrow">{season} · {race.throughWeek > 0 ? 'Through Week ' + race.throughWeek : 'Awaiting completed results'}</div><h3>The playoff race</h3>{race.notes?.[0] && <p className="wr-studio-scope">{race.notes[0]}</p>}{!race.supported && <p className="wr-studio-notice">{race.reason || 'This format needs its league-specific rules before a playoff race can be verified.'}</p>}{scenario && <section className="wr-studio-scenario"><h4>What would this finish mean?</h4><label>Follow a team<select aria-label="Race scenario team" value={String(selected.id)} onChange={event => { setTeamId(event.target.value); setWins(0); }}>{race.rows.map(row => <option key={row.id} value={String(row.id)}>{row.name}{row.ownerName && row.ownerName !== row.name ? ' · ' + row.ownerName : ''}</option>)}</select></label><label className="wr-studio-scenario-slider">Additional wins{race.decisionsPerWeek === 2 ? ' · head-to-head + median' : ''}<input aria-label="Additional wins" type="range" min="0" max={future} step="1" value={chosenWins} disabled={future === 0} onChange={event => setWins(Number(event.target.value))} /><span>{chosenWins} of {future} remaining decisions</span></label><div className="wr-studio-scenario-result" aria-live="polite"><strong>{scenario.finalRecord}</strong><span>Final record under this scenario</span><h4>{scenario.standing}</h4>{scenario.bestBound != null && <p>Record-based finish bounds: No. {scenario.bestBound}–{scenario.worstBound}</p>}<p>{scenario.explanation}</p><small>{scenario.notes[0]}</small></div><WrWireStudioSources notes={scenario.notes.slice(1)} /></section>}{(race.supported || race.rows?.length > 0) && <><p>{race.slots} playoff places · {race.remainingWeeks} regular-season week{race.remainingWeeks === 1 ? '' : 's'} remaining</p><ul className="wr-studio-race-list">{(race.rows || []).map(row => <li key={row.id}><div><strong>{row.name}{row.ownerName && row.ownerName !== row.name && <span className="wr-studio-team-owner">{row.ownerName}</span>}</strong><span>{row.record}</span></div><p>{row.status}</p>{row.minWins != null && row.maxWins != null && <small>Possible final win total: {row.minWins}–{row.maxWins}</small>}{row.needed != null && <small>{row.needed}</small>}</li>)}</ul></>}<WrWireStudioSources notes={race.notes} /></div>;
+    const futureKnown = typeof future === 'number' && Number.isInteger(future) && future >= 0;
+    const chosenWins = futureKnown && Number.isInteger(state.wins) ? Math.max(0, Math.min(state.wins, future)) : 0;
+    const scenario = state.open && selected && futureKnown && window.WrWirePlayoffs?.scenario?.({ race, teamId: selected.id, wins: chosenWins });
+    const detailId = 'wr-studio-race-detail-' + uid;
+    const teamId = id => 'wr-studio-race-team-' + uid + '-' + rows.findIndex(row => String(row.id) === String(id));
+    const openTeam = id => setTools({ ...state, scope, open: true, teamId: String(id), wins: 0, focus: state.focus + 1 });
+    const closeTools = () => {
+        setTools({ ...state, scope, open: false });
+        window.requestAnimationFrame(() => document.getElementById?.(teamId(selected?.id))?.focus());
+    };
+    React.useEffect(() => {
+        if (!state.open) return;
+        window.requestAnimationFrame(() => {
+            const panel = document.getElementById?.(detailId);
+            panel?.focus({ preventScroll: true });
+            panel?.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+        });
+    }, [state.open, state.focus, detailId]);
+    const statuses = new Set(['Clinched', 'Eliminated', 'In the race']);
+    const showStatus = race.supported && rows.some(row => statuses.has(row.status));
+    const weeksKnown = typeof race.remainingWeeks === 'number' && Number.isInteger(race.remainingWeeks) && race.remainingWeeks >= 0;
+    const median = race.decisionsPerWeek === 2;
+    const context = [...(race.reason ? [race.reason] : []), ...(race.notes || []), ...(recordOrder ? ['Rows are ordered by wins plus half a tie, with equal records listed alphabetically. This is not official playoff seeding.'] : [])];
+    return <div className="wr-studio-race">
+        <div className="wr-studio-eyebrow">{season} · {race.throughWeek > 0 ? 'Through Week ' + race.throughWeek : 'Awaiting completed results'}</div>
+        <h3>The playoff race</h3>
+        {rows.length > 0 ? <>
+            <div className="wr-studio-race-summary">
+                {race.slots > 0 && <div><strong>{race.slots}</strong><span>playoff {race.slots === 1 ? 'place' : 'places'}</span></div>}
+                {weeksKnown && <div><strong>{race.remainingWeeks}</strong><span>regular-season {race.remainingWeeks === 1 ? 'week' : 'weeks'} left</span></div>}
+            </div>
+            <p className="wr-studio-race-context">{median ? `Records include head-to-head + median results.${futureKnown ? ` ${future} win opportunities remain, two per week.` : ''}` : 'Records include head-to-head results.'}</p>
+            {!race.supported && <p className="wr-studio-race-caveat">Record order; division or seeding rules decide the playoff field.</p>}
+            <table className="wr-studio-race-table">
+                <caption>{recordOrder ? 'Record order' : 'Team records'} · not playoff seeds. Select a team to explore its finish.</caption>
+                <thead><tr><th scope="col">Team</th><th scope="col">Record</th>{showStatus && <th scope="col">Race</th>}</tr></thead>
+                <tbody>{rows.map(row => <tr key={row.id} className={state.open && String(selected?.id) === String(row.id) ? 'is-selected' : ''}>
+                    <th scope="row"><button id={teamId(row.id)} type="button" className="wr-studio-race-team" aria-label={`Explore ${row.name || row.ownerName || 'team'}’s finish`} aria-expanded={state.open && String(selected?.id) === String(row.id)} aria-controls={detailId} onClick={() => openTeam(row.id)}><span className="wr-studio-race-team-name">{row.name || row.ownerName || 'Team'}</span>{row.ownerName && row.ownerName !== row.name && <span className="wr-studio-team-owner">{row.ownerName}</span>}</button></th>
+                    <td className="wr-studio-race-record">{row.record || '—'}</td>
+                    {showStatus && <td className="wr-studio-race-status">{statuses.has(row.status) && <span className={row.status === 'Clinched' ? 'is-clinched' : row.status === 'Eliminated' ? 'is-eliminated' : 'is-open'}>{row.status === 'In the race' ? 'In race' : row.status}</span>}</td>}
+                </tr>)}</tbody>
+            </table>
+            {!state.open && <button type="button" className="wr-studio-race-explore" aria-expanded={false} aria-controls={detailId} onClick={() => openTeam(selected.id)}>Explore a team’s finish</button>}
+            {state.open && selected && <section id={detailId} className="wr-studio-scenario" tabIndex={-1} aria-label="Selected team finish">
+                <div className="wr-studio-scenario-heading"><h4>Explore a finish</h4><button type="button" onClick={closeTools}>Close details</button></div>
+                <label>Team<select aria-label="Race scenario team" value={String(selected.id)} onChange={event => openTeam(event.target.value)}>{rows.map(row => <option key={row.id} value={String(row.id)}>{row.name}{row.ownerName && row.ownerName !== row.name ? ' · ' + row.ownerName : ''}</option>)}</select></label>
+                <div className="wr-studio-race-team-detail"><strong>{selected.record || '—'} now</strong>{typeof selected.minWins === 'number' && typeof selected.maxWins === 'number' && Number.isFinite(selected.minWins) && Number.isFinite(selected.maxWins) && <span>Possible final wins: {selected.minWins === selected.maxWins ? selected.minWins : selected.minWins + '–' + selected.maxWins}. This is a range, not a forecast.</span>}{selected.needed && <p>{selected.needed}</p>}</div>
+                {scenario ? <>
+                    <label className="wr-studio-scenario-slider">Additional wins{median ? ' · head-to-head + median' : ''}<input aria-label="Additional wins" type="range" min="0" max={future} step="1" value={chosenWins} disabled={future === 0} onChange={event => setTools({ ...state, scope, wins: Number(event.target.value) })} /><span>{chosenWins} wins from {future} remaining {median ? 'head-to-head + median decisions' : 'games'}</span></label>
+                    <div className="wr-studio-scenario-result" aria-live="polite"><strong>{scenario.finalRecord}</strong><span>Final record in this scenario</span><h4>{scenario.standing}</h4>{scenario.bestBound != null && <p>Record-based finish bounds: No. {scenario.bestBound}–{scenario.worstBound}</p>}<p>{scenario.explanation}</p><small>{scenario.notes?.[0]}</small></div>
+                    <WrWireStudioSources notes={scenario.notes?.slice(1)} />
+                </> : <p className="wr-studio-scope">A finish scenario needs a verified remaining schedule and complete records.</p>}
+            </section>}
+        </> : <p className="wr-studio-notice">{race.reason || 'Complete regular-season results are needed before showing the playoff race.'}</p>}
+        <WrWireStudioSources notes={context} />
+    </div>;
 }
 
 window.WrWireStudio = WrWireStudio;
