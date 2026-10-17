@@ -704,13 +704,13 @@ test('the phone roster can sort, and its presets are column-guarded', () => {
   // then; the phone had no sort entry point at all — rosterSort could only be
   // changed by tapping a table header, which on a phone means switching to
   // Full table and hunting a column in a horizontal scroller.
-  sourceHas(myTeamSrc, "{ label: 'Sort by', node: (", 'the phone filter sheet needs a sort control');
-  sourceHas(myTeamSrc, "{ label: 'Direction', node: (", 'and a direction toggle');
+  sourceHas(myTeamSrc, "sheetField('Sort by', <select", 'the phone filter sheet needs a labeled sort control');
+  sourceHas(myTeamSrc, 'title="Reverse the sort"', 'and a direction toggle');
   sourceHas(myTeamSrc, 'onChange={e => sortByColumn(e.target.value)}', 'phone sort must go through sortByColumn so it flattens grouping');
   sourceHas(myTeamSrc, 'View &amp; sort', 'the phone player list needs a visible sort entry point');
   sourceHas(myTeamSrc, 'select value={rosterSort.key}', 'the sort selector must reflect the active choice');
   // Reset has to clear the sort too, or "Reset" leaves the board reordered.
-  sourceHas(myTeamSrc, "setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); }", 'reset must clear the sort');
+  sourceHas(myTeamSrc, "setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 });", 'reset must clear the sort');
   // Same ROSTER_COLUMNS guard the desktop presets carry (a retired column
   // otherwise renders its raw key as the card slot's label).
   sourceHas(myTeamSrc, 'PHONE_SLOT_PRESETS = Object.fromEntries(Object.entries({', 'phone presets must be column-guarded');

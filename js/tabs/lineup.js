@@ -22,7 +22,7 @@ function LineupInjuryBadge({ status }) {
 // Stable component identity keeps the player button available for sheet focus return.
 const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick, delta, disabled }) => (
     <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '')} onClick={onClick} disabled={disabled}>
-        <span className="gd-player-initial" aria-hidden="true">{pos}</span>
+        <span className={'gd-player-initial gd-pos-' + String(pos || '').toLowerCase().replace(/[^a-z]/g, '')} aria-hidden="true">{pos}</span>
         <span className="gd-player-main"><strong>{name}</strong><LineupInjuryBadge status={injuryStatus} /><span>{tag}</span></span>
         <span className="gd-plan-stats" style={{ '--mc-columns': (slots || []).length }}>{(slots || []).map(stat => <span key={stat.label}><strong>{stat.value}</strong><small>{stat.label === 'PROJ' ? 'Proj' : stat.label}</small></span>)}</span>
         <span className="gd-row-chevron" aria-hidden="true">›</span>
@@ -30,55 +30,78 @@ const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick,
     </button>
 );
 
-// One always-visible matchup view for desktop and phone. Phone keeps the score
-// and player comparisons, without repeating the explanatory copy from desktop.
+// Position totals and their player comparisons share one disclosure. Flexes
+// stay in their actual lineup slot instead of duplicating cross-position pairs.
 function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false }) {
+    const [expanded, setExpanded] = React.useState({ scope: '', groups: [] });
     if (!matchup) return null;
     const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '—';
     const gap = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? Math.round((a - b) * 10) / 10 : null;
     const tone = delta => delta == null || delta === 0 ? 'even' : delta > 0 ? 'ahead' : 'behind';
     const edge = delta => delta == null ? 'Unavailable' : delta === 0 ? 'Even' : (delta > 0 ? 'You +' : 'Them +') + fmt(Math.abs(delta));
-    const rows = matchup.h2h.map(row => ({ ...row, delta: gap(row.myMed, row.theirMed) }));
-    const positions = matchup.posStrength.map(row => ({ ...row, delta: gap(row.mine, row.theirs) }));
+    const rows = (matchup.h2h || []).map((row, index) => ({ ...row, slot: row.slot || 'START', index, delta: gap(row.myMed, row.theirMed) }));
+    const shortSlot = slot => ({ SUPER_FLEX: 'SFLX', WRTQ: 'SFLX', REC_FLEX: 'W/T', WRRB_FLEX: 'W/R', IDP_FLEX: 'IDP' })[slot] || slot;
+    const grouped = new Map();
+    rows.forEach(row => { const key = row.slot || 'START'; if (!grouped.has(key)) grouped.set(key, []); grouped.get(key).push(row); });
+    const sum = (group, key) => group.every(row => Number.isFinite(row[key])) ? group.reduce((total, row) => total + row[key], 0) : null;
+    const positions = rows.length ? [...grouped].map(([key, players]) => {
+        const mine = sum(players, 'myMed'), theirs = sum(players, 'theirMed');
+        return { key, pos: shortSlot(key), mine, theirs, players, delta: gap(mine, theirs) };
+    }) : (matchup.posStrength || []).map(row => ({ ...row, key: row.pos, players: [], delta: gap(row.mine, row.theirs) }));
+    const scope = [week, matchup.oppName, ...rows.map(row => row.slot)].join('|');
+    const openGroups = expanded.scope === scope ? expanded.groups : [];
+    const expandable = positions.filter(row => row.players.length);
+    const allOpen = expandable.length > 0 && expandable.every(row => openGroups.includes(row.key));
+    const listId = 'gd-position-comparison-' + week;
+    const toggleGroup = key => setExpanded(previous => {
+        const current = previous.scope === scope ? previous.groups : [];
+        return { scope, groups: current.includes(key) ? current.filter(value => value !== key) : [...current, key] };
+    });
     const incomplete = positions.some(row => row.delta == null);
     const best = positions.filter(row => row.delta > 0).sort((a, b) => b.delta - a.delta)[0];
     const toughest = positions.filter(row => row.delta != null && row.delta < 0).sort((a, b) => a.delta - b.delta)[0];
     const close = rows.filter(row => row.delta != null && Math.abs(row.delta) <= 2);
     const leads = rows.filter(row => row.delta > 0).length;
     const largest = Math.max(0, ...rows.map(row => Math.abs(row.delta || 0)));
-    const maxPosition = Math.max(1, ...positions.flatMap(row => [Math.abs(row.mine || 0), Math.abs(row.theirs || 0)]));
+    const maxPosition = Math.max(1, ...positions.flatMap(row => [row.mine || 0, row.theirs || 0]));
     const margin = matchup.fc.margin;
     return <section className={'gd-matchup' + (compact ? ' gd-matchup-compact' : '')} aria-label="Weekly matchup breakdown">
         <div className="gd-matchup-heading">
             <div><div className="gd-matchup-eyebrow">Week {week} · Matchup outlook</div><h2>vs {matchup.oppName}</h2>
                 {!compact && <p>Projected points · your lineup plan vs their {pro ? 'optimal' : 'current'} lineup</p>}
-                <div className="gd-matchup-totals"><span><strong>{fmt(matchup.fc.projMe)}</strong><small>You</small></span><span className="gd-matchup-versus">vs</span><span><strong>{fmt(pro ? matchup.fc.projOpp : matchup.oppCurTotal > 0 ? matchup.oppCurTotal : null)}</strong><small>Them</small></span></div>
+                <div className="gd-matchup-totals"><span><strong>{fmt(matchup.fc.projMe)}</strong><small>You</small></span><span className="gd-matchup-versus">vs</span><span><strong>{fmt(pro ? matchup.fc.projOpp : matchup.oppCurTotal)}</strong><small>Them</small></span></div>
             </div>
             {pro ? <div className={'gd-matchup-odds is-' + tone(margin)}><strong>{matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%'}</strong><span>Win probability</span><small>{margin == null ? 'Forecast unavailable' : margin === 0 ? 'Even projection' : fmt(Math.abs(margin)) + ' pts ' + (margin > 0 ? 'ahead' : 'behind')}</small></div> : null}
         </div>
         {pro ? <React.Fragment>
-            {!compact && <p className="gd-matchup-context">Their current lineup: {matchup.oppCurTotal > 0 ? fmt(matchup.oppCurTotal) : '—'} · Optimal: {fmt(matchup.oppIdealTotal)}{matchup.oppCurTotal > 0 && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>}
+            {!compact && <p className="gd-matchup-context">Their current lineup: {fmt(matchup.oppCurTotal)} · Optimal: {fmt(matchup.oppIdealTotal)}{Number.isFinite(matchup.oppCurTotal) && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>}
             <div className="gd-matchup-focus" aria-label="Matchup key edges">
                 <div className="is-ahead"><small>Your biggest edge</small><strong>{best ? best.pos + ' +' + fmt(best.delta) : incomplete ? 'Incomplete data' : 'No projected edge'}</strong><span>{best ? 'Your strongest position advantage' : 'Look for gains in the close slots'}</span></div>
                 <div className="is-behind"><small>Biggest gap</small><strong>{toughest ? toughest.pos + ' −' + fmt(Math.abs(toughest.delta)) : incomplete ? 'Incomplete data' : 'No projected deficit'}</strong><span>{toughest ? 'Their strongest position advantage' : incomplete ? 'Some projections are unavailable' : 'No position group trails'}</span></div>
                 <div className="is-close"><small>Close contests</small><strong>{close.length} {close.length === 1 ? 'slot' : 'slots'}</strong><span>Within 2 projected points</span></div>
             </div>
-            <div className="gd-matchup-section-heading"><h3>Position strength</h3><span>Projected points</span></div>
+            <div className="gd-matchup-section-heading"><h3>Position strength</h3><button type="button" className="gd-matchup-show-all" aria-pressed={allOpen} aria-controls={listId} disabled={!expandable.length} onClick={() => setExpanded({ scope, groups: allOpen ? [] : expandable.map(row => row.key) })}>{allOpen ? 'Hide all players' : 'Show all players'}</button></div>
+            <p className="gd-matchup-position-help">By lineup slot · tap a row for players. You lead {leads} of {rows.length} slots.</p>
             <div className="gd-position-legend"><span>You ◀</span><span>▶ Opponent</span></div>
-            <div className="gd-position-list">{positions.map(row => <div key={row.pos} className={'gd-position-row is-' + tone(row.delta)}>
-                <strong>{row.pos}</strong><span className="gd-position-value">{fmt(row.mine)}</span>
-                <div className="gd-position-bars" role="img" aria-label={row.pos + ': you ' + fmt(row.mine) + ', opponent ' + fmt(row.theirs)}><span><i style={{ width: Math.min(100, Math.abs(row.mine || 0) / maxPosition * 100) + '%' }} /></span><span><i style={{ width: Math.min(100, Math.abs(row.theirs || 0) / maxPosition * 100) + '%' }} /></span></div>
-                <span className="gd-position-value">{fmt(row.theirs)}</span><span className={'gd-matchup-edge is-' + tone(row.delta)}>{edge(row.delta)}</span>
-            </div>)}</div>
-            <div className="gd-matchup-section-heading"><h3>Slot by slot</h3><span>You lead {leads} of {rows.length}</span></div>
+            <div className="gd-position-list" id={listId}>{positions.map((position, groupIndex) => {
+                const open = openGroups.includes(position.key), detailId = listId + '-group-' + groupIndex;
+                return <div key={position.key} className={'gd-position-group is-' + tone(position.delta)} data-position={position.key}>
+                    <button type="button" className={'gd-position-row is-' + tone(position.delta)} aria-expanded={open} aria-controls={detailId} aria-label={(open ? 'Hide ' : 'Show ') + position.key.replace(/_/g, ' ') + ' player comparisons. ' + edge(position.delta)} disabled={!position.players.length} onClick={() => toggleGroup(position.key)}>
+                        <strong title={position.key.replace(/_/g, ' ')}>{position.pos}</strong><span className="gd-position-value">{fmt(position.mine)}</span>
+                        <span className="gd-position-bars" role="img" aria-label={position.pos + ': you ' + fmt(position.mine) + ', opponent ' + fmt(position.theirs)}><span><i style={{ width: Math.min(100, Math.max(0, position.mine || 0) / maxPosition * 100) + '%' }} /></span><span><i style={{ width: Math.min(100, Math.max(0, position.theirs || 0) / maxPosition * 100) + '%' }} /></span></span>
+                        <span className="gd-position-value">{fmt(position.theirs)}</span><span className={'gd-matchup-edge is-' + tone(position.delta)}>{edge(position.delta)}</span><span className="gd-position-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
+                    </button>
+                    <div className="gd-position-players" id={detailId} hidden={!open}>
+                        {open && position.players.map((row, index) => <div key={row.index} data-slot-index={row.index} data-slot={row.slot} className={'gd-matchup-slot is-' + tone(row.delta) + (row.delta != null && Math.abs(row.delta) <= 2 ? ' is-close' : '') + (largest > 0 && Math.abs(row.delta) === largest ? ' is-key' : '')}>
+                            <strong className="gd-matchup-slot-label">{row.slot.replace(/_/g, ' ')}{position.players.length > 1 ? ' ' + (index + 1) : ''}</strong>
+                            <div className="gd-matchup-player gd-matchup-you"><small>You</small><span>{row.myPid ? pmeta(row.myPid).name : 'Empty slot'}</span><strong>{fmt(row.myMed)}</strong></div>
+                            <span className={'gd-matchup-edge is-' + tone(row.delta)}>{edge(row.delta)}</span>
+                            <div className="gd-matchup-player gd-matchup-them"><small>Opponent</small><span>{row.theirPid ? pmeta(row.theirPid).name : 'Empty slot'}</span><strong>{fmt(row.theirMed)}</strong></div>
+                        </div>)}
+                    </div>
+                </div>;
+            })}</div>
             {!compact && <p className="gd-matchup-key">Green: your edge · Red: their edge · Gold outline: within 2 pts{rows.some(row => row.delta == null) ? ' · Some projections unavailable' : ''}</p>}
-            <div className="gd-matchup-slot-head" aria-hidden="true"><span>Slot</span><span>You</span><span>Edge</span><span>Opponent</span></div>
-            <div className="gd-matchup-slots">{rows.map((row, index) => <div key={index} className={'gd-matchup-slot is-' + tone(row.delta) + (row.delta != null && Math.abs(row.delta) <= 2 ? ' is-close' : '') + (largest > 0 && Math.abs(row.delta) === largest ? ' is-key' : '')}>
-                <strong className="gd-matchup-slot-label">{row.slot.replace('_', ' ')}</strong>
-                <div className="gd-matchup-player gd-matchup-you"><small>You</small><span>{row.myPid ? pmeta(row.myPid).name : 'Empty slot'}</span><strong>{fmt(row.myMed)}</strong></div>
-                <span className={'gd-matchup-edge is-' + tone(row.delta)}>{edge(row.delta)}</span>
-                <div className="gd-matchup-player gd-matchup-them"><small>Opponent</small><span>{row.theirPid ? pmeta(row.theirPid).name : 'Empty slot'}</span><strong>{fmt(row.theirMed)}</strong></div>
-            </div>)}</div>
         </React.Fragment> : upgrade}
     </section>;
 }
@@ -1336,7 +1359,11 @@ function MyLineupTab({
                     <button aria-pressed={phoneView === 'odds'} className={phoneView === 'odds' ? 'is-on' : ''} onClick={() => setPhoneView('odds')}>Odds</button>
                 </div>
 
-                {(phoneView === 'week' || phoneView === 'matchup') ? weekNavigator : null}
+                {(phoneView === 'week' || phoneView === 'matchup') ? <div className={'gd-lineup-controls' + (phoneView === 'matchup' ? ' is-matchup' : '')}>
+                    {weekNavigator}
+                    {phoneView === 'week' && metricPreference && <div className="gd-lineup-columns"><window.WR.PlayerMetrics.Picker preference={metricPreference} /></div>}
+                    {phoneView === 'week' && <div className="roster-lineup-form" aria-label="Optimizer form window"><span className="gd-form-label">Average</span>{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>}
+                </div> : null}
 
                 {phoneView === 'odds' ? (
                     // No bracket in a chopped league — survival IS the odds view.
@@ -1348,10 +1375,8 @@ function MyLineupTab({
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
                 ) : phoneView === 'matchup' ? (matchup ? matchupPanel : <p className="gd-muted">The matchup appears when an opponent and projections are available.</p>) : phoneView === 'week' ? (<React.Fragment>
-                <div className="roster-lineup-form" aria-label="Optimizer form window">{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>
                 <section id="gameday-starting-lineup" className="gd-working-lineup" aria-label="Local lineup plan">
-                    <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2>{metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
-                    <div className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</div>
+                    <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2><span className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
                     {pro && canOptimize && !isOptimal ? <button type="button" className="gd-secondary" onClick={applyOptimalWithSummary}>Use optimal in my plan</button> : null}
                     {trackingLineup ? mobileScoreboard : null}
                     <div className="gd-player-list">{dispSlots.map(slotRow)}</div>

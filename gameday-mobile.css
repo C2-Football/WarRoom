@@ -218,6 +218,17 @@
 .gd-matchup-player > small { display: none; }
 .gd-matchup-them { flex-direction: row-reverse; text-align: right; }
 .gd-matchup-slot.is-ahead .gd-matchup-you > span, .gd-matchup-slot.is-behind .gd-matchup-them > span { font-weight: 700; }
+.gd-matchup-show-all { min-height:44px; padding:6px 10px; border:1px solid var(--mc-line,rgba(183,206,255,.22)); border-radius:8px; background:var(--ov-2,rgba(255,255,255,.03)); color:var(--gold,#d4af37); font:600 12px/1.3 var(--font-body,sans-serif); cursor:pointer; }
+.gd-matchup-position-help { margin:0 0 8px; color:var(--silver,#9aa0a6); font-size:12px; line-height:1.4; }
+.gd-position-group { min-width:0; }
+.gd-position-row { width:100%; min-height:48px; grid-template-columns:42px 42px minmax(24px,1fr) 42px 84px 16px; box-sizing:border-box; border:0; border-bottom:1px solid var(--ov-4,rgba(255,255,255,.08)); border-radius:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.gd-position-row[aria-expanded=true] { background:var(--ov-2,rgba(255,255,255,.03)); }
+.gd-position-row:focus-visible,.gd-matchup-show-all:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:2px; }
+.gd-position-chevron { color:var(--silver,#9aa0a6); font-size:18px; text-align:center; }
+.gd-position-players { padding:6px 0 9px; border-bottom:1px solid var(--ov-4,rgba(255,255,255,.08)); }
+.gd-position-players[hidden] { display:none; }
+.gd-position-players .gd-matchup-slot:last-child { margin-bottom:0; }
+.gd-position-players .gd-matchup-slot-label { overflow-wrap:anywhere; }
 @media (max-width: 767px) {
   .gd-matchup { padding: 14px 12px; }
   .gd-matchup-heading { flex-wrap: wrap; gap: 12px; }
@@ -257,6 +268,17 @@
   .wr-mission-control .gd-matchup-compact .gd-matchup-player > small { display: block; width: auto; font-size: 9px; white-space: nowrap; }
   .wr-mission-control .gd-matchup-compact .gd-matchup-player > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wr-mission-control .gd-matchup-compact .gd-matchup-player > strong { font-size: 12px; }
+  .gd-matchup .gd-position-row { grid-template-columns:28px 34px minmax(20px,1fr) 34px 76px 12px; gap:5px; padding:7px 0; }
+  .gd-matchup .gd-position-row > .gd-matchup-edge { grid-column:auto; justify-self:stretch; padding:4px; font-size:10px; }
+  .gd-matchup .gd-position-legend { padding-right:93px; }
+  .gd-matchup .gd-matchup-section-heading { gap:6px; margin-top:14px; }
+  .gd-matchup .gd-matchup-position-help { font-size:11px; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-slot { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'slot edge' 'you you' 'them them'; gap:5px 8px; padding:8px; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-slot-label { font-size:11px; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-player { grid-template-columns:52px minmax(0,1fr) 40px; gap:6px; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-player > small { font-size:10px; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-player > span { white-space:normal; overflow:visible; text-overflow:clip; font-size:12px; line-height:1.35; }
+  .wr-mission-control .gd-matchup-compact .gd-position-players .gd-matchup-player > strong { font-size:13px; }
 }
 
 /* The selected week drives the local plan, projections and schedule together. */
@@ -277,7 +299,39 @@
   .gd-mobile > .gd-week-nav select { min-height: 34px; padding: 2px 6px; background: transparent !important; font-size: 13px; font-weight: 600; }
   .gd-mobile > .gd-week-nav small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .gd-league-game-heading button { min-height: 44px; }
+  .gd-mobile .gd-lineup-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; }
+  .gd-mobile .gd-lineup-controls .gd-week-nav { min-width:0; width:auto; max-width:224px; margin:0; padding:0; gap:0; border-radius:8px; background:transparent; }
+  .gd-mobile .gd-lineup-controls .gd-week-nav > button { flex-basis:44px; min-height:44px; padding:0; border:0; background:transparent; font-size:20px; }
+  .gd-mobile .gd-lineup-controls .gd-week-nav select { min-height:44px; padding:3px 2px; background:transparent!important; font-size:13px; font-weight:600; }
+  .gd-mobile .gd-lineup-controls .gd-week-nav small { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .gd-mobile .gd-lineup-columns { justify-self:end; }
+  .gd-mobile .gd-lineup-columns .mc-metric-picker { position:relative; }
+  .gd-mobile .gd-lineup-columns .mc-metric-options { position:absolute; right:0; top:44px; width:min(300px,calc(100vw - 32px)); z-index:70; }
+  .gd-mobile .gd-lineup-controls .roster-lineup-form { grid-column:1 / -1; gap:4px; margin:0; padding:0; }
+  .gd-mobile .gd-lineup-controls .roster-lineup-form button { min-width:44px; min-height:44px; padding:5px 8px; font-size:12px; }
+  .gd-form-label { margin-right:4px; color:var(--silver,#9aa0a6); font:500 11px/1.3 var(--font-body,sans-serif); }
+  .gd-mobile .gd-lineup-controls.is-matchup { grid-template-columns:minmax(0,1fr); }
+  .gd-mobile .mc-lineup-heading { gap:4px 10px; flex-wrap:wrap; margin:0 0 7px; }
+  .gd-mobile .mc-lineup-heading .mc-lineup-total { font-size:11px; font-weight:500; line-height:1.4; }
+  .gd-mobile #gameday-starting-lineup .gd-scoreboard { padding:9px 11px; margin:0 0 8px; }
+  .gd-mobile #gameday-starting-lineup .gd-eyebrow { font-size:12px; }
+  .gd-mobile #gameday-starting-lineup .gd-scoreboard-sides { gap:12px; margin:5px 0; }
+  .gd-mobile #gameday-starting-lineup .gd-team-name { font-size:12px; line-height:1.35; }
+  .gd-mobile #gameday-starting-lineup .gd-scoreboard-sides strong { font-size:28px; line-height:1.15; }
+  .gd-mobile #gameday-starting-lineup .gd-versus { margin-bottom:4px; font-size:12px; }
+  .gd-mobile #gameday-starting-lineup .gd-score-update { gap:8px; }
+  .gd-mobile #gameday-starting-lineup .gd-score-update > span { font-size:11px; line-height:1.4; }
+  .gd-mobile #gameday-starting-lineup .gd-score-update button { min-height:44px; padding:6px 0 6px 8px; font-size:12px; }
 }
+
+/* Match the shared position palette while keeping small labels readable. */
+.gd-player-initial.gd-pos-qb { --gd-position-ink:#ffaaa4; --gd-position-fill:rgba(231,76,60,.18); }
+.gd-player-initial.gd-pos-rb { --gd-position-ink:#79e2a5; --gd-position-fill:rgba(46,204,113,.18); }
+.gd-player-initial.gd-pos-wr { --gd-position-ink:#91cef7; --gd-position-fill:rgba(52,152,219,.18); }
+.gd-player-initial.gd-pos-te { --gd-position-ink:#ffd173; --gd-position-fill:rgba(240,165,0,.18); }
+.gd-player-initial.gd-pos-k { --gd-position-ink:#d4b4ee; --gd-position-fill:rgba(155,89,182,.18); }
+.gd-player-initial.gd-pos-def,.gd-player-initial.gd-pos-dst { --gd-position-ink:#c4d0d9; --gd-position-fill:rgba(133,146,158,.18); }
+.gd-mobile .gd-player-initial[class*="gd-pos-"],.gd-mobile-sheet .gd-player-initial[class*="gd-pos-"] { color:var(--gd-position-ink,var(--cx-accent,#b7ceff))!important; background:var(--gd-position-fill,rgba(183,206,255,.12))!important; border:1px solid currentColor!important; }
 
 /* Injury severity is shared by desktop, phone, and roster pickers. */
 .lineup-injury,

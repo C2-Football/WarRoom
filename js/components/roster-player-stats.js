@@ -153,16 +153,21 @@
                         h('td', null, fmt(gp)), h('td', null, fmt(average(row.raw, row.season, fpts, gp), 1)), h('td', { className: 'wr-player-fpts' }, fmt(fpts, 1))), details(row.raw, key, 4));
                 })));
         } else {
-            content = h('table', null,
+            const reported = rows.filter(row => row.raw).sort((a, b) => b.week - a.week);
+            const unreported = rows.filter(row => !row.raw).sort((a, b) => b.week - a.week);
+            content = h(React.Fragment, null, reported.length ? h('table', null,
                 h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Wk'), h('th', { scope: 'col' }, 'FPTS'), ...cols.map(col => h('th', { key: col.label, scope: 'col', title: col.title }, col.label)))),
-                h('tbody', null, rows.slice().sort((a, b) => b.week - a.week).map(row => {
+                h('tbody', null, reported.map(row => {
                     const key = 'w' + row.week;
                     return h(React.Fragment, { key }, h('tr', null,
                         h('th', { scope: 'row' }, h('button', { onClick: () => setExpanded(expanded === key ? null : key), 'aria-expanded': expanded === key, 'aria-label': 'Week ' + row.week + ' stat line' }, row.week)),
                         h('td', { className: 'wr-player-fpts' }, fmt(points(row.raw, season, row.week), 1)),
-                        ...(row.raw ? statCells(row.raw) : [h('td', { key: 'status', colSpan: cols.length, className: 'wr-player-week-status' }, row.error ? 'Could not load' : 'No stats reported')])
+                        ...statCells(row.raw)
                     ), details(row.raw, key, cols.length + 2));
-                })));
+                }))) : h('p', { className: 'wr-player-stats-message' }, rows.some(row => row.error) ? 'No weekly stats loaded.' : 'No weekly stats reported yet.'),
+                unreported.length ? h('details', { className: 'wr-player-unreported-weeks', key: requestKey },
+                    h('summary', null, unreported.length + (unreported.length === 1 ? ' week without stats' : ' weeks without stats')),
+                    h('ul', null, unreported.map(row => h('li', { key: row.week }, h('span', null, 'Week ' + row.week), h('span', null, row.error ? 'Could not load' : 'No stats reported'))))) : null);
         }
         const incomplete = rows.some(row => row.error);
         return h('section', { className: 'wr-player-stats' + (phone ? ' is-phone' : ''), 'aria-label': 'Player NFL stats' },

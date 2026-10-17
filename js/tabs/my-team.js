@@ -1561,10 +1561,10 @@ function MyTeamTab({
     }
   };
   // Keep the collapsed row to player identity and real roster/injury status.
-  const _phoneTagFor = (r) => {
+  const _phoneTagFor = (r, includePosition = true) => {
     const slot = r.isIR ? 'IR' : r.isTaxi ? 'Taxi' : r.isStarter ? 'Starter' : 'Bench';
     const injury = String(r.injury || '').trim();
-    return [r.pos, r.p.team || 'FA', slot, injury.toLowerCase() === slot.toLowerCase() ? null : injury].filter(Boolean).join(' · ');
+    return [includePosition && r.pos, r.p.team || 'FA', slot, injury.toLowerCase() === slot.toLowerCase() ? null : injury].filter(Boolean).join(' · ');
   };
   // Compact roster facts, direct scope controls, and the existing view sheet.
   let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null, _reviewSheetEl = null;
@@ -1606,7 +1606,7 @@ function MyTeamTab({
     );
     _phonePillsEl = (
       <div className="wr-roster-mobile-controls">
-        <div className="wr-roster-mobile-list-heading"><h3>Players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button>{metricPreference && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
+        <div className="wr-roster-mobile-list-heading"><h3>Players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button>{metricPreference && !phoneTableOpen && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
         <div className="wr-roster-mobile-scopes wr-hscroll" role="group" aria-label="Roster group">
           {phoneScopes.map(scope => <button key={scope} type="button" aria-pressed={rosterFilter === scope} onClick={() => { setRosterFilter(scope); setExpandedPid(null); }}><span>{scope}</span><span>{scopeCounts[scope]}</span></button>)}
         </div>
@@ -1614,74 +1614,54 @@ function MyTeamTab({
       </div>
     );
 
-    // FilterSheet re-homes the EXISTING toolbar controls behind one sheet;
-    // every control drives the exact same state setters as the desktop
-    // toolbar (which stays untouched for tablet/desktop).
-    const sheetSelectStyle = (active) => ({ ...rosterSelectStyle(active), width: '100%' });
+    // Phone settings change immediately. Core controls share a compact grid;
+    // the full table's presets and 28-field customizer only appear for that layout.
+    const sheetSelectStyle = (active) => ({ ...rosterSelectStyle(active), width: '100%', fontSize: '14px', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal', padding: '8px 10px' });
+    const sheetField = (label, node) => <label className="wr-roster-view-field"><span>{label}</span>{node}</label>;
     _phoneSheetEl = React.createElement(window.WR.FilterSheet, {
       open: filtersOpen,
       onClose: () => setFiltersOpen(false),
       title: 'Roster view & sort',
       sections: [
-        { label: 'Layout', node: (
+        { label: null, node: (
           <div className="wr-roster-mobile-layout" role="group" aria-label="Roster layout">
             <button type="button" aria-pressed={!phoneTableOpen} onClick={() => setPhoneTableOpen(false)}>Player list</button>
             <button type="button" aria-pressed={phoneTableOpen} onClick={() => setPhoneTableOpen(true)}>Full table</button>
           </div>
         ) },
-        { label: 'Scope', node: (
-          <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={sheetSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
-            {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
+        { label: null, node: (
+          <div className="wr-roster-view-grid">
+            {sheetField('Show', <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={sheetSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
+              {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>)}
+            {sheetField('Group by', <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+              {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+            </select>)}
+            {sheetField('Sort by', <select value={rosterSort.key} onChange={e => sortByColumn(e.target.value)} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
+              {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{ROSTER_COLUMNS[opt.key]?.shortLabel || opt.label}</option>)}
+            </select>)}
+            {sheetField('Order', <button type="button" onClick={() => setRosterSort(prev => ({ ...prev, dir: prev.dir * -1 }))} className="wr-roster-sort-direction" title="Reverse the sort">
+              <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {_phoneSortDescending ? 'High to low' : 'Low to high'}
+            </button>)}
+          </div>
         ) },
-        { label: 'View', node: (
-          <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={sheetSelectStyle(activePresetKey !== 'default')} title="Column preset">
-            {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
-            {activePresetKey === 'custom' && <option value="custom">Custom</option>}
-          </select>
-        ) },
-        { label: 'Columns', node: (
-          <button onClick={() => { setShowColPicker(true); setFiltersOpen(false); }} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px', width: '100%' }} title="Add, remove, or reorder columns">Customize · {visibleCols.length}/{Object.keys(ROSTER_COLUMNS).length} fields</button>
-        ) },
-        { label: 'PPG window', node: (
-          <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={sheetSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
-            <option value="season">Season</option>
-            <option value="l5">L5</option>
-            <option value="l3">L3</option>
-          </select>
-        ) },
-        { label: 'Rows', node: (
-          <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={sheetSelectStyle(rowDensity !== 'comfortable')} title="Row density">
-            <option value="comfortable">Comfort</option>
-            <option value="compact">Compact</option>
-          </select>
-        ) },
-        // Sorting had no phone entry point at all: rosterSort could only be
-        // changed by tapping a desktop table header, which on a phone means
-        // switching to Full table and finding the right column in a
-        // horizontal scroller. "I want to sort by DHQ" (owner, 2026-09-06)
-        // was effectively desktop-only until this.
-        { label: 'Sort by', node: (
-          <select value={rosterSort.key} onChange={e => sortByColumn(e.target.value)} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
-            {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
-          </select>
-        ) },
-        { label: 'Direction', node: (
-          <button
-            onClick={() => setRosterSort(prev => ({ ...prev, dir: prev.dir * -1 }))}
-            style={{ ...controlBtn(true), minHeight: '44px', width: '100%' }}
-            title="Reverse the sort">
-            {_phoneSortDescending ? 'High to low' : 'Low to high'}
-          </button>
-        ) },
-        { label: 'Group', node: (
-          <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
-            {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
-          </select>
-        ) },
-        { label: 'Saved views', node: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
+        ...(phoneTableOpen ? [{ label: 'Table settings', node: (
+          <div className="wr-roster-view-grid">
+            {sheetField('Column preset', <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={sheetSelectStyle(activePresetKey !== 'default')} title="Column preset">
+              {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
+              {activePresetKey === 'custom' && <option value="custom">Custom</option>}
+            </select>)}
+            {sheetField('Table columns', <button type="button" onClick={() => { setShowColPicker(true); setFiltersOpen(false); }} className="wr-roster-sort-direction" title="Add, remove, or reorder columns">Customize · {visibleCols.length}</button>)}
+            {sheetField('PPG window', <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={sheetSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
+              <option value="season">Season</option><option value="l5">Last 5 games</option><option value="l3">Last 3 games</option>
+            </select>)}
+            {sheetField('Row spacing', <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={sheetSelectStyle(rowDensity !== 'comfortable')} title="Row density">
+              <option value="comfortable">Comfort</option><option value="compact">Compact</option>
+            </select>)}
+          </div>
+        ) }, { label: 'Saved table views', node: (
+          <div className="wr-roster-saved-views">
+            <span>{filtered.length} / {allPlayers.length} shown</span>
             {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
               surface: 'roster',
               leagueId: currentLeague?.id,
@@ -1695,12 +1675,13 @@ function MyTeamTab({
               },
             })}
           </div>
-        ) },
+        ) }] : []),
+        { label: null, node: <p className="wr-roster-view-note">Changes appear as you choose them.</p> },
       ],
       footer: (
         <React.Fragment>
-          <button onClick={() => { setRosterFilter('All'); setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1 }}>Reset</button>
-          <button onClick={() => setFiltersOpen(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 2 }}>Apply</button>
+          <button type="button" onClick={() => { setRosterFilter('All'); setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); if (phoneTableOpen) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); } }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1, textTransform: 'none', fontSize: '14px' }}>Reset</button>
+          <button type="button" onClick={() => setFiltersOpen(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 2, textTransform: 'none', fontSize: '14px' }}>Done</button>
         </React.Fragment>
       ),
     });
@@ -1775,7 +1756,10 @@ function MyTeamTab({
         <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid}>
           <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
-            <span className="wr-roster-mobile-player-identity"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r)}</span></span>
+            <span className="wr-roster-mobile-player-identity">
+              <span className="wr-roster-position-icon" style={{ '--wr-position-color': posColors[r.pos] || ({ QB: '#e74c3c', RB: '#2ecc71', WR: '#3498db', TE: '#f0a500', K: '#9b59b6', DEF: '#85929e' })[r.pos] || 'var(--silver)' }}>{r.pos}</span>
+              <span className="wr-roster-identity-copy"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r, false)}</span></span>
+            </span>
             {metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {
               proj: projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null,
               ppg: window.App?.WeeklyProj?.formStats?.(r.pid, 5)?.rollingPPG,

@@ -119,6 +119,10 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert.equal(select(active.out, n => n.props.className === 'gd-planning-focus'), undefined, 'mobile lineup opens directly on the actionable lineup surface');
     const plan = select(active.out, n => n.props.className === 'gd-working-lineup');
     assert(plan); assert.match(textOf(plan), /partial/);
+    const controls = select(active.out, n => n.props.className === 'gd-lineup-controls');
+    assert(select(controls, n => n.props['aria-label'] === 'Lineup week'), 'The compact controls keep week navigation');
+    assert(select(controls, n => n.props['aria-label'] === 'Optimizer form window'), 'The same compact control group keeps the PPG window');
+    assert(select(select(plan, n => n.props.className === 'gd-list-heading mc-lineup-heading'), n => n.props.className === 'mc-lineup-total'), 'Lineup total shares the heading instead of a separate control row');
     assert.doesNotMatch(textOf(plan), /Plan here\. Set your final starters|Only players with verified upcoming games/, 'redundant planning instructions stay out of the mobile lineup');
     assert(select(plan, n => n.props.className === 'gd-scoreboard'), 'live scores stay inside starting lineup');
     assert.match(textOf(plan), /Final · 0.00 pts · Locked/);
@@ -126,9 +130,12 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     const missingRow = select(plan, n => n.type === 'button' && textOf(n).includes('Missing Starter'));
     assert.match(textOf(missingRow), /—Proj—L5 PPG/);
     const starter = select(plan, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
+    assert(select(starter, n => n.props.className === 'gd-player-initial gd-pos-qb'), 'Game Day uses the quarterback position color hook');
     assert.match(textOf(starter), /0\.0Proj0\.0L5 PPG/, 'projection and zero PPG are visible without opening the player');
     assert.match(textOf(missingRow), /—Proj—L5 PPG/, 'missing PPG stays unavailable');
     const negativeRow = select(plan, n => n.type === 'button' && textOf(n).includes('Negative Starter'));
+    assert(select(negativeRow, n => n.props.className === 'gd-player-initial gd-pos-rb'), 'Game Day uses the running-back position color hook');
+    assert(select(missingRow, n => n.props.className === 'gd-player-initial gd-pos-wr'));
     assert.match(textOf(negativeRow), /-2\.5Proj-2\.5L5 PPG/, 'negative PPG is preserved');
     starter.props.onClick(); await active.render();
     assert.equal(button(active.out, 'Empty this slot').props.disabled, true);
@@ -194,7 +201,14 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
         }
         const breakdown = select(forecast.out, matchupPanel);
         assert(breakdown, 'matchup is visible on both viewport branches');
-        assert.match(textOf(breakdown), /Position strength.*Slot by slot/);
+        assert.match(textOf(breakdown), /Position strength.*Show all players/);
+        assert.doesNotMatch(textOf(breakdown), /Slot by slot/);
+        assert.equal(all(breakdown).filter(n => n.props['data-slot-index'] != null).length, 0, 'Player comparisons wait inside their position rows');
+        button(forecast.out, 'Show all players').props.onClick(); await forecast.render();
+        const expandedBreakdown = select(forecast.out, matchupPanel);
+        const comparisonRows = all(expandedBreakdown).filter(n => n.props['data-slot-index'] != null);
+        assert.equal(comparisonRows.length, 3);
+        assert.equal(new Set(comparisonRows.map(n => n.props['data-slot-index'])).size, 3, 'The unified comparison covers each actual starting slot once');
         if (width < 768) {
             assert.match(breakdown.props.className, /gd-matchup-compact/, 'phone matchup uses the denser layout');
             assert.doesNotMatch(textOf(breakdown), /Projected points · your lineup plan|Their current lineup:|Green: your edge/, 'phone matchup leaves desktop-only explanations out');
@@ -207,7 +221,7 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
         const free = await fixture({ width, withMatchup: true, pro: false });
         if (width < 768) { button(free.out, 'Matchup').props.onClick(); await free.render(); }
         assert(select(free.out, matchupPanel));
-        assert.doesNotMatch(textOf(free.out), /Your biggest edge|Win probability|Slot by slot/);
+        assert.doesNotMatch(textOf(free.out), /Your biggest edge|Win probability|Show all players|Slot by slot/);
     }
     // Apply Optimal must follow the selected history window even when the
     // weekly projection ranks the two quarterbacks in the opposite order.
