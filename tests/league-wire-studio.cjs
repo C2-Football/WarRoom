@@ -273,7 +273,7 @@ const model = { kind: 'comparison', headline: 'A rivalry with context', eyebrow:
     scenarioTree = scenarioView.render({ season: 2027 });
     assert(!nodes(scenarioTree).some(n => n.props['aria-label'] === 'Additional wins'), 'a new season closes the old finish scenario synchronously');
     const medianScenario = harness('WrWireStudioRace', { race: { ...scenarioRace, futureDecisions: 2, decisionsPerWeek: 2 }, season: 2026 });
-    let medianTree = medianScenario.render(); assert.match(text(medianTree), /1 regular-season week left/); assert.match(text(medianTree), /2 win opportunities remain, two per week/);
+    let medianTree = medianScenario.render(); assert.match(text(medianTree), /1 regular-season week left/); assert.match(text(medianTree), /2 decisions left, two per week/);
     nodes(medianTree).find(n => n.props['aria-label'] === 'Explore Alpha’s finish').props.onClick(); medianTree = medianScenario.render();
     const medianSlider = nodes(medianTree).find(n => n.props['aria-label'] === 'Additional wins');
     assert.equal(medianSlider.props.max, 2); assert.match(text(medianTree), /remaining head-to-head \+ median decisions/);

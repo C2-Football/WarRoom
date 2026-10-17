@@ -1,6 +1,6 @@
 /* Wire Studio is an optional dialog; newspaper feeds stay text-first. */
 .wr-journal .wr-wire-studio-link{color:var(--accent,#b62326);background:transparent;border:0;border-bottom:1px solid currentColor;border-radius:0;padding:7px 0;min-height:44px;font:600 .78rem var(--font-body,system-ui,sans-serif);text-align:left}.wr-wire-rivalry-links{margin:0 0 24px}.wr-wire-rivalry-links ul{list-style:none;margin:0;padding:0}.wr-wire-rivalry-links li{border-bottom:1px solid var(--rule,#e5e5e5);padding:10px 0}.wr-studio-path-name>small{display:block;font-size:12px;font-weight:500;letter-spacing:0;margin-top:7px}
-.wr-wire-studio{--ws-bg:var(--paper,#fff);--ws-panel:var(--panel,#f5f5f3);--ws-ink:var(--ink,#191919);--ws-muted:var(--muted,#59616a);--ws-line:var(--rule,#d9dddc);--ws-accent:var(--accent,#b62326);--ws-gold:#896000;color-scheme:light;position:fixed;inset:0;margin:auto;padding:0;width:min(1000px,calc(100vw - 32px));max-width:none;height:min(850px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);border:1px solid var(--ws-line);border-radius:var(--card-radius-sm,8px);background:var(--ws-bg);color:var(--ws-ink);font:400 14px/1.5 var(--font-body,system-ui,sans-serif);overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 100px #0008;text-align:left}
+.wr-wire-studio{--ws-bg:#fff;--ws-panel:#f2f4f6;--ws-ink:#17212e;--ws-muted:#465467;--ws-line:#ced5dd;--ws-accent:#a51f2d;--ws-gold:#725414;--ws-data-font:var(--font-mono,"JetBrains Mono",monospace);color-scheme:light;position:fixed;inset:0;margin:auto;padding:0;width:min(1000px,calc(100vw - 32px));max-width:none;height:min(850px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);border:1px solid var(--ws-line);border-radius:var(--card-radius-sm,8px);background:var(--ws-bg);color:var(--ws-ink);font:400 14px/1.5 var(--font-body,system-ui,sans-serif);overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 100px #0008;text-align:left}
 .wr-wire-studio::backdrop{background:#05070ccc}.wr-wire-studio *{box-sizing:border-box}.wr-wire-studio [hidden]{display:none!important}.wr-wire-studio :is(button,select){font:inherit;color:inherit;min-height:44px;border:1px solid var(--ws-line);border-radius:var(--card-radius-xs,5px);background:var(--ws-bg);padding:9px 12px}.wr-wire-studio button{cursor:pointer}.wr-wire-studio button:hover{background:var(--ws-panel)}.wr-wire-studio button:disabled{opacity:.55;cursor:default}.wr-wire-studio :is(button,select,a,summary):focus-visible{outline:3px solid var(--ws-accent);outline-offset:3px}.wr-wire-studio select{max-width:100%;min-width:0;width:100%;font-size:16px}.wr-wire-studio label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ws-muted);min-width:0}.wr-wire-studio p{margin:10px 0}.wr-wire-studio h3{font:800 clamp(25px,4vw,44px)/1.08 var(--font-display,var(--font-title,var(--font-body,system-ui,sans-serif)));letter-spacing:-.035em;margin:0 0 24px;overflow-wrap:anywhere}.wr-wire-studio h4{font-size:15px;line-height:1.4;margin:0 0 7px}.wr-wire-studio small{color:var(--ws-muted);font-size:12px;line-height:1.55}
 .wr-studio-mast{position:sticky;top:0;z-index:3;background:var(--ws-bg);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--ws-line)}.wr-studio-mast>div{min-width:0}.wr-studio-mast h2{font:700 28px/1 Georgia,serif;letter-spacing:-1px;margin:0}.wr-studio-mast h2>span{color:var(--ws-accent)}.wr-studio-mast h2>small{font:650 11px var(--font-body,system-ui,sans-serif);letter-spacing:2px;text-transform:uppercase;border-left:1px solid var(--ws-line);padding-left:12px;margin-left:10px}.wr-studio-mast p{font-size:11px;color:var(--ws-muted);margin:6px 0 0;overflow-wrap:anywhere}.wr-studio-mast>button{flex-shrink:0;font-size:12px}
 .wr-studio-tabs{display:flex;gap:20px;padding:0 24px;border-bottom:1px solid var(--ws-line);overflow-x:auto;scrollbar-width:thin}.wr-studio-tabs>button{flex-shrink:0;border:0;border-radius:0;border-bottom:3px solid transparent;background:transparent;font-size:12px;font-weight:650;padding:12px 0;min-height:49px}.wr-studio-tabs>button[aria-selected=true]{border-bottom-color:var(--ws-accent);color:var(--ws-accent)}.wr-studio-panel{padding:26px 28px;outline-offset:-4px;min-width:0}.wr-studio-editions{display:flex;align-items:end;gap:14px;margin:0 0 25px}.wr-studio-editions>label{flex:1;max-width:480px}.wr-studio-editions>button{flex-shrink:0;font-size:12px}.wr-studio-eyebrow{color:var(--ws-muted);font-size:11px;line-height:1.6;letter-spacing:1.3px;text-transform:uppercase;margin:0 0 12px}.wr-studio-select{max-width:500px;margin:0 0 22px}.wr-studio-notice{background:var(--ws-panel);border-left:3px solid var(--ws-accent);padding:12px 15px;font-size:13px;line-height:1.65;margin:15px 0}.wr-studio-notice p{margin:0 0 9px}.wr-studio-notice button{font-size:12px}
@@ -165,4 +165,59 @@
  .wr-studio-path-result{padding:12px}
  .wr-studio-race-table .wr-studio-race-team{padding:9px 5px}
  .wr-studio-race-table td,.wr-studio-race-table thead th{padding-left:5px;padding-right:5px}
+}
+
+/* Command Center density on Studio paper: strong labels, aligned data, shared rows. */
+.wr-wire-studio :is(h2,h3,h4,strong){color:var(--ws-ink)}
+.wr-wire-studio h3{font:700 24px/1.2 var(--font-body,system-ui,sans-serif);letter-spacing:-.035em;margin-bottom:12px}
+.wr-wire-studio h4{font-family:var(--font-body,system-ui,sans-serif);font-weight:700}
+.wr-wire-studio .wr-studio-team-owner{font-size:11px;font-weight:500;line-height:1.35;margin-top:2px;color:var(--ws-muted)}
+.wr-studio-mast p,.wr-studio-mast h2>small{font-weight:600;color:var(--ws-muted)}
+.wr-studio-tabs>button,.wr-studio-round-nav>button>span{font-weight:700}
+.wr-studio-panel{padding:16px 20px}
+.wr-studio-editions{margin-bottom:8px}
+.wr-studio-edition-status{margin-bottom:10px}
+.wr-studio-view-heading{margin-bottom:10px}
+.wr-studio-view-heading h3{margin:0}
+.wr-studio-round-nav{margin-bottom:10px}
+.wr-studio-byes{padding:8px 10px;margin-bottom:10px}
+.wr-studio-bracket-game>.wr-studio-bracket-team{min-height:52px;padding:8px 0}
+.wr-studio-bracket-game>.wr-studio-bracket-team>span,.wr-studio-path-score>span{font-size:14px;font-weight:700}
+.wr-studio-bracket-game>.wr-studio-bracket-team>strong,.wr-studio-path-score>strong{font:700 21px/1.2 var(--ws-data-font);letter-spacing:-.05em}
+.wr-studio-path .wr-studio-select{margin-bottom:10px}
+.wr-studio-path-stops{margin:12px 0}
+.wr-studio-path-score{padding:8px 0;min-height:52px}
+.wr-studio-path-opponent>strong{font-size:19px;font-weight:700}
+.wr-studio-race-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.wr-studio-race-heading h3{margin:0;font-size:22px;flex-shrink:0}
+.wr-studio-race-heading .wr-studio-eyebrow{margin:0;max-width:155px;font-size:11px;line-height:1.35;letter-spacing:0;text-transform:none;text-align:right;font-weight:600}
+.wr-studio-race-summary{gap:0;border:1px solid var(--ws-line);border-radius:6px;background:var(--ws-panel);padding:0;margin-bottom:8px}
+.wr-studio-race-summary>div{padding:9px 10px;gap:8px}
+.wr-studio-race-summary>div+div{border-left:1px solid var(--ws-line)}
+.wr-studio-race-summary strong{font:700 22px/1.1 var(--ws-data-font);letter-spacing:-.04em}
+.wr-studio-race-summary span{font-size:11px;line-height:1.3;font-weight:600;max-width:18ch}
+.wr-studio-race-context,.wr-studio-race-caveat{font-size:11px;line-height:1.4;font-weight:500;margin:5px 0!important}
+.wr-studio-race-table{margin-top:10px}
+.wr-studio-race-table caption{font-size:11px;line-height:1.4;font-weight:500;padding-bottom:7px}
+.wr-studio-race-table caption>div{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.wr-studio-race-table caption span:last-child{font-weight:600}
+.wr-studio-race-table thead th{font-size:11px;font-weight:700;padding:7px 8px}
+.wr-studio-race-table .wr-studio-race-team{min-height:52px;padding:7px 8px}
+.wr-studio-race-team-name{font-size:14px;line-height:1.25;font-weight:700}
+.wr-studio-race-record{font:700 15px/1.2 var(--ws-data-font);letter-spacing:-.04em}
+.wr-studio-race-table td{padding:7px 8px}
+.wr-studio-now strong,.wr-studio-trajectory-detail>div>span,.wr-studio-scenario-result>strong{font-family:var(--ws-data-font);font-weight:700}
+.wr-studio-scenario-result>strong{font-size:28px}
+.wr-studio-sources{margin-top:12px}
+@media(max-width:600px){
+ .wr-studio-mast{padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px}
+ .wr-studio-tabs>button{min-height:44px;padding:9px 0}
+ .wr-studio-panel{padding:12px 12px calc(20px + env(safe-area-inset-bottom,0px))}
+ .wr-wire-studio h3{font-size:20px}
+ .wr-studio-race-heading{gap:8px}
+ .wr-studio-race-heading h3{font-size:20px}
+ .wr-studio-race-heading .wr-studio-eyebrow{max-width:130px;font-size:10px}
+ .wr-studio-race-summary>div{padding:8px}
+ .wr-studio-race-table .wr-studio-race-team{padding:7px 6px}
+ .wr-studio-race-table td,.wr-studio-race-table thead th{padding-left:6px;padding-right:6px}
 }

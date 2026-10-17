@@ -156,6 +156,81 @@ async function waitForModelSettings(page) {
   await page.waitForTimeout(200);
 }
 
+async function verifyStudioContrast(page, failures) {
+  const scope = '[data-wire-studio-contrast]';
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => window.React && window.ReactDOM && window.WrWireStudio && document.querySelector('.wr-mission-v8'));
+  try {
+    await page.evaluate(() => {
+      const host = document.createElement('div');
+      host.dataset.wireStudioContrast = '';
+      const outside = document.createElement('div');
+      outside.dataset.studioOutsideProbe = '';
+      outside.innerHTML = '<h3>Outside heading</h3><p>Outside context</p><select aria-label="Outside theme probe"><option>Outside</option></select>';
+      host.appendChild(outside);
+      const mount = document.createElement('div');
+      host.appendChild(mount);
+      document.querySelector('.wr-mission-v8').appendChild(host);
+      const outsideColors = () => [...outside.children].map(node => ({ color: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor }));
+      host.__outsideBefore = outsideColors();
+      host.__outsideColors = outsideColors;
+      const race = { supported: true, slots: 1, remainingWeeks: 1, futureDecisions: 2, decisionsPerWeek: 2, throughWeek: 2,
+        rows: [{ id: 'qa-alpha', name: 'QA Alpha', ownerName: 'QA owner', record: '3–1', wins: 3, losses: 1, ties: 0, status: 'In the race' },
+          { id: 'qa-bravo', name: 'QA Bravo', record: '2–2', wins: 2, losses: 2, ties: 0, status: 'In the race' }] };
+      const root = ReactDOM.createRoot(mount);
+      host.__studioRoot = root;
+      root.render(React.createElement('dialog', { className: 'wr-journal', open: true }, React.createElement(window.WrWireStudio, {
+        league: { league_id: 'qa-contrast-only', season: '2026', name: 'QA Studio contrast' }, race, initialTab: 'race', onClose() {},
+      })));
+    });
+    const studio = page.locator(scope + ' .wr-wire-studio');
+    await studio.waitFor({ state: 'visible' });
+    const colors = async selectors => page.evaluate(({ scope, selectors }) => {
+      const parse = value => {
+        const parts = value.match(/[\d.]+/g)?.map(Number) || [0, 0, 0];
+        return [...parts.slice(0, 3), parts[3] ?? 1];
+      };
+      const composite = (front, back) => front.slice(0, 3).map((value, i) => value * front[3] + back[i] * (1 - front[3]));
+      const luminance = rgb => rgb.map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, i) => sum + value * [.2126, .7152, .0722][i], 0);
+      const ratio = (a, b) => (Math.max(luminance(a), luminance(b)) + .05) / (Math.min(luminance(a), luminance(b)) + .05);
+      return selectors.map(selector => {
+        const node = document.querySelector(scope + ' ' + selector);
+        if (!node) return { selector, missing: true };
+        const chain = [];
+        for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) chain.unshift(ancestor);
+        const background = chain.reduce((behind, ancestor) => composite(parse(getComputedStyle(ancestor).backgroundColor), behind), [255, 255, 255]);
+        const style = getComputedStyle(node), foreground = composite(parse(style.color), background);
+        const outline = composite(parse(style.outlineColor), background);
+        return { selector, foreground: style.color, background, ratio: ratio(foreground, background), backgroundLuminance: luminance(background), outlineRatio: ratio(outline, background), outlineWidth: parseFloat(style.outlineWidth), focusVisible: node.matches(':focus-visible') };
+      });
+    }, { scope, selectors });
+    const textColors = await colors(['.wr-studio-mast h2', '.wr-studio-race h3', '.wr-studio-race-summary strong', '.wr-studio-race-context', '.wr-studio-race-table caption']);
+    for (const sample of textColors) pushIf(failures, sample.missing || sample.ratio < 4.5, `Studio phone contrast: ${sample.selector} ${JSON.stringify(sample)}`);
+    await studio.getByRole('button', { name: 'Explore QA Alpha’s finish', exact: true }).click();
+    await studio.getByRole('combobox', { name: 'Race scenario team', exact: true }).waitFor({ state: 'visible' });
+    const [selectColor] = await colors(['.wr-wire-studio select']);
+    pushIf(failures, selectColor.missing || selectColor.ratio < 4.5 || selectColor.backgroundLuminance < .7, `Studio phone select must retain a legible light surface: ${JSON.stringify(selectColor)}`);
+    await page.keyboard.press('Tab');
+    await studio.getByRole('button', { name: 'Explore QA Alpha’s finish', exact: true }).focus();
+    const [focusColor] = await colors(['.wr-studio-race-team']);
+    pushIf(failures, focusColor.missing || !focusColor.focusVisible || focusColor.outlineWidth < 2 || focusColor.outlineRatio < 3, `Studio phone focus ring: ${JSON.stringify(focusColor)}`);
+    const outside = await page.evaluate(scope => {
+      const host = document.querySelector(scope), shell = host.closest('.wr-mission-v8');
+      const probe = document.createElement('i');
+      probe.style.color = 'var(--cx-ink)'; probe.style.backgroundColor = 'var(--cx-bg)'; shell.appendChild(probe);
+      const ink = getComputedStyle(probe).color, background = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { before: host.__outsideBefore, after: host.__outsideColors(), ink, background };
+    }, scope);
+    pushIf(failures, JSON.stringify(outside.before) !== JSON.stringify(outside.after), 'Studio phone contrast: opening Studio recolored the surrounding Mission Control interface');
+    const channels = value => value.match(/[\d.]+/g)?.slice(0, 3).map(Number) || [];
+    pushIf(failures, outside.after[0].color !== outside.ink || !channels(outside.ink).every(value => value > 200) || !channels(outside.background).every(value => value < 80), `Studio phone contrast: the actual Mission Control dark theme was not exercised ${JSON.stringify(outside)}`);
+  } finally {
+    await page.evaluate(scope => { const host = document.querySelector(scope); host?.__studioRoot?.unmount(); host?.remove(); }, scope);
+    await page.setViewportSize({ width: 1365, height: 900 });
+  }
+}
+
 async function runMatrix(context, port, failures) {
   let page;
 
@@ -165,6 +240,7 @@ async function runMatrix(context, port, failures) {
   pushIf(failures, !textHas(snap, 'redraft'), 'redraft dashboard: Redraft badge/text missing');
   pushIf(failures, !textHas(snap, 'pre-draft'), 'redraft dashboard: Pre-Draft phase missing');
   pushIf(failures, !snap.skin?.state?.isPreDraftRosterEmpty, 'redraft dashboard: pre-draft empty-roster state not active');
+  await verifyStudioContrast(page, failures);
   await page.close();
 
   page = await openLeaguePage(context, port, REDRAFT_LEAGUE_ID, 'redraft', 'myteam');

@@ -6,10 +6,10 @@
   body:has(.wr-mission-v8) .wr-dev-banner{display:none!important;}
   body:has(.wr-mission-v8) .wr-sheet-backdrop{background:rgba(6,12,24,.6)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
   body:has(.wr-mission-v8) .wr-sheet{border-color:var(--gx-edge)!important;background:linear-gradient(145deg,rgba(42,61,92,.97),rgba(21,34,55,.98))!important;box-shadow:inset 0 1px rgba(255,255,255,.13),0 -18px 60px rgba(0,0,0,.46)!important;}
-  body:has(.wr-mission-v8) .wr-sheet :is(header,.wr-sheet-head){border-color:rgba(183,206,255,.18)!important;background:rgba(255,255,255,.025)!important;}
-  body:has(.wr-mission-v8) .wr-sheet :is(h1,h2,h3,strong){color:var(--cx-ink)!important;}
-  body:has(.wr-mission-v8) .wr-sheet :is(p,small){color:var(--cx-muted)!important;}
-  body:has(.wr-mission-v8) .wr-sheet button{color:var(--cx-ink);}
+  body:has(.wr-mission-v8) .wr-sheet :is(header,.wr-sheet-head):where(:not(.wr-wire-studio, .wr-wire-studio *)){border-color:rgba(183,206,255,.18)!important;background:rgba(255,255,255,.025)!important;}
+  body:has(.wr-mission-v8) .wr-sheet :is(h1,h2,h3,strong):where(:not(.wr-wire-studio, .wr-wire-studio *)){color:var(--cx-ink)!important;}
+  body:has(.wr-mission-v8) .wr-sheet :is(p,small):where(:not(.wr-wire-studio, .wr-wire-studio *)){color:var(--cx-muted)!important;}
+  body:has(.wr-mission-v8) .wr-sheet button:where(:not(.wr-wire-studio, .wr-wire-studio *)){color:var(--cx-ink);}
   .wr-mission-v8 {
     --cx-bg:#131d31;
     --cx-paper:#202d44;
@@ -53,7 +53,9 @@
   }
   .wr-mission-v8 .wr-main-content{background:transparent!important;}
   .wr-mission-v8 :is(button,select,input,textarea){font-family:inherit;}
-  .wr-mission-v8 :is(button,summary):focus-visible{outline:2px solid var(--cx-accent)!important;outline-offset:2px;}
+  .wr-mission-v8 :is(button,summary):focus-visible:where(:not(.wr-wire-studio, .wr-wire-studio *)){outline:2px solid var(--cx-accent)!important;outline-offset:2px;}
+
+  /* Studio keeps its own light-paper palette, including inside a themed sheet. */
 
   /* Shared top chrome: the app now starts with the revision-eight glass bar. */
   .wr-mission-v8 .header.mc-v8-topbar {
@@ -103,9 +105,9 @@
   .wr-mission-v8 :is(.mc-section-tabs,.gd-view-nav,.mc-market-tabs,.wr-roster-mobile-scopes,.wr-seg) button[aria-pressed=true],
   .wr-mission-v8 .wr-seg button.active,.wr-mission-v8 .wr-seg button.is-on,.wr-mission-v8 .wr-seg button[aria-current=page]{background:rgba(183,206,255,.2)!important;color:var(--cx-ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.16)!important;}
   .wr-mission-v8 :is(.mc-metric-picker button,.mc-player-actions button,.mc-context-actions button,.mc-next-actions button,.mc-market-tools button,.mc-research-actions button){border-color:var(--acc-line1)!important;background:rgba(183,206,255,.09)!important;color:var(--cx-ink)!important;border-radius:10px!important;}
-  .wr-mission-v8 :is(input,select,textarea){border-color:var(--gx-edge)!important;background:rgba(13,24,43,.58)!important;color:var(--cx-ink)!important;}
-  .wr-mission-v8 :is(h1,h2,h3,h4,strong){color:var(--cx-ink);}
-  .wr-mission-v8 :is(p,small,.gd-muted,.mc-next-note,.mc-next-kickoff){color:var(--cx-muted)!important;}
+  .wr-mission-v8 :is(input,select,textarea):where(:not(.wr-wire-studio, .wr-wire-studio *)){border-color:var(--gx-edge)!important;background:rgba(13,24,43,.58)!important;color:var(--cx-ink)!important;}
+  .wr-mission-v8 :is(h1,h2,h3,h4,strong):where(:not(.wr-wire-studio, .wr-wire-studio *)){color:var(--cx-ink);}
+  .wr-mission-v8 :is(p,small,.gd-muted,.mc-next-note,.mc-next-kickoff):where(:not(.wr-wire-studio, .wr-wire-studio *)){color:var(--cx-muted)!important;}
 
   /* Overview and league score board become a compact decision board instead of black cards. */
   .wr-mission-v8 .mc-overview-summary{gap:0!important;padding:0!important;overflow:hidden;}

@@ -273,17 +273,16 @@ function WrWireStudioRace({ race, season }) {
     const median = race.decisionsPerWeek === 2;
     const context = [...(race.reason ? [race.reason] : []), ...(race.notes || []), ...(recordOrder ? ['Rows are ordered by wins plus half a tie, with equal records listed alphabetically. This is not official playoff seeding.'] : [])];
     return <div className="wr-studio-race">
-        <div className="wr-studio-eyebrow">{season} · {race.throughWeek > 0 ? 'Through Week ' + race.throughWeek : 'Awaiting completed results'}</div>
-        <h3>The playoff race</h3>
+        <header className="wr-studio-race-heading"><h3>The playoff race</h3><div className="wr-studio-eyebrow">{season} · {race.throughWeek > 0 ? 'Through Week ' + race.throughWeek : 'Awaiting completed results'}</div></header>
         {rows.length > 0 ? <>
             <div className="wr-studio-race-summary">
                 {race.slots > 0 && <div><strong>{race.slots}</strong><span>playoff {race.slots === 1 ? 'place' : 'places'}</span></div>}
                 {weeksKnown && <div><strong>{race.remainingWeeks}</strong><span>regular-season {race.remainingWeeks === 1 ? 'week' : 'weeks'} left</span></div>}
             </div>
-            <p className="wr-studio-race-context">{median ? `Records include head-to-head + median results.${futureKnown ? ` ${future} win opportunities remain, two per week.` : ''}` : 'Records include head-to-head results.'}</p>
-            {!race.supported && <p className="wr-studio-race-caveat">Record order; division or seeding rules decide the playoff field.</p>}
+            <p className="wr-studio-race-context">{median ? `Head-to-head + median results.${futureKnown ? ` ${future} decisions left, two per week.` : ''}` : 'Head-to-head results.'}</p>
+            {!race.supported && <p className="wr-studio-race-caveat">League division or seeding rules decide the field.</p>}
             <table className="wr-studio-race-table">
-                <caption>{recordOrder ? 'Record order' : 'Team records'} · not playoff seeds. Select a team to explore its finish.</caption>
+                <caption><div><span>{recordOrder ? 'Record order' : 'Team records'} · not playoff seeds</span><span>Select a team ↗</span></div></caption>
                 <thead><tr><th scope="col">Team</th><th scope="col">Record</th>{showStatus && <th scope="col">Race</th>}</tr></thead>
                 <tbody>{rows.map(row => <tr key={row.id} className={state.open && String(selected?.id) === String(row.id) ? 'is-selected' : ''}>
                     <th scope="row"><button id={teamId(row.id)} type="button" className="wr-studio-race-team" aria-label={`Explore ${row.name || row.ownerName || 'team'}’s finish`} aria-expanded={state.open && String(selected?.id) === String(row.id)} aria-controls={detailId} onClick={() => openTeam(row.id)}><span className="wr-studio-race-team-name">{row.name || row.ownerName || 'Team'}</span>{row.ownerName && row.ownerName !== row.name && <span className="wr-studio-team-owner">{row.ownerName}</span>}</button></th>
