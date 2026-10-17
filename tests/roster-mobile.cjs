@@ -194,3 +194,83 @@ root.WR.GmMode.useGmEffects=()=>({mode:'compete',sellPositions:vm.runInContext('
 props.leagueSkin={type:'redraft',features:{showWeeklyVerdict:true,showTaxi:false,showFuturePicks:false}};
 render(); find(tree,n=>n.props.className==='wr-roster-mobile-review').props.onClick(); render();
 assert(!find(tree,n=>n.type==='card-list'),'Local GM fallback cannot turn a real Hold read into a Sell badge with a Hold reason');
+
+
+// Shared player-list columns control their own sorts, independently of full-table preferences.
+vm.runInContext(fs.readFileSync('js/shared/player-metrics.js', 'utf8'), context);
+const sharedMetrics = root.WR.PlayerMetrics;
+let metricSelection = ['proj', 'ppg', 'dhq', 'age'];
+root.WR.PlayerMetrics = { ...sharedMetrics, useMetrics: () => ({ selected: metricSelection }), Picker: 'metrics-picker' };
+const l5Points = { starter: 12, bench: 0, ir: -2.5, taxi: null };
+const projectionPoints = { starter: 15, bench: 0, ir: -3, taxi: null };
+root.App.WeeklyProj = {
+  optimalForRoster: () => ({ objective: 'ceiling', optimal: { starters: [] }, projections: Object.fromEntries(Object.keys(playersData).map(pid => [pid, { available: projectionPoints[pid] != null, points: { median: projectionPoints[pid], ceiling: -100 * projectionPoints[pid] } }])) }),
+  formStats: (pid, window) => window === 5 && Number.isFinite(l5Points[pid]) ? { rollingPPG: l5Points[pid] } : null,
+};
+root.App.computeRollingPPG = () => 999;
+root.App.NFLByes.weekForPlayer = player => ({ MIN: 10, CHI: 5, NYJ: null, ATL: 1 })[player.team];
+root.WR.GmMode.useGmEffects = () => ({ mode: 'compete', modeLabel: 'Compete' });
+root._playerTags = {};
+width = 390; slots = [];
+props.myRoster = myRoster;
+props.currentLeague = { league_id: 'league', roster_positions: ['WR', 'RB', 'BN'], settings: {}, scoring_settings: {}, rosters: [myRoster] };
+props.leagueSkin = { type: 'redraft', features: { showWeeklyVerdict: true, showTaxi: true } };
+props.rosterFilter = 'All'; props.rosterSort = { key: 'name', dir: 1 }; props.expandedPid = null;
+props.visibleCols = ['pos', 'peak', 'action'];
+props.statsData = { starter: { gp: 1, pts: -1 }, bench: { gp: 1, pts: 3 }, ir: { gp: 1, pts: 0 } };
+render(); click('View & sort ⌄');
+const sortSelect = () => find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster');
+const sortOptions = () => all(sortSelect(), n => n.type === 'option').map(n => ({ key: n.props.value, label: text(n) }));
+const chooseSort = key => { sortSelect().props.onChange({ target: { value: key } }); render(); };
+const metricText = (pid, metric) => text(find(find(tree, n => n.props['data-wr-roster-pid'] === pid), n => n.props.className === 'mc-roster-metrics').children[0].find(n => n.props.key === metric));
+assert.deepEqual(sortOptions(), [
+  { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' },
+  { key: 'listproj', label: 'Projection' }, { key: 'l5ppg', label: 'Last 5 PPG' },
+  { key: 'dhq', label: 'ROS points' }, { key: 'age', label: 'Age' },
+], 'Player-list sort options follow its actual shared columns rather than hidden table Peak/Move fields');
+props.rosterSort = { key: 'action', dir: 1 }; render();
+assert.deepEqual(sortOptions().at(-1), { key: 'action', label: 'Move (saved sort)' }, 'An off-list persisted sort remains visible and clearly identified');
+props.rosterSort = { key: 'name', dir: 1 }; render();
+click('Full table');
+assert.deepEqual(sortOptions().map(option => option.key), ['name', 'pos', 'peak', 'action'], 'Full table retains its own column sort options');
+find(tree, n => n.type === 'select' && n.props.title === 'Points-per-game window').props.onChange({ target: { value: 'l3' } }); render();
+click('Player list');
+chooseSort('listproj');
+assert.deepEqual(rowPids(), ['starter', 'bench', 'ir', 'taxi'], 'Projection follows the displayed median rather than the hidden table ceiling objective');
+assert.equal(metricText('bench', 'proj'), '0.0PROJ');
+assert.equal(metricText('ir', 'proj'), '-3.0PROJ');
+assert.equal(metricText('taxi', 'proj'), '—PROJ');
+find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
+assert.deepEqual(rowPids(), ['ir', 'bench', 'starter', 'taxi'], 'Unknown projections stay last after a negative projection in either direction');
+chooseSort('l5ppg');
+assert.deepEqual(rowPids(), ['starter', 'bench', 'ir', 'taxi'], 'Last-five sort uses the displayed observation, retaining positive, zero, negative, then unknown');
+assert.equal(metricText('starter', 'ppg'), '12.0L5 PPG');
+assert.equal(metricText('bench', 'ppg'), '0.0L5 PPG');
+assert.equal(metricText('ir', 'ppg'), '-2.5L5 PPG');
+assert.equal(metricText('taxi', 'ppg'), '—L5 PPG', 'Missing rolling data does not inherit seasonal points or the saved table rolling window');
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('High to low'));
+find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
+assert.deepEqual(rowPids(), ['ir', 'bench', 'starter', 'taxi'], 'Unknown L5 observations remain last when the direction reverses');
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('Low to high'));
+props.rosterSort = { key: 'ppg', dir: 1 }; render();
+assert.deepEqual(sortOptions().at(-1), { key: 'ppg', label: 'Table PPG (saved sort)' }, 'A saved table PPG sort is not silently relabeled or migrated to L5');
+metricSelection = ['season', 'bye', 'matchup']; props.rosterSort = { key: 'name', dir: 1 }; render();
+assert.deepEqual(sortOptions(), [
+  { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' },
+  { key: 'seasonppg', label: 'Season PPG' }, { key: 'bye', label: 'Bye week' },
+], 'Selection changes refresh the menu and omit matchup grades because no grade comparator is supported');
+chooseSort('seasonppg');
+assert.deepEqual(rowPids(), ['bench', 'ir', 'starter', 'taxi'], 'Season sort uses the displayed season PPG with valid zero and negative values');
+assert.equal(metricText('bench', 'season'), '3.0SZN PPG');
+assert.equal(metricText('ir', 'season'), '0.0SZN PPG');
+assert.equal(metricText('taxi', 'season'), '—SZN PPG');
+find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
+assert.deepEqual(rowPids(), ['starter', 'ir', 'bench', 'taxi'], 'Unknown season PPG remains last in both directions');
+chooseSort('bye');
+assert.deepEqual(rowPids(), ['taxi', 'bench', 'starter', 'ir'], 'Bye sort follows the shown week and keeps missing weeks last');
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('Low to high'));
+find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
+assert.deepEqual(rowPids(), ['starter', 'bench', 'taxi', 'ir']);
+props.leagueSkin.type = 'dynasty'; metricSelection = ['proj', 'ppg', 'dhq', 'age']; props.rosterSort = { key: 'name', dir: 1 }; render();
+assert(sortOptions().some(option => option.key === 'dhq' && option.label === 'Player value'), 'Dynasty sorts use the same value unit as the list');
+console.log('PASS shared roster metrics: visible-column sort options, separate table preferences, explicit saved sorts, L5/season/bye ordering, signed values and unavailable last in both directions');

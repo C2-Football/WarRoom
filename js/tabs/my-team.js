@@ -274,6 +274,21 @@ function MyTeamTab({
         return (bv - av) * dir;
       }
       if (key === 'age') return ((a.age||99) - (b.age||99)) * dir;
+      if (key === 'listproj' || key === 'l5ppg' || key === 'seasonppg' || key === 'bye') {
+        // These list-only keys read the exact metrics shown on the phone.
+        // Unavailable observations stay last in either direction; zero and
+        // negative PPG never inherit an unrelated season or table window.
+        const value = r => key === 'listproj'
+          ? (projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null)
+          : key === 'bye'
+          ? window.App?.NFLByes?.weekForPlayer?.(r.p, byeSeason)
+          : key === 'seasonppg' ? (r.curGP > 0 ? r.curPPG : null)
+          : window.App?.WeeklyProj?.formStats?.(r.pid, 5)?.rollingPPG;
+        const av = value(a), bv = value(b);
+        if (!Number.isFinite(av)) return Number.isFinite(bv) ? 1 : 0;
+        if (!Number.isFinite(bv)) return -1;
+        return (key === 'bye' ? av - bv : bv - av) * dir;
+      }
       if (key === 'ppg') {
         // Honor the rolling PPG window so sort order matches what's displayed.
         let av = a.curPPG || 0, bv = b.curPPG || 0;
@@ -837,7 +852,7 @@ function MyTeamTab({
   // sorting high-to-low — DHQ read "^" with your best player on top.
   // Keep in sync with the comparator in the rows memo above.
   const DESC_FIRST_SORTS = new Set([
-    'dhq', 'ppg', 'proj', 'hi', 'lo', 'prev', 'trend', 'gp', 'durability',
+    'dhq', 'ppg', 'l5ppg', 'seasonppg', 'listproj', 'proj', 'hi', 'lo', 'prev', 'trend', 'gp', 'durability',
     'peak', 'action', 'yrsExp', 'starterSzn', 'height', 'weight', 'sos',
   ]);
   const sortGlyph = React.useCallback((key) => {
@@ -1480,21 +1495,29 @@ function MyTeamTab({
     full:    ['dhq', 'ppg', 'trend'],
   }).map(([key, keys]) => [key, keys.filter(k => ROSTER_COLUMNS[k])]));
   const PHONE_SLOT_KEYS = new Set(['dhq', 'proj', 'ppg', 'prev', 'trend', 'age', 'gp', 'hi', 'lo', 'yrsExp', 'starterSzn', 'posRankNfl', 'posRankLg', 'sos', 'peak', 'rkSlot']);
-  // Sort targets offered on phone: Player plus whatever columns are actually
-  // on screen, so the list can't offer a sort whose value the cards don't show.
+  // The list's shared columns and the table's column presets are separate
+  // preferences. Offer sorts from the currently visible surface only.
+  const _phoneMetricSortLabels = {
+    listproj: 'Projection', l5ppg: 'Last 5 PPG', dhq: showRosterRosPoints ? 'ROS points' : 'Player value',
+    age: 'Age', seasonppg: 'Season PPG', bye: 'Bye week',
+  };
+  const _phoneMetricSortKeys = { proj: 'listproj', ppg: 'l5ppg', dhq: 'dhq', age: 'age', season: 'seasonppg', bye: 'bye' };
+  const _usesMetricSorts = !!metricPreference && !phoneTableOpen;
   const _phoneSortOptions = [
     { key: 'name', label: 'Player' },
-    ...visibleCols
-      .filter(k => ROSTER_COLUMNS[k])
-      .map(k => ({ key: k, label: ROSTER_COLUMNS[k].label || ROSTER_COLUMNS[k].shortLabel || k })),
-  ];
-  // A sort restored from a saved view can name a column the current preset
-  // dropped; keep it selectable rather than silently showing the wrong option.
-  if (!_phoneSortOptions.some(o => o.key === rosterSort.key)) {
-    _phoneSortOptions.push({
-      key: rosterSort.key,
-      label: (ROSTER_COLUMNS[rosterSort.key]?.label) || rosterSort.key,
-    });
+    ...(_usesMetricSorts ? [
+      { key: 'pos', label: 'Position' },
+      ...metricPreference.selected.map(metric => _phoneMetricSortKeys[metric]).filter(Boolean)
+        .map(key => ({ key, label: _phoneMetricSortLabels[key] })),
+    ] : visibleCols.filter(key => ROSTER_COLUMNS[key])
+      .map(key => ({ key, label: ROSTER_COLUMNS[key].shortLabel || ROSTER_COLUMNS[key].label || key }))),
+  ].filter((option, index, options) => options.findIndex(other => other.key === option.key) === index);
+  // Retain a restored sort explicitly, without presenting the full table's
+  // PPG window as the list's fixed last-five-game average.
+  if (!_phoneSortOptions.some(option => option.key === rosterSort.key)) {
+    const label = rosterSort.key === 'ppg' ? 'Table PPG' : rosterSort.key === 'proj' ? 'Table projection'
+      : _phoneMetricSortLabels[rosterSort.key] || ROSTER_COLUMNS[rosterSort.key]?.shortLabel || ROSTER_COLUMNS[rosterSort.key]?.label || rosterSort.key;
+    _phoneSortOptions.push({ key: rosterSort.key, label: label + ' (saved sort)' });
   }
   // Mirrors sortGlyph: DESC-first columns read "high to low" at dir 1.
   const _phoneSortDescending = DESC_FIRST_SORTS.has(rosterSort.key)
@@ -1638,7 +1661,7 @@ function MyTeamTab({
               {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
             {sheetField('Sort by', <select value={rosterSort.key} onChange={e => sortByColumn(e.target.value)} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
-              {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{ROSTER_COLUMNS[opt.key]?.shortLabel || opt.label}</option>)}
+              {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
             {sheetField('Order', <button type="button" onClick={() => setRosterSort(prev => ({ ...prev, dir: prev.dir * -1 }))} className="wr-roster-sort-direction" title="Reverse the sort">
               <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {_phoneSortDescending ? 'High to low' : 'Low to high'}
