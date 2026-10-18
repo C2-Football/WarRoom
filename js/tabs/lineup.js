@@ -20,15 +20,35 @@ function LineupInjuryBadge({ status }) {
 }
 
 // Stable component identity keeps the player button available for sheet focus return.
-const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick, delta, disabled }) => (
-    <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '')} onClick={onClick} disabled={disabled}>
+const MobilePlayerRow = ({ pos, name, tag, slots, accent, injuryStatus, onClick, delta, disabled, actualScore }) => (
+    <button type="button" className={'gd-plan-player' + (accent === 'risk' ? ' is-risk' : '') + (actualScore ? ' has-actual-score' : '')} onClick={onClick} disabled={disabled}>
         <span className={'gd-player-initial gd-pos-' + String(pos || '').toLowerCase().replace(/[^a-z]/g, '')} aria-hidden="true">{pos}</span>
         <span className="gd-player-main"><strong>{name}</strong><LineupInjuryBadge status={injuryStatus} /><span>{tag}</span></span>
+        {actualScore ? <span className={'gd-player-actual is-' + actualScore.tone} title={actualScore.comparison || (actualScore.label + ' actual points · no pregame comparison')}><strong>{Number.isFinite(actualScore.points) ? actualScore.points.toFixed(2) : '—'}</strong><small>{actualScore.label} pts</small></span> : null}
         <span className="gd-plan-stats" style={{ '--mc-columns': (slots || []).length }}>{(slots || []).map(stat => <span key={stat.label}><strong>{stat.value}</strong><small>{stat.label === 'PROJ' ? 'Proj' : stat.label}</small></span>)}</span>
+        {actualScore?.comparison ? <span className={'gd-score-comparison is-' + actualScore.tone}>{actualScore.comparison}</span> : null}
         <span className="gd-row-chevron" aria-hidden="true">›</span>
         {delta != null && <span className={'mc-swap-delta ' + (delta < 0 ? 'is-loss' : 'is-gain')}>{delta > 0 ? '+' : ''}{delta.toFixed(1)} projected pts</span>}
     </button>
 );
+
+// Final scores may be compared only with a forecast captured before kickoff.
+// In-progress scores and first-view snapshots never acquire a quality color.
+function lineupScorePresentation({ tracking, submitted, state, gamesFresh, actual, forecast, scoreStatus, scoreError, scoresSupported }) {
+    if (!tracking || !submitted || state === 'upcoming') return null;
+    // The fantasy feed retains previous rows on failed refresh. Fresh NFL
+    // finality alone cannot turn a previously seen midgame score into a grade.
+    const scoresReady = scoresSupported === true && scoreStatus === 'ready' && !scoreError;
+    const label = !scoresReady ? (Number.isFinite(actual) ? 'Last available' : 'Awaiting score')
+        : state === 'final' ? 'Final' : state === 'live' ? 'Live' : state === 'locked' ? 'Kickoff' : 'Unverified';
+    const comparable = scoresReady && gamesFresh && state === 'final' && Number.isFinite(actual)
+        && forecast?.kind === 'pregame' && Number.isFinite(forecast.points);
+    const grade = comparable ? window.App?.ScoringVisuals?.compare?.(actual, forecast.points, { complete: true }) : null;
+    const tone = ['strong', 'typical', 'quiet'].includes(grade?.tone) ? grade.tone : 'neutral';
+    const gradeLabel = { strong: 'Above forecast', typical: 'Near forecast', quiet: 'Below forecast' }[tone];
+    return { points: Number.isFinite(actual) ? actual : null, label, tone,
+        comparison: comparable && gradeLabel ? gradeLabel + ' · vs saved pregame ' + forecast.points.toFixed(1) : null };
+}
 
 // Position totals and their player comparisons share one disclosure. Flexes
 // stay in their actual lineup slot instead of duplicating cross-position pairs.
@@ -678,15 +698,16 @@ function MyLineupTab({
         return Number.isFinite(value) ? value : null;
     };
     const Forecasts = window.App && window.App.LineupForecastSnapshots;
-    const [forecastState, setForecastState] = React.useState(() => ({ key: liveKey, data: Forecasts ? Forecasts.read(currentLeague, planningWeek) : { players: {}, persistent: false } }));
+    const forecastContextKey = liveKey + '|' + JSON.stringify(Object.entries(currentLeague?.scoring_settings || {}).sort(([a], [b]) => a.localeCompare(b)));
+    const [forecastState, setForecastState] = React.useState(() => ({ key: forecastContextKey, data: Forecasts ? Forecasts.read(currentLeague, planningWeek) : { players: {}, persistent: false } }));
     React.useEffect(() => {
         if (!Forecasts) return;
         const projections = {}, statuses = {};
         if (gamesFresh) platformStarters.forEach(pid => { projections[pid] = projectedPoints(pid); statuses[pid] = gameState(pid); });
         const data = Forecasts.capture({ league: currentLeague, week: planningWeek, projections, statuses });
-        setForecastState(previous => previous.key === liveKey && previous.data === data ? previous : { key: liveKey, data });
-    }, [liveKey, result, nflGames, platformStarters.join(',')]);
-    const savedForecasts = forecastState.key === liveKey ? forecastState.data : { players: {}, persistent: true };
+        setForecastState(previous => previous.key === forecastContextKey && previous.data === data ? previous : { key: forecastContextKey, data });
+    }, [forecastContextKey, result, nflGames, platformStarters.join(',')]);
+    const savedForecasts = forecastState.key === forecastContextKey ? forecastState.data : { players: {}, persistent: true };
     const liveTotal = Live && liveRow ? Live.rosterPoints(liveRow) : null;
     // Phone scores come from the submitted matchup feed, including zero and
     // negative totals. A matchup ID is required: unrelated bye rows must never
@@ -703,7 +724,7 @@ function MyLineupTab({
         : weekStarted ? 'Actual points' : 'Submitted lineup · actual points';
     const trackingLineup = !isFutureWeek && (weekStarted || (liveTotal != null && liveTotal !== 0));
     // The existing Game Day lineup is the single home for planning and scores.
-    function LineupLiveStatus({ pid }) {
+    function LineupLiveStatus({ pid, scoreVisible = false }) {
         if (!pid) return null;
         const game = gameFor(pid);
         const state = gameState(pid);
@@ -717,7 +738,7 @@ function MyLineupTab({
         const actual = submitted && Live && liveRow ? Live.playerPoints(liveRow, pid) : null;
         const label = state === 'final' ? 'Final' : state === 'live' ? 'Live' : state === 'locked' ? 'Kickoff' : 'Status unverified';
         return <span style={{ display: 'block', color: state === 'live' ? GREEN : SILVER, fontSize: '0.75rem', marginTop: '4px' }}>
-            {label}{started && submitted ? ' · ' + (Number.isFinite(actual) ? actual.toFixed(2) : '—') + ' pts' : ''}{started ? ' · Locked' : ''}
+            {scoreVisible ? (started ? 'Locked' : 'Game status unverified') : <>{label}{started && submitted ? ' · ' + (Number.isFinite(actual) ? actual.toFixed(2) : '—') + ' pts' : ''}{started ? ' · Locked' : ''}</>}
         </span>;
     }
     const mobileScoreboard = (
@@ -1318,8 +1339,14 @@ function MyLineupTab({
             const tag = [slotLabel, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null].filter(Boolean).join(' · ');
             const fs = formOf(pid);
             const atRisk = !!status || (proj && proj.available === false);
-            return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} injuryStatus={status} tag={<>{tag}<LineupLiveStatus pid={pid} /></>}
+            const submitted = platformStarters.map(String).includes(String(pid));
+            const actualScore = lineupScorePresentation({ tracking: trackingLineup, submitted,
+                state: gameState(pid), gamesFresh, actual: submitted && Live && liveRow ? Live.playerPoints(liveRow, pid) : null,
+                forecast: savedForecasts.players[pid], scoreStatus: liveScores.status, scoreError: liveScores.error,
+                scoresSupported: liveScores.supported });
+            return <MobilePlayerRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} injuryStatus={status} tag={<>{tag}<LineupLiveStatus pid={pid} scoreVisible={!!actualScore} /></>}
                 slots={playerMetricSlots(pid)}
+                actualScore={actualScore}
                 accent={open ? 'gold' : atRisk ? 'risk' : undefined}
                 onClick={() => setOpenSlot(open ? null : sl.idx)} />;
         };

@@ -1,0 +1,56 @@
+/* Weekly observations use this player's completed games, never a peer rank. */
+.wr-player-stats .wr-week-points {
+  --score-strong:#7ce0b2;
+  --score-typical:#f3cf7d;
+  --score-quiet:#f2a19b;
+  --score-neutral:#b6c9e8;
+  margin:10px 0 8px;
+  padding:10px 10px 8px;
+  border:1px solid rgba(170,194,232,.18);
+  border-radius:10px;
+  background:rgba(12,25,45,.24);
+}
+.wr-player-stats .wr-week-points figcaption { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:3px 8px; margin-bottom:8px; }
+.wr-player-stats .wr-week-points figcaption strong { font-size:12px; color:#eef3ff; }
+.wr-player-stats .wr-week-points figcaption > span { font-size:10px; color:#b6c5dc; }
+.wr-player-stats .wr-week-points-scroll { overflow-x:auto; overscroll-behavior-x:contain; padding:2px 0 4px; scrollbar-width:thin; scrollbar-color:#7084a5 transparent; }
+.wr-player-stats .wr-week-points-grid { display:grid; grid-template-columns:repeat(var(--wr-week-count),minmax(38px,1fr)); gap:4px; min-width:max(100%,calc(var(--wr-week-count) * 42px - 4px)); }
+.wr-player-stats .wr-week-point {
+  --week-color:#b6c9e8;
+  display:flex; min-width:0; min-height:104px; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px;
+  padding:5px 2px; color:var(--week-color); border:1px solid transparent; border-radius:7px; background:transparent;
+  font-family:inherit; font-variant-numeric:tabular-nums; text-align:center;
+}
+.wr-player-stats button.wr-week-point { cursor:pointer; }
+.wr-player-stats .wr-week-point.is-strong { --week-color:#7ce0b2; }
+.wr-player-stats .wr-week-point.is-typical { --week-color:#f3cf7d; }
+.wr-player-stats .wr-week-point.is-quiet { --week-color:#f2a19b; }
+.wr-player-stats .wr-week-point.is-neutral { --week-color:#b6c9e8; }
+.wr-player-stats .wr-week-point.is-selected { border-color:#b3ccff; background:rgba(179,204,255,.1); }
+.wr-player-stats button.wr-week-point:hover { background:rgba(179,204,255,.08); }
+.wr-player-stats .wr-week-point > strong { color:var(--week-color); font-size:11px; font-weight:700; white-space:nowrap; }
+.wr-player-stats .wr-week-point > small { font-size:10px; color:#b6c5dc; }
+.wr-player-stats .wr-week-point-track { display:flex; align-items:flex-end; justify-content:center; width:100%; height:58px; border-bottom:1px solid rgba(170,194,232,.25); }
+.wr-player-stats .wr-week-point-bar { display:block; width:70%; max-width:24px; min-height:0; border-radius:4px 4px 0 0; background:var(--week-color); opacity:.75; }
+.wr-player-stats .wr-week-point.is-negative .wr-week-point-bar { background:repeating-linear-gradient(135deg,var(--week-color),var(--week-color) 3px,transparent 3px,transparent 5px); border:1px solid var(--week-color); }
+.wr-player-stats .wr-week-point.is-neutral .wr-week-point-bar { opacity:.35; }
+.wr-player-stats .wr-score-legend { display:flex; align-items:center; gap:4px 9px; flex-wrap:wrap; margin:6px 0 0; font-size:10px; line-height:1.5; }
+.wr-player-stats .wr-score-legend > span:not(.wr-score-legend-basis)::before { content:''; display:inline-block; width:6px; height:6px; margin-right:4px; border-radius:50%; background:currentColor; }
+.wr-player-stats .wr-score-legend .is-strong { color:#7ce0b2; }
+.wr-player-stats .wr-score-legend .is-typical { color:#f3cf7d; }
+.wr-player-stats .wr-score-legend .is-quiet { color:#f2a19b; }
+.wr-player-stats .wr-score-legend-basis { flex-basis:100%; margin:5px 0 0; color:#b6c5dc; font-size:10px; line-height:1.5; }
+.wr-player-stats .wr-stat-heat { display:inline-block; min-width:28px; padding:4px 5px; border-radius:5px; color:inherit; line-height:1.3; }
+.wr-player-stats .wr-stat-heat.is-strong { color:#9ae8c4; background:rgba(43,157,108,.2); }
+.wr-player-stats .wr-stat-heat.is-typical { color:#f5d995; background:rgba(174,132,47,.17); }
+.wr-player-stats .wr-stat-heat.is-quiet { color:#f5b5af; background:rgba(193,80,75,.2); }
+.wr-player-stats .wr-stat-heat.is-neutral { color:#b6c9e8; }
+.wr-player-stats .wr-week-game-log tr.is-selected { background:rgba(179,204,255,.07); }
+@media (max-width:767px) {
+  .wr-roster-mobile-detail .wr-player-stats .wr-week-game-log th,
+  .wr-roster-mobile-detail .wr-player-stats .wr-week-game-log td { padding:3px 1px; }
+  .wr-roster-mobile-detail .wr-player-stats .wr-stat-heat { padding:5px 3px; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .wr-player-stats .wr-week-point { transition:background-color .15s,border-color .15s; }
+}

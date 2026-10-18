@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 require('../js/shared/league-stats.js');
+require('../js/shared/scoring-visuals.js');
 const score = globalThis.App.LeagueStats.score;
 const source = fs.readFileSync(require.resolve('../js/components/roster-player-stats.js'), 'utf8');
 
@@ -29,7 +30,7 @@ function fixture(options = {}) {
         useState(initial) { const at = index++; if (!(at in hooks)) hooks[at] = typeof initial === 'function' ? initial() : initial; return [hooks[at], value => { hooks[at] = typeof value === 'function' ? value(hooks[at]) : value; }]; },
         useEffect(fn, deps) { const at = index++, previous = effectState[at]; if (!previous || deps.some((v, i) => v !== previous.deps[i])) effects.push(() => { previous?.cleanup?.(); effectState[at] = { deps, cleanup: fn() }; }); }
     };
-    const context = { React, window: { S: { nflState: { season: 2026, week: 5 } }, App: { LeagueStats: engine }, MFL: options.mflAdapter } };
+    const context = { React, window: { S: { nflState: { season: 2026, week: 5, ...options.state } }, App: { LeagueStats: engine, ScoringVisuals: globalThis.App.ScoringVisuals }, MFL: options.mflAdapter } };
     vm.createContext(context); vm.runInContext(source, context);
     const props = { pid: options.pid || 'p', pos: 'TE', player: { position: 'TE', years_exp: 2, ...(options.mfl ? { _mfl_id: '123' } : {}) }, currentLeague: { league_id: options.mfl ? 'mfl_99_2026' : 'l', ...(options.mfl ? { _source: 'mfl' } : {}), season: 2026, scoring_settings: { rec: 1, bonus_rec_te: .5, rec_yd: .1 } }, leagueType: options.type || 'redraft', phone: true };
     return {
@@ -78,6 +79,50 @@ const values = row => row.children.map(text);
     assert.equal(retry.calls.at(-1).force, true);
     assert(!text(tree).includes('Some stats could not load.'));
 
+    const visualLog = [10, 12, 20, 0, -1].map((value, index) => ({ week: index + 1, raw: { gp: 1, rec: 0, rec_yd: value * 10, rec_tgt: 4, rec_td: 0 }, error: null }));
+    visualLog.push({ week: 6, raw: { rec: 0, rec_yd: 0, rec_tgt: 0, rec_td: 0 }, error: null }, { week: 7, raw: { gp: 1, rec_yd: 990, rec_tgt: 4 }, error: null }, { week: 8, raw: null, error: 'Not loaded' });
+    const visual = fixture({ state: { week: 7, season_type: 'regular' }, log: async () => visualLog });
+    tree = visual.render(); await visual.flush(); tree = visual.render();
+    const strip = find(tree, n => n.type === 'figure' && n.props.className === 'wr-week-points');
+    assert(strip, 'weekly points have their own compact visual strip');
+    const weekButtons = walk(strip).filter(n => n.type === 'button');
+    assert.deepEqual(weekButtons.map(n => text(n).slice(-2)), ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7'], 'points strip runs chronologically; missing weeks do not offer an empty stat line');
+    assert(text(strip).includes('10.0 median · 5 games'), 'baseline excludes current week, missing/error rows, and ambiguous zero shells');
+    const weeklyCell = (week, column = 1) => bodyRows(tree).find(row => values(row)[0] === String(week)).children[column].children[0];
+    assert.equal(weeklyCell(3).props['data-score-tone'], 'strong', 'productive complete week gets a stronger visual treatment');
+    assert.equal(weeklyCell(2).props['data-score-tone'], 'typical', 'a week inside the median band is typical');
+    assert.equal(weeklyCell(4).props['data-score-tone'], 'quiet', 'zero points with explicit participation can be compared');
+    assert.equal(weeklyCell(5).props['data-score-tone'], 'quiet', 'negative points are displayed and graded without clipping to zero');
+    assert.equal(weeklyCell(6).props['data-score-tone'], 'neutral', 'all-zero stat shells do not imply participation');
+    assert.equal(weeklyCell(7).props['data-score-tone'], 'neutral', 'an unfinished current-week high score is not graded');
+    assert.equal(weeklyCell(3, 2).props['data-score-tone'], 'neutral', 'targets remain usage rather than a good-or-bad judgment');
+    weekButtons[2].props.onClick(); tree = visual.render();
+    assert(find(tree, n => n.type === 'tr' && n.props.className === 'wr-player-stats-detail'), 'bar and week-row controls open the same detailed stat line');
+    assert(find(tree, n => n.type === 'button' && n.props['aria-label'] === 'Week 3 stat line').props['aria-expanded'], 'table disclosure reflects the selected points bar');
+    const scoreForWeek = raw => score(raw, visual.props.currentLeague.scoring_settings, 'TE');
+    const summaries = visual.helpers.weeklyVisuals(visualLog, 2026, { season: 2026, week: 7, season_type: 'regular' }, scoreForWeek, visual.helpers.columns('TE'));
+    assert.equal(summaries.pointsSummary.count, 5);
+    assert.equal(visual.helpers.weeklyVisuals(visualLog, 2026, { season: 2026, week: 1, season_type: 'pre' }, scoreForWeek, []).pointsSummary, null, 'preseason has no completed regular games to grade');
+    assert.equal(visual.helpers.weeklyVisuals(visualLog, 2025, { season: 2026, week: 1, season_type: 'pre' }, scoreForWeek, []).pointsSummary.count, 6, 'historical-season observations remain complete in preseason');
+    assert.equal(visual.helpers.weeklyVisuals(visualLog, 2026, { season: 2026, week: 1, season_type: 'post' }, scoreForWeek, []).pointsSummary.count, 6, 'postseason makes all regular-season observations complete');
+    assert.equal(visual.helpers.weeksForSeason(2026, 2026, { week: 1, season_type: 'pre' }).length, 0, 'preseason does not request unplayed regular-season game logs');
+    assert.equal(visual.helpers.weeksForSeason(2026, 2026, { week: 1, season_type: 'post' }).length, 18, 'postseason requests all regular-season game logs');
+    assert.equal(visual.helpers.weeksForSeason(2026, 2026, { week: 7, display_week: 6 }).length, 6, 'requests follow the canonical displayed week at rollover');
+    const rolloverRows = [...visualLog.filter(row => row.week !== 6), { week: 6, raw: { gp: 1, rec_yd: 990 } }];
+    const rolloverVisual = visual.helpers.weeklyVisuals(rolloverRows, 2026, { season: 2026, week: 7, display_week: 6 }, scoreForWeek, []);
+    assert.equal(rolloverVisual.pointGrade(rolloverRows.find(row => row.week === 6)).tone, 'neutral', 'the displayed current week never becomes a completed grade');
+    assert.equal(visual.helpers.hasParticipation({ pts_allow: 0, yds_allow: 150 }), true, 'a defensive shutout with yardage evidence is a played game');
+    const qbColumns = visual.helpers.columns('QB');
+    const intRows = [0, 1, 1, 3].map((value, i) => ({ week: i + 1, raw: { pass_att: 20, pass_int: value } }));
+    const intVisual = visual.helpers.weeklyVisuals(intRows, 2025, { season: 2026, week: 5 }, () => null, qbColumns);
+    assert.equal(intVisual.columnGrade(intRows[3], 2).tone, 'quiet', 'more interceptions thrown has an unfavorable color');
+    assert.equal(visual.helpers.columnDirection(visual.helpers.columns('DEF')[2]), 'lower', 'fewer points allowed is favorable');
+    const defenseRows = [1, 5, 5, 20].map((value, i) => ({ week: i + 1, raw: { pts_allow: value } }));
+    const defenseVisual = visual.helpers.weeklyVisuals(defenseRows, 2025, { season: 2026, week: 5 }, () => null, visual.helpers.columns('DEF'));
+    assert.equal(defenseVisual.columnGrade(defenseRows[0], 2).tone, 'strong', 'low points allowed uses the favorable color');
+    assert.equal(defenseVisual.columnGrade(defenseRows[3], 2).tone, 'quiet', 'high points allowed uses the unfavorable color');
+    assert.equal(visual.helpers.weeksForSeason(2026, 2026, { week: 0, season_type: 'off' }).length, 18, 'offseason keeps the completed regular-season log available');
+
     const pending = [];
     const changing = fixture({ log: opts => new Promise(resolve => pending.push({ season: opts.season, resolve })) });
     tree = changing.render(); await changing.flush();
@@ -121,11 +166,13 @@ const values = row => row.children.map(text);
     button(tree, 'Career').props.onClick(); mfl.render(); await mfl.flush(); tree = mfl.render();
     assert(bodyRows(tree).every(row => values(row)[2] === '2.0' && values(row)[3] === '-5.0'), 'career uses each season’s authoritative MFL totals/averages');
     assert.equal(reconstructed, 0, 'MFL actuals never enter the approximate scoring engine');
+    const mflVisual = mfl.helpers.weeklyVisuals([{ week: 1, raw: { gp: 1, _mflScoring: { points: 0 } } }, { week: 2, raw: { gp: 1 } }, { week: 3, raw: { gp: 1 } }], 2026, { season: 2026, week: 5 }, raw => typeof raw?._mflScoring?.points === 'number' ? raw._mflScoring.points : null, []);
+    assert.equal(mflVisual.pointsSummary, null, 'missing native MFL points cannot fill a benchmark from unrelated NFL raw stats');
 
     const unavailableMfl = fixture({ mfl: true, onScore: () => reconstructed++ });
     tree = unavailableMfl.render(); await unavailableMfl.flush(); tree = unavailableMfl.render();
     assert(bodyRows(tree).every(row => values(row)[1] === '—'), 'missing MFL adapter leaves points unknown even when raw stats are available');
     assert.equal(reconstructed, 0);
     assert.equal(f.helpers.nativeScore({ _mflScoring: { points: 99, scoringKey: 'wrong', season: '2026', week: null } }, {}, 2026, null), null, 'other scoring contexts are rejected');
-    console.log('Roster player stats: format defaults, selected seasons, zero/negative/missing observations, cancellation/retry, bounded requests and authoritative MFL weekly/YTD/AVG passed.');
+    console.log('Roster player stats: visual weekly scoring, completed-game benchmarks, current/pre/post phases, zero/negative/missing observations, lower-is-better metrics, cancellation/retry and authoritative MFL weekly/YTD/AVG passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

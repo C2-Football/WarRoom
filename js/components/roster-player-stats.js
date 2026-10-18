@@ -59,6 +59,37 @@
             ];
         }
     }
+    // Production can be compared with this player's own completed games. Targets
+    // and attempts describe usage; a larger number is not automatically better.
+    function columnDirection(col) {
+        if (['Rushing attempts', 'Targets', 'Field goal attempts'].includes(col.title)) return null;
+        return ['Interceptions thrown', 'Points allowed'].includes(col.title) ? 'lower' : 'higher';
+    }
+    function hasParticipation(raw) {
+        return ['gp', 'pass_att', 'pass_cmp', 'pass_yd', 'rush_att', 'rush_yd', 'rec_tgt', 'tgt', 'rec', 'rec_yd',
+            'off_snp', 'def_snp', 'st_snp', 'snaps', 'snap', 'snp', 'fgm', 'fga', 'xpm', 'xpa', 'sack', 'int', 'pts_allow', 'yds_allow', 'fum_rec',
+            'idp_tkl', 'tkl', 'idp_tkl_solo', 'tkl_solo', 'idp_tkl_ast', 'tkl_ast', 'idp_sack', 'idp_int', 'idp_tkl_loss', 'tkl_loss']
+            .some(key => finite(raw?.[key]) !== null && raw[key] > 0);
+    }
+    function weeklyVisuals(rows, season, state, scoreForWeek, cols) {
+        const visual = root.App?.ScoringVisuals;
+        const limit = visual?.completedWeekLimit?.(season, state) ?? 0;
+        const eligible = row => !!row.raw && !row.error && hasParticipation(row.raw) && Number(row.week) > 0 && Number(row.week) <= limit;
+        const completed = rows.filter(eligible);
+        const pointsSummary = visual?.summarize?.(completed.map(row => scoreForWeek(row.raw, row.week))) || null;
+        const columnSummaries = cols.map(col => columnDirection(col) && visual?.summarize?.(completed.map(row => col.value(row.raw))) || null);
+        const grade = (row, value, summary, lowerIsBetter) => {
+            if (row.error) return { tone: 'neutral', label: 'Stats incomplete' };
+            if (!row.raw || finite(value) === null) return { tone: 'neutral', label: 'Unavailable' };
+            if (!hasParticipation(row.raw)) return { tone: 'neutral', label: 'Participation unverified' };
+            return visual?.classify?.(value, summary, { complete: eligible(row), lowerIsBetter }) || { tone: 'neutral', label: 'Unrated' };
+        };
+        return {
+            pointsSummary,
+            pointGrade: row => grade(row, scoreForWeek(row.raw, row.week), pointsSummary, false),
+            columnGrade: (row, index) => columnDirection(cols[index]) ? grade(row, cols[index].value(row.raw), columnSummaries[index], columnDirection(cols[index]) === 'lower') : { tone: 'neutral', label: 'Usage' }
+        };
+    }
     function seasonYears(player, latest, initial) {
         const rookie = Number(player?.rookie_year);
         const experience = Math.max(0, Math.min(29, Number(player?.years_exp) || 0));
@@ -68,7 +99,9 @@
         return years.sort((a, b) => b - a);
     }
     function weeksForSeason(season, latest, state) {
-        const count = Number(season) < latest ? 18 : Number(season) > latest ? 0 : Math.min(18, Math.max(0, Number(state?.week) || 0));
+        const phase = String(state?.season_type || '').toLowerCase();
+        const currentCount = ['post', 'off'].includes(phase) ? 18 : phase === 'pre' ? 0 : Math.min(18, Math.max(0, Number(state?.display_week || state?.week) || 0));
+        const count = Number(season) < latest ? 18 : Number(season) > latest ? 0 : currentCount;
         return Array.from({ length: count }, (_, i) => i + 1);
     }
     async function loadCareer(engine, pid, years, force) {
@@ -118,7 +151,7 @@
             }
             run().then(rows => { if (alive) setLoad({ key: requestKey, status: 'ready', rows }); }).catch(() => { if (alive) setLoad({ key: requestKey, status: 'error', rows: [] }); });
             return () => { alive = false; };
-        }, [engine, requestKey, revision, latest, root.S?.nflState?.week, root.MFL?.loadPlayerStats]);
+        }, [engine, requestKey, revision, latest, root.S?.nflState?.week, root.S?.nflState?.display_week, root.S?.nflState?.season_type, root.MFL?.loadPlayerStats]);
         const p = position(pos || player.position);
         const scoring = currentLeague.scoring_settings;
         const points = (raw, year, week) => mfl ? finite(nativeScore(raw, scoring, year, week)?.points) : raw && engine?.score ? engine.score(raw, scoring, p) : null;
@@ -127,7 +160,10 @@
         const additional = detailMetrics(p).filter(col => !cols.some(visible => visible.title === col.title));
         const rows = load.key === requestKey ? load.rows : [];
         const retry = () => setRevision(value => value + 1);
-        const statCells = raw => cols.map(col => h('td', { key: col.label, title: col.title }, fmt(col.value(raw))));
+        const statCells = (raw, row, visual) => cols.map((col, index) => {
+            const grade = visual && row ? visual.columnGrade(row, index) : null;
+            return h('td', { key: col.label, title: col.title + (grade ? ' · ' + grade.label + (columnDirection(col) === 'lower' ? ' · Lower is better' : '') : '') }, grade ? h('span', { className: 'wr-stat-heat is-' + grade.tone, 'data-score-tone': grade.tone, 'aria-label': col.title + ': ' + fmt(col.value(raw)) + ', ' + grade.label }, fmt(col.value(raw))) : fmt(col.value(raw)));
+        });
         const details = (raw, key, span) => expanded !== key ? null : h('tr', { key: key + '-detail', className: 'wr-player-stats-detail' }, h('td', { colSpan: span },
             h('dl', null, detailMetrics(p).map(col => h('div', { key: col.title }, h('dt', null, col.title), h('dd', null, fmt(col.value(raw))))))));
         let content;
@@ -155,14 +191,35 @@
         } else {
             const reported = rows.filter(row => row.raw).sort((a, b) => b.week - a.week);
             const unreported = rows.filter(row => !row.raw).sort((a, b) => b.week - a.week);
-            content = h(React.Fragment, null, reported.length ? h('table', null,
+            const visual = weeklyVisuals(rows, season, root.S?.nflState, (raw, week) => points(raw, season, week), cols);
+            const chronological = [...rows].sort((a, b) => a.week - b.week);
+            const maxPoints = Math.max(1, ...chronological.map(row => Math.abs(points(row.raw, season, row.week) ?? 0)));
+            const rowId = week => 'wr-player-week-' + String(context).replace(/[^a-z0-9_-]/gi, '-') + '-' + week;
+            const toggleWeek = week => { const key = 'w' + week; setExpanded(expanded === key ? null : key); };
+            const pointsStrip = reported.length ? h('figure', { className: 'wr-week-points', 'aria-label': 'Weekly fantasy points' },
+                h('figcaption', null, h('strong', null, 'Weekly points'), visual.pointsSummary ? h('span', null, fmt(visual.pointsSummary.median, 1) + ' median · ' + visual.pointsSummary.count + ' games') : h('span', null, 'Building a completed-game baseline')),
+                h('div', { className: 'wr-week-points-scroll', role: chronological.length > 7 ? 'region' : undefined, tabIndex: chronological.length > 7 ? 0 : undefined, 'aria-label': chronological.length > 7 ? 'Scroll weekly points horizontally' : undefined },
+                    h('div', { className: 'wr-week-points-grid', style: { '--wr-week-count': chronological.length } }, chronological.map(row => {
+                        const value = points(row.raw, season, row.week), grade = visual.pointGrade(row), available = !!row.raw;
+                        const props = { key: row.week, className: 'wr-week-point is-' + grade.tone + (expanded === 'w' + row.week ? ' is-selected' : '') + (value < 0 ? ' is-negative' : ''), title: 'Week ' + row.week + ': ' + fmt(value, 1) + ' fantasy points · ' + grade.label };
+                        if (available) Object.assign(props, { type: 'button', onClick: () => toggleWeek(row.week), 'aria-expanded': expanded === 'w' + row.week, 'aria-controls': rowId(row.week), 'aria-label': 'Week ' + row.week + ', ' + fmt(value, 1) + ' fantasy points, ' + grade.label + '. Show stat line below.' });
+                        else Object.assign(props, { 'aria-label': 'Week ' + row.week + ', ' + (row.error ? 'Could not load' : 'No stats reported') });
+                        return h(available ? 'button' : 'span', props,
+                            h('strong', null, fmt(value, 1)),
+                            h('span', { className: 'wr-week-point-track', 'aria-hidden': true }, h('span', { className: 'wr-week-point-bar', style: { height: value === null ? '0%' : Math.max(4, Math.abs(value) / maxPoints * 100) + '%' } })),
+                            h('small', null, 'W' + row.week));
+                    }))),
+                visual.pointsSummary ? h('p', { className: 'wr-score-legend' },
+                    h('span', { className: 'is-strong' }, 'Favorable'), h('span', { className: 'is-typical' }, 'Typical'), h('span', { className: 'is-quiet' }, 'Unfavorable'),
+                    h('span', { className: 'wr-score-legend-basis' }, 'Vs own completed games · Typical: within 20% (minimum 1). Current week ungraded.')) : h('p', { className: 'wr-score-legend-basis' }, 'Colors start after 3 completed games. Current week stays ungraded.')) : null;
+            content = h(React.Fragment, null, pointsStrip, reported.length ? h('table', { className: 'wr-week-game-log', 'aria-label': 'Weekly player game log' },
                 h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Wk'), h('th', { scope: 'col' }, 'FPTS'), ...cols.map(col => h('th', { key: col.label, scope: 'col', title: col.title }, col.label)))),
                 h('tbody', null, reported.map(row => {
-                    const key = 'w' + row.week;
-                    return h(React.Fragment, { key }, h('tr', null,
-                        h('th', { scope: 'row' }, h('button', { onClick: () => setExpanded(expanded === key ? null : key), 'aria-expanded': expanded === key, 'aria-label': 'Week ' + row.week + ' stat line' }, row.week)),
-                        h('td', { className: 'wr-player-fpts' }, fmt(points(row.raw, season, row.week), 1)),
-                        ...statCells(row.raw)
+                    const key = 'w' + row.week, grade = visual.pointGrade(row), value = points(row.raw, season, row.week);
+                    return h(React.Fragment, { key }, h('tr', { id: rowId(row.week), className: expanded === key ? 'is-selected' : undefined },
+                        h('th', { scope: 'row' }, h('button', { onClick: () => toggleWeek(row.week), 'aria-expanded': expanded === key, 'aria-label': 'Week ' + row.week + ' stat line' }, row.week)),
+                        h('td', { className: 'wr-player-fpts', title: 'Fantasy points · ' + grade.label }, h('span', { className: 'wr-stat-heat is-' + grade.tone, 'data-score-tone': grade.tone, 'aria-label': 'Fantasy points: ' + fmt(value, 1) + ', ' + grade.label }, fmt(value, 1))),
+                        ...statCells(row.raw, row, visual)
                     ), details(row.raw, key, cols.length + 2));
                 }))) : h('p', { className: 'wr-player-stats-message' }, rows.some(row => row.error) ? 'No weekly stats loaded.' : 'No weekly stats reported yet.'),
                 unreported.length ? h('details', { className: 'wr-player-unreported-weeks', key: requestKey },
@@ -183,5 +240,5 @@
         return columns(pos);
     }
     root.RosterPlayerStats = RosterPlayerStats;
-    root.RosterPlayerStatsData = { columns, seasonYears, weeksForSeason, loadCareer, statsClient, nativeScore };
+    root.RosterPlayerStatsData = { columns, seasonYears, weeksForSeason, loadCareer, statsClient, nativeScore, columnDirection, hasParticipation, weeklyVisuals };
 })(window);

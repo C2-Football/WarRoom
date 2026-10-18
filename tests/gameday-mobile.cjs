@@ -7,7 +7,7 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week' } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, scoreStatus = 'ready', scoreError = null } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
@@ -51,7 +51,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
                 Schedule: seasonData ? { buildSeason: async () => seasonData } : undefined,
                 LeagueLiveScores: {
                     currentWeek: () => 2,
-                    useScores: () => ({ supported, status: 'ready', updatedAt: 1789484400000, rows: [
+                    useScores: () => ({ supported, status: scoreStatus, error: scoreError, updatedAt: 1789484400000, rows: [
                         { roster_id: 1, matchup_id: matchupId, starters: ['a', 'b', 'c'], players_points: { a: 0, b: -2.5 }, points: upcoming ? 0 : -2.5 },
                         { roster_id: 2, matchup_id: matchupId, starters: ['d'], points: 0 },
                     ] }),
@@ -62,6 +62,9 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
         },
     };
     vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync('js/shared/scoring-visuals.js', 'utf8'), ctx);
+    const savedForecasts = { players: forecasts, persistent: true };
+    ctx.window.App.LineupForecastSnapshots = { read: () => savedForecasts, capture: () => savedForecasts };
     delete ctx.window.App.StartSit;
     vm.runInContext(fs.readFileSync('js/shared/startsit-engine.js', 'utf8'), ctx);
     if (withMatchup) {
@@ -88,7 +91,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
         throw Error('Render did not settle');
     }
     await render();
-    return { get out() { return out; }, render, games, props, result, storage, projectionWeeks, scoreWeeks, contextWeeks, opponentWeeks, async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
+    return { get out() { return out; }, render, games, props, result, storage, projectionWeeks, scoreWeeks, contextWeeks, opponentWeeks, scorePresentation: values => ctx.lineupScorePresentation(values), async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
 }
 const all = node => node && typeof node === 'object' ? [node, ...(node.children || []).flatMap(all)] : [];
 const textOf = node => node == null ? '' : typeof node === 'object' ? (node.children || []).map(textOf).join('') : String(node);
@@ -125,8 +128,8 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert(select(select(plan, n => n.props.className === 'gd-list-heading mc-lineup-heading'), n => n.props.className === 'mc-lineup-total'), 'Lineup total shares the heading instead of a separate control row');
     assert.doesNotMatch(textOf(plan), /Plan here\. Set your final starters|Only players with verified upcoming games/, 'redundant planning instructions stay out of the mobile lineup');
     assert(select(plan, n => n.props.className === 'gd-scoreboard'), 'live scores stay inside starting lineup');
-    assert.match(textOf(plan), /Final · 0.00 pts · Locked/);
-    assert.match(textOf(plan), /Final · -2.50 pts · Locked/);
+    assert.match(textOf(plan), /Locked0\.00Final pts/);
+    assert.match(textOf(plan), /Locked-2\.50Final pts/);
     const missingRow = select(plan, n => n.type === 'button' && textOf(n).includes('Missing Starter'));
     assert.match(textOf(missingRow), /—Proj—L5 PPG/);
     const starter = select(plan, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
@@ -137,6 +140,34 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert(select(negativeRow, n => n.props.className === 'gd-player-initial gd-pos-rb'), 'Game Day uses the running-back position color hook');
     assert(select(missingRow, n => n.props.className === 'gd-player-initial gd-pos-wr'));
     assert.match(textOf(negativeRow), /-2\.5Proj-2\.5L5 PPG/, 'negative PPG is preserved');
+    assert.equal(select(starter, n => n.props.className === 'gd-player-actual is-neutral').children[0].children[0], '0.00', 'real zero actual leads the row without a fabricated grade');
+    assert(select(missingRow, n => n.props.className === 'gd-player-actual is-neutral' && textOf(n) === '—Final pts'), 'missing final remains a dash in the actual score card');
+    assert(!select(starter, n => String(n.props.className).includes('gd-score-comparison')), 'no saved pregame means no comparison');
+
+    const graded = await fixture({ forecasts: { a: { kind: 'pregame', points: 0 }, b: { kind: 'pregame', points: -5 }, c: { kind: 'pregame', points: 12 } } });
+    const gradedRows = all(graded.out).filter(n => n.type === 'button' && String(n.props.className).includes('has-actual-score'));
+    assert(select(gradedRows[0], n => n.props.className === 'gd-player-actual is-typical'), 'a completed zero can be near a zero forecast');
+    assert.match(textOf(gradedRows[0]), /Near forecast · vs saved pregame 0\.0/);
+    assert(select(gradedRows[1], n => n.props.className === 'gd-player-actual is-strong'), 'a negative actual above a more negative forecast preserves signed comparison');
+    assert(select(gradedRows[2], n => n.props.className === 'gd-player-actual is-neutral'), 'missing final actual cannot be graded');
+    const compare = values => active.scorePresentation({ tracking: true, submitted: true, state: 'final', gamesFresh: true, scoreStatus: 'ready', scoreError: null, scoresSupported: true, actual: 20, forecast: { kind: 'pregame', points: 10 }, ...values });
+    assert.equal(compare({}).tone, 'strong');
+    assert.equal(compare({ actual: 2 }).tone, 'quiet');
+    assert.equal(compare({ actual: 12 }).tone, 'typical', 'the twenty percent boundary stays in the typical band');
+    for (const values of [{ state: 'live' }, { state: 'locked' }, { state: 'unknown' }, { gamesFresh: false }, { scoreStatus: 'stale' }, { scoreStatus: 'refreshing' }, { scoreStatus: 'error' }, { scoreError: 'Refresh failed' }, { scoresSupported: false }, { forecast: { kind: 'first-view', points: 10 } }, { forecast: { kind: 'pregame', points: null } }, { actual: null }]) {
+        assert.equal(compare(values).tone, 'neutral', 'only a fresh final with a finite saved pregame score can receive a grade');
+        assert.equal(compare(values).comparison, null);
+    }
+    assert.equal(compare({ state: 'upcoming' }), null, 'a later kickoff never becomes an invented zero actual');
+    assert.equal(compare({ submitted: false }), null, 'a locally assigned bench player cannot inherit submitted starter points');
+    assert.equal(compare({ tracking: false }), null, 'future planning cannot display current actual points');
+    const staleFantasy = await fixture({ forecasts: { a: { kind: 'pregame', points: 12 } }, scoreStatus: 'stale', scoreError: 'Refresh failed' });
+    const staleFantasyRow = select(staleFantasy.out, n => n.type === 'button' && textOf(n).includes('Zero Starter'));
+    assert(select(staleFantasyRow, n => n.props.className === 'gd-player-actual is-neutral' && textOf(n) === '0.00Last available pts'), 'fresh final NFL status cannot grade an old fantasy-feed zero');
+    assert(!select(staleFantasyRow, n => String(n.props.className).includes('gd-score-comparison')), 'stale fantasy feed removes the pregame comparison');
+    await graded.kickoff('KC');
+    const liveCard = select(graded.out, n => n.props.className === 'gd-player-actual is-neutral' && /Live pts/.test(textOf(n)));
+    assert(liveCard, 'the live card stays neutral blue even with a saved pregame forecast');
     starter.props.onClick(); await active.render();
     assert.equal(button(active.out, 'Empty this slot').props.disabled, true);
     assert(!all(active.out).some(n => n.type === 'button' && textOf(n).includes('Bench Option')));
@@ -324,7 +355,7 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     prevWeek(future.out).props.onClick(); await future.render();
     assert.match(textOf(planList(future.out)), /Bench Option/, 'switching back restores that week’s plan');
     prevWeek(future.out).props.onClick(); await future.render();
-    assert.match(textOf(planList(future.out)), /Zero Starter.*Final · 0\.00 pts · Locked/, 'the live week keeps submitted-player locks');
+    assert.match(textOf(planList(future.out)), /Zero Starter.*Locked0\.00Final pts/, 'the live week keeps submitted-player locks');
     const reloaded = await fixture({ storage: future.storage });
     nextWeek(reloaded.out).props.onClick(); await reloaded.render();
     assert.match(textOf(planList(reloaded.out)), /Bench Option/, 'the week plan survives a page reload');
