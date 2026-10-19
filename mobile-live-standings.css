@@ -1,0 +1,62 @@
+/* A first-glance mobile Overview board; standings data comes from League. */
+.wr-mission-control .mc-live-standings {
+  color:#edf3ff;
+  background:linear-gradient(145deg,rgba(42,63,94,.93),rgba(24,42,64,.97));
+  border:1px solid rgba(157,185,224,.35);
+  border-radius:var(--card-radius-lg,16px);
+  overflow:hidden;
+  margin:0 0 12px;
+  box-shadow:0 4px 18px rgba(6,15,28,.12);
+}
+.wr-mission-control .mc-live-standings-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 12px 0; }
+.wr-mission-control .mc-live-standings-eyebrow { display:block; color:#b8ccef; font-size:10px; line-height:1.4; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.wr-mission-control .mc-live-standings h2 { margin:2px 0 0; color:#f3f6ff; font-size:19px; font-weight:750; line-height:1.2; letter-spacing:-.02em; }
+.wr-mission-control button.mc-live-standings-refresh { display:grid; place-items:center; flex:0 0 44px; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border:1px solid rgba(157,185,224,.35); border-radius:var(--card-radius,11px); background:rgba(157,185,224,.08); color:#c3d6fa; box-shadow:none; }
+.wr-mission-control button.mc-live-standings-refresh:disabled { opacity:.5; cursor:wait; }
+.wr-mission-control .mc-live-standings-state { display:flex; flex-wrap:wrap; align-items:center; gap:3px 5px; margin:7px 12px 10px; color:#b8c8e0; font-size:10px; line-height:1.5; }
+.wr-mission-control .mc-live-standings-dot { width:5px; height:5px; border-radius:50%; background:#7ce0b2; }
+.wr-mission-control .mc-live-standings-freshness { flex-basis:100%; color:#9fb2cf; font-size:9px; }
+.wr-mission-control .mc-live-standings-state.is-stale .mc-live-standings-freshness { color:#efce8e; }
+.wr-mission-control .mc-live-standings-table { width:100%; table-layout:fixed; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.wr-mission-control .mc-live-standings-rank-col { width:28px; }
+.wr-mission-control .mc-live-standings-record-col { width:55px; }
+.wr-mission-control .mc-live-standings-points-col { width:71px; }
+.wr-mission-control .mc-live-standings-table th { padding:6px 7px; background:rgba(12,25,45,.22); border-top:1px solid rgba(157,185,224,.15); border-bottom:1px solid rgba(157,185,224,.18); color:#aabedc; font-size:9px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; text-align:left; }
+.wr-mission-control .mc-live-standings-table th:nth-child(n+3) { text-align:right; }
+.wr-mission-control .mc-live-standings-table td { height:48px; padding:5px 7px; border-bottom:1px solid rgba(157,185,224,.12); vertical-align:middle; }
+.wr-mission-control .mc-live-standings-table tbody tr:last-child td { border-bottom:0; }
+.wr-mission-control .mc-live-standings-table tr.is-own { background:rgba(153,188,247,.11); }
+.wr-mission-control .mc-live-standings-table tr.is-own td:first-child { box-shadow:inset 3px 0 0 #b6cdff; }
+.wr-mission-control .mc-live-standings-rank { color:#a7bada; font-size:11px; }
+.wr-mission-control .mc-live-standings-team { overflow:hidden; }
+.wr-mission-control .mc-live-standings-team > strong,
+.wr-mission-control button.mc-live-standings-team-link { display:block; width:100%; min-height:0; padding:0; border:0; border-radius:var(--card-radius-xs,3px); color:#edf3ff; background:none; box-shadow:none; font-family:inherit; font-size:14px; font-weight:650; line-height:1.3; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-transform:none; letter-spacing:normal; }
+.wr-mission-control .mc-live-standings-team-meta { display:flex; gap:6px; align-items:center; min-height:0; color:#b9c9e0; font-size:9px; line-height:1.5; }
+.wr-mission-control .mc-live-standings-team-meta:empty { display:none; }
+.wr-mission-control .mc-live-standings-you { color:#c4d7ff; font-weight:650; }
+.wr-mission-control .mc-live-standings-movement[data-direction=up] { color:#8be2b9; }
+.wr-mission-control .mc-live-standings-movement[data-direction=down] { color:#f0aaa4; }
+.wr-mission-control .mc-live-standings-record { text-align:right; color:#e1eafa; font-size:12px; white-space:nowrap; }
+.wr-mission-control .mc-live-standings-points { text-align:right; }
+.wr-mission-control .mc-live-standings-points > strong { display:block; color:#f2f6ff; font-size:13px; font-weight:700; line-height:1.3; white-space:nowrap; }
+.wr-mission-control .mc-live-standings-result { display:block; color:#b5c6e1; font-size:9px; line-height:1.6; }
+.wr-mission-control .mc-live-standings-result[data-result=Leading] { color:#8be2b9; }
+.wr-mission-control .mc-live-standings-result[data-result=Trailing] { color:#f0aaa4; }
+.wr-mission-control .mc-live-standings-result[data-result=Tied] { color:#edcf91; }
+.wr-mission-control .mc-live-standings-empty { padding:6px 12px 16px; margin:0; color:#b8c8e0; font-size:12px; line-height:1.5; }
+.wr-mission-control .mc-live-standings-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 10px; background:rgba(12,25,45,.15); border-top:1px solid rgba(157,185,224,.15); }
+.wr-mission-control .mc-live-standings-footer > span { color:#9fb2cf; font-size:9px; line-height:1.4; }
+.wr-mission-control .mc-live-standings-footer > button { flex-shrink:0; min-height:44px; padding:6px 2px; border:0; border-radius:var(--card-radius-xs,3px); color:#c6d9ff; background:none; box-shadow:none; font-family:inherit; font-size:11px; font-weight:650; text-transform:none; letter-spacing:normal; }
+.wr-mission-control .mc-live-standings button:focus-visible { outline:2px solid #b6cdff; outline-offset:2px; }
+.wr-mission-control .mc-live-standings-sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@media (hover:hover) {
+  .wr-mission-control .mc-live-standings-table tr.is-tappable:hover { background:rgba(153,188,247,.12); cursor:pointer; }
+  .wr-mission-control .mc-live-standings-footer > button:hover { color:#fff; }
+}
+@media (min-width:400px) {
+  .wr-mission-control .mc-live-standings-rank-col { width:32px; }
+  .wr-mission-control .mc-live-standings-record-col { width:65px; }
+  .wr-mission-control .mc-live-standings-points-col { width:80px; }
+  .wr-mission-control .mc-live-standings-table td { padding:5px 10px; }
+  .wr-mission-control .mc-live-standings-table th { padding:6px 10px; }
+}

@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), Babel = require('@babel/standalone');
-let hooks = [], index = 0, board, liveContext, requestedWeek, renderedComponentTypes = [], effects = [];
+let hooks = [], index = 0, board, liveContext, requestedWeek, currentBoardOverride, renderedComponentTypes = [], effects = [];
 const storage = new Map();
 const boundary = function ScoreboardBoundary() {};
 const React = {
@@ -10,10 +10,12 @@ const React = {
     useMemo(fn) { index++; return fn(); }, useCallback(fn) { index++; return fn; }, useEffect(fn) { effects.push(fn); },
     createElement(type, props, ...children) { if (typeof type === 'function') renderedComponentTypes.push(type); return typeof type === 'function' && type !== boundary ? type({ ...(props || {}), children }) : { type, props: props || {}, children }; }
 };
-const root = { App: { LeagueLiveScores: { currentWeek: () => 2, useScores: opts => { requestedWeek = opts.week; return board; } }, LeagueLiveTable: { useContext: () => liveContext }, DashboardLeagueLayout: { peek: () => null, leagueId: league => String(league.league_id || league.id || "") }, WrStorage: { get: (key, fallback) => storage.has(key) ? storage.get(key) : fallback, set: (key, value) => storage.set(key, value) } }, WR: { useViewport: () => ({ isPhone: true }) }, LeagueLiveScoreboard: boundary };
-const context = { window: root, React, console };
+const root = { App: { LeagueLiveScores: { currentWeek: () => 2, useScores: opts => { if (opts.enabled === false) return { week: opts.week, rows: [], status: 'idle' }; requestedWeek = opts.week; return currentBoardOverride && opts.week === 2 ? currentBoardOverride : board; } }, LeagueLiveTable: { useContext: opts => opts.enabled === false ? { enabled: false } : liveContext }, DashboardLeagueLayout: { peek: () => null, leagueId: league => String(league.league_id || league.id || "") }, WrStorage: { get: (key, fallback) => storage.has(key) ? storage.get(key) : fallback, set: (key, value) => storage.set(key, value) } }, WR: { useViewport: () => ({ isPhone: true }) }, LeagueLiveScoreboard: boundary };
+let now = Date.parse('2026-10-19T12:00:00Z');
+const context = { window: root, React, console, Date: class extends Date { static now() { return now; } } };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/shared/league-live-standings.js', 'utf8'), context);
+vm.runInContext(fs.readFileSync('js/components/mobile-live-standings.js', 'utf8'), context);
 vm.runInContext(Babel.transform(fs.readFileSync('js/tabs/league-central.js', 'utf8'), { presets: ['react'] }).code, context);
 const league = { league_id: '1234567890123456', season: 2026, name: 'League', settings: { playoff_week_start: 15 }, rosters: [
     { roster_id: 1, settings: { wins: 5, losses: 0, ties: 0, fpts: 500 } }, { roster_id: 2, settings: { wins: 0, losses: 5, ties: 0, fpts: 400 } },
@@ -140,3 +142,35 @@ assert(!find(tree, n => n.type === 'button' && text(n) === 'Cup'));
 props.currentLeague = { ...league, league_id: '9876543210123456' };
 render(); effects.find(fn => fn.toString().includes('cupVisibilityKey'))(); tree = render();
 assert(find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'A league with visible Cup does not inherit another league’s hidden state');
+
+// The Sunday home board is automatic and follows current scores independently
+// of the scoreboard's history selection.
+props.currentLeague = league; props.overview = true;
+root.S = { nflState: { season: 2026, season_type: 'regular' } };
+reset({ rows: [{ roster_id: 1, matchup_id: 1, points: 20 }, { roster_id: 2, matchup_id: 1, points: 10 }], started: ['1', '2'] });
+liveContext.games = [{ kickoff: '2026-10-18T17:00:00Z', completed: true }];
+tree = render();
+const homeBoard = value => find(value, n => n.props.className === 'mc-live-standings');
+assert(homeBoard(tree), 'Sunday/Monday home board opens automatically without a disclosure');
+assert.match(text(homeBoard(tree)), /Live standings/);
+assert.match(text(homeBoard(tree)), /2–0/);
+const children = tree.children.flat(Infinity).filter(Boolean);
+assert(children.indexOf(homeBoard(tree)) < children.findIndex(n => n.props?.className === 'mc-overview-decisions'), 'Live standings lead Alex advice');
+assert(children.indexOf(homeBoard(tree)) < children.findIndex(n => n.type === boundary), 'Live standings appear before the full scoreboard');
+currentBoardOverride = { ...board };
+find(tree, n => n.type === boundary).props.onWeekChange(1);
+board = { ...board, week: 1, rows: [{ roster_id: 1, matchup_id: 1, points: 1 }, { roster_id: 2, matchup_id: 1, points: 100 }] };
+tree = render();
+assert.equal(find(tree, n => n.type === boundary).props.selectedWeek, 1, 'Historical scoreboard remains usable');
+assert.match(text(homeBoard(tree)), /Week 2/);
+assert.match(text(homeBoard(tree)), /2–0/, 'Historical browsing cannot change the current home standings');
+assert.match(text(find(tree, n => n.props.className === 'mc-overview-summary')), /2–0/, 'Personal summary agrees with the current live board');
+currentBoardOverride = { ...currentBoardOverride, status: 'stale', error: 'Refresh failed' };
+tree = render(); assert.match(text(homeBoard(tree)), /Last available · Provisional/);
+assert(!find(homeBoard(tree), n => n.props.className === 'mc-live-standings-dot'), 'Failed refresh cannot claim a fresh live feed');
+now = Date.parse('2026-10-17T12:00:00Z'); assert(!homeBoard(render()), 'Saturday keeps normal mobile Overview');
+now = Date.parse('2026-10-19T12:00:00Z');
+props.leagueSkin = { type: 'chopped', features: { showPlayoffOdds: false } }; assert(!homeBoard(render()), 'Chopped keeps its existing survival board');
+props.leagueSkin = { features: { showPlayoffOdds: false } }; liveContext.enabled = false;
+assert(!homeBoard(render()), 'Unsupported providers cannot acquire an invented live standings board');
+console.log('PASS automatic phone Overview standings: Sunday/Monday visibility, ordering, current-week independence, fresh/stale labels and format guards');

@@ -112,5 +112,37 @@
         return {rows:sorted,baselineRows,officialRows,week,status,median:state.median,complete:!state.pending,
             message:status==='partial' ? 'Some scores are unavailable or have not started; standings are provisional.' : status==='live' ? 'If the current scores hold · movement since entering Week '+week : 'Standings entering Week '+week};
     }
-    App.LeagueLiveStandings={compute};
+    // NFL weeks cross calendar weeks. Anchor the automatic phone board to the
+    // current schedule's Sunday in football's Eastern time, not the device zone.
+    function overviewWindow({ league, nflState = {}, week, currentWeek, games = [], now = Date.now() } = {}) {
+        const season = Number(league?.season), liveSeason = Number(nflState.season);
+        const phase = String(nflState.season_type || '').toLowerCase();
+        const start = Number(league?.settings?.start_week) || 1;
+        const playoff = Number(league?.settings?.playoff_week_start) || 19;
+        if (!Number.isFinite(now) || !season || season !== liveSeason || ['pre', 'post', 'off'].includes(phase)
+            || !Number.isInteger(week) || week !== currentWeek || week < start || week > 18 || week >= playoff) return false;
+        const day = value => {
+            if (value == null || value === '') return null;
+            const date = new Date(value);
+            if (!Number.isFinite(date.getTime())) return null;
+            const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(date);
+            const read = name => Number(parts.find(part => part.type === name)?.value);
+            const ordinal = Date.UTC(read('year'), read('month') - 1, read('day'));
+            return { ordinal, weekday: new Date(ordinal).getUTCDay() };
+        };
+        const today = day(now);
+        if (!today) return false;
+        const scheduled = games.filter(game => !/CANCEL|POSTPONED/i.test(game.statusName || '')).map(game => day(game.kickoff)).filter(Boolean);
+        const sundays = scheduled.filter(date => date.weekday === 0).map(date => date.ordinal);
+        // A rare Saturday-only slate still opens on the following Sunday.
+        const anchors = sundays.length ? sundays : scheduled.map(date => date.ordinal + (date.weekday <= 2 ? -date.weekday : 7 - date.weekday) * 86400000);
+        if (anchors.length) {
+            const sunday = Math.min(...anchors);
+            return today.ordinal >= sunday && today.ordinal < sunday + 7 * 86400000;
+        }
+        // Schedule unavailable: keep the promised Sunday/Monday entry point,
+        // without retaining a stale week indefinitely after the feed rolls over.
+        return today.weekday === 0 || today.weekday === 1;
+    }
+    App.LeagueLiveStandings={compute,overviewWindow};
 })(typeof window !== 'undefined' ? window : globalThis);

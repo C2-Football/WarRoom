@@ -1,0 +1,22 @@
+'use strict';
+const assert = require('node:assert/strict');
+require('../js/shared/league-live-standings.js');
+const show = globalThis.App.LeagueLiveStandings.overviewWindow;
+const input = { league: { season: 2026, settings: { start_week: 1, playoff_week_start: 15 } }, nflState: { season: 2026, season_type: 'regular' }, week: 6, currentWeek: 6,
+    games: [{ kickoff: '2026-10-16T00:15:00Z' }, { kickoff: '2026-10-18T13:30:00Z' }, { kickoff: '2026-10-20T00:15:00Z', completed: true }] };
+const at = (now, extra = {}) => show({ ...input, now: Date.parse(now), ...extra });
+assert.equal(at('2026-10-18T03:59:59Z'), false, 'Saturday night ET stays in normal Overview');
+assert.equal(at('2026-10-18T04:00:00Z'), true, 'Sunday midnight ET opens before the London kickoff');
+assert.equal(at('2026-10-19T22:00:00Z'), true, 'Monday remains in this scoring week');
+assert.equal(at('2026-10-20T08:00:00Z'), true, 'completed games stay visible until the scoring-week rollover');
+assert.equal(at('2026-10-20T08:00:00Z', { week: 6, currentWeek: 7 }), false, 'an old week cannot remain a live landing board');
+assert.equal(at('2026-10-22T12:00:00Z', { week: 7, currentWeek: 7, games: input.games.map(game => ({ kickoff: new Date(Date.parse(game.kickoff) + 7 * 86400000).toISOString() })) }), false, 'next week waits for its own Sunday');
+assert.equal(at('2026-10-25T12:00:00Z'), false, 'a stale schedule cannot remain active into another Sunday');
+assert.equal(at('2026-10-19T12:00:00Z', { games: [] }), true, 'schedule failure keeps the Sunday/Monday entry point');
+assert.equal(at('2026-10-21T12:00:00Z', { games: [{ kickoff: null }] }), false, 'unavailable dates cannot invent a Sunday anchor');
+assert.equal(at('2026-11-01T03:59:59Z', { games: [{ kickoff: '2026-11-01T18:00:00Z' }] }), false, 'fall DST Sunday still starts at local midnight');
+assert.equal(at('2026-11-01T04:00:00Z', { games: [{ kickoff: '2026-11-01T18:00:00Z' }] }), true);
+assert.equal(at('2026-10-19T12:00:00Z', { league: { ...input.league, season: 2025 } }), false);
+assert.equal(at('2026-10-19T12:00:00Z', { week: 15, currentWeek: 15 }), false, 'playoff weeks cannot imply a regular-season standings update');
+for (const phase of ['pre', 'post', 'off']) assert.equal(at('2026-10-19T12:00:00Z', { nflState: { season: 2026, season_type: phase } }), false);
+console.log('PASS Overview live window: Eastern Sunday boundary, London game, Monday/completed-week retention, rollover, unavailable schedules, DST and season guards.');

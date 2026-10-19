@@ -53,7 +53,7 @@
         }).map(row => String(row.roster_id));
     }
 
-    function useContext({ league, board, playersData }) {
+    function useContext({ league, board, playersData, enabled: requested = true }) {
         const React = root.React;
         const id = league?.league_id || league?.id || '';
         const season = String(league?.season || '');
@@ -64,7 +64,7 @@
         const future = Number(season) > liveSeason || (Number(season) === liveSeason && week > currentWeek);
         const playoffStart = Number(league?.settings?.playoff_week_start);
         const lastReg = playoffStart > 0 ? playoffStart - 1 : 18;
-        const enabled = App.LeagueLiveScores.supported(league) && !App.Chopped?.isChopped?.(league) && week <= lastReg && !future;
+        const enabled = requested && App.LeagueLiveScores.supported(league) && !App.Chopped?.isChopped?.(league) && week <= lastReg && !future;
         const key = `${id}|${season}|${week}|${enabled}`;
         const [revision, setRevision] = React.useState(0);
         const [history, setHistory] = React.useState({ key: '', status: 'loading', priorWeeks: [] });
@@ -101,6 +101,7 @@
         const currentHistory = history.key === key ? history : { status: 'loading', priorWeeks: [] };
         return {
             enabled, historical, future, currentWeek, lastReg, history: currentHistory,
+            games: nfl.key === key ? nfl.games : [],
             startedRosterIds: startedRosters({ rows: board.rows, games: nfl.key === key ? nfl.games : [], playersData, historical }),
             refresh: () => setRevision(n => n + 1),
         };

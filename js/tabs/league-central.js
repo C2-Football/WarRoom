@@ -232,6 +232,15 @@ function LeagueCentralTab({
     const scoreWeek = scoreSelection?.key === `${leagueId}|${season}` ? scoreSelection.week : window.App.LeagueLiveScores.currentWeek(currentLeague);
     const board = window.App.LeagueLiveScores.useScores({ league: currentLeague, week: scoreWeek });
     const liveContext = window.App.LeagueLiveTable?.useContext({ league: currentLeague, board, playersData });
+    // Browsing past scores must not turn the automatic home board historical.
+    // Share the existing current-week subscriptions unless a history view needs
+    // a separate current feed; disabled hooks create no additional requests.
+    const currentWeek = window.App.LeagueLiveScores.currentWeek(currentLeague);
+    const separateOverviewFeed = overview && isPhone && !isChopped && Number(scoreWeek) !== Number(currentWeek);
+    const overviewBoardFeed = window.App.LeagueLiveScores.useScores({ league: currentLeague, week: currentWeek, enabled: separateOverviewFeed });
+    const overviewContextFeed = window.App.LeagueLiveTable?.useContext({ league: currentLeague, board: overviewBoardFeed, playersData, enabled: separateOverviewFeed });
+    const overviewBoard = separateOverviewFeed ? overviewBoardFeed : board;
+    const overviewContext = separateOverviewFeed ? overviewContextFeed : liveContext;
     const [tableSource, setTableSource] = React.useState('live');
 
     const weekHasScores = board.rows.filter(r => Number(r.points) > 0).length >= 2;
@@ -621,19 +630,38 @@ function LeagueCentralTab({
         selectedWeek: scoreWeek, onWeekChange: week => setScoreSelection({ key: `${leagueId}|${season}`, week }),
         onRefresh: liveContext?.refresh, fullBoard: isPhone, overview,
     });
-    const overviewTeam = tableTeams.find(team => sameId(team.rosterId, myRoster?.roster_id));
-    const overviewRank = overviewTeam ? (liveReady ? overviewTeam.rank : tableTeams.indexOf(overviewTeam) + 1) : null;
     let overviewHealth = null;
     if (overview && isPhone && myRoster && typeof window.assessTeamFromGlobal === 'function') {
         try { overviewHealth = window.assessTeamFromGlobal(myRoster.roster_id)?.healthScore ?? null; } catch (_) { /* unavailable read stays empty */ }
     }
+    const showOverviewStandings = overview && isPhone && !isChopped && overviewContext?.enabled
+        && window.App.LeagueLiveStandings?.overviewWindow({ league: currentLeague, nflState: window.S?.nflState,
+            week: Number(overviewBoard.week), currentWeek: Number(currentWeek), games: overviewContext.games || [] });
+    const overviewStandings = showOverviewStandings && overviewContext.history?.updatedAt
+        && ['ready', 'refreshing', 'stale'].includes(overviewContext.history.status)
+        ? window.App.LeagueLiveStandings.compute({ league: currentLeague, standings: enrichedStandings,
+            priorWeeks: overviewContext.history.priorWeeks, board: overviewBoard, week: overviewBoard.week,
+            currentWeek, startedRosterIds: overviewContext.startedRosterIds }) : null;
+    const overviewHasLive = overviewStandings && overviewStandings.status !== 'official' && overviewBoard.updatedAt != null && overviewBoard.rows.length > 0;
+    const overviewStandingsStatus = overviewHasLive ? (overviewStandings.status === 'baseline' ? 'baseline' : 'live')
+        : overviewBoard.status === 'loading' && !overviewBoard.updatedAt ? 'loading' : 'official';
+    const overviewSummaryTeams = showOverviewStandings ? (overviewHasLive ? overviewStandings.rows : enrichedStandings) : tableTeams;
+    const overviewSummaryLive = showOverviewStandings ? overviewHasLive : liveReady;
+    const overviewTeam = overviewSummaryTeams.find(team => sameId(team.rosterId, myRoster?.roster_id));
+    const overviewRank = overviewTeam ? (overviewSummaryLive ? overviewTeam.rank : overviewSummaryTeams.indexOf(overviewTeam) + 1) : null;
     if (overview && isPhone) return <div ref={centralRef} className="la-mobile la-central mc-league-overview">
         {isChopped && window.WrChopBlock && <window.WrChopBlock active compact phone currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => setActiveTab?.('central')} />}
         {!isChopped && overviewTeam && <button type="button" className="mc-overview-summary" aria-label="Open your league standing and season outlook" onClick={() => setActiveTab?.('central')}>
-            <span><small>{liveReady ? 'Live record' : 'Record'}</small><strong>{overviewTeam.wins}–{overviewTeam.losses}{overviewTeam.ties ? '–' + overviewTeam.ties : ''}</strong></span>
-            <span><small>Standing</small><strong>{overviewRank != null ? '#' + overviewRank : '—'}<em> / {tableTeams.length}</em></strong></span>
+            <span><small>{overviewSummaryLive ? 'Live record' : 'Record'}</small><strong>{overviewTeam.wins}–{overviewTeam.losses}{overviewTeam.ties ? '–' + overviewTeam.ties : ''}</strong></span>
+            <span><small>Standing</small><strong>{overviewRank != null ? '#' + overviewRank : '—'}<em> / {overviewSummaryTeams.length}</em></strong></span>
             <span><small>{overviewHealth != null ? 'Roster health' : 'Points for'}</small><strong>{overviewHealth != null ? overviewHealth : score(overviewTeam.pointsFor)}</strong></span>
         </button>}
+        {showOverviewStandings && window.MobileLiveStandings && <window.MobileLiveStandings
+            teams={(overviewHasLive ? overviewStandings.rows : enrichedStandings.map((team, index) => ({ ...team, rank: team.rank ?? index + 1 }))).map(team => ({ ...team, teamName: team.teamName || team.displayName || _getOwnerName(team.rosterId) }))} baselineRows={overviewStandings?.baselineRows || []}
+            myRosterId={myRoster?.roster_id} week={currentWeek} status={overviewStandingsStatus}
+            stale={!!overviewBoard.error || ['stale', 'error', 'refreshing'].includes(overviewBoard.status) || ['stale', 'error'].includes(overviewContext.history?.status)}
+            updatedAt={overviewBoard.updatedAt} onOpenLeague={() => setActiveTab?.('central')} onOpenTeam={onOpenTeam}
+            onRefresh={() => { overviewBoard.refresh?.(); overviewContext.refresh?.(); }} />}
         {!isChopped && <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />}
         {renderScoreboard()}
         <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.(isChopped ? 'fa' : 'central')}>{isChopped ? 'Explore waivers →' : 'Full standings →'}</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
