@@ -58,15 +58,18 @@
                     const name = nameFor(team), shownRecord = record(team), shownPoints = points(team.currentPoints);
                     const canOpen = typeof onOpenTeam === 'function' && team.rosterId != null;
                     const open = canOpen ? () => onOpenTeam(team.rosterId, team) : undefined;
+                    const teamContent = [
+                        h('span', { key: 'name', className: 'mc-live-standings-name-line' },
+                            h('strong', { className: 'mc-live-standings-name' }, name), own ? h('span', { className: 'mc-live-standings-you' }, 'You') : null),
+                        h('span', { key: 'form', className: 'mc-live-standings-form', role: 'group', 'aria-label': formLabel, title: formLabel },
+                            h('span', { className: 'mc-live-standings-form-label', 'aria-hidden': true }, 'Last 5'),
+                            form.length ? form.map((game, gameIndex) => h('span', { key: gameIndex, className: 'mc-live-standings-form-pill', 'data-result': game, 'aria-hidden': true }, game)) : h('span', { className: 'mc-live-standings-form-empty', 'aria-hidden': true }, '—')),
+                    ];
                     return h('tr', { key: team.rosterId ?? index, className: (own ? 'is-own ' : '') + (canOpen ? 'is-tappable' : ''), onClick: open },
-                        h('td', { className: 'mc-live-standings-rank' }, rank ?? '—'),
+                        h('td', { className: 'mc-live-standings-rank' }, h('span', null, rank ?? '—'),
+                            movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null),
                         h('td', { className: 'mc-live-standings-team' },
-                            canOpen ? h('button', { type: 'button', className: 'mc-live-standings-team-link', title: name, 'aria-label': name + (own ? ', your team' : '') + ', team profile', onClick: event => { event.stopPropagation(); open(); } }, name) : h('strong', { title: name }, name),
-                            h('span', { className: 'mc-live-standings-team-meta' }, own ? h('span', { className: 'mc-live-standings-you' }, 'You') : null,
-                                movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null),
-                            h('span', { className: 'mc-live-standings-form', role: 'group', 'aria-label': formLabel, title: formLabel },
-                                h('span', { className: 'mc-live-standings-form-label', 'aria-hidden': true }, 'Last 5'),
-                                form.length ? form.map((game, gameIndex) => h('span', { key: gameIndex, className: 'mc-live-standings-form-pill', 'data-result': game, 'aria-hidden': true }, game)) : h('span', { className: 'mc-live-standings-form-empty', 'aria-hidden': true }, '—'))),
+                            canOpen ? h('button', { type: 'button', className: 'mc-live-standings-team-link', title: name, 'aria-label': name + (own ? ', your team' : '') + ', team profile. ' + formLabel, onClick: event => { event.stopPropagation(); open(); } }, teamContent) : h('span', { className: 'mc-live-standings-team-content', title: name }, teamContent)),
                         h('td', { className: 'mc-live-standings-record' }, shownRecord),
                         h('td', { className: 'mc-live-standings-points' }, h('strong', null, shownPoints), outcome ? h('span', { className: 'mc-live-standings-result', 'data-result': outcome, 'aria-label': outcome + ' this week' }, outcome) : null));
                 }))) : h('p', { className: 'mc-live-standings-empty', role: 'status' }, loading ? 'Standings are loading…' : 'Standings are unavailable. Open League for the latest records.'),
