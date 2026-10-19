@@ -6,6 +6,8 @@ const context = { window: {}, React: { createElement(type, props, ...children) {
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(require.resolve('../js/components/mobile-live-standings.js'), 'utf8'), context);
 const render = context.window.MobileLiveStandings;
+const lastFive = context.window.MobileLiveStandingsData.lastFive;
+const plain = value => JSON.parse(JSON.stringify(value));
 const walk = node => node == null || typeof node === 'boolean' ? [] : Array.isArray(node) ? node.flatMap(walk) : typeof node !== 'object' ? [node] : [node, ...walk(node.children)];
 const text = node => walk(node).filter(item => typeof item !== 'object').join('');
 const find = (tree, predicate) => walk(tree).find(item => typeof item === 'object' && predicate(item));
@@ -65,3 +67,50 @@ assert(text(tree).includes('Standings are unavailable') && text(tree).includes('
 assert(!text(tree).includes('Week undefined'));
 assert(!find(tree, node => node.type === 'table'), 'empty data does not fabricate standing rows');
 console.log('Mobile live standings: all teams, provisional/baseline/official/loading states, accessible actions, zero/negative/missing data, own row and rank movement passed.');
+
+// Completed form comes from the pre-week snapshot, not the current live result.
+vm.runInContext(fs.readFileSync(require.resolve('../js/shared/league-live-standings.js'), 'utf8'), context);
+const compute = context.window.App.LeagueLiveStandings.compute;
+const scoreRows = values => values.map((value, index) => ({ roster_id: index + 1, matchup_id: Math.floor(index / 2) + 1, points: value }));
+const priorWeeks = [[10, 0, 1, 2], [0, 10, 1, 2], [5, 5, 1, 2], [7, 3, 1, 2], [8, 2, 1, 2], [2, 8, 1, 2], [9, 1, 1, 2]]
+    .map((values, index) => ({ week: index + 1, rows: scoreRows(values) }));
+priorWeeks[3].rows[0].matchup_id = null;
+priorWeeks[3].rows[1].matchup_id = null;
+const standings = compute({
+    league: { settings: { start_week: 1, playoff_week_start: 15, league_average_match: 1 }, rosters: [1, 2, 3, 4].map(roster_id => ({ roster_id })) },
+    week: 8, priorWeeks, board: { week: 8, rows: scoreRows([0, 10, 1, 2]) }, started: true,
+});
+assert.equal(standings.status, 'live');
+const liveTeam = standings.rows.find(row => row.rosterId === 1);
+const baselineTeam = standings.baselineRows.find(row => row.rosterId === 1);
+assert.equal(baselineTeam.form.length, 6, 'a bye does not become a seventh completed head-to-head game');
+assert.equal(liveTeam.form.length, 7, 'the current provisional game is present only in live form');
+assert.deepEqual(plain(lastFive(liveTeam, standings.baselineRows, 8)), ['L', 'T', 'W', 'L', 'W'], 'last five stay chronological, retain ties, exclude the bye, median outcomes and current week');
+assert.deepEqual(plain(lastFive(baselineTeam, standings.baselineRows, 8)), ['L', 'T', 'W', 'L', 'W'], 'baseline and live views agree about completed form');
+tree = render({ teams: standings.rows, baselineRows: standings.baselineRows, week: 8, status: 'live' });
+const firstTeamRow = rows(tree).find(row => row.props.key === 1);
+const formStrip = find(firstTeamRow, node => node.props.className === 'mc-live-standings-form');
+assert.equal(text(formStrip), 'Last 5LTWLW');
+assert.equal(formStrip.props['aria-label'], 'Last 5 completed head-to-head games, oldest to newest: Loss, Tie, Win, Loss, Win');
+assert.deepEqual(all(formStrip, node => node.props.className === 'mc-live-standings-form-pill').map(node => node.props['data-result']), ['L', 'T', 'W', 'L', 'W'], 'color classes retain visible W/L/T text');
+assert.equal(firstTeamRow.children.length, 4, 'form stays inside the team column instead of adding a narrow-screen column');
+
+const officialTeam = { rosterId: 1, teamName: 'Official team', form: [
+    { week: 5, result: 'L' }, { week: 3, result: 'W' }, { week: 1, result: 'T' },
+    { week: 6, result: 'W' }, { week: 7, result: 'L' }, { week: NaN, result: 'W' },
+    { week: 0, result: 'W' }, { week: -1, result: 'L' }, { week: '2', result: 'W' },
+    { week: 2, result: 'BYE' }, { week: 4, result: null }, 'W', null,
+] };
+const officialBefore = JSON.stringify(officialTeam);
+assert.deepEqual(plain(lastFive(officialTeam, [], 6)), ['T', 'W', 'L'], 'dated official form uses only validated completed earlier weeks and sorts oldest first');
+assert.equal(JSON.stringify(officialTeam), officialBefore, 'sorting never mutates provider form');
+assert.deepEqual(plain(lastFive(officialTeam, [], undefined)), [], 'an unknown displayed week cannot establish which official results are completed');
+assert.deepEqual(plain(lastFive({ rosterId: 1, form: ['W', 'L'] }, [], 6)), [], 'undated current-team strings are never accepted as completed fallback results');
+assert.deepEqual(plain(lastFive(officialTeam, [{ rosterId: '1', form: [] }], 6)), [], 'an authoritative empty baseline does not borrow later official results');
+assert.deepEqual(plain(lastFive({ rosterId: 2 }, [{ rosterId: 2, form: ['W', 'T'] }], 3)), ['W', 'T'], 'a short season shows only games actually completed');
+tree = render({ teams: [officialTeam], week: 6, status: 'official' });
+assert.equal(text(find(tree, node => node.props.className === 'mc-live-standings-form')), 'Last 5TWL');
+tree = render({ teams: [{ rosterId: 1, form: ['W', 'L'] }], week: 6, status: 'official' });
+assert.equal(text(find(tree, node => node.props.className === 'mc-live-standings-form')), 'Last 5—', 'unavailable form stays a neutral dash');
+assert(!find(tree, node => node.props.className === 'mc-live-standings-form-pill'), 'unknown history does not fabricate wins or losses');
+console.log('Mobile live standings form: completed last five, chronological order, live-week exclusion, ties, byes, median leagues, short seasons and official missing data passed.');

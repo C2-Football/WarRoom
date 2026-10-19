@@ -13,6 +13,18 @@
         return [wins, losses, ...(ties !== null && ties > 0 ? [ties] : [])].join('–');
     };
     const result = value => ({ W: 'Leading', L: 'Trailing', T: 'Tied', WIN: 'Leading', LOSS: 'Trailing', TIE: 'Tied', LEADING: 'Leading', TRAILING: 'Trailing', TIED: 'Tied' })[String(value || '').toUpperCase()] || null;
+    const completedResult = value => typeof value === 'string' && /^[WLT]$/.test(value) ? value : null;
+    // The live row also includes this week's provisional result. Only its
+    // pre-week clone can supply string form; dated official form must precede
+    // the displayed week. Byes and league-median outcomes are not extra games.
+    function lastFive(team, baselineRows, week) {
+        const baseline = baselineRows.find(row => sameId(row.rosterId, team.rosterId));
+        if (Array.isArray(baseline?.form)) return baseline.form.filter(completedResult).slice(-5);
+        if (!Number.isInteger(week) || week < 1 || week > 18 || !Array.isArray(team.form)) return [];
+        return team.form.filter(game => game && Number.isInteger(game.week) && game.week > 0 && game.week < week && completedResult(game.result))
+            .slice().sort((left, right) => left.week - right.week).slice(-5).map(game => game.result);
+    }
+    const formResultLabel = value => ({ W: 'Win', L: 'Loss', T: 'Tie' })[value];
     function MobileLiveStandings({ teams = [], baselineRows = [], myRosterId, week, status = 'baseline', stale = false, updatedAt = null, onOpenLeague, onOpenTeam, onRefresh }) {
         const live = status === 'live', official = status === 'official', loading = status === 'loading';
         const rows = teams.length ? teams : baselineRows;
@@ -41,6 +53,8 @@
                     const before = validRank(team.baselineRank) ?? validRank(baselineRows.find(row => sameId(row.rosterId, team.rosterId))?.rank);
                     const movement = live && rank !== null && before !== null ? before - rank : null;
                     const outcome = live ? result(team.currentResult) : null;
+                    const form = lastFive(team, baselineRows, week);
+                    const formLabel = form.length ? 'Last ' + form.length + ' completed head-to-head games, oldest to newest: ' + form.map(formResultLabel).join(', ') : 'Last 5 completed head-to-head games: form unavailable';
                     const name = nameFor(team), shownRecord = record(team), shownPoints = points(team.currentPoints);
                     const canOpen = typeof onOpenTeam === 'function' && team.rosterId != null;
                     const open = canOpen ? () => onOpenTeam(team.rosterId, team) : undefined;
@@ -49,7 +63,10 @@
                         h('td', { className: 'mc-live-standings-team' },
                             canOpen ? h('button', { type: 'button', className: 'mc-live-standings-team-link', title: name, 'aria-label': name + (own ? ', your team' : '') + ', team profile', onClick: event => { event.stopPropagation(); open(); } }, name) : h('strong', { title: name }, name),
                             h('span', { className: 'mc-live-standings-team-meta' }, own ? h('span', { className: 'mc-live-standings-you' }, 'You') : null,
-                                movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null)),
+                                movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null),
+                            h('span', { className: 'mc-live-standings-form', role: 'group', 'aria-label': formLabel, title: formLabel },
+                                h('span', { className: 'mc-live-standings-form-label', 'aria-hidden': true }, 'Last 5'),
+                                form.length ? form.map((game, gameIndex) => h('span', { key: gameIndex, className: 'mc-live-standings-form-pill', 'data-result': game, 'aria-hidden': true }, game)) : h('span', { className: 'mc-live-standings-form-empty', 'aria-hidden': true }, '—'))),
                         h('td', { className: 'mc-live-standings-record' }, shownRecord),
                         h('td', { className: 'mc-live-standings-points' }, h('strong', null, shownPoints), outcome ? h('span', { className: 'mc-live-standings-result', 'data-result': outcome, 'aria-label': outcome + ' this week' }, outcome) : null));
                 }))) : h('p', { className: 'mc-live-standings-empty', role: 'status' }, loading ? 'Standings are loading…' : 'Standings are unavailable. Open League for the latest records.'),
@@ -58,4 +75,5 @@
                 typeof onOpenLeague === 'function' ? h('button', { type: 'button', onClick: onOpenLeague }, 'Full standings ', h('span', { 'aria-hidden': true }, '→')) : null));
     }
     root.MobileLiveStandings = MobileLiveStandings;
+    root.MobileLiveStandingsData = { lastFive };
 })(window);
