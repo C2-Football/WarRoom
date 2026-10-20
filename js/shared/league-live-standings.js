@@ -144,5 +144,177 @@
         // without retaining a stale week indefinitely after the feed rolls over.
         return today.weekday === 0 || today.weekday === 1;
     }
-    App.LeagueLiveStandings={compute,overviewWindow};
+    // Default provider rules: https://support.sleeper.com/en/articles/2203518-how-do-playoff-teams-get-determined
+    // Qualification is separate from the live-score ledger. Standard Sleeper
+    // seeding uses record percentage, PF, then higher PA; division winners take
+    // the first seeds. A stable roster ID orders unresolved ties for display
+    // only, and must never decide who is inside the field.
+    function playoffPicture({ league, rows = [], baselineRows = [] } = {}) {
+        const settings = league?.settings || {};
+        const rowId = row => row?.rosterId ?? row?.roster_id;
+        const numeric = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+        const record = row => {
+            const values = [row?.wins, row?.losses, row?.ties ?? 0];
+            if (!values.every(value => Number.isInteger(value) && value >= 0)) return null;
+            const [wins, losses, ties] = values;
+            return { credits: 2 * wins + ties, games: wins + losses + ties };
+        };
+        const compareRecord = (left, right) => {
+            const a = record(left), b = record(right);
+            return b.credits * (a.games || 1) - a.credits * (b.games || 1);
+        };
+        const stable = (left, right) => String(rowId(left)).localeCompare(String(rowId(right)));
+        // Build whole tie groups before PA ordering. If any PA is missing, the
+        // whole equal-record/PF group remains unresolved, avoiding a non-
+        // transitive comparator that treats A = missing = B but A != B.
+        const ordered = source => {
+            const sorted = source.slice().sort((a, b) => compareRecord(a, b) || stable(a, b));
+            const groups = [];
+            for (let index = 0; index < sorted.length;) {
+                let end = index + 1;
+                while (end < sorted.length && compareRecord(sorted[index], sorted[end]) === 0) end++;
+                const sameRecord = sorted.slice(index, end);
+                if (sameRecord.some(row => numeric(row.pointsFor) === null)) groups.push(sameRecord.sort(stable));
+                else {
+                    sameRecord.sort((a, b) => b.pointsFor - a.pointsFor || stable(a, b));
+                    for (let cursor = 0; cursor < sameRecord.length;) {
+                        let stop = cursor + 1;
+                        while (stop < sameRecord.length && sameRecord[cursor].pointsFor === sameRecord[stop].pointsFor) stop++;
+                        const samePoints = sameRecord.slice(cursor, stop);
+                        if (samePoints.some(row => numeric(row.pointsAgainst) === null)) groups.push(samePoints.sort(stable));
+                        else {
+                            samePoints.sort((a, b) => b.pointsAgainst - a.pointsAgainst || stable(a, b));
+                            for (let pa = 0; pa < samePoints.length;) {
+                                let next = pa + 1;
+                                while (next < samePoints.length && samePoints[pa].pointsAgainst === samePoints[next].pointsAgainst) next++;
+                                groups.push(samePoints.slice(pa, next));
+                                pa = next;
+                            }
+                        }
+                        cursor = stop;
+                    }
+                }
+                index = end;
+            }
+            return groups;
+        };
+        const declarations = Number(settings.divisions || 0);
+        const leagueRosters = league?.rosters || [];
+        const rosterIds = leagueRosters.map(roster => roster?.roster_id);
+        const rosterMap = new Map(leagueRosters.map(roster => [String(roster?.roster_id), roster]));
+        const coversLeague = !leagueRosters.length || (rosterIds.every(rosterId => rosterId != null)
+            && new Set(rosterIds.map(String)).size === rosterIds.length && rows.length === rosterIds.length
+            && rows.every(row => rosterMap.has(String(rowId(row)))));
+        const divisionOf = row => {
+            const roster = rosterMap.get(String(rowId(row))), value = roster?.settings?.division;
+            if (value == null || (typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '' || !Object.prototype.hasOwnProperty.call(roster.settings, 'division')) return null;
+            const key = Number(value);
+            return Number.isInteger(key) && key >= 0 ? String(key) : null;
+        };
+        const divisionKeys = [...new Set(rows.map(divisionOf).filter(key => key !== null))].sort((a, b) => Number(a) - Number(b));
+        const hasDivisions = Number.isInteger(declarations) && declarations >= 2 && rows.length > 0
+            && rows.every(row => divisionOf(row) !== null) && divisionKeys.length === declarations;
+        const nameForDivision = key => league?.metadata?.['division_' + key + '_name'] || league?.metadata?.['division_' + key] || 'Division ' + key;
+        const rankGroups = (groups, offset = 0) => {
+            let position = offset;
+            const played = groups.flat().some(row => record(row)?.games > 0);
+            return groups.flatMap(group => {
+                const displayRank = played ? position + 1 : null;
+                position += group.length;
+                return group.map(row => ({ ...row, displayRank }));
+            });
+        };
+        const clone = row => ({ ...row, displayRank: null, displayBaselineRank: null, playoffState: null });
+        const completeRecords = source => source.every(row => rowId(row) != null && record(row))
+            && new Set(source.map(row => String(rowId(row)))).size === source.length;
+        const baselineValid = baselineRows.length === rows.length && completeRecords(rows) && completeRecords(baselineRows)
+            && rows.every(row => baselineRows.some(before => String(rowId(before)) === String(rowId(row))));
+        const validRank = value => Number.isInteger(value) && value > 0 ? value : null;
+        const no = note => {
+            const current = completeRecords(rows) ? rankGroups(ordered(rows)) : [];
+            const ranks = new Map(current.map(row => [String(rowId(row)), row.displayRank]));
+            const before = baselineValid ? rankGroups(ordered(baselineRows)) : [];
+            const beforeRanks = new Map(before.map(row => [String(rowId(row)), row.displayRank]));
+            return { mode: 'none', slots: null, hasDivisions, note, leagueRows: rows.map(row => ({ ...clone(row),
+                displayRank: validRank(row.rank) ?? ranks.get(String(rowId(row))) ?? null,
+                displayBaselineRank: validRank(row.baselineRank) ?? beforeRanks.get(String(rowId(row))) ?? null })),
+            divisions: hasDivisions ? divisionKeys.map(key => {
+                const local = rows.filter(row => divisionOf(row) === key);
+                const prior = baselineValid ? rankGroups(ordered(baselineRows.filter(row => divisionOf(row) === key))) : [];
+                const previous = new Map(prior.map(row => [String(rowId(row)), row.displayRank]));
+                return { key, name: nameForDivision(key), rows: (completeRecords(local) ? rankGroups(ordered(local)) : local.map(clone))
+                    .map(row => ({ ...row, displayBaselineRank: previous.get(String(rowId(row))) ?? null, playoffState: null })) };
+            }) : [], cutlineLabel: '' };
+        };
+        const provider = String(league?.platform || league?.provider || '').toLowerCase();
+        if (!league || league._mfl || league._mflLeagueId || league._espn || league._yahoo || (provider && provider !== 'sleeper')
+            || /^(mfl|espn|yahoo|manual|demo)_/.test(String(league?.league_id || league?.id || ''))
+            || App.Chopped?.isChopped?.(league) || league.type === 'chopped' || league.leagueSkin?.type === 'chopped') return no('A standard playoff cutline is unavailable for this league format.');
+        const slots = Number(settings.playoff_teams);
+        // Explicitly disabled playoffs can leave an old field size behind.
+        // A known noncompetitive field needs no verification warning.
+        if (settings.playoff_week_start === 0 || (settings.playoff_teams != null && slots === 0)) return no('');
+        if (!coversLeague) return no('Every league team needs a complete record before showing the playoff cutline.');
+        if (rows.length > 0 && slots === rows.length) return no('All teams qualify.');
+        if (settings.playoff_teams == null || !Number.isInteger(slots) || slots < 1 || slots >= rows.length) return no('A competitive playoff field has not been verified.');
+        if (!completeRecords(rows)) return no('Complete team records are needed to show the playoff cutline.');
+        const override = league.bracket_overrides_id;
+        let mode = settings.playoff_seed_type === 0 && (override == null || String(override) === '0') ? 'standard' : 'record';
+        const notes = [];
+        if (mode === 'record') notes.push('Custom or unverified seeding rules may change the playoff field.');
+        if (declarations > 0 && !hasDivisions) {
+            mode = 'record';
+            notes.push('Division data is incomplete; division rules may change the playoff field.');
+        }
+        if (hasDivisions && slots < divisionKeys.length) {
+            mode = 'record';
+            notes.push('There are fewer playoff places than divisions; division qualification rules need verification.');
+        }
+        const seedGroups = source => {
+            const groups = ordered(source);
+            if (!hasDivisions) return { groups, winners: new Set() };
+            const winners = [];
+            for (const key of divisionKeys) {
+                const first = ordered(source.filter(row => divisionOf(row) === key))[0];
+                if (!first || first.length !== 1) return null;
+                winners.push(first[0]);
+            }
+            const winnerIds = new Set(winners.map(row => String(rowId(row))));
+            return { groups: ordered(winners).concat(ordered(source.filter(row => !winnerIds.has(String(rowId(row)))))), winners: winnerIds };
+        };
+        let seeding = mode === 'standard' ? seedGroups(rows) : null;
+        if (mode === 'standard' && !seeding) {
+            mode = 'record';
+            notes.push('A division lead is tied on the available tiebreaks; division rules may change the playoff field.');
+        }
+        if (mode === 'record' && hasDivisions && !notes.some(note => /[Dd]ivision/.test(note))) notes.push('Division rules may change the playoff field.');
+        const groups = mode === 'standard' ? seeding.groups : ordered(rows);
+        const ranked = rankGroups(groups);
+        const states = new Map();
+        let position = 0;
+        groups.forEach(group => {
+            const tied = position < slots && position + group.length > slots;
+            group.forEach(row => states.set(String(rowId(row)), tied ? 'tied' : position < slots
+                ? mode === 'standard' && hasDivisions ? seeding.winners.has(String(rowId(row))) ? 'division' : 'wildcard' : 'field'
+                : 'outside'));
+            position += group.length;
+        });
+        let baselineRanked = [];
+        if (baselineValid) {
+            const before = mode === 'standard' ? seedGroups(baselineRows) : { groups: ordered(baselineRows) };
+            if (before) baselineRanked = rankGroups(before.groups);
+        }
+        const baselineRanks = new Map(baselineRanked.map(row => [String(rowId(row)), row.displayRank]));
+        const complete = (row, displayBaselineRank) => ({ ...row, displayBaselineRank: displayBaselineRank ?? null, playoffState: states.get(String(rowId(row))) ?? null });
+        const leagueRows = ranked.map(row => complete(row, baselineRanks.get(String(rowId(row)))));
+        const divisions = hasDivisions ? divisionKeys.map(key => {
+            const before = baselineValid ? rankGroups(ordered(baselineRows.filter(row => divisionOf(row) === key))) : [];
+            const beforeRanks = new Map(before.map(row => [String(rowId(row)), row.displayRank]));
+            return { key, name: nameForDivision(key), rows: rankGroups(ordered(rows.filter(row => divisionOf(row) === key)))
+                .map(row => complete(row, beforeRanks.get(String(rowId(row))))) };
+        }) : [];
+        return { mode, slots, hasDivisions, note: notes.join(' '), leagueRows, divisions,
+            cutlineLabel: mode === 'standard' ? 'Playoff cutline' : 'Top ' + slots + ' by record' };
+    }
+    App.LeagueLiveStandings={compute,overviewWindow,playoffPicture};
 })(typeof window !== 'undefined' ? window : globalThis);

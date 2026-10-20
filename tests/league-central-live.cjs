@@ -182,3 +182,50 @@ props.leagueSkin = { type: 'chopped', features: { showPlayoffOdds: false } }; as
 props.leagueSkin = { features: { showPlayoffOdds: false } }; liveContext.enabled = false;
 assert(!homeBoard(render()), 'Unsupported providers cannot acquire an invented live standings board');
 console.log('PASS automatic phone Overview standings: Sunday/Monday visibility, ordering, current-week independence, fresh/stale labels and format guards');
+
+// The same provisional playoff field is visible league-wide and inside every
+// division, while Alex remains first on the automatic Overview.
+const divisionLeague = { league_id: '1122334455667788', season: 2026, metadata: { division_1_name: 'North', division_2_name: 'South' },
+    settings: { playoff_week_start: 15, playoff_teams: 3, playoff_seed_type: 0, divisions: 2 },
+    rosters: Array.from({ length: 8 }, (_, i) => ({ roster_id: i + 1, settings: { division: i < 6 ? 1 : 2, wins: 0, losses: 0, ties: 0, fpts: 0 } })) };
+const divisionScores = divisionLeague.rosters.map((roster, i) => ({ roster_id: roster.roster_id, matchup_id: Math.floor(i / 2) + 1, points: 100 - i * 10 }));
+props.currentLeague = divisionLeague;
+props.standings = divisionLeague.rosters.map(roster => ({ rosterId: roster.roster_id, teamName: 'Team ' + roster.roster_id, wins: 0, losses: 0, ties: 0, pointsFor: 0 }));
+props.leagueSkin = { features: { showPlayoffOdds: false } };
+props.overview = true;
+currentBoardOverride = null;
+reset({ rows: divisionScores, started: divisionLeague.rosters.map(roster => String(roster.roster_id)) });
+liveContext.games = [{ kickoff: '2026-10-18T17:00:00Z', completed: true }];
+liveContext.history.priorWeeks = [{ week: 1, rows: divisionScores }];
+tree = render(); assertAlexFirst(tree);
+const boardRows = value => walk(homeBoard(value)).filter(node => node.type === 'tr' && node.props['data-roster-id'] != null);
+assert.deepEqual(boardRows(tree).map(node => node.props['data-roster-id']), [1, 7, 3, 5, 2, 4, 6, 8], 'league-wide board seeds the weaker division leader before wildcards');
+assert.match(text(homeBoard(tree)), /Seed/);
+assert.equal(walk(homeBoard(tree)).filter(node => node.props?.className === 'mc-live-standings-cutline').length, 1);
+const overviewGrouping = find(tree, node => node.props['aria-label'] === 'Standings grouping');
+find(overviewGrouping, node => node.type === 'button' && text(node) === 'Divisions').props.onClick();
+tree = render(); assertAlexFirst(tree);
+assert.equal(find(tree, node => node.type === 'button' && text(node) === 'Divisions').props['aria-pressed'], true);
+assert.equal(boardRows(tree).length, 8, 'all divisions stay visible rather than filtering out other teams');
+assert.match(text(homeBoard(tree)), /North/); assert.match(text(homeBoard(tree)), /South/);
+assert.equal(walk(homeBoard(tree)).filter(node => node.props?.className === 'mc-live-standings-cutline').length, 2, 'each mixed division displays the same league-wide field boundary');
+assert.equal(boardRows(tree).filter(node => node.props['data-playoff-state'] === 'wildcard').length, 1, 'wildcards are not divided into per-division quotas');
+props.overview = false;
+tree = render();
+const groupingSelect = find(tree, node => node.type === 'select' && node.props['aria-label'] === 'Standings grouping');
+assert.equal(groupingSelect.props.value, 'division');
+assert.equal(walk(tree).filter(node => node.props?.className === 'la-cutline').length, 2, 'full phone League standings keep division cutlines');
+groupingSelect.props.onChange({ target: { value: 'overall' } });
+tree = render();
+assert.equal(walk(tree).filter(node => node.props?.className === 'la-cutline').length, 1);
+assert.match(text(find(tree, node => node.props.className === 'la-standings-columns')), /^Seed/);
+assert.match(text(teamRows(tree)[1]), /Team 7/, 'full League table agrees with Overview playoff order');
+root.WR.useViewport = () => ({ isPhone: false });
+tree = render();
+assert.equal(find(tree, node => node.type === 'th' && node.props['aria-label'] === 'Provisional playoff seed').children[0], 'Seed');
+assert.equal(walk(tree).filter(node => node.props?.className === 'lct-cutline-label').length, 1, 'desktop League table shows the same field cutoff');
+find(tree, node => node.type === 'button' && text(node) === 'Divisions').props.onClick();
+tree = render();
+assert.equal(walk(tree).filter(node => node.props?.className === 'lct-cutline-label').length, 2);
+assert(find(tree, node => node.type === 'th' && node.props['aria-label'] === 'Division rank'));
+console.log('PASS live playoff integration: Alex-first Overview plus League-wide/divisional cutlines, real division leader and wildcard membership, phone and desktop.');

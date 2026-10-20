@@ -25,15 +25,63 @@
             .slice().sort((left, right) => left.week - right.week).slice(-5).map(game => game.result);
     }
     const formResultLabel = value => ({ W: 'Win', L: 'Loss', T: 'Tie' })[value];
-    function MobileLiveStandings({ teams = [], baselineRows = [], myRosterId, week, status = 'baseline', stale = false, updatedAt = null, onOpenLeague, onOpenTeam, onRefresh }) {
+    function MobileLiveStandings({ teams = [], baselineRows = [], myRosterId, week, status = 'baseline', stale = false, updatedAt = null, league, grouping = 'overall', onGroupingChange, onOpenLeague, onOpenTeam, onRefresh }) {
         const live = status === 'live', official = status === 'official', loading = status === 'loading';
         const rows = teams.length ? teams : baselineRows;
+        const picture = league && root.App?.LeagueLiveStandings?.playoffPicture?.({ league, rows, baselineRows });
+        const divisionView = !!picture?.hasDivisions && grouping === 'division';
+        const groups = divisionView ? picture.divisions || [] : [{ key: 'overall', rows: picture?.leagueRows || rows }];
+        const seeded = picture?.mode === 'standard' && !divisionView;
         const validWeek = Number.isInteger(week) && week > 0 && week <= 18;
         const weekLabel = validWeek ? 'Week ' + week : 'This week';
         const nameFor = team => team.teamName || team.displayName || (team.rosterId == null ? 'Team unavailable' : 'Team ' + team.rosterId);
         const timestamp = finite(updatedAt) !== null && updatedAt > 0 ? new Date(updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null;
         const stateLabel = live ? (stale ? 'Last available · Provisional' : 'As it stands · Provisional') : official ? 'Official standings' : loading ? 'Updating standings…' : 'Entering ' + weekLabel.toLowerCase() + ' · Live results pending';
         const refreshLabel = loading ? 'Updating standings' : 'Refresh standings';
+        const renderTeam = (team, index) => {
+            const own = sameId(team.rosterId, myRosterId);
+            const rank = validRank(Object.prototype.hasOwnProperty.call(team, 'displayRank') ? team.displayRank : team.rank);
+            const before = Object.prototype.hasOwnProperty.call(team, 'displayBaselineRank') ? validRank(team.displayBaselineRank)
+                : validRank(team.baselineRank) ?? validRank(baselineRows.find(row => sameId(row.rosterId, team.rosterId))?.rank);
+            const movement = live && rank !== null && before !== null ? before - rank : null;
+            const outcome = live ? result(team.currentResult) : null;
+            const form = lastFive(team, baselineRows, week);
+            const formLabel = form.length ? 'Last ' + form.length + ' completed head-to-head games, oldest to newest: ' + form.map(formResultLabel).join(', ') : 'Last 5 completed head-to-head games: form unavailable';
+            const name = nameFor(team), shownRecord = record(team), shownPoints = points(team.currentPoints);
+            const canOpen = typeof onOpenTeam === 'function' && team.rosterId != null;
+            const open = canOpen ? () => onOpenTeam(team.rosterId, team) : undefined;
+            const qualification = picture?.mode === 'standard' && ({ division: ['DIV', 'Provisional division leader'], wildcard: ['WC', 'Provisional wildcard place'] })[team.playoffState];
+            const teamContent = [
+                h('span', { key: 'name', className: 'mc-live-standings-name-line' },
+                    h('strong', { className: 'mc-live-standings-name' }, name), own ? h('span', { className: 'mc-live-standings-you' }, 'You') : null),
+                h('span', { key: 'form', className: 'mc-live-standings-form', role: 'group', 'aria-label': formLabel, title: formLabel },
+                    h('span', { className: 'mc-live-standings-form-label', 'aria-hidden': true }, 'Last 5'),
+                    form.length ? form.map((game, gameIndex) => h('span', { key: gameIndex, className: 'mc-live-standings-form-pill', 'data-result': game, 'aria-hidden': true }, game)) : h('span', { className: 'mc-live-standings-form-empty', 'aria-hidden': true }, '—')),
+            ];
+            return h('tr', { key: team.rosterId ?? index, 'data-roster-id': team.rosterId, 'data-playoff-state': team.playoffState || undefined, className: (own ? 'is-own ' : '') + (canOpen ? 'is-tappable' : ''), onClick: open },
+                h('td', { className: 'mc-live-standings-rank' }, h('span', null, rank ?? '—'),
+                    movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + (divisionView ? ' within the division' : '') + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null),
+                h('td', { className: 'mc-live-standings-team' },
+                    canOpen ? h('button', { type: 'button', className: 'mc-live-standings-team-link', title: name, 'aria-label': name + (own ? ', your team' : '') + ', team profile. ' + formLabel, onClick: event => { event.stopPropagation(); open(); } }, teamContent) : h('span', { className: 'mc-live-standings-team-content', title: name }, teamContent)),
+                h('td', { className: 'mc-live-standings-record' }, shownRecord, qualification ? h('span', { className: 'mc-live-standings-qualification', title: qualification[1], 'aria-label': qualification[1] }, qualification[0]) : null),
+                h('td', { className: 'mc-live-standings-points' }, h('strong', null, shownPoints), outcome ? h('span', { className: 'mc-live-standings-result', 'data-result': outcome, 'aria-label': outcome + ' this week' }, outcome) : null));
+        };
+        const renderGroup = group => {
+            const list = group.rows || [], contents = [];
+            if (divisionView) contents.push(h('tr', { key: 'heading', className: 'mc-live-standings-division-heading' }, h('th', { scope: 'rowgroup', colSpan: 4 }, group.name)));
+            // Qualification and tie groups come only from the shared helper.
+            // No visible boundary may split an unresolved cutoff tie.
+            const firstTie = picture?.mode !== 'none' ? list.findIndex(team => team.playoffState === 'tied') : -1;
+            const inside = state => ['division', 'wildcard', 'field'].includes(state);
+            const lastInside = picture?.mode !== 'none' ? list.reduce((last, team, index) => inside(team.playoffState) ? index : last, -1) : -1;
+            const cutoff = firstTie >= 0 ? firstTie : lastInside >= 0 && lastInside < list.length - 1 && list[lastInside + 1].playoffState === 'outside' ? lastInside + 1 : -1;
+            list.forEach((team, index) => {
+                if (index === cutoff) contents.push(h('tr', { key: 'cutline', className: 'mc-live-standings-cutline' },
+                    h('td', { colSpan: 4 }, h('span', null, firstTie >= 0 ? (picture.mode === 'record' ? 'Tied at record cutoff' : 'Tied at cutline') : picture.cutlineLabel), divisionView ? h('small', null, 'League-wide field') : null)));
+                contents.push(renderTeam(team, index));
+            });
+            return h('tbody', { key: group.key, 'aria-label': divisionView ? group.name : undefined }, contents);
+        };
         return h('section', { className: 'mc-live-standings', 'aria-label': (official ? 'Standings' : 'Live standings') + (validWeek ? ', ' + weekLabel : ''), 'data-standings-status': status },
             h('div', { className: 'mc-live-standings-heading' },
                 h('div', null, h('span', { className: 'mc-live-standings-eyebrow' }, weekLabel), h('h2', null, official ? 'Standings' : 'Live standings')),
@@ -44,35 +92,15 @@
                 live && !stale ? h('span', { className: 'mc-live-standings-dot', 'aria-hidden': true }) : null,
                 stateLabel,
                 stale ? h('span', { className: 'mc-live-standings-freshness' }, timestamp ? 'Last successful update ' + timestamp : 'Showing last available standings') : timestamp ? h('span', { className: 'mc-live-standings-freshness' }, 'Updated ' + timestamp) : null),
-            rows.length ? h('table', { className: 'mc-live-standings-table' },
+            picture?.hasDivisions && typeof onGroupingChange === 'function' ? h('div', { className: 'mc-live-standings-grouping', role: 'group', 'aria-label': 'Standings grouping' },
+                h('button', { type: 'button', 'aria-pressed': !divisionView, onClick: () => onGroupingChange('overall') }, 'League'),
+                h('button', { type: 'button', 'aria-pressed': divisionView, onClick: () => onGroupingChange('division') }, 'Divisions')) : null,
+            rows.length ? h('table', { className: 'mc-live-standings-table' + (seeded ? ' has-playoff-seeds' : '') },
                 h('caption', { className: 'mc-live-standings-sr' }, live ? 'Provisional records if this week ended at the current scores. All teams.' : official || loading ? 'Reported league records. All teams.' : 'Records entering this week. All teams.'),
                 h('colgroup', null, h('col', { className: 'mc-live-standings-rank-col' }), h('col'), h('col', { className: 'mc-live-standings-record-col' }), h('col', { className: 'mc-live-standings-points-col' })),
-                h('thead', null, h('tr', null, h('th', { scope: 'col', 'aria-label': 'Rank' }, '#'), h('th', { scope: 'col' }, 'Team'), h('th', { scope: 'col', title: live ? 'Provisional record as it stands' : 'Record' }, 'Record'), h('th', { scope: 'col', title: weekLabel + ' actual points' }, validWeek ? 'W' + week : 'Week'))),
-                h('tbody', null, rows.map((team, index) => {
-                    const own = sameId(team.rosterId, myRosterId), rank = validRank(team.rank);
-                    const before = validRank(team.baselineRank) ?? validRank(baselineRows.find(row => sameId(row.rosterId, team.rosterId))?.rank);
-                    const movement = live && rank !== null && before !== null ? before - rank : null;
-                    const outcome = live ? result(team.currentResult) : null;
-                    const form = lastFive(team, baselineRows, week);
-                    const formLabel = form.length ? 'Last ' + form.length + ' completed head-to-head games, oldest to newest: ' + form.map(formResultLabel).join(', ') : 'Last 5 completed head-to-head games: form unavailable';
-                    const name = nameFor(team), shownRecord = record(team), shownPoints = points(team.currentPoints);
-                    const canOpen = typeof onOpenTeam === 'function' && team.rosterId != null;
-                    const open = canOpen ? () => onOpenTeam(team.rosterId, team) : undefined;
-                    const teamContent = [
-                        h('span', { key: 'name', className: 'mc-live-standings-name-line' },
-                            h('strong', { className: 'mc-live-standings-name' }, name), own ? h('span', { className: 'mc-live-standings-you' }, 'You') : null),
-                        h('span', { key: 'form', className: 'mc-live-standings-form', role: 'group', 'aria-label': formLabel, title: formLabel },
-                            h('span', { className: 'mc-live-standings-form-label', 'aria-hidden': true }, 'Last 5'),
-                            form.length ? form.map((game, gameIndex) => h('span', { key: gameIndex, className: 'mc-live-standings-form-pill', 'data-result': game, 'aria-hidden': true }, game)) : h('span', { className: 'mc-live-standings-form-empty', 'aria-hidden': true }, '—')),
-                    ];
-                    return h('tr', { key: team.rosterId ?? index, className: (own ? 'is-own ' : '') + (canOpen ? 'is-tappable' : ''), onClick: open },
-                        h('td', { className: 'mc-live-standings-rank' }, h('span', null, rank ?? '—'),
-                            movement ? h('span', { className: 'mc-live-standings-movement', 'data-direction': movement > 0 ? 'up' : 'down', 'aria-label': (movement > 0 ? 'Up ' : 'Down ') + Math.abs(movement) + ' since entering ' + weekLabel.toLowerCase() }, (movement > 0 ? '↑' : '↓') + Math.abs(movement)) : null),
-                        h('td', { className: 'mc-live-standings-team' },
-                            canOpen ? h('button', { type: 'button', className: 'mc-live-standings-team-link', title: name, 'aria-label': name + (own ? ', your team' : '') + ', team profile. ' + formLabel, onClick: event => { event.stopPropagation(); open(); } }, teamContent) : h('span', { className: 'mc-live-standings-team-content', title: name }, teamContent)),
-                        h('td', { className: 'mc-live-standings-record' }, shownRecord),
-                        h('td', { className: 'mc-live-standings-points' }, h('strong', null, shownPoints), outcome ? h('span', { className: 'mc-live-standings-result', 'data-result': outcome, 'aria-label': outcome + ' this week' }, outcome) : null));
-                }))) : h('p', { className: 'mc-live-standings-empty', role: 'status' }, loading ? 'Standings are loading…' : 'Standings are unavailable. Open League for the latest records.'),
+                h('thead', null, h('tr', null, h('th', { scope: 'col', 'aria-label': seeded ? 'Provisional playoff seed' : divisionView ? 'Division rank' : 'Rank', title: seeded ? 'Division leaders first, then league-wide wildcards' : undefined }, seeded ? 'Seed' : '#'), h('th', { scope: 'col' }, 'Team'), h('th', { scope: 'col', title: live ? 'Provisional record as it stands' : 'Record' }, 'Record'), h('th', { scope: 'col', title: weekLabel + ' actual points' }, validWeek ? 'W' + week : 'Week'))),
+                groups.map(renderGroup)) : h('p', { className: 'mc-live-standings-empty', role: 'status' }, loading ? 'Standings are loading…' : 'Standings are unavailable. Open League for the latest records.'),
+            picture?.note ? h('p', { className: 'mc-live-standings-playoff-note' }, picture.note) : null,
             h('div', { className: 'mc-live-standings-footer' },
                 h('span', null, live ? (stale ? 'Saved scores · Not final' : 'Current scores · Not final') : official ? 'Reported league records' : 'Live records appear when scores are ready'),
                 typeof onOpenLeague === 'function' ? h('button', { type: 'button', onClick: onOpenLeague }, 'Full standings ', h('span', { 'aria-hidden': true }, '→')) : null));

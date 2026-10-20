@@ -114,3 +114,74 @@ tree = render({ teams: [{ rosterId: 1, form: ['W', 'L'] }], week: 6, status: 'of
 assert.equal(text(find(tree, node => node.props.className === 'mc-live-standings-form')), 'Last 5—', 'unavailable form stays a neutral dash');
 assert(!find(tree, node => node.props.className === 'mc-live-standings-form-pill'), 'unknown history does not fabricate wins or losses');
 console.log('Mobile live standings form: completed last five, chronological order, live-week exclusion, ties, byes, median leagues, short seasons and official missing data passed.');
+
+// The component reads qualification and grouping from the real shared helper.
+// It must never infer separate per-division wildcard quotas of its own.
+const teamRows = node => all(node, item => item.type === 'tr' && item.props['data-roster-id'] != null);
+const cutlines = node => all(node, item => item.type === 'tr' && item.props.className === 'mc-live-standings-cutline');
+const divisionLeague = {
+    league_id: '12345', settings: { playoff_teams: 3, playoff_seed_type: 0, divisions: 2 },
+    metadata: { division_1_name: 'Eastern', division_2_name: 'Western' },
+    rosters: [1, 2, 3, 4, 5, 6].map((roster_id, index) => ({ roster_id, settings: { division: [1, 1, 2, 2, 1, 2][index] } })),
+};
+const raceRows = [1, 2, 3, 4, 5, 6].map((rosterId, index) => ({ rosterId, teamName: 'Race team ' + rosterId, rank: index + 1,
+    wins: 6 - index, losses: index + 1, ties: 0, pointsFor: 900 - index * 100, pointsAgainst: 600, currentPoints: index,
+    form: ['W', 'L', 'W', 'W', 'L'], currentResult: index % 2 ? 'L' : 'W' }));
+const beforeRace = raceRows.map(team => ({ ...team, ...(team.rosterId === 3 ? { wins: 3, losses: 4, pointsFor: 600 } : team.rosterId === 4 ? { wins: 5, losses: 2, pointsFor: 800 } : {}) }));
+let chosenGrouping = null;
+tree = render({ teams: raceRows, baselineRows: beforeRace, league: divisionLeague, grouping: 'overall', week: 8, status: 'live', onGroupingChange(value) { chosenGrouping = value; } });
+const controls = find(tree, node => node.props.className === 'mc-live-standings-grouping');
+assert(controls && controls.props['aria-label'] === 'Standings grouping');
+const groupingButtons = all(controls, node => node.type === 'button');
+assert.deepEqual(groupingButtons.map(text), ['League', 'Divisions']);
+assert.equal(groupingButtons[0].props['aria-pressed'], true);
+assert.equal(groupingButtons[1].props['aria-pressed'], false);
+groupingButtons[1].props.onClick(); assert.equal(chosenGrouping, 'division', 'grouping is controlled by the parent');
+assert.deepEqual(teamRows(tree).map(row => row.props['data-roster-id']), [1, 3, 2, 4, 5, 6], 'division leaders precede wildcards only when the shared helper verifies standard seeding');
+assert.equal(text(find(tree, node => node.type === 'th' && node.props['aria-label'] === 'Provisional playoff seed')), 'Seed');
+assert.equal(cutlines(tree).length, 1);
+assert(text(cutlines(tree)[0]).includes('Playoff cutline'));
+assert.equal(cutlines(tree)[0].children[0].props.colSpan, 4);
+assert.equal(cutlines(tree)[0].props.onClick, undefined, 'the cutline cannot accidentally open a team');
+const standardOrder = all(find(tree, node => node.type === 'tbody'), node => node.type === 'tr');
+assert.equal(standardOrder[2].props['data-roster-id'], 2);
+assert.equal(standardOrder[3].props.className, 'mc-live-standings-cutline');
+assert.equal(standardOrder[4].props['data-roster-id'], 4);
+assert.equal(all(tree, node => node.props.className === 'mc-live-standings-qualification' && text(node) === 'DIV').length, 2);
+assert.equal(all(tree, node => node.props.className === 'mc-live-standings-qualification' && text(node) === 'WC').length, 1);
+
+tree = render({ teams: raceRows, baselineRows: beforeRace, league: divisionLeague, grouping: 'division', week: 8, status: 'live', onGroupingChange(value) { chosenGrouping = value; } });
+const divisionBodies = all(tree, node => node.type === 'tbody');
+assert.deepEqual(divisionBodies.map(body => body.props['aria-label']), ['Eastern', 'Western']);
+assert.deepEqual(all(tree, node => node.type === 'th' && node.props.scope === 'rowgroup').map(text), ['Eastern', 'Western']);
+assert.equal(teamRows(tree).length, raceRows.length, 'every team remains visible in all division groups');
+assert.equal(cutlines(tree).length, 2, 'each group marks its actual league-wide qualifying boundary');
+assert(cutlines(tree).every(line => text(line).includes('League-wide field')));
+assert.equal(all(tree, node => node.props.className === 'mc-live-standings-qualification' && text(node) === 'WC').length, 1, 'wildcards are not allocated evenly per division');
+const westernLeader = teamRows(tree).find(row => row.props['data-roster-id'] === 3);
+assert.equal(cells(westernLeader)[0], '1↑1', 'division rank and movement use the matching division baseline, never a league-wide subtraction');
+assert(find(westernLeader, node => node.props['aria-label'] === 'Up 1 within the division since entering week 8'));
+assert.equal(find(tree, node => node.type === 'th' && node.props['aria-label'] === 'Provisional playoff seed'), undefined);
+
+const tiedLeague = { ...divisionLeague, settings: { playoff_teams: 2, playoff_seed_type: 0 }, rosters: divisionLeague.rosters.slice(0, 4) };
+const tiedRows = raceRows.slice(0, 4).map(team => ({ ...team, ...(team.rosterId === 3 ? { wins: 5, losses: 2, pointsFor: 800 } : {}) }));
+tree = render({ teams: tiedRows, league: tiedLeague, week: 8, status: 'live' });
+assert.equal(cutlines(tree).length, 1);
+assert.equal(text(cutlines(tree)[0]), 'Tied at cutline');
+const tiedOrder = all(find(tree, node => node.type === 'tbody'), node => node.type === 'tr');
+assert.equal(tiedOrder[1].props.className, 'mc-live-standings-cutline');
+assert.deepEqual(tiedOrder.slice(2, 4).map(row => row.props['data-playoff-state']), ['tied', 'tied'], 'the boundary is before the unresolved group and never splits tied teams');
+assert(!find(tree, node => node.props.className === 'mc-live-standings-grouping'), 'a league without divisions needs no extra controls');
+
+tree = render({ teams: raceRows, league: { ...divisionLeague, settings: { ...divisionLeague.settings, playoff_seed_type: 1 } }, week: 8, status: 'live' });
+assert(text(cutlines(tree)[0]).includes('Top 3 by record'));
+assert(text(find(tree, node => node.props.className === 'mc-live-standings-playoff-note')).includes('Custom or unverified'));
+assert.equal(find(tree, node => node.props.className === 'mc-live-standings-qualification'), undefined, 'unverified seeding never fabricates division or wildcard qualification');
+tree = render({ teams: tiedRows, league: { ...tiedLeague, settings: { ...tiedLeague.settings, playoff_seed_type: 1 } }, week: 8, status: 'live' });
+assert.equal(text(cutlines(tree)[0]), 'Tied at record cutoff');
+tree = render({ teams: raceRows, league: { ...divisionLeague, settings: { ...divisionLeague.settings, playoff_teams: 0 } }, week: 8, status: 'live' });
+assert.equal(cutlines(tree).length, 0, 'no-playoff leagues never get a fabricated line');
+assert.equal(teamRows(tree).length, raceRows.length);
+assert.equal(cells(teamRows(tree)[0])[0], '1', 'omitting a playoff line preserves the known source standing');
+assert.equal(find(tree, node => node.props.className === 'mc-live-standings-qualification'), undefined);
+console.log('Mobile live standings grouping: real-helper seeding, all divisions, league-wide wildcard places, scoped rank movement, accessible controls, custom rules and unsplit cutoff ties passed.');
