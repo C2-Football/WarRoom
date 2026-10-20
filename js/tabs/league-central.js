@@ -650,6 +650,7 @@ function LeagueCentralTab({
     const overviewTeam = overviewSummaryTeams.find(team => sameId(team.rosterId, myRoster?.roster_id));
     const overviewRank = overviewTeam ? (overviewSummaryLive ? overviewTeam.rank : overviewSummaryTeams.indexOf(overviewTeam) + 1) : null;
     if (overview && isPhone) return <div ref={centralRef} className="la-mobile la-central mc-league-overview">
+        <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />
         {isChopped && window.WrChopBlock && <window.WrChopBlock active compact phone currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => setActiveTab?.('central')} />}
         {!isChopped && overviewTeam && <button type="button" className="mc-overview-summary" aria-label="Open your league standing and season outlook" onClick={() => setActiveTab?.('central')}>
             <span><small>{overviewSummaryLive ? 'Live record' : 'Record'}</small><strong>{overviewTeam.wins}–{overviewTeam.losses}{overviewTeam.ties ? '–' + overviewTeam.ties : ''}</strong></span>
@@ -662,10 +663,8 @@ function LeagueCentralTab({
             stale={!!overviewBoard.error || ['stale', 'error', 'refreshing'].includes(overviewBoard.status) || ['stale', 'error'].includes(overviewContext.history?.status)}
             updatedAt={overviewBoard.updatedAt} onOpenLeague={() => setActiveTab?.('central')} onOpenTeam={onOpenTeam}
             onRefresh={() => { overviewBoard.refresh?.(); overviewContext.refresh?.(); }} />}
-        {!isChopped && <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />}
         {renderScoreboard()}
         <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.(isChopped ? 'fa' : 'central')}>{isChopped ? 'Explore waivers →' : 'Full standings →'}</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
-        {isChopped && <LeagueOverviewDecisions currentLeague={currentLeague} leagueSkin={resolvedLeagueSkin} myRoster={myRoster} playersData={playersData} setActiveTab={setActiveTab} />}
     </div>;
 
     return (

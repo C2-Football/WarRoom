@@ -107,7 +107,7 @@ test('the proactive section is rendered above full scoreboard and outside dashbo
     const start=source.indexOf('if (overview && isPhone) return');
     const end=source.indexOf('\n    return (',start);
     const overview=source.slice(start,end);
-    assert(overview.indexOf('mc-overview-summary')<overview.indexOf('<LeagueOverviewDecisions'));
+    assert(overview.indexOf('<LeagueOverviewDecisions')<overview.indexOf('mc-overview-summary'));
     assert(overview.indexOf('<LeagueOverviewDecisions')<overview.indexOf('{renderScoreboard()}'));
     assert(!overview.includes('<details'));
 });

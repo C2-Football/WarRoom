@@ -26,6 +26,11 @@ const walk = n => n == null || typeof n === 'boolean' ? [] : Array.isArray(n) ? 
 const text = n => walk(n).filter(n => typeof n !== 'object').join('');
 const find = (tree, pred) => walk(tree).find(n => typeof n === 'object' && pred(n));
 function render() { index = 0; renderedComponentTypes = []; effects = []; return root.LeagueCentralTab(props); }
+function assertAlexFirst(tree) {
+    const children = tree.children.flat(Infinity).filter(Boolean);
+    assert.equal(children[0].props.className, 'mc-overview-decisions', 'Alex Insights stays above every dynamic Overview card');
+    assert.equal(walk(tree).filter(n => n?.props?.className === 'mc-overview-decisions').length, 1, 'Alex Insights renders once per Overview');
+}
 function reset({ status = 'ready', rows = [], updatedAt = 1000, historical = false, started = [] } = {}) { hooks = []; board = { status, rows, week: 2, updatedAt, supported: true }; liveContext = { enabled: true, historical, currentWeek: historical ? 3 : 2, history: { status: 'ready', priorWeeks: prior, updatedAt: 900 }, startedRosterIds: started, refresh() {} }; }
 function table(tree) { return find(tree, n => (n.type === 'table' || n.props.className === 'la-standings') && /standings/.test(n.props['aria-label'] || '')); }
 function teamRows(tree) { const container = table(tree); if (container.props.className === 'la-standings') return walk(container).filter(n => n.type === 'details' && n.props.className?.includes('la-report-row')); const body = find(container, n => n.type === 'tbody'); return walk(body).filter(n => n.type === 'tr'); }
@@ -108,6 +113,7 @@ props.overview = true;
 props.setActiveTab = destination => destinations.push(destination);
 league.settings.type = 3;
 reset(); tree = render();
+assertAlexFirst(tree);
 assert(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
 assert.equal(survivalProps.compact, true);
 assert.equal(survivalProps.phone, true);
@@ -130,6 +136,7 @@ assert(!find(tree, n => n.props['aria-label'] === 'Desktop survival widget on ph
 props.overview = true;
 league.settings.type = 1;
 reset(); tree = render();
+assertAlexFirst(tree);
 assert(find(tree, n => n.props.className === 'mc-overview-summary'), 'Head-to-head Home retains its record and standing');
 assert(!find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
 console.log('PASS Chopped mobile Home reuses desktop survival, hides head-to-head summary, and preserves league and waiver navigation');
@@ -155,7 +162,8 @@ assert(homeBoard(tree), 'Sunday/Monday home board opens automatically without a 
 assert.match(text(homeBoard(tree)), /Live standings/);
 assert.match(text(homeBoard(tree)), /2–0/);
 const children = tree.children.flat(Infinity).filter(Boolean);
-assert(children.indexOf(homeBoard(tree)) < children.findIndex(n => n.props?.className === 'mc-overview-decisions'), 'Live standings lead Alex advice');
+assertAlexFirst(tree);
+assert(children.findIndex(n => n.props?.className === 'mc-overview-decisions') < children.indexOf(homeBoard(tree)), 'Alex advice leads live standings');
 assert(children.indexOf(homeBoard(tree)) < children.findIndex(n => n.type === boundary), 'Live standings appear before the full scoreboard');
 currentBoardOverride = { ...board };
 find(tree, n => n.type === boundary).props.onWeekChange(1);
@@ -166,9 +174,9 @@ assert.match(text(homeBoard(tree)), /Week 2/);
 assert.match(text(homeBoard(tree)), /2–0/, 'Historical browsing cannot change the current home standings');
 assert.match(text(find(tree, n => n.props.className === 'mc-overview-summary')), /2–0/, 'Personal summary agrees with the current live board');
 currentBoardOverride = { ...currentBoardOverride, status: 'stale', error: 'Refresh failed' };
-tree = render(); assert.match(text(homeBoard(tree)), /Last available · Provisional/);
+tree = render(); assertAlexFirst(tree); assert.match(text(homeBoard(tree)), /Last available · Provisional/);
 assert(!find(homeBoard(tree), n => n.props.className === 'mc-live-standings-dot'), 'Failed refresh cannot claim a fresh live feed');
-now = Date.parse('2026-10-17T12:00:00Z'); assert(!homeBoard(render()), 'Saturday keeps normal mobile Overview');
+now = Date.parse('2026-10-17T12:00:00Z'); tree = render(); assertAlexFirst(tree); assert(!homeBoard(tree), 'Saturday keeps normal mobile Overview');
 now = Date.parse('2026-10-19T12:00:00Z');
 props.leagueSkin = { type: 'chopped', features: { showPlayoffOdds: false } }; assert(!homeBoard(render()), 'Chopped keeps its existing survival board');
 props.leagueSkin = { features: { showPlayoffOdds: false } }; liveContext.enabled = false;
