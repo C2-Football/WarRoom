@@ -51,4 +51,26 @@ ctx.actionBoardPlayers = [{...target, fit:{...target.fit, weeklyGain:0, benchGai
 tree = ctx.renderMissionWaiverBoard(); assert.match(text(tree), /120.*bench dynasty value/s); assert(!/120.*ROS lineup points/s.test(text(tree)), 'Dynasty value never masquerades as scoring gain');
 ctx.streamCandidates = [{ fa: target, rosGain: 14.5, delta:-1.2, dropPid:'drop', dropName:'Bench Player' }]; tree = ctx.renderMissionWaiverBoard(); assert.match(text(tree), /14.5.*ROS lineup points/s); assert.match(text(tree), /This week -1.2/);
 ctx.isPro = false; assert.equal(ctx.renderMissionWaiverBoard(), 'Pro required');
+// Coverage summarizes usable owned players; legal FLEX matching, rather than
+// a comparison with dedicated slot counts, determines which rooms need help.
+vm.runInContext(source.slice(source.indexOf('    function buildFaRosterRead('), source.indexOf('    window.App.buildFaRosterRead')), ctx);
+const coverageLeague = {...league, roster_positions:['QB','RB','FLEX'], settings:{type:0}};
+const coveragePlayers = {qb:{full_name:'Ready Quarterback',position:'QB',team:'KC'},rb:{full_name:'Ready Runner',position:'RB',team:'BAL'},out:{full_name:'Injured Runner',position:'RB',team:'DET',injury_status:'OUT'}};
+const coverageRead = ctx.buildFaRosterRead({players:['qb','rb','out']},coverageLeague,coveragePlayers,()=>10,{week:6});
+assert.equal(coverageRead.coverage,2);assert.equal(coverageRead.total,3);
+Object.assign(ctx,{_faPhone:true,rosterRead:coverageRead,rosterGapRows:coverageRead.rows,renderActionHQ:()=>h('aside',{},'Optional evidence'),setFaFilter:pos=>ctx.coverageFilter=pos,posColors:{QB:'red',RB:'green',WR:'blue',TE:'gold'}});
+vm.runInContext(babel.transform(source.slice(source.indexOf('        function renderMissionCoverage()'),source.indexOf('        function renderMissionTabs()')),{presets:['react']}).code,ctx);
+tree=ctx.renderMissionCoverage();
+const coverageRows=walk(tree).filter(n=>n.type==='details'&&n.props.className==='mc-coverage-row');
+assert.equal(coverageRows.length,4);assert(coverageRows.every(n=>!n.props.open),'Position player lists start collapsed');
+const summaries=coverageRows.map(row=>walk(row).find(n=>n.type==='summary'));
+assert.deepEqual(summaries.map(summary=>text(summary).match(/QB|RB|WR|TE/)[0]),['RB','WR','TE','QB'],'Open legal slots sort before covered rooms without disturbing the original order');
+assert.match(text(summaries[0]),/RB.*1\s+ready.*2\s+owned.*Open slot/,'An unavailable owned player is excluded from ready counts without disappearing from ownership');
+assert.match(text(summaries[1]),/WR.*0\s+ready.*0\s+owned.*Open slot/,'An empty FLEX-eligible room can help even with zero dedicated WR slots');
+assert.match(text(summaries[3]),/QB.*1\s+ready.*1\s+owned.*Covered/);
+assert.match(text(coverageRows[0]),/Ready Runner.*Injured Runner/,'Expanded coverage retains the full owned room');
+walk(coverageRows[1]).find(n=>n.type==='button'&&/Find\s+WR\s+help/.test(text(n))).props.onClick();assert.equal(ctx.coverageFilter,'WR');assert.equal(section,'market');
+ctx.rosterRead={...coverageRead,known:false};tree=ctx.renderMissionCoverage();
+const unknownRooms=walk(tree).filter(n=>n.type==='details'&&n.props.className==='mc-coverage-row');
+assert(unknownRooms.every(row=>row.props['data-status']==='unknown'&&/Unknown/.test(text(walk(row).find(n=>n.type==='summary')))),'Incomplete roster evidence never becomes a covered or open-slot claim');
 console.log('PASS Mission Control waivers: legal plan handoff, measured horizons, signed tradeoffs, unavailable bids, contextual Alex and account-isolated feedback');

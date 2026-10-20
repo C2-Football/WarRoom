@@ -40,6 +40,27 @@ const planNodes=walk(tree),save=button(tree,'Update claim plan'),evidence=planNo
 assert(save);assert(evidence && evidence.type==='details' && !evidence.props.open);
 assert(planNodes.indexOf(save)<planNodes.indexOf(evidence),'Saving a local claim does not require scrolling through bid history');
 assert.match(text(tree),/\$75 remaining/,'Budget stays visible before the save action');
+// On a phone the editor is one focused task. Only a confirmed local write
+// returns to saved priorities; validation and storage failures retain edits.
+ctx.claimPlans=store.list(league);tree=ctx.renderMissionClaims();
+assert(!walk(tree).some(n=>n.props.className==='mc-claim-list'),'Saved priorities stay out of the active phone editor');
+const editingContext=ctx.acquisitionContext;
+window.WR.acquisitionContext=editingContext;
+ctx.plannedBid='80';button(ctx.renderAcquisitionPlan(),'Update claim plan').props.onClick();
+assert.equal(ctx.acquisitionContext,editingContext);assert.equal(ctx.plannedBid,'80');assert.match(ctx.missionNotice,/remaining budget/);
+window._playerTags={'drop-b':'untouchable'};ctx.plannedBid='21';button(ctx.renderAcquisitionPlan(),'Update claim plan').props.onClick();
+assert.equal(ctx.acquisitionContext,editingContext);assert.equal(ctx.plannedBid,'21');assert.match(ctx.missionNotice,/Untouchable/);
+window._playerTags={};blocked=true;button(ctx.renderAcquisitionPlan(),'Update claim plan').props.onClick();
+assert.equal(ctx.acquisitionContext,editingContext);assert.equal(window.WR.acquisitionContext,editingContext);assert.equal(ctx.plannedBid,'21');assert.match(ctx.missionNotice,/Could not save/);assert.equal(store.get(league,'add-a').bid,17);
+blocked=false;button(ctx.renderAcquisitionPlan(),'Update claim plan').props.onClick();
+assert.equal(store.get(league,'add-a').bid,21);assert.equal(ctx.acquisitionContext,null);assert.equal(window.WR.acquisitionContext,null);assert.equal(ctx.plannedBid,'');
+ctx.claimPlans=store.list(league);tree=ctx.renderMissionClaims();
+assert.match(text(tree),/Claim plans/);assert.match(text(tree),/Target A.*\$21/s);assert.match(text(tree),/saved.*(?:platform|submit)|(?:platform|submit).*saved/i,'A successful phone save retains the local-only next step');
+assert(walk(tree).some(n=>n.props.className==='mc-claim-list'),'Successful saves return to the saved priority list');
+const phoneSavedRow=walk(tree).find(n=>n.props.className==='mc-claim-row'&&text(n).includes('Target A'));
+const orderMenu=walk(phoneSavedRow).find(n=>n.type==='details'&&text(n).includes('Order & remove'));
+assert(orderMenu && !orderMenu.props.open,'Ordering and removal are optional controls');
+button(phoneSavedRow,'Edit plan').props.onClick();
 ctx.hasFAAB=false;tree=ctx.renderAcquisitionPlan();
 assert(!walk(tree).some(n=>n.props.className==='mc-claim-bid-evidence'),'Priority leagues do not show an empty bid-history disclosure');
 ctx.hasFAAB=true;

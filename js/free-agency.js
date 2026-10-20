@@ -1586,14 +1586,15 @@
             const name = targetPlayer ? playerName(targetPlayer, acquisitionContext.pid) : acquisitionContext.pid;
             const suggestion = target ? faabSuggest(target.dhq, target.pos || normPos(target.p.position), target.p.age) : null;
             return <section className="fa-acquisition-plan mc-claim-editor" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--acc-line2, rgba(212,175,55,.35))', borderRadius: 10, background: 'var(--acc-fill1, rgba(212,175,55,.04))' }}>
-                <div className="mc-claim-editor-head" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); setMissionNotice(''); setFaFilter(''); }}>Close editor</button></div>
+                <div className="mc-claim-editor-head" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); setMissionNotice(''); setFaFilter(''); }}>{_faPhone ? 'Back to plans' : 'Close editor'}</button></div>
                 {acquisitionContext.reason && <p style={{ margin: '8px 0', color: 'var(--silver)', fontSize: '.82rem' }}>{acquisitionContext.reason}</p>}
-                {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player below.</p>}
+                {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player from Market.</p>}
+                {_faPhone && !target && <button type="button" onClick={() => setFaSection('market')}>Choose player from Market</button>}
                 <div className="mc-claim-editor-fields" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
                     <label className="mc-claim-drop-field" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
                     {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={myRoster?.settings?.waiver_budget_used != null ? remaining : undefined} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" />{_faPhone && <small>{myRoster?.settings?.waiver_budget_used == null ? 'Remaining budget unavailable' : '$' + remaining + ' remaining'}</small>}</label>}
                     {target && suggestion && <span style={{ color: 'var(--gold)', fontSize: '.8rem' }}>Historical bid range ${suggestion.lo}–${suggestion.hi}</span>}
-                    {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>Player details &amp; notebook</button>}
+                    {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>{_faPhone ? 'Player details' : 'Player details & notebook'}</button>}
                 </div>
                 {protectedDrop && <p role="alert" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>You marked this player Untouchable. Choose another drop or revisit that decision in My Team.</p>}
                 {acquisitionContext.dropPid && !dropId && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>The earlier drop candidate is no longer on your roster. No drop is selected.</p>}
@@ -1603,13 +1604,17 @@
                     if (bid != null && (!Number.isInteger(bid) || bid < 0 || (myRoster?.settings?.waiver_budget_used != null && bid > remaining))) { setMissionNotice('Enter a whole-dollar bid within your remaining budget.'); return; }
                     if (protectedDrop) { setMissionNotice('Choose another drop before saving; this player is marked Untouchable.'); return; }
                     const saved = window.WR?.WaiverPlans?.save(currentLeague, { pid: target.pid, dropPid: dropId || null, bid, position: target.pos || normPos(target.p.position), reason: acquisitionContext.reason, source: acquisitionContext.source });
-                    if (saved) { setAcquisitionContext({ ...acquisitionContext, ...saved }); setClaimPlanRevision(n => n + 1); }
-                    setMissionNotice(saved ? 'Local claim plan saved. Submit it on your league platform.' : 'Could not save the plan on this device. Your edits remain open.');
+                    if (saved) {
+                        if (_faPhone) { window.WR.acquisitionContext = null; setAcquisitionContext(null); setPlannedBid(''); }
+                        else setAcquisitionContext({ ...acquisitionContext, ...saved });
+                        setClaimPlanRevision(n => n + 1);
+                    }
+                    setMissionNotice(saved ? 'Plan saved on this device. Submit it on your league platform.' : 'Could not save the plan on this device. Your edits remain open.');
                 }}>{window.WR?.WaiverPlans?.get(currentLeague, target.pid) ? 'Update claim plan' : 'Save claim plan'}</button>}
                 {missionNotice && <p role="status">{missionNotice}</p>}
                 {target && hasFAAB && isPro && _faPhone && <details className="mc-claim-bid-evidence"><summary>League bid history</summary><FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} /></details>}
-                {target && window.WR?.PlayerNotebook?.NotebookEditor && React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
-                <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>Planning only. Submit any claim and roster change on your league platform.</small>
+                {target && window.WR?.PlayerNotebook?.NotebookEditor && (_faPhone ? <details className="mc-claim-player-notes"><summary>Player notes</summary>{React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}</details> : React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true }))}
+                {!_faPhone && <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>Planning only. Submit any claim and roster change on your league platform.</small>}
             </section>;
         }
 
@@ -1700,10 +1705,17 @@
             </section>;
         }
         function renderMissionCoverage() {
-            return <section className="mc-waiver-coverage"><header><h2>Roster coverage</h2><b>{rosterRead.known ? rosterRead.coverage + ' / ' + rosterRead.total : '—'} slots</b></header>{rosterGapRows.map(row => <article key={row.pos}><div><strong>{row.pos}</strong><span>{row.actual} available · {row.required} dedicated slots</span><b>{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b></div><p>{row.owned.map(player => player.name).join(' · ') || 'No players owned'}</p><button type="button" onClick={() => { setFaFilter(row.pos); setFaSection('market'); }}>Find {row.pos} help →</button></article>)}<details><summary>Bid history &amp; add/drop evidence</summary>{renderActionHQ(true)}</details></section>;
+            const rows = [...rosterGapRows].sort((a, b) => Number(b.fillsStarter) - Number(a.fillsStarter));
+            return <section className="mc-waiver-coverage"><header><h2>Roster coverage</h2><b>{rosterRead.known ? rosterRead.coverage + ' / ' + rosterRead.total : '—'} filled</b></header>
+                <div className="mc-coverage-rows">{rows.map(row => <details key={row.pos} className="mc-coverage-row" data-status={!rosterRead.known ? 'unknown' : row.fillsStarter ? 'open' : 'covered'} open={!_faPhone}>
+                    <summary><strong className="mc-coverage-position" style={{ '--coverage-pos': posColors[row.pos] || 'var(--silver)' }}>{row.pos}</strong><span className="mc-coverage-count">{rosterRead.known ? row.actual + ' ready' : 'Ready count unknown'}<small>{rosterRead.known ? row.owned.length + ' owned' : 'Roster unavailable'}</small></span><b className="mc-coverage-status">{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b><span className="mc-coverage-toggle" aria-hidden="true">+</span></summary>
+                    <div className="mc-coverage-detail"><p>{rosterRead.known ? row.owned.map(player => player.name).join(' · ') || 'No players owned' : 'Roster information unavailable'}</p><small>{row.required} dedicated {row.required === 1 ? 'slot' : 'slots'} · FLEX eligibility included in coverage</small><button type="button" onClick={() => { setFaFilter(row.pos); setFaSection('market'); }}>Find {row.pos} help →</button></div>
+                </details>)}</div>
+                <details className="mc-coverage-method"><summary>Coverage &amp; bid details</summary><p>Ready counts exclude unavailable players, reserve and taxi. Starting-slot coverage includes eligible FLEX options.</p>{renderActionHQ(true)}</details>
+            </section>;
         }
         function renderMissionTabs() {
-            return <nav className="fa-section-tabs mc-market-tabs" aria-label="Free agency sections">{[['market','Market'],['claims','Claims'],['coverage','Coverage']].map(([key,label]) => <button type="button" key={key} aria-pressed={faSection === key} onClick={() => setFaSection(key)}>{label}</button>)}</nav>;
+            return <nav className="fa-section-tabs mc-market-tabs" aria-label="Free agency sections">{[['market','Market'],['claims',_faPhone ? 'Claim plans' : 'Claims'],['coverage','Coverage']].map(([key,label]) => <button type="button" key={key} aria-pressed={faSection === key} onClick={() => setFaSection(key)}>{label}</button>)}</nav>;
         }
         function renderMissionClaims() {
             const edit = plan => {
@@ -1724,15 +1736,15 @@
                 }
                 setMissionNotice(ok ? 'Local plan removed.' : 'Could not remove the plan on this device.');
             };
-            return <section className="mc-waiver-claims"><p className="mc-eyebrow">LOCAL CLAIM PLANS</p><p>Arrange your priorities, then submit them on your league platform. These plans stay on this device and do not place claims.</p>
+            return <section className="mc-waiver-claims"><header className="mc-claims-heading"><div><h2>Claim plans</h2><small>{claimPlans.length} saved{hasFAAB ? myRoster?.settings?.waiver_budget_used == null ? ' · Budget unknown' : ' · $' + remaining + ' left' : ' · Priority order'}</small></div>{!acquisitionContext && claimPlans.length > 0 && <button type="button" onClick={() => setFaSection('market')}>Add player</button>}</header><p className="mc-claims-scope">Saved on this device. Submit claims on your league platform.</p>
                 {renderAcquisitionPlan()}
-                <div className="mc-claim-list" aria-label="Saved local claim plans">{claimPlans.length ? claimPlans.map((plan, index) => {
+                {!acquisitionContext && missionNotice && <p className="mc-claim-notice" role="status">{missionNotice}</p>}
+                {(!_faPhone || !acquisitionContext) && <div className="mc-claim-list" aria-label="Saved local claim plans">{claimPlans.length ? claimPlans.map((plan, index) => {
                     const name = playerName(playersData[plan.pid] || {}, plan.pid);
                     const available = availablePlayers.some(row => String(row.pid) === plan.pid);
-                    return <article key={plan.id} className="mc-claim-row"><header><span className="mc-claim-priority">{index + 1}</span><div><strong>Add {name}</strong><small>{plan.dropPid ? 'Drop ' + playerName(playersData[plan.dropPid] || {}, plan.dropPid) : 'No drop selected'}</small></div><b>{hasFAAB ? plan.bid == null ? 'Bid unset' : '$' + plan.bid : 'Priority ' + (index + 1)}</b></header>{!available && <p className="mc-risk">This target is no longer in the available-player pool. Review or remove this plan.</p>}<div className="mc-claim-actions"><button type="button" onClick={() => edit(plan)}>Edit plan</button><button type="button" aria-label={'Move ' + name + ' up'} disabled={index === 0} onClick={() => changeOrder(plan, -1)}>↑</button><button type="button" aria-label={'Move ' + name + ' down'} disabled={index === claimPlans.length - 1} onClick={() => changeOrder(plan, 1)}>↓</button><button type="button" onClick={() => remove(plan)}>Remove</button></div></article>;
-                }) : <div className="mc-claim-empty"><strong>No claim plans yet.</strong><p>Select “Plan add” on a player, choose a drop and bid, then save your plan here.</p><button type="button" onClick={() => setFaSection('market')}>Browse available players →</button></div>}</div>
-                {!acquisitionContext && missionNotice && <p role="status">{missionNotice}</p>}
-                <details className="mc-claim-watchlist"><summary>Watchlist &amp; player notes</summary>{renderSavedTargets()}</details>
+                    return <article key={plan.id} className="mc-claim-row"><header><span className="mc-claim-priority">{index + 1}</span><div><strong>Add {name}</strong><small>{plan.dropPid ? 'Drop ' + playerName(playersData[plan.dropPid] || {}, plan.dropPid) : 'No drop selected'}</small></div><b>{hasFAAB ? plan.bid == null ? 'Bid unset' : '$' + plan.bid : 'Priority ' + (index + 1)}</b></header>{!available && <p className="mc-risk">This target is no longer in the available-player pool. Review or remove this plan.</p>}<div className="mc-claim-actions"><button type="button" onClick={() => edit(plan)}>Edit plan</button><details className="mc-claim-manage"><summary>Order &amp; remove</summary><div><button type="button" aria-label={'Move ' + name + ' up'} disabled={index === 0} onClick={() => changeOrder(plan, -1)}>↑</button><button type="button" aria-label={'Move ' + name + ' down'} disabled={index === claimPlans.length - 1} onClick={() => changeOrder(plan, 1)}>↓</button><button type="button" onClick={() => remove(plan)}>Remove</button></div></details></div></article>;
+                }) : <div className="mc-claim-empty"><strong>No claim plans yet.</strong><p>Select “Plan add” on a player{hasFAAB ? ", choose a drop and bid" : " and choose a drop"}, then save your plan here.</p><button type="button" onClick={() => setFaSection('market')}>Browse available players →</button></div>}</div>}
+                {(!_faPhone || !acquisitionContext) && <details className="mc-claim-watchlist"><summary>Watchlist &amp; player notes</summary>{renderSavedTargets()}</details>}
             </section>;
         }
 
