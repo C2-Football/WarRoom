@@ -5,8 +5,9 @@ const vm = require('node:vm');
 const babel = require('@babel/standalone');
 const h = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity).filter(x => x != null && x !== false) });
 let state = [], cursor = 0;
-const ctx = { window: {}, React: { createElement: h, Fragment: 'fragment', useState(initial) { const index = cursor++; if (!(index in state)) state[index] = initial; return [state[index], value => { state[index] = typeof value === 'function' ? value(state[index]) : value; }]; } } };
+const ctx = { window: {}, React: { createElement: h, Fragment: 'fragment', useState(initial) { const index = cursor++; if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial; return [state[index], value => { state[index] = typeof value === 'function' ? value(state[index]) : value; }]; } } };
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('js/shared/matchup-score-comparison.js', 'utf8'), ctx);
 vm.runInContext(babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { presets: ['react'] }).code, ctx);
 const text = node => node == null ? '' : typeof node === 'object' ? node.children.map(text).join(' ').replace(/\s+/g, ' ') : String(node);
 const all = node => node && typeof node === 'object' ? [node, ...node.children.flatMap(all)] : [];
@@ -89,4 +90,104 @@ assert.equal(slotRows(tree).length, 0, 'Expansions reset when the matchup week c
 const unavailable = { ...props.matchup, fc: { winPct: null, projMe: null, projOpp: null, margin: null }, posStrength: [{ pos: 'WR', mine: null, theirs: 20 }], h2h: [props.matchup.h2h[3]] };
 assert.match(text(render({ ...props, matchup: unavailable }, true)), /Forecast unavailable.*Incomplete data/);
 assert.equal(render({ ...props, matchup: null }), null);
-console.log('PASS matchup breakdown: unified position disclosures, exactly-once FLEX and superflex comparisons, signed/missing metrics, accessible bars and controls, matchup reset, and free-tier boundary');
+
+// Exercise the rendered view with the real submitted-lineup comparison model.
+// The separate planner's names and values deliberately disagree with this feed.
+const comparisonOptions = {
+    league: { league_id: 'review-league', season: 2026, roster_positions: ['QB', 'FLEX', 'FLEX', 'TE'] }, week: 3, myRosterId: 1,
+    currentSeason: 2026, currentWeek: 3, scoresSupported: true, scoreStatus: 'ready', gamesFresh: true,
+    rows: [
+        { roster_id: 1, matchup_id: 9, starters: ['Actual QB', 'Actual Flex', 'Missing Flex', 'First View TE'], players_points: { 'Actual QB': 0, 'Actual Flex': -2.5, 'First View TE': 5 }, points: 2.5 },
+        { roster_id: 2, matchup_id: 9, starters: ['Their actual QB', 'Their flex one', 'Their flex two', 'Their actual TE'], players_points: { 'Their actual QB': 2, 'Their flex one': 5, 'Their flex two': 3, 'Their actual TE': 4 }, points: 14 },
+    ],
+    forecasts: { players: { 'Actual QB': { kind: 'pregame', points: 0 }, 'Actual Flex': { kind: 'pregame', points: -5 }, 'Missing Flex': { kind: 'pregame', points: 10 }, 'First View TE': { kind: 'first-view', points: 8 } } },
+    projections: { 'Their actual QB': 2, 'Their flex one': 5, 'Their flex two': 3, 'Their actual TE': 1 },
+    gameState: () => 'final',
+};
+const buildComparison = extra => ({ ...ctx.window.App.MatchupScoreComparison.build({ ...comparisonOptions, ...extra }), oppName: 'Submitted opponent' });
+const completedComparison = buildComparison();
+const reviewProps = { ...props, compact: true, comparison: completedComparison };
+tree = render(reviewProps, true);
+assert.match(tree.props.className, /gd-matchup-review/, 'a started matchup automatically opens actual points');
+assert.equal(tree.props['data-score-view'], 'actual');
+assert.equal(button(tree, 'Actual vs proj').props['aria-pressed'], true);
+assert.equal(button(tree, 'Projection').props['aria-pressed'], false);
+assert.match(text(tree), /Final points.*2\.50 You Proj 13\.0.*14\.00 Them Proj 11\.0/);
+assert.doesNotMatch(text(tree), /Win probability|Matchup outlook/, 'actual scores are not presented as a new forecast');
+assert.match(text(tree), /Submitted starters.*saved pregame/, 'the rendered comparison retains its baseline source explanation');
+button(tree, 'Show all players').props.onClick(); tree = render(reviewProps);
+const reviewRows = slotRows(tree);
+assert.equal(reviewRows.length, 4);
+assert.equal(reviewRows.filter(row => row.props['data-slot'] === 'FLEX').length, 2, 'actual mode retains both FLEX pairs without duplication');
+assert.match(text(reviewRows[0]), /Actual QB.*0\.00 Pregame 0\.0.*0\.0 vs pregame/);
+assert.match(text(reviewRows[1]), /Actual Flex.*-2\.50 Pregame -5\.0.*\+\s*2\.5 vs pregame/, 'a negative actual is compared against its signed saved baseline');
+assert.match(text(reviewRows[2]), /Missing Flex.*— Pregame 10\.0/, 'a missing final stays unavailable instead of a scored zero');
+assert.match(text(reviewRows[2]), /You Awaiting score Missing Flex/, 'a missing provider total is not labeled a final player score');
+assert.match(text(reviewRows[3]), /First View TE.*5\.00 First view 8\.0/, 'first-view projections stay visibly distinguished from pregame forecasts');
+assert.doesNotMatch(text(reviewRows[3]), /vs pregame/, 'a first-view estimate cannot receive a final performance grade');
+assert(all(reviewRows[0]).some(node => node.props.className === 'gd-review-player-points is-typical'));
+assert(all(reviewRows[1]).some(node => node.props.className === 'gd-review-player-points is-strong'));
+assert(all(reviewRows[2]).filter(node => String(node.props.className).startsWith('gd-review-player-points')).every(node => !/is-strong|is-quiet|is-typical/.test(node.props.className)), 'unavailable final values never inherit a grade');
+assert.doesNotMatch(text(tree), /Quarterback|Their receiver|Kicker/, 'actual view uses submitted players rather than the optimizer pairs');
+button(tree, 'Projection').props.onClick(); tree = render(reviewProps);
+assert.equal(button(tree, 'Projection').props['aria-pressed'], true);
+assert.equal(tree.props['data-score-view'], 'projection');
+assert.match(text(tree), /Submitted lineup projections/);
+assert.deepEqual(slotRows(tree).map(row => row.props['data-slot']), reviewRows.map(row => row.props['data-slot']), 'mode switches keep the same slot groups');
+assert.deepEqual(slotRows(tree).map(row => text(row).match(/Actual QB|Actual Flex|Missing Flex|First View TE/)?.[0]), ['Actual QB', 'Actual Flex', 'Missing Flex', 'First View TE'], 'projection toggle keeps the same submitted players');
+assert.match(text(slotRows(tree)[1]), /Actual Flex -5\.0/);
+assert.match(text(slotRows(tree)[3]), /First View TE 8\.0 First view/, 'projection mode also retains source labels');
+tree = render({ ...reviewProps, comparison: { ...completedComparison, totalMine: 3 } });
+assert.equal(button(tree, 'Projection').props['aria-pressed'], true, 'a live refresh does not override the chosen display mode');
+button(tree, 'Actual vs proj').props.onClick(); tree = render(reviewProps);
+assert.equal(button(tree, 'Actual vs proj').props['aria-pressed'], true);
+
+const beforeGame = buildComparison({ rows: comparisonOptions.rows.map(row => ({ ...row, points: 0 })), gameState: () => 'upcoming' });
+tree = render({ ...reviewProps, comparison: beforeGame }, true);
+assert.doesNotMatch(tree.props.className, /gd-matchup-review/);
+assert.equal(tree.props['data-score-view'], 'outlook');
+assert(!button(tree, 'Actual vs proj'), 'pregame does not invite comparison against invented zero actuals');
+tree = render(reviewProps);
+assert.match(tree.props.className, /gd-matchup-review/, 'the untouched pregame view switches to actuals at kickoff');
+for (const extra of [{ scoreStatus: 'stale', scoreError: 'Scores could not refresh' }, { scoreStatus: 'refreshing' }, { gamesFresh: false }]) {
+    tree = render({ ...reviewProps, comparison: buildComparison(extra) }, true);
+    button(tree, 'Show all players').props.onClick(); tree = render({ ...reviewProps, comparison: buildComparison(extra) });
+    assert(all(tree).filter(node => String(node.props.className).startsWith('gd-review-player-points')).every(node => !/is-strong|is-quiet|is-typical/.test(node.props.className)), 'stale or unverified data cannot retain a final performance grade');
+    assert(!all(tree).some(node => node.type === 'em' && /vs pregame/.test(text(node))), 'stale or unverified values lose final variance claims');
+    assert(all(tree).some(node => node.type === 'em' && text(node) === 'Last seen'), 'stale or unverified player values are labeled last seen');
+    assert(!all(tree).some(node => node.type === 'em' && text(node) === 'Final'), 'stale or unverified evidence never labels a player final');
+    assert(all(tree).some(node => node.props.role === 'status' && node.props.className.includes('is-stale')), 'unverified data keeps visible freshness feedback');
+}
+tree = render({ ...reviewProps, comparison: buildComparison({ scoreStatus: 'stale', scoreError: 'Offline' }) }, true);
+assert.match(text(tree), /Last available points/);
+const partialLive = buildComparison({ gameState: pid => pid === 'Actual QB' ? 'live' : 'final' });
+tree = render({ ...reviewProps, comparison: partialLive }, true);
+button(tree, 'Show all players').props.onClick(); tree = render({ ...reviewProps, comparison: partialLive });
+assert.match(text(slotRows(tree)[0]), /You Live Actual QB 0\.00/, 'an in-progress zero is visibly live');
+assert(!all(slotRows(tree)[0]).some(node => String(node.props.className).startsWith('gd-review-player-points') && /is-strong|is-quiet|is-typical/.test(node.props.className)), 'a live score is never graded against a full-game estimate');
+const changedWeek = render({ ...reviewProps, week: 2 });
+assert.equal(slotRows(changedWeek).length, 0, 'reviewing another week resets expanded player detail');
+assert.equal(button(changedWeek, 'Actual vs proj').props['aria-pressed'], true, 'a different week starts with its actual scores');
+tree = render({ ...reviewProps, matchup: null }, true);
+assert.match(text(tree), /Final points/, 'submitted actual review is available even without an optimizer forecast');
+const unverifiedPast = buildComparison({ currentWeek: 4, gamesFresh: false, gameState: () => 'unknown',
+    rows: comparisonOptions.rows.map(row => ({ ...row, points: 0, players_points: Object.fromEntries(row.starters.map(pid => [pid, 0])) })),
+    forecasts: { players: {} }, projections: {} });
+assert.equal(unverifiedPast.phase, 'past');
+assert.equal(unverifiedPast.headerLabel, 'Actual points · status unverified');
+assert.equal(unverifiedPast.totalMine, 0, 'reported historical team zero stays visible with unverified status');
+assert.equal(unverifiedPast.hasStarted, false, 'unverified provider zeroes cannot imply kickoff or earned player points');
+const unverifiedPastProps = { ...reviewProps, matchup: null, comparison: unverifiedPast };
+tree = render(unverifiedPastProps, true);
+assert.equal(tree.props['data-score-view'], 'actual', 'an earlier submitted matchup remains in read-only review even if NFL evidence is unavailable');
+assert.doesNotMatch(text(tree), /Matchup outlook|Win probability/, 'historical uncertainty never falls back to an empty pregame forecast');
+assert(button(tree, 'Show all players'), 'historical submitted slots remain available for inspection');
+button(tree, 'Show all players').props.onClick(); tree = render(unverifiedPastProps);
+assert.equal(slotRows(tree).length, 4, 'all earlier submitted slots are retained without an optimizer forecast');
+assert.match(text(slotRows(tree)[0]), /You Last seen Actual QB 0\.00/, 'an unverified historical provider zero is shown as last seen, never final');
+assert(all(tree).filter(node => String(node.props.className).startsWith('gd-review-player-points')).every(node => !/is-strong|is-quiet|is-typical/.test(node.props.className)), 'unverified earlier results never receive a performance grade');
+assert(!all(tree).some(node => node.type === 'em' && /vs pregame/.test(text(node))), 'missing historical baselines never produce final variance');
+tree = render({ ...reviewProps, pro: false }, true);
+assert.match(text(tree), /2\.50.*14\.00/);
+assert(!button(tree, 'Show all players'), 'the actual score header preserves the existing free/Pro breakdown boundary');
+console.log('PASS matchup breakdown: unified slot disclosures, signed/missing values, submitted actual/projection toggles, source labels, stale-grade boundaries, scope resets, accessible bars and free-tier boundary');

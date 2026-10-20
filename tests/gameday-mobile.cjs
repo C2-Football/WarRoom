@@ -7,11 +7,11 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, scoreStatus = 'ready', scoreError = null } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, forecastsByWeek = {}, scoreRowsByWeek = {}, scoreStatus = 'ready', scoreError = null } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
-    const projectionWeeks = [], scoreWeeks = [], contextWeeks = [], opponentWeeks = [];
+    const projectionWeeks = [], scoreWeeks = [], contextWeeks = [], opponentWeeks = [], scoreFeedCalls = [], forecastCaptures = [], planWrites = [];
     let cursor = 0, effectCursor = 0, changed = true, out, refresh;
     const h = (type, props, ...children) => typeof type === 'function'
         ? type({ ...(props || {}), children }) : { type, props: props || {}, children: children.flat(Infinity).filter(x => x != null && x !== false) };
@@ -38,7 +38,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
             addEventListener: (name, fn) => { events[name] = fn; }, removeEventListener() {},
             wrIsPro: () => pro,
             S: { nflState: { season: 2026 } },
-            localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
+            localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => { planWrites.push({ key, value }); storage.set(key, value); } },
             WR: {
                 useViewport: () => ({ width, isPhone: width < 768 }), HeroCard: true, AssetRow: true, CardList: true,
                 Sheet: ({ open, children }) => open ? h('dialog', {}, children) : null,
@@ -51,20 +51,22 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
                 Schedule: seasonData ? { buildSeason: async () => seasonData } : undefined,
                 LeagueLiveScores: {
                     currentWeek: () => 2,
-                    useScores: () => ({ supported, status: scoreStatus, error: scoreError, updatedAt: 1789484400000, rows: [
+                    useScores: ({ week, enabled = true }) => { scoreFeedCalls.push({ week, enabled }); return { supported, week, status: scoreStatus, error: scoreError, updatedAt: 1789484400000, rows: scoreRowsByWeek[week] || [
                         { roster_id: 1, matchup_id: matchupId, starters: ['a', 'b', 'c'], players_points: { a: 0, b: -2.5 }, points: upcoming ? 0 : -2.5 },
-                        { roster_id: 2, matchup_id: matchupId, starters: ['d'], points: 0 },
-                    ] }),
+                        { roster_id: 2, matchup_id: matchupId, starters: ['d'], players_points: { d: 0 }, points: 0 },
+                    ] }; },
                     rosterPoints: row => row.points,
-                    playerPoints: (row, pid) => typeof row.players_points[pid] === 'number' ? row.players_points[pid] : null,
+                    playerPoints: (row, pid) => typeof row?.players_points?.[pid] === 'number' ? row.players_points[pid] : null,
                 },
             },
         },
     };
     vm.createContext(ctx);
     vm.runInContext(fs.readFileSync('js/shared/scoring-visuals.js', 'utf8'), ctx);
+    vm.runInContext(fs.readFileSync('js/shared/matchup-score-comparison.js', 'utf8'), ctx);
     const savedForecasts = { players: forecasts, persistent: true };
-    ctx.window.App.LineupForecastSnapshots = { read: () => savedForecasts, capture: () => savedForecasts };
+    const forecastsForWeek = week => forecastsByWeek[week] ? { players: forecastsByWeek[week], persistent: true } : savedForecasts;
+    ctx.window.App.LineupForecastSnapshots = { read: (league, week) => forecastsForWeek(week), capture: options => { forecastCaptures.push(options.week); return forecastsForWeek(options.week); } };
     delete ctx.window.App.StartSit;
     vm.runInContext(fs.readFileSync('js/shared/startsit-engine.js', 'utf8'), ctx);
     if (withMatchup) {
@@ -91,7 +93,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
         throw Error('Render did not settle');
     }
     await render();
-    return { get out() { return out; }, render, games, props, result, storage, projectionWeeks, scoreWeeks, contextWeeks, opponentWeeks, scorePresentation: values => ctx.lineupScorePresentation(values), async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
+    return { get out() { return out; }, render, games, props, result, storage, projectionWeeks, scoreWeeks, contextWeeks, opponentWeeks, scoreFeedCalls, forecastCaptures, planWrites, scorePresentation: values => ctx.lineupScorePresentation(values), async loadForm(pid, value) { loadedForm[pid] = value; events['wr:weekly-points-loaded']({ detail: { leagueId: '123' } }); await render(); }, async kickoff(team) { games.find(g => g.home === team).state = 'live'; await refresh(); await render(); } };
 }
 const all = node => node && typeof node === 'object' ? [node, ...(node.children || []).flatMap(all)] : [];
 const textOf = node => node == null ? '' : typeof node === 'object' ? (node.children || []).map(textOf).join('') : String(node);
@@ -110,7 +112,7 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     button(fromOverview.out, 'Odds').props.onClick(); await fromOverview.render();
     fromOverview.props.initialView = 'week'; await fromOverview.render();
     assert.equal(button(fromOverview.out, 'Lineup').props['aria-pressed'], true, 'Ordinary entry resets a mounted destination to Lineup');
-    const withoutOpponent = await fixture({ initialView: 'matchup' });
+    const withoutOpponent = await fixture({ initialView: 'matchup', matchupId: null });
     assert.equal(button(withoutOpponent.out, 'Matchup').props['aria-pressed'], true);
     assert.match(textOf(withoutOpponent.out), /The matchup appears when an opponent and projections are available/, 'Missing opponent context stays in the requested view');
 
@@ -245,7 +247,7 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
             assert.doesNotMatch(textOf(breakdown), /Projected points · your lineup plan|Their current lineup:|Green: your edge/, 'phone matchup leaves desktop-only explanations out');
         } else {
             assert.doesNotMatch(breakdown.props.className, /gd-matchup-compact/, 'desktop matchup keeps its full layout');
-            assert.match(textOf(breakdown), /Projected points · your lineup plan/, 'desktop matchup retains its explanatory subtitle');
+            assert.match(textOf(breakdown), /Submitted starters.*actual points against their saved projections/, 'desktop actual review identifies the submitted lineup and baseline');
         }
         assert(!all(forecast.out).some(n => ['details', 'dialog'].includes(n.type) && textOf(n).includes('Position strength')), 'analysis requires no expansion or sheet');
         assert.doesNotMatch(textOf(forecast.out), /view their lineup|View opponent breakdown/);
@@ -253,7 +255,75 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
         if (width < 768) { button(free.out, 'Matchup').props.onClick(); await free.render(); }
         assert(select(free.out, matchupPanel));
         assert.doesNotMatch(textOf(free.out), /Your biggest edge|Win probability|Show all players|Slot by slot/);
+        const pregameForecast = await fixture({ width, withMatchup: true, upcoming: true });
+        if (width < 768) { button(pregameForecast.out, 'Matchup').props.onClick(); await pregameForecast.render(); }
+        const pregameBreakdown = select(pregameForecast.out, matchupPanel);
+        assert(pregameBreakdown && !button(pregameBreakdown, 'Actual vs proj'), 'pregame keeps the projection outlook without fake actuals');
+        if (width >= 768) assert.match(textOf(pregameBreakdown), /Projected points · your lineup plan/, 'desktop pregame still retains its original projection guidance');
     }
+
+    // Reviewing actuals uses the submitted score feed even when the optimizer
+    // or the local starting plan disagrees. A mode change keeps those players.
+    const review = await fixture({ initialView: 'matchup', withMatchup: true, forecasts: { a: { kind: 'pregame', points: 0 }, b: { kind: 'pregame', points: -5 }, c: { kind: 'first-view', points: 10 }, d: { kind: 'pregame', points: 12 } } });
+    review.result.optimal.starters[0].pid = 'd';
+    await review.render();
+    let reviewPanel = select(review.out, matchupPanel);
+    assert.equal(button(reviewPanel, 'Actual vs proj').props['aria-pressed'], true, 'started submitted scores automatically select actual review');
+    assert.match(textOf(reviewPanel), /-2\.50You.*0\.00Them/, 'review header preserves provider zero and negative team totals');
+    assert.doesNotMatch(textOf(reviewPanel), /Final points/, 'an incomplete opponent lineup cannot promote the whole matchup to a final');
+    assert(!textOf(reviewPanel).includes('Win probability'), 'final actual totals are not mixed with a fresh win forecast');
+    button(reviewPanel, 'Show all players').props.onClick(); await review.render();
+    const ownReviewNames = out => all(select(out, matchupPanel)).filter(node => node.props.className === 'gd-matchup-player gd-matchup-you').map(node => textOf(node.children[1]));
+    assert.deepEqual(ownReviewNames(review.out), ['Zero Starter', 'Negative Starter', 'Missing Starter'], 'the actual panel reads submitted starters rather than the optimizer’s preferred quarterback');
+    const actualReviewRows = all(select(review.out, matchupPanel)).filter(node => node.props['data-slot-index'] != null);
+    assert.match(textOf(actualReviewRows[0]), /Zero Starter0\.00Pregame\s*0\.0/, 'a submitted zero keeps its saved zero baseline');
+    assert.match(textOf(actualReviewRows[1]), /Negative Starter-2\.50Pregame\s*-5\.0/, 'signed individual actuals stay distinct from projections');
+    assert.match(textOf(actualReviewRows[2]), /Missing Starter—First view\s*10\.0/, 'missing actuals and non-pregame sources stay explicit');
+    assert.match(textOf(actualReviewRows[1]), /Opponent.*Not reported—/, 'a truncated submitted opponent list stays unreported rather than an empty zero slot');
+    button(review.out, 'Projection').props.onClick(); await review.render();
+    assert.equal(button(review.out, 'Projection').props['aria-pressed'], true);
+    assert.deepEqual(ownReviewNames(review.out), ['Zero Starter', 'Negative Starter', 'Missing Starter'], 'projection mode reuses the submitted pairing instead of switching to the draft or ideal roster');
+    button(review.out, 'Actual vs proj').props.onClick(); await review.render();
+    assert.equal(button(review.out, 'Actual vs proj').props['aria-pressed'], true);
+    const staleReview = await fixture({ initialView: 'matchup', withMatchup: true, scoreStatus: 'stale', scoreError: 'Refresh failed', forecasts: { a: { kind: 'pregame', points: 20 }, b: { kind: 'pregame', points: 20 } } });
+    assert.match(textOf(select(staleReview.out, matchupPanel)), /Last available points/);
+    button(staleReview.out, 'Show all players').props.onClick(); await staleReview.render();
+    assert(!all(select(staleReview.out, matchupPanel)).some(node => String(node.props.className).startsWith('gd-review-player-points') && /is-strong|is-quiet|is-typical/.test(node.props.className)), 'stale actuals cannot keep final-performance coloring');
+    assert(!all(select(staleReview.out, matchupPanel)).some(node => node.type === 'em' && /vs pregame/.test(textOf(node))), 'stale actuals lose final variance claims');
+    const actualWithoutProjection = await fixture({ initialView: 'matchup', withMatchup: true, noProjection: true });
+    assert.match(textOf(select(actualWithoutProjection.out, matchupPanel)), /-2\.50You.*0\.00Them/, 'submitted actual review does not depend on optimizer projections being available');
+
+    // Past matchup review has its own score read and archived baseline. It must
+    // not create a past lineup plan or move the live planner into a closed week.
+    const historicalRows = [
+        { roster_id: 1, matchup_id: 4, starters: ['d', 'b', 'c'], players_points: { d: 23, b: -3, c: 0 }, points: 20 },
+        { roster_id: 2, matchup_id: 4, starters: ['a'], players_points: { a: 0 }, points: 0 },
+    ];
+    const history = await fixture({ initialView: 'matchup', withMatchup: true, scoreRowsByWeek: { 1: historicalRows }, forecastsByWeek: { 1: { d: { kind: 'pregame', points: 20 }, b: { kind: 'pregame', points: -5 }, c: { kind: 'pregame', points: 0 }, a: { kind: 'pregame', points: 0 } } } });
+    const rosterBeforeReview = JSON.stringify(history.props.myRoster);
+    const matchupWeek = select(history.out, node => node.type === 'select' && node.props['aria-label'] === 'Matchup week');
+    assert(matchupWeek && all(matchupWeek).some(node => node.type === 'option' && node.props.value === 1), 'completed weeks are discoverable in the dedicated matchup picker');
+    matchupWeek.props.onChange({ target: { value: '1' } }); await history.render();
+    let historyPanel = select(history.out, matchupPanel);
+    assert.equal(select(historyPanel, node => node.type === 'select' && node.props['aria-label'] === 'Matchup week').props.value, 1);
+    assert.match(textOf(historyPanel), /Week 1.*20\.00You.*0\.00Them/, 'a completed matchup displays its own provider totals');
+    assert(history.scoreFeedCalls.some(call => call.week === 1 && call.enabled), 'historical review requests the chosen submitted score week');
+    assert(history.scoreWeeks.includes(1), 'historical game-final evidence uses the selected past week');
+    assert(!history.projectionWeeks.includes(1), 'reviewing a past week never requests a new historical lineup optimization');
+    assert(!history.forecastCaptures.includes(1), 'reviewing cannot overwrite the archived baseline with a new estimate');
+    assert(!history.planWrites.some(write => write.key.startsWith('wr-lineup-plan-v1|') && write.key.endsWith('|1')), 'past review never creates or changes a closed-week lineup plan');
+    assert.equal(JSON.stringify(history.props.myRoster), rosterBeforeReview, 'read-only review never mutates the managed roster');
+    button(history.out, 'Show all players').props.onClick(); await history.render();
+    assert.deepEqual(ownReviewNames(history.out), ['Bench Option', 'Negative Starter', 'Missing Starter'], 'past review displays that week’s submitted players');
+    assert.match(textOf(select(history.out, matchupPanel)), /Bench Option23\.00Pregame\s*20\.0/, 'past player details use the archived week’s projection');
+    button(history.out, 'Lineup').props.onClick(); await history.render();
+    const primaryWeek = select(history.out, node => node.type === 'select' && node.props['aria-label'] === 'Lineup week');
+    assert.equal(primaryWeek.props.value, 2, 'returning to Lineup keeps the live planning week');
+    assert(all(primaryWeek).filter(node => node.type === 'option').every(node => node.props.value >= 2), 'past weeks are absent from the primary planning picker');
+    primaryWeek.props.onChange({ target: { value: '1' } }); await history.render();
+    assert.equal(select(history.out, node => node.type === 'select' && node.props['aria-label'] === 'Lineup week').props.value, 2, 'a forged earlier planning selection is clamped to the live week');
+    assert(!history.planWrites.some(write => write.key.startsWith('wr-lineup-plan-v1|') && write.key.endsWith('|1')), 'the primary planner cannot write a historical plan through its change handler');
+
     // Apply Optimal must follow the selected history window even when the
     // weekly projection ranks the two quarterbacks in the opposite order.
     for (const view of [{ rosterView: true, width: 390 }, { rosterView: true, width: 1280 }, { width: 390 }, { width: 1280 }]) {
@@ -374,5 +444,5 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert.match(coverageText, /Wk 4.*Wk 8.*Wk 12/, 'all coverage weeks appear directly in chronological order');
     assert.doesNotMatch(coverageText, /Later coverage weeks|weeks to review/);
 
-    console.log('PASS roster and Game Day: live locks, per-week saved plans, week-aware projections/opponents/kickoffs, direct bye coverage, signed/missing scores, PPG, and responsive routes');
+    console.log('PASS roster and Game Day: live locks, saved plans, submitted actual/projection review, archived read-only matchup weeks, score-source and stale-grade boundaries, PPG and responsive routes');
 })().catch(error => { console.error(error); process.exitCode = 1; });

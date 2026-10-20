@@ -52,23 +52,31 @@ function lineupScorePresentation({ tracking, submitted, state, gamesFresh, actua
 
 // Position totals and their player comparisons share one disclosure. Flexes
 // stay in their actual lineup slot instead of duplicating cross-position pairs.
-function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false }) {
+function MatchupBreakdown({ matchup, comparison, week, pro, pmeta, upgrade, compact = false, reviewControls }) {
     const [expanded, setExpanded] = React.useState({ scope: '', groups: [] });
-    if (!matchup) return null;
+    const [display, setDisplay] = React.useState({ scope: '', mode: 'auto' });
+    if (!matchup && !comparison?.available) return null;
     const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '—';
+    const actualFmt = value => Number.isFinite(value) ? value.toFixed(2) : '—';
     const gap = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? Math.round((a - b) * 10) / 10 : null;
     const tone = delta => delta == null || delta === 0 ? 'even' : delta > 0 ? 'ahead' : 'behind';
     const edge = delta => delta == null ? 'Unavailable' : delta === 0 ? 'Even' : (delta > 0 ? 'You +' : 'Them +') + fmt(Math.abs(delta));
-    const rows = (matchup.h2h || []).map((row, index) => ({ ...row, slot: row.slot || 'START', index, delta: gap(row.myMed, row.theirMed) }));
+    const oppName = comparison?.oppName || matchup?.oppName || 'Opponent';
+    const scope = [week, oppName, comparison?.matchupId || ''].join('|');
+    const reviewing = !!comparison?.available && (!!comparison.hasStarted || comparison.phase === 'past');
+    const mode = display.scope === scope ? display.mode : 'auto';
+    const actualMode = reviewing && mode !== 'projection';
+    const sourceRows = reviewing ? comparison.h2h.map(row => ({ ...row, myMed: actualMode ? row.myActual : row.myProjection, theirMed: actualMode ? row.theirActual : row.theirProjection })) : matchup?.h2h || [];
+    const rows = sourceRows.map((row, index) => ({ ...row, slot: row.slot || 'START', index, delta: gap(row.myMed, row.theirMed) }));
     const shortSlot = slot => ({ SUPER_FLEX: 'SFLX', WRTQ: 'SFLX', REC_FLEX: 'W/T', WRRB_FLEX: 'W/R', IDP_FLEX: 'IDP' })[slot] || slot;
     const grouped = new Map();
     rows.forEach(row => { const key = row.slot || 'START'; if (!grouped.has(key)) grouped.set(key, []); grouped.get(key).push(row); });
     const sum = (group, key) => group.every(row => Number.isFinite(row[key])) ? group.reduce((total, row) => total + row[key], 0) : null;
+    const actualSum = (group, side) => sum(group.map(row => ({ value: row[side + 'Reported'] === false ? null : row[side + 'Pid'] == null || row[side + 'State'] === 'upcoming' ? 0 : row[side + 'Actual'] })), 'value');
     const positions = rows.length ? [...grouped].map(([key, players]) => {
-        const mine = sum(players, 'myMed'), theirs = sum(players, 'theirMed');
-        return { key, pos: shortSlot(key), mine, theirs, players, delta: gap(mine, theirs) };
-    }) : (matchup.posStrength || []).map(row => ({ ...row, key: row.pos, players: [], delta: gap(row.mine, row.theirs) }));
-    const scope = [week, matchup.oppName, ...rows.map(row => row.slot)].join('|');
+        const mine = actualMode ? actualSum(players, 'my') : sum(players, 'myMed'), theirs = actualMode ? actualSum(players, 'their') : sum(players, 'theirMed');
+        return { key, pos: shortSlot(key), mine, theirs, projectedMine: sum(players, 'myProjection'), projectedTheirs: sum(players, 'theirProjection'), players, delta: gap(mine, theirs) };
+    }) : (matchup?.posStrength || []).map(row => ({ ...row, key: row.pos, players: [], delta: gap(row.mine, row.theirs) }));
     const openGroups = expanded.scope === scope ? expanded.groups : [];
     const expandable = positions.filter(row => row.players.length);
     const allOpen = expandable.length > 0 && expandable.every(row => openGroups.includes(row.key));
@@ -84,39 +92,48 @@ function MatchupBreakdown({ matchup, week, pro, pmeta, upgrade, compact = false 
     const leads = rows.filter(row => row.delta > 0).length;
     const largest = Math.max(0, ...rows.map(row => Math.abs(row.delta || 0)));
     const maxPosition = Math.max(1, ...positions.flatMap(row => [row.mine || 0, row.theirs || 0]));
-    const margin = matchup.fc.margin;
-    return <section className={'gd-matchup' + (compact ? ' gd-matchup-compact' : '')} aria-label="Weekly matchup breakdown">
+    const fc = matchup?.fc || {};
+    const margin = actualMode ? gap(comparison.totalMine, comparison.totalTheirs) : reviewing ? gap(comparison.projectedMine, comparison.projectedTheirs) : fc.margin;
+    const myTotal = actualMode ? comparison.totalMine : reviewing ? comparison.projectedMine : fc.projMe;
+    const theirTotal = actualMode ? comparison.totalTheirs : reviewing ? comparison.projectedTheirs : pro ? fc.projOpp : matchup?.oppCurTotal;
+    const projectionLabel = kind => kind === 'pregame' ? 'Pregame' : kind === 'first-view' ? 'First view' : kind === 'current' ? 'Est.' : 'Projection';
+    const playerStateLabel = (row, side) => !comparison?.ready ? Number.isFinite(row[side + 'Actual']) ? 'Last seen' : 'Awaiting' : row[side + 'State'] === 'final' ? row[side + 'Complete'] ? 'Final' : 'Awaiting score' : ({ upcoming: 'Yet to play', live: 'Live', locked: 'Kickoff', bye: 'Bye' })[row[side + 'State']] || 'Unverified';
+    const playerNumber = (row, side) => actualMode ? <span className={'gd-review-player-points' + (row[side + 'Comparable'] ? ' is-' + row[side + 'Tone'] : '')}><strong>{actualFmt(row[side + 'Actual'])}</strong><small>{projectionLabel(row[side + 'ProjectionKind'])} {fmt(row[side + 'Projection'])}{row[side + 'Comparable'] ? <em>{row[side + 'Delta'] > 0 ? '+' : ''}{fmt(row[side + 'Delta'])} vs pregame</em> : null}</small></span> : reviewing ? <span className="gd-review-player-points"><strong>{fmt(row[side + 'Med'])}</strong><small>{projectionLabel(row[side + 'ProjectionKind'])}</small></span> : <strong>{fmt(row[side + 'Med'])}</strong>;
+    return <section className={'gd-matchup' + (compact ? ' gd-matchup-compact' : '') + (reviewing ? ' gd-matchup-review' : '')} data-score-view={actualMode ? 'actual' : reviewing ? 'projection' : 'outlook'} aria-label="Weekly matchup breakdown">
+        {reviewControls}
+        {reviewing && <div className="gd-review-switch" aria-label="Matchup score view"><button type="button" aria-pressed={!actualMode} onClick={() => setDisplay({ scope, mode: 'projection' })}>Projection</button><button type="button" aria-pressed={actualMode} onClick={() => setDisplay({ scope, mode: 'actual' })}>Actual vs proj</button></div>}
         <div className="gd-matchup-heading">
-            <div><div className="gd-matchup-eyebrow">Week {week} · Matchup outlook</div><h2>vs {matchup.oppName}</h2>
-                {!compact && <p>Projected points · your lineup plan vs their {pro ? 'optimal' : 'current'} lineup</p>}
-                <div className="gd-matchup-totals"><span><strong>{fmt(matchup.fc.projMe)}</strong><small>You</small></span><span className="gd-matchup-versus">vs</span><span><strong>{fmt(pro ? matchup.fc.projOpp : matchup.oppCurTotal)}</strong><small>Them</small></span></div>
+            <div><div className="gd-matchup-eyebrow">Week {week} · {actualMode ? comparison.headerLabel : reviewing ? 'Submitted lineup projections' : 'Matchup outlook'}</div><h2>vs {oppName}</h2>
+                {!compact && <p>{reviewing ? 'Submitted starters · actual points against their saved projections' : 'Projected points · your lineup plan vs their ' + (pro ? 'optimal' : 'current') + ' lineup'}</p>}
+                <div className="gd-matchup-totals"><span><strong>{actualMode ? actualFmt(myTotal) : fmt(myTotal)}</strong><small>You</small>{actualMode && <small>Proj {fmt(comparison.projectedMine)}</small>}</span><span className="gd-matchup-versus">vs</span><span><strong>{actualMode ? actualFmt(theirTotal) : fmt(theirTotal)}</strong><small>Them</small>{actualMode && <small>Proj {fmt(comparison.projectedTheirs)}</small>}</span></div>
             </div>
-            {pro ? <div className={'gd-matchup-odds is-' + tone(margin)}><strong>{matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%'}</strong><span>Win probability</span><small>{margin == null ? 'Forecast unavailable' : margin === 0 ? 'Even projection' : fmt(Math.abs(margin)) + ' pts ' + (margin > 0 ? 'ahead' : 'behind')}</small></div> : null}
+            {pro && !reviewing ? <div className={'gd-matchup-odds is-' + tone(margin)}><strong>{fc.winPct == null ? '—' : fc.winPct + '%'}</strong><span>Win probability</span><small>{margin == null ? 'Forecast unavailable' : margin === 0 ? 'Even projection' : fmt(Math.abs(margin)) + ' pts ' + (margin > 0 ? 'ahead' : 'behind')}</small></div> : null}
         </div>
+        {reviewing && <p className={'gd-review-status' + (!comparison.ready ? ' is-stale' : '')} role="status">{!comparison.ready ? comparison.status === 'stale' ? 'Refresh failed · last available scores. ' : 'Score or game status updating. ' : ''}{comparison.sourceNote}{comparison.updatedAt ? ' · Updated ' + new Date(comparison.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</p>}
         {pro ? <React.Fragment>
-            {!compact && <p className="gd-matchup-context">Their current lineup: {fmt(matchup.oppCurTotal)} · Optimal: {fmt(matchup.oppIdealTotal)}{Number.isFinite(matchup.oppCurTotal) && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>}
+            {!compact && !reviewing && <p className="gd-matchup-context">Their current lineup: {fmt(matchup?.oppCurTotal)} · Optimal: {fmt(matchup?.oppIdealTotal)}{Number.isFinite(matchup?.oppCurTotal) && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span> · {fmt(matchup.oppIdealTotal - matchup.oppCurTotal)} projected points on their bench</span> : null}</p>}
             <div className="gd-matchup-focus" aria-label="Matchup key edges">
-                <div className="is-ahead"><small>Your biggest edge</small><strong>{best ? best.pos + ' +' + fmt(best.delta) : incomplete ? 'Incomplete data' : 'No projected edge'}</strong><span>{best ? 'Your strongest position advantage' : 'Look for gains in the close slots'}</span></div>
-                <div className="is-behind"><small>Biggest gap</small><strong>{toughest ? toughest.pos + ' −' + fmt(Math.abs(toughest.delta)) : incomplete ? 'Incomplete data' : 'No projected deficit'}</strong><span>{toughest ? 'Their strongest position advantage' : incomplete ? 'Some projections are unavailable' : 'No position group trails'}</span></div>
-                <div className="is-close"><small>Close contests</small><strong>{close.length} {close.length === 1 ? 'slot' : 'slots'}</strong><span>Within 2 projected points</span></div>
+                <div className="is-ahead"><small>{actualMode ? 'Actual edge' : 'Your biggest edge'}</small><strong>{best ? best.pos + ' +' + fmt(best.delta) : incomplete ? 'Incomplete data' : actualMode ? 'No lead yet' : 'No projected edge'}</strong><span>{actualMode ? 'Points scored so far' : best ? 'Your strongest position advantage' : 'Look for gains in the close slots'}</span></div>
+                <div className="is-behind"><small>{actualMode ? 'Actual gap' : 'Biggest gap'}</small><strong>{toughest ? toughest.pos + ' −' + fmt(Math.abs(toughest.delta)) : incomplete ? 'Incomplete data' : actualMode ? 'No deficit' : 'No projected deficit'}</strong><span>{actualMode ? 'Points scored so far' : toughest ? 'Their strongest position advantage' : incomplete ? 'Some projections are unavailable' : 'No position group trails'}</span></div>
+                <div className="is-close"><small>{actualMode ? 'Final vs pregame' : 'Close contests'}</small><strong>{actualMode ? comparison.myDelta == null ? comparison.allFinal ? 'No baseline' : 'In progress' : (comparison.myDelta > 0 ? '+' : '') + fmt(comparison.myDelta) : close.length + ' ' + (close.length === 1 ? 'slot' : 'slots')}</strong><span>{actualMode ? comparison.myDelta == null ? 'Player results below' : 'Your submitted lineup' : 'Within 2 projected points'}</span></div>
             </div>
             <div className="gd-matchup-section-heading"><h3>Position strength</h3><button type="button" className="gd-matchup-show-all" aria-pressed={allOpen} aria-controls={listId} disabled={!expandable.length} onClick={() => setExpanded({ scope, groups: allOpen ? [] : expandable.map(row => row.key) })}>{allOpen ? 'Hide all players' : 'Show all players'}</button></div>
-            <p className="gd-matchup-position-help">By lineup slot · tap a row for players. You lead {leads} of {rows.length} slots.</p>
+            <p className="gd-matchup-position-help">{actualMode ? 'Actual points · projections below each score. Tap a row for players.' : 'By lineup slot · tap a row for players. You lead ' + leads + ' of ' + rows.length + ' slots.'}</p>
             <div className="gd-position-legend"><span>You ◀</span><span>▶ Opponent</span></div>
             <div className="gd-position-list" id={listId}>{positions.map((position, groupIndex) => {
                 const open = openGroups.includes(position.key), detailId = listId + '-group-' + groupIndex;
                 return <div key={position.key} className={'gd-position-group is-' + tone(position.delta)} data-position={position.key}>
                     <button type="button" className={'gd-position-row is-' + tone(position.delta)} aria-expanded={open} aria-controls={detailId} aria-label={(open ? 'Hide ' : 'Show ') + position.key.replace(/_/g, ' ') + ' player comparisons. ' + edge(position.delta)} disabled={!position.players.length} onClick={() => toggleGroup(position.key)}>
-                        <strong title={position.key.replace(/_/g, ' ')}>{position.pos}</strong><span className="gd-position-value">{fmt(position.mine)}</span>
+                        <strong title={position.key.replace(/_/g, ' ')}>{position.pos}</strong><span className="gd-position-value">{fmt(position.mine)}{actualMode && <small>P {fmt(position.projectedMine)}</small>}</span>
                         <span className="gd-position-bars" role="img" aria-label={position.pos + ': you ' + fmt(position.mine) + ', opponent ' + fmt(position.theirs)}><span><i style={{ width: Math.min(100, Math.max(0, position.mine || 0) / maxPosition * 100) + '%' }} /></span><span><i style={{ width: Math.min(100, Math.max(0, position.theirs || 0) / maxPosition * 100) + '%' }} /></span></span>
-                        <span className="gd-position-value">{fmt(position.theirs)}</span><span className={'gd-matchup-edge is-' + tone(position.delta)}>{edge(position.delta)}</span><span className="gd-position-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
+                        <span className="gd-position-value">{fmt(position.theirs)}{actualMode && <small>P {fmt(position.projectedTheirs)}</small>}</span><span className={'gd-matchup-edge is-' + tone(position.delta)}>{edge(position.delta)}</span><span className="gd-position-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
                     </button>
                     <div className="gd-position-players" id={detailId} hidden={!open}>
                         {open && position.players.map((row, index) => <div key={row.index} data-slot-index={row.index} data-slot={row.slot} className={'gd-matchup-slot is-' + tone(row.delta) + (row.delta != null && Math.abs(row.delta) <= 2 ? ' is-close' : '') + (largest > 0 && Math.abs(row.delta) === largest ? ' is-key' : '')}>
                             <strong className="gd-matchup-slot-label">{row.slot.replace(/_/g, ' ')}{position.players.length > 1 ? ' ' + (index + 1) : ''}</strong>
-                            <div className="gd-matchup-player gd-matchup-you"><small>You</small><span>{row.myPid ? pmeta(row.myPid).name : 'Empty slot'}</span><strong>{fmt(row.myMed)}</strong></div>
+                            <div className="gd-matchup-player gd-matchup-you"><small>You{actualMode && <em>{playerStateLabel(row, 'my')}</em>}</small><span>{row.myReported === false ? 'Not reported' : row.myPid ? pmeta(row.myPid).name : 'Empty slot'}</span>{playerNumber(row, 'my')}</div>
                             <span className={'gd-matchup-edge is-' + tone(row.delta)}>{edge(row.delta)}</span>
-                            <div className="gd-matchup-player gd-matchup-them"><small>Opponent</small><span>{row.theirPid ? pmeta(row.theirPid).name : 'Empty slot'}</span><strong>{fmt(row.theirMed)}</strong></div>
+                            <div className="gd-matchup-player gd-matchup-them"><small>Opponent{actualMode && <em>{playerStateLabel(row, 'their')}</em>}</small><span>{row.theirReported === false ? 'Not reported' : row.theirPid ? pmeta(row.theirPid).name : 'Empty slot'}</span>{playerNumber(row, 'their')}</div>
                         </div>)}
                     </div>
                 </div>;
@@ -698,26 +715,88 @@ function MyLineupTab({
         return Number.isFinite(value) ? value : null;
     };
     const Forecasts = window.App && window.App.LineupForecastSnapshots;
+    const liveOpponent = liveRow?.matchup_id == null ? null : (liveScores.rows || []).find(row =>
+        String(row.roster_id) !== String(liveRow.roster_id) && String(row.matchup_id) === String(liveRow.matchup_id));
+    const matchedOpponentProjections = liveOpponent && String(oppResult?.roster?.roster_id) === String(liveOpponent.roster_id) ? oppResult.res?.projections : {};
     const forecastContextKey = liveKey + '|' + JSON.stringify(Object.entries(currentLeague?.scoring_settings || {}).sort(([a], [b]) => a.localeCompare(b)));
     const [forecastState, setForecastState] = React.useState(() => ({ key: forecastContextKey, data: Forecasts ? Forecasts.read(currentLeague, planningWeek) : { players: {}, persistent: false } }));
     React.useEffect(() => {
         if (!Forecasts) return;
         const projections = {}, statuses = {};
-        if (gamesFresh) platformStarters.forEach(pid => { projections[pid] = projectedPoints(pid); statuses[pid] = gameState(pid); });
+        if (gamesFresh) {
+            platformStarters.forEach(pid => { projections[pid] = projectedPoints(pid); statuses[pid] = gameState(pid); });
+            if (Number(currentLeague?.season) === Number(window.S?.nflState?.season || new Date().getFullYear())) (liveOpponent?.starters || []).forEach(pid => {
+                const projection = matchedOpponentProjections?.[pid];
+                projections[pid] = projection?.available !== false && Number.isFinite(projection?.points?.median) ? projection.points.median : null;
+                statuses[pid] = gameState(pid);
+            });
+        }
         const data = Forecasts.capture({ league: currentLeague, week: planningWeek, projections, statuses });
         setForecastState(previous => previous.key === forecastContextKey && previous.data === data ? previous : { key: forecastContextKey, data });
-    }, [forecastContextKey, result, nflGames, platformStarters.join(',')]);
+    }, [forecastContextKey, result, nflGames, platformStarters.join(','), (liveOpponent?.starters || []).join(','), oppResult]);
     const savedForecasts = forecastState.key === forecastContextKey ? forecastState.data : { players: {}, persistent: true };
     const liveTotal = Live && liveRow ? Live.rosterPoints(liveRow) : null;
     // Phone scores come from the submitted matchup feed, including zero and
     // negative totals. A matchup ID is required: unrelated bye rows must never
     // become an invented opponent.
-    const liveOpponent = liveRow?.matchup_id == null ? null : (liveScores.rows || []).find(row =>
-        String(row.roster_id) !== String(liveRow.roster_id) && String(row.matchup_id) === String(liveRow.matchup_id));
     const liveOpponentTotal = Live && liveOpponent ? Live.rosterPoints(liveOpponent) : null;
     const opponentRoster = liveOpponent && (currentLeague?.rosters || []).find(row => String(row.roster_id) === String(liveOpponent.roster_id));
     const opponentUser = opponentRoster && (currentLeague?.users || []).find(user => String(user.user_id) === String(opponentRoster.owner_id));
     const liveOpponentName = opponentRoster?.metadata?.team_name || opponentUser?.metadata?.team_name || opponentUser?.display_name || (liveOpponent ? 'Team ' + liveOpponent.roster_id : 'Opponent');
+    // Review is independent from planning. Earlier weeks only read submitted
+    // score rows and archived baselines; they never edit an old lineup plan.
+    const [reviewChoice, setReviewChoice] = React.useState({ scope: forecastContextKey, week: planningWeek });
+    const reviewWeek = reviewChoice.scope === forecastContextKey ? Math.max(1, Math.min(planningWeek, Number(reviewChoice.week) || planningWeek)) : planningWeek;
+    const historicalReview = reviewWeek < liveWeek;
+    const reviewKey = leagueScope + '|review|' + reviewWeek;
+    const historicalScores = Live ? Live.useScores({ league: currentLeague, week: reviewWeek, enabled: reviewWeek !== planningWeek }) : { rows: [], status: 'unavailable', supported: false };
+    const reviewScores = reviewWeek === planningWeek ? liveScores : historicalScores;
+    const [reviewNfl, setReviewNfl] = React.useState({ key: '', games: [], updatedAt: 0 });
+    React.useEffect(() => {
+        if (reviewWeek === planningWeek) return undefined;
+        let active = true, pending = false;
+        const refresh = async () => {
+            if (pending || document.hidden || !window.App?.NflContext?.loadScores) return;
+            pending = true;
+            try {
+                const loaded = await window.App.NflContext.loadScores(reviewWeek, currentLeague?.season, 2);
+                if (active && loaded?.length) setReviewNfl({ key: reviewKey, games: loaded, updatedAt: Date.now() });
+            } catch (_) { /* A failed refresh cannot promote old scores to final. */ }
+            finally { pending = false; }
+        };
+        refresh();
+        const timer = setInterval(refresh, 30000);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { active = false; clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    }, [reviewKey, planningWeek]);
+    const reviewGames = reviewWeek === planningWeek ? games : reviewNfl.key === reviewKey ? reviewNfl.games : [];
+    const reviewGamesFresh = reviewWeek === planningWeek ? gamesFresh : reviewNfl.key === reviewKey && Date.now() - reviewNfl.updatedAt < 90000;
+    const reviewGameState = pid => {
+        const alias = team => ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[String(team || '').toUpperCase()] || String(team || '').toUpperCase();
+        const team = alias(playersData?.[pid]?.team);
+        const game = reviewGames.find(game => alias(game.home) === team || alias(game.away) === team);
+        return !game && Number(window.App?.NFLByes?.weekForPlayer?.(playersData?.[pid], currentLeague?.season)) === reviewWeek ? 'bye' : statusOfGame(game);
+    };
+    const reviewProjectionValues = {};
+    if (reviewWeek === planningWeek && !historicalReview && Number(currentLeague?.season) === Number(window.S?.nflState?.season || new Date().getFullYear())) {
+        Object.entries({ ...result?.projections, ...matchedOpponentProjections }).forEach(([pid, value]) => {
+            if (value?.available !== false && Number.isFinite(value?.points?.median)) reviewProjectionValues[pid] = value.points.median;
+        });
+    }
+    const reviewForecasts = reviewWeek === planningWeek ? savedForecasts : Forecasts?.read(currentLeague, reviewWeek) || { players: {}, persistent: false };
+    const reviewComparison = window.App?.MatchupScoreComparison?.build({ league: currentLeague, week: reviewWeek, myRosterId: myRoster?.roster_id,
+        rows: reviewScores.rows, scoreStatus: reviewScores.status, scoreError: reviewScores.error, scoresSupported: reviewScores.supported,
+        scope: { leagueId: currentLeague?.league_id || currentLeague?.id, season: currentLeague?.season, week: reviewScores.week ?? reviewWeek },
+        gamesFresh: reviewGamesFresh, gameState: reviewGameState, forecasts: reviewForecasts, projections: reviewProjectionValues,
+        slots: [...startingSlots].sort((a, b) => (SLOT_DISPLAY_ORDER[a.slotName] ?? 50) - (SLOT_DISPLAY_ORDER[b.slotName] ?? 50)),
+        currentWeek: liveWeek, currentSeason: window.S?.nflState?.season || new Date().getFullYear() });
+    if (reviewComparison?.available) {
+        const roster = (currentLeague?.rosters || []).find(row => String(row.roster_id) === String(reviewComparison.rosterIds[1]));
+        const user = (currentLeague?.users || []).find(row => String(row.user_id) === String(roster?.owner_id));
+        reviewComparison.oppName = roster?.metadata?.team_name || user?.metadata?.team_name || user?.display_name || (reviewWeek === planningWeek ? liveOpponentName : 'Team ' + reviewComparison.rosterIds[1]);
+        reviewComparison.updatedAt = reviewScores.updatedAt;
+    }
+    const reviewNavigator = <div className="gd-review-navigation"><label>Matchup week<select aria-label="Matchup week" value={reviewWeek} onChange={event => setReviewChoice({ scope: forecastContextKey, week: Number(event.target.value) })}>{Array.from({ length: planningWeek }, (_, i) => i + 1).map(value => <option key={value} value={value}>Week {value}{value === liveWeek ? ' · Current' : value < liveWeek ? ' · Review' : ''}</option>)}</select></label><button type="button" disabled={!reviewScores.supported || ['loading', 'refreshing'].includes(reviewScores.status)} onClick={() => reviewScores.refresh?.()}>Refresh scores</button></div>;
     const mobileScoreStatus = liveScores.error ? 'Last available scores'
         : liveScores.status === 'loading' ? 'Loading scores'
         : !liveScores.supported ? 'Scoring unavailable'
@@ -841,14 +920,19 @@ function MyLineupTab({
         return <div style={{ padding: '24px', color: SILVER }}>Start/Sit engine not loaded.</div>;
     }
     if (!result || !result.optimal || !result.optimal.starters.length) {
+        const scoreReview = reviewComparison?.available && (reviewComparison.hasStarted || reviewComparison.phase === 'past') ? <MatchupBreakdown matchup={null} comparison={reviewComparison} week={reviewWeek} pro={pro} pmeta={pmeta} compact={isPhone} reviewControls={reviewNavigator} /> : <>{reviewNavigator}<p className="gd-muted">Submitted matchup scores are unavailable for this week.</p></>;
         return (
-            <div style={{ padding: isPhone ? '14px 12px' : '20px 16px', color: SILVER, maxWidth: '1240px', margin: '0 auto' }}>
+            <div className={isPhone ? 'gd-mobile' : ''} style={{ padding: isPhone ? '14px 12px' : '20px 16px', color: SILVER, maxWidth: '1240px', margin: '0 auto' }}>
+                {isPhone && <div className="wr-seg gd-view-nav" aria-label="Game Day views"><button type="button" aria-pressed={phoneView !== 'matchup'} onClick={() => setPhoneView('week')}>Lineup</button><button type="button" aria-pressed={phoneView === 'matchup'} onClick={() => setPhoneView('matchup')}>Matchup</button></div>}
+                {isPhone && phoneView === 'matchup' ? scoreReview : <>
                 {weekNavigator}
                 {trackingLineup ? mobileScoreboard : null}
                 <div style={{ padding: '32px 12px', textAlign: 'center', maxWidth: '520px', margin: '0 auto' }}>
                 <div style={{ fontSize: '1.1rem', color: GOLD, fontWeight: 600, marginBottom: '10px', letterSpacing: '0.04em' }}>{isPhone ? 'Projections unavailable' : 'LINEUP COMMAND CENTER'}</div>
                 <div>{isPhone ? 'Lineup planning will appear when weekly projections load.' : "No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings."}</div>
                 </div>
+                {!isPhone && scoreReview}
+                </>}
             </div>
         );
     }
@@ -1102,8 +1186,8 @@ function MyLineupTab({
         }
     }
 
-    const matchupPanel = <MatchupBreakdown matchup={matchup} week={result.week} pro={pro} pmeta={pmeta} compact={isPhone}
-        upgrade={GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null} />;
+    const matchupPanel = (reviewWeek === planningWeek && matchup || reviewComparison?.available) ? <MatchupBreakdown matchup={reviewWeek === planningWeek ? matchup : null} comparison={reviewComparison} week={reviewWeek} pro={pro} pmeta={pmeta} compact={isPhone} reviewControls={reviewNavigator}
+        upgrade={GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null} /> : <section className="gd-matchup gd-matchup-empty">{reviewNavigator}<p className="gd-muted">{historicalReview ? 'Submitted matchup scores are unavailable for this week.' : 'The matchup appears when an opponent and projections are available.'}</p></section>;
 
     // ── MFL lineup push card (write to MyFantasyLeague) ──
     function renderMflPush() {
@@ -1387,7 +1471,7 @@ function MyLineupTab({
                 </div>
 
                 {(phoneView === 'week' || phoneView === 'matchup') ? <div className={'gd-lineup-controls' + (phoneView === 'matchup' ? ' is-matchup' : '')}>
-                    {weekNavigator}
+                    {phoneView === 'week' && weekNavigator}
                     {phoneView === 'week' && metricPreference && <div className="gd-lineup-columns"><window.WR.PlayerMetrics.Picker preference={metricPreference} /></div>}
                     {phoneView === 'week' && <div className="roster-lineup-form" aria-label="Optimizer form window"><span className="gd-form-label">Average</span>{[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(([label, value]) => <button type="button" key={label} aria-pressed={formWindow === value} onClick={() => setFormWindow(value)}>{label}</button>)}</div>}
                 </div> : null}
@@ -1401,7 +1485,7 @@ function MyLineupTab({
                             playersData={playersData} statsData={statsData} stats2025Data={stats2025Data}
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
-                ) : phoneView === 'matchup' ? (matchup ? matchupPanel : <p className="gd-muted">The matchup appears when an opponent and projections are available.</p>) : phoneView === 'week' ? (<React.Fragment>
+                ) : phoneView === 'matchup' ? matchupPanel : phoneView === 'week' ? (<React.Fragment>
                 <section id="gameday-starting-lineup" className="gd-working-lineup" aria-label="Local lineup plan">
                     <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2><span className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
                     {pro && canOptimize && !isOptimal ? <button type="button" className="gd-secondary" onClick={applyOptimalWithSummary}>Use optimal in my plan</button> : null}
