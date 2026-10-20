@@ -103,6 +103,12 @@
 .cup-sample-banner span { font-size: .76rem; }
 .cup-live-summary { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 2px; font-size: .75rem; }
 .cup-live-summary > span:first-child { color: var(--cup-teal); font-weight: 700; }
+.cup-follow-fixtures { display:grid; gap:12px; }
+.cup-fixture-group { min-width:0; }
+.cup-fixture-group > h3 { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 8px; color:var(--cup-teal); font:600 .8rem var(--font-body,sans-serif); }
+.cup-fixture-group > h3 > span { color:var(--text-muted); font-size:.72rem; font-weight:400; }
+.cup-match .cup-match-you { display:inline-block; margin-left:6px; color:var(--cup-teal); font:500 10px var(--font-body,sans-serif); }
+.cup-match .is-winner { color:var(--cup-teal); }
 .cup-studio .cup-studio-bracket { display: flex; overflow-x: auto; align-items: stretch; gap: 18px; padding-bottom: 8px; }
 .cup-studio-bracket > section { min-width: 210px; flex: 1 0 210px; gap: 8px; }
 .cup-studio-bracket .cup-bracket-match:after { display: none; }
@@ -186,4 +192,48 @@
     .cup-save-actions .cup-plan-actions { flex-wrap: nowrap; }
     .cup-save-actions button { min-height: 48px; padding: 10px 12px; }
     .cup-studio input:not([type=checkbox]), .cup-studio select { font-size: 16px; }
+}
+
+/* Follow a Cup: shared group labels and scoreboard rows keep a full week close together. */
+@media(max-width:767px) {
+    .la-mobile .cup-panel.cup-follow { gap:8px; }
+    .la-mobile .cup-follow .cup-locked-status { gap:4px 10px; padding:7px 10px; font-size:12px; }
+    .la-mobile .cup-follow .cup-locked-status > span { display:none; }
+    .la-mobile .cup-follow .cup-live-summary { gap:3px 10px; font-size:11px; line-height:1.4; }
+    .la-mobile .cup-follow .cup-your-team { padding:8px 10px; gap:6px 12px; }
+    .la-mobile .cup-follow .cup-your-team > div { gap:2px; }
+    .la-mobile .cup-follow .cup-your-team strong { font-size:13px; }
+    .la-mobile .cup-follow .cup-your-team span:not(.cup-eyebrow) { font-size:10px; }
+    .la-mobile .cup-follow .cup-tools { margin:0; gap:5px 10px; }
+    .la-mobile .cup-follow .cup-tools .cup-note { font-size:11px; }
+    .la-mobile .cup-follow .cup-group-tables { gap:8px; }
+    .la-mobile .cup-panel.cup-follow .cup-qualification > section { padding:8px; }
+    .la-mobile .cup-follow .cup-qualification .cup-section-heading { margin-bottom:4px; }
+    .la-mobile .cup-follow .cup-qualification .cup-section-heading :is(h3,span) { font-size:11px; }
+    .la-mobile .cup-panel.cup-follow .cup-standings :is(th,td) { padding:6px 4px; font-size:13px; line-height:1.25; }
+    .la-mobile .cup-panel.cup-follow .cup-standings thead th { padding-block:5px; font-size:10px; }
+    .la-mobile .cup-panel.cup-follow .cup-standings :is(.cup-standings-points,.cup-standings-pf) { width:64px; }
+    .la-mobile .cup-follow .cup-standing-identity { align-items:center; gap:5px; }
+    .la-mobile .cup-follow .cup-standing-owner { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 5px; }
+    .la-mobile .cup-panel.cup-follow .cup-standing-played { font-size:10px; white-space:nowrap; }
+    .la-mobile .cup-follow .cup-qualification-note { margin:0; font-size:10px; line-height:1.35; }
+    .la-mobile .cup-follow .cup-follow-fixtures { gap:8px; }
+    .la-mobile .cup-follow .cup-fixture-group { overflow:hidden; border:1px solid var(--cup-line); border-radius:9px; background:var(--cup-ground); }
+    .la-mobile .cup-follow .cup-fixture-group > h3 { margin:0; padding:6px 10px; font-size:11px; background:rgba(183,206,255,.06); }
+    .la-mobile .cup-follow .cup-fixture-group > h3 > span { font-size:10px; }
+    .la-mobile .cup-follow .cup-fixture-group .cup-fixtures { grid-template-columns:minmax(0,1fr); gap:0; }
+    .la-mobile .cup-follow .cup-fixture-group .cup-match { padding:7px 10px; gap:2px; border:0; border-radius:0; background:transparent; }
+    .la-mobile .cup-follow .cup-fixture-group .cup-match + .cup-match { border-top:1px solid var(--cup-line); }
+    .la-mobile .cup-follow .cup-fixture-group .cup-match.is-mine { box-shadow:inset 2px 0 var(--cup-teal); background:rgba(183,206,255,.05); }
+    .la-mobile .cup-follow .cup-match > div { min-height:20px; gap:8px; line-height:1.3; }
+    .la-mobile .cup-follow .cup-match strong { min-width:0; font-size:14px; }
+    .la-mobile .cup-follow .cup-match b { flex:none; font-size:14px; font-variant-numeric:tabular-nums; }
+    .la-mobile .cup-follow .cup-match .cup-match-outcome { font-size:10px; line-height:1.3; }
+    .la-mobile .cup-follow .cup-studio-bracket { gap:10px; padding-bottom:0; }
+    .la-mobile .cup-follow .cup-studio-bracket > .cup-round { gap:4px; }
+    .la-mobile .cup-follow .cup-round h4 { margin:0 0 3px; font-size:11px; line-height:1.35; }
+    .la-mobile .cup-follow .cup-bracket-match { padding:3px 8px; }
+    .la-mobile .cup-follow .cup-bracket-match > div { min-height:25px; font-size:13px; }
+    .la-mobile .cup-follow .cup-match-stage { padding:2px 0; font-size:10px; }
+    .la-mobile .cup-follow .cup-round > .cup-note { margin:0; font-size:11px; line-height:1.35; }
 }
