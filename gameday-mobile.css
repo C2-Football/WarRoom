@@ -229,11 +229,16 @@
 .gd-review-switch > button[aria-pressed=true] { color:var(--white,#f5f2ea); background:var(--ov-6,rgba(183,206,255,.16)); }
 .gd-review-status { margin:8px 0; color:var(--silver,#9aa0a6); font-size:11px; line-height:1.4; }
 .gd-review-status.is-stale { color:var(--warn,#f0a500); }
-.gd-matchup-review .gd-position-value > small { display:block; color:var(--silver,#9aa0a6); font-size:9px; white-space:nowrap; }
-.gd-review-player-points { display:grid; justify-items:end; gap:1px; min-width:0; font-variant-numeric:tabular-nums; }
-.gd-review-player-points > strong { font-size:14px; white-space:nowrap; }
-.gd-review-player-points > small { color:var(--silver,#9aa0a6); font-size:10px; text-align:right; }
-.gd-review-player-points em { display:block; font-style:normal; }
+.gd-position-row.is-actual .gd-position-value { display:flex; align-items:baseline; justify-content:flex-end; gap:8px; font-size:14px; white-space:nowrap; }
+.gd-matchup-review .gd-position-value > small { color:var(--silver,#9aa0a6); font-size:14px; white-space:nowrap; }
+.gd-review-player-points { display:grid; grid-template-columns:repeat(2,max-content); align-items:end; justify-content:end; gap:2px 12px; min-width:0; font-variant-numeric:tabular-nums; }
+.gd-review-player-points > strong::before { content:"Actual"; display:block; color:var(--silver,#9aa0a6); font:400 11px/1.4 var(--font-body,sans-serif); }
+.gd-matchup[data-score-view="projection"] .gd-review-player-points { grid-template-columns:auto; }
+.gd-matchup[data-score-view="projection"] .gd-review-player-points > strong::before { content:none; }
+.gd-review-player-points > strong,.gd-review-player-points > small > strong { display:block; font-size:16px; font-weight:700; line-height:1.4; white-space:nowrap; }
+.gd-review-player-points > small { color:var(--silver,#9aa0a6); font-size:11px; line-height:1.4; text-align:right; }
+.gd-review-player-points > small > strong { color:var(--white,#f5f2ea); }
+.gd-review-player-points > em { grid-column:1/-1; font-size:12px; line-height:1.4; font-style:normal; text-align:right; }
 .gd-review-player-points.is-strong > strong,.gd-review-player-points.is-strong em { color:var(--good,#2ecc71)!important; }
 .gd-review-player-points.is-quiet > strong,.gd-review-player-points.is-quiet em { color:var(--bad,#e74c3c)!important; }
 .gd-review-player-points.is-typical > strong,.gd-review-player-points.is-typical em { color:var(--gold,#d4af37)!important; }
@@ -349,16 +354,35 @@
 .gd-player-initial.gd-pos-te { --gd-position-ink:#ffd173; --gd-position-fill:rgba(240,165,0,.18); }
 .gd-player-initial.gd-pos-k { --gd-position-ink:#d4b4ee; --gd-position-fill:rgba(155,89,182,.18); }
 .gd-player-initial.gd-pos-def,.gd-player-initial.gd-pos-dst { --gd-position-ink:#c4d0d9; --gd-position-fill:rgba(133,146,158,.18); }
-.gd-matchup-review .gd-review-player-points { flex-shrink:0; min-width:78px; }
+.gd-matchup-review .gd-review-player-points { flex-shrink:0; min-width:112px; }
+.gd-matchup[data-score-view="actual"] .gd-position-row { grid-template-columns:42px 84px minmax(24px,1fr) 84px 84px 16px; }
+.gd-matchup[data-score-view="actual"] .gd-matchup-totals > span:not(.gd-matchup-versus) { display:grid; grid-template-columns:auto auto; align-items:baseline; gap:2px 10px; }
+.gd-matchup[data-score-view="actual"] .gd-matchup-totals > span > small:nth-child(2) { grid-column:1/-1; grid-row:2; }
+.gd-matchup[data-score-view="actual"] .gd-matchup-totals > span > small:nth-child(3) { grid-column:2; grid-row:1; font-size:16px; white-space:nowrap; }
 @media(max-width:767px) {
   .gd-review-navigation { align-items:end; }
   .gd-review-navigation > label { flex:1; flex-direction:column; align-items:stretch; gap:3px; font-size:10px; }
   .gd-review-navigation select { width:100%; max-width:none; font-size:16px; }
   .gd-review-navigation button { white-space:nowrap; font-size:11px; }
   .gd-matchup-review .gd-position-row { grid-template-columns:28px 40px minmax(12px,1fr) 40px 68px 12px; gap:4px; }
-  .wr-mission-control .gd-matchup-review.gd-matchup-compact .gd-position-players .gd-matchup-player { grid-template-columns:48px minmax(0,1fr) 84px; gap:5px; }
+  .gd-matchup[data-score-view="actual"] .gd-position-row { grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 12px; grid-template-areas:'slot mine theirs toggle' 'slot bars edge toggle'; gap:5px 6px; }
+  .gd-position-row.is-actual > strong { grid-area:slot; }
+  .gd-position-row.is-actual > .gd-position-value:nth-child(2) { grid-area:mine; }
+  .gd-position-row.is-actual > .gd-position-value:nth-child(4) { grid-area:theirs; }
+  .gd-position-row.is-actual > .gd-position-bars { grid-area:bars; }
+  .gd-position-row.is-actual > .gd-matchup-edge { grid-area:edge; justify-self:end; }
+  .gd-position-row.is-actual > .gd-position-chevron { grid-area:toggle; }
+  .wr-mission-control .gd-matchup-review.gd-matchup-compact .gd-position-players .gd-matchup-player { grid-template-columns:minmax(0,1fr) auto; gap:2px 10px; }
+  .wr-mission-control .gd-matchup-review.gd-matchup-compact .gd-position-players .gd-matchup-player > small { grid-column:1/-1; display:flex; gap:6px; font-size:11px; }
+  .gd-matchup-review .gd-matchup-player > small > em { display:inline; font-size:11px; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-totals { display:grid; gap:6px; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-totals > span:not(.gd-matchup-versus) { grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:left; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-totals > span > strong { grid-column:2; grid-row:1; font-size:24px; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-totals > span > small:nth-child(2) { grid-column:1; grid-row:1; font-size:14px; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-totals > span > small:nth-child(3) { grid-column:3; grid-row:1; font-size:15px; }
+  .gd-matchup[data-score-view="actual"] .gd-matchup-versus { display:none; }
   .gd-matchup-review .gd-matchup-totals small { font-size:10px; }
-  .gd-matchup-review .gd-review-player-points > small { font-size:9px; line-height:1.35; }
+  .gd-matchup-review .gd-review-player-points > small { font-size:11px; line-height:1.4; }
 }
 .gd-mobile .gd-player-initial[class*="gd-pos-"],.gd-mobile-sheet .gd-player-initial[class*="gd-pos-"] { color:var(--gd-position-ink,var(--cx-accent,#b7ceff))!important; background:var(--gd-position-fill,rgba(183,206,255,.12))!important; border:1px solid currentColor!important; }
 
