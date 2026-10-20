@@ -1,0 +1,74 @@
+{
+  "base": "edd93b872df9bac178f17b235caf103436214f29",
+  "candidate": {
+    ".github/workflows/deploy-functions.yml": "f788d69324d367b2747f885a7d9a46878d969708f35b3ba5a6a526d176abc473",
+    "index.html": "9ffc57834bcb78ea88215852d90ff91ea5242de419ee7f0c3bfd7d7805e72562",
+    "js/components/woeppel-cup-panel.js": "f215005c438bb82c987ee8d5a7bac68d9be9744ae47d05c214a80fe3ae192582",
+    "js/shared/woeppel-cup.js": "a43d6776345ce3fae3b324b44e9d83fa82a381c1ee5818e427b69994915d9237",
+    "package-lock.json": "723e5b8ffb57d8b7ec856d1f378c0ab80d71ac9e879594f49f9056c0ddc51746",
+    "package.json": "ffd454df64c4868f787813c2add7c38963e9be5f87e0974ccabb1ebe1f137de2",
+    "scripts/c2-edge-release.py": "7c79a8cb9a2f80edceb4bdb12df85435bbf78f2ac24332116214c1c82bc02c44",
+    "scripts/extract-edge-source.mjs": "0af89184e8947b14fa5f663b2f01d25466ecc0f3217b95d7cbc46322c065a15f",
+    "supabase/config.toml": "5fb49fc2041b9fa6ebffdcdf4816a2de156a8082a72c23d5bc576bb8f1d91905",
+    "supabase/functions/_shared/security.ts": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+    "supabase/functions/league-cup/index.ts": "e899183d766f782f47e0e15ca7d0e06056da9e656e2ea64f29b101fc4d578b30",
+    "supabase/migrations/20260317000000_app_users_and_subscriptions.sql": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789",
+    "supabase/migrations/20260502020000_security_baseline.sql": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb",
+    "supabase/migrations/20260907000000_league_cups.sql": "77841bcd338cdd9930d8ed36d140e258c73dd46e9c33d79cff99b60d5ba48bd0",
+    "supabase/migrations/20260907010000_cup_honours.sql": "5ed6b3b65e9c6b4dd1d120323d89905d0512047fcde781d305c2940f1f741e5e",
+    "supabase/migrations/20260909000000_security_audit_fixes.sql": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0",
+    "supabase/migrations/20260918020000_account_session_rls.sql": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a",
+    "tests/cup-double-elimination.cjs": "9a67008593cdecf402b901c3a0d87cdb8d0b213b2a97a8251800ce2392ddc02f",
+    "tests/cup-formats.js": "52cbf27e8f3f097def568a48ff13d764ae5f26077829fadd256d92dd71a50d27",
+    "tests/cup-group-stage.cjs": "57d491a332065767041dc8ac0ce0b91fde10425a64b0a1dfbb55e567731ecabe",
+    "tests/cup-panel.cjs": "a2430349778a318c6463931557cd1859685e8c943611ebd952c6d8d672793e82",
+    "tests/cup-service-transitions.cjs": "c6df6d3e3fc4bb6e2a3ca02a44b0d5a0b74a8ed943af028b164684469df067f1",
+    "tests/cup-service.js": "7ceeed0bf6630af859c087d7afb539cc069daca40a9574e35a86d34fefb834d8",
+    "woeppel-cup.css": "da647bb99ebd50009c57e8bea04e6e1ff197674ae68f365bbf55257342db62c6"
+  },
+  "databaseSchemaSha256": "6d88e8c6da596c1d2d45913c8e2111a798a1156bf0c16c5a9f2d997e4b329d88",
+  "functions": [
+    "league-cup"
+  ],
+  "generated": {},
+  "hosted": {
+    "league-cup": {
+      "sources": {
+        "js/shared/woeppel-cup.js": "eb7b74574f8d4a31bf42127b53f8d301f072ef5d16b1c497e987577e55d76ae1",
+        "supabase/functions/_shared/security.ts": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "supabase/functions/league-cup/index.ts": "d20869696ebafd5737d5f3e3ee92fdf4bf07917816804b749466b1ab20bd5928"
+      },
+      "verify_jwt": false,
+      "version": 52
+    }
+  },
+  "project": "sxshiqyxhhifvtfqawbq",
+  "repository": "C2-Football/WarRoom",
+  "requiredMigrations": {
+    "20260317000000": {
+      "path": "supabase/migrations/20260317000000_app_users_and_subscriptions.sql",
+      "sha256": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789"
+    },
+    "20260502020000": {
+      "path": "supabase/migrations/20260502020000_security_baseline.sql",
+      "sha256": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb"
+    },
+    "20260907000000": {
+      "path": "supabase/migrations/20260907000000_league_cups.sql",
+      "sha256": "77841bcd338cdd9930d8ed36d140e258c73dd46e9c33d79cff99b60d5ba48bd0"
+    },
+    "20260907010000": {
+      "path": "supabase/migrations/20260907010000_cup_honours.sql",
+      "sha256": "5ed6b3b65e9c6b4dd1d120323d89905d0512047fcde781d305c2940f1f741e5e"
+    },
+    "20260909000000": {
+      "path": "supabase/migrations/20260909000000_security_audit_fixes.sql",
+      "sha256": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0"
+    },
+    "20260918020000": {
+      "path": "supabase/migrations/20260918020000_account_session_rls.sql",
+      "sha256": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a"
+    }
+  },
+  "schema": 1
+}
