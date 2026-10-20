@@ -73,4 +73,53 @@ walk(coverageRows[1]).find(n=>n.type==='button'&&/Find\s+WR\s+help/.test(text(n)
 ctx.rosterRead={...coverageRead,known:false};tree=ctx.renderMissionCoverage();
 const unknownRooms=walk(tree).filter(n=>n.type==='details'&&n.props.className==='mc-coverage-row');
 assert(unknownRooms.every(row=>row.props['data-status']==='unknown'&&/Unknown/.test(text(walk(row).find(n=>n.type==='summary')))),'Incomplete roster evidence never becomes a covered or open-slot claim');
-console.log('PASS Mission Control waivers: legal plan handoff, measured horizons, signed tradeoffs, unavailable bids, contextual Alex and account-isolated feedback');
+// Expanded phone evidence is a separate compact readout, not the desktop's
+// duplicated recommendation board. It must preserve history provenance and
+// distinguish an actual zero from missing budget or transaction evidence.
+const flatText=node=>text(node).replace(/\s+/g,' ').trim();
+const evidenceRows=[{pos:'WR',owned:[],actual:0,required:0,fillsStarter:true},{pos:'DEF',owned:[],actual:0,required:1,fillsStarter:true}];
+const evidenceLeague={...league,settings:{waiver_budget:100,waiver_budget_min:0}};
+const completeBid=(id,pid,bid)=>({transaction_id:id,league_id:'league-a',type:'waiver',status:'complete',adds:{[pid]:2},settings:{waiver_bid:bid}});
+const zeroBids=Array.from({length:5},(_,i)=>completeBid('zero-'+i,'target',0));
+Object.assign(ctx,{currentLeague:evidenceLeague,hasFAAB:true,myRoster:{settings:{waiver_budget_used:100}},playersData:{target:target.p,defense:{position:'DEF'}},rosterRead:coverageRead,rosterGapRows:evidenceRows,isPro:true,bidHistory:{leagueId:'league-a',txns:zeroBids},posColors:{WR:'blue',DEF:'gray'}});
+window.WrTxns={fetchLeagueTxns:()=>Promise.resolve([])};
+tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/\$\s*0/,'A spent budget retains an actual zero balance');
+assert.match(flatText(tree),/\$\s*100/,'The configured total remains visible');
+assert.match(flatText(tree),/(?:min(?:imum)?[^$]*\$\s*0)|(?:\$\s*0[^.]*min(?:imum)?)/i,'A zero-dollar league minimum is not treated as absent');
+assert.match(flatText(tree),/\$\s*0\s*[–-]\s*\$\s*0/,'Five real zero-dollar completed bids yield a real historical zero range');
+assert.match(flatText(tree),/\$\s*0\s+median/i);assert.match(flatText(tree),/5\s+completed\s+bids/);
+assert.match(flatText(tree),/historical|completed winning bids/i,'A descriptive sample is labeled as history');
+const link=(label)=>walk(tree).find(n=>n.type==='button'&&flatText(n).includes(label));
+link('League transactions').props.onClick();assert.equal(section,'market-review');
+link('Browse players').props.onClick();assert.equal(section,'market');
+ctx.bidHistory={leagueId:'league-a',txns:[...zeroBids.slice(0,4),completeBid('pending','target',90)]};ctx.bidHistory.txns[4].status='pending';
+tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/4\s+completed\s+bids.*No range yet|No range yet.*4\s+completed\s+bids/i,'Fewer than five complete samples never produces a range');
+assert(!walk(tree).some(n=>n.props.className==='mc-coverage-bid-median'));
+ctx.bidHistory={leagueId:'league-a',txns:Array.from({length:5},(_,i)=>completeBid('def-'+i,'defense',i))};tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/DEF.*5\s+completed\s+bids/s,'Defense history retains its explicit provider position');
+ctx.myRoster={settings:{}};ctx.bidHistory={leagueId:'league-a',txns:[]};tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/budget[^.]*unavailable|budget[^.]*unknown|unknown[^.]*budget/i,'Missing spent data leaves remaining budget unknown');
+assert.match(flatText(tree),/0\s+completed\s+bids.*No range yet|No range yet.*0\s+completed\s+bids/i,'An empty loaded history is not a failed or loading history');
+for(const invalidSpent of [null,'',-1]) {
+    ctx.myRoster={settings:{waiver_budget_used:invalidSpent}};tree=ctx.renderMissionCoverageDetails();
+    assert.match(flatText(walk(tree).find(n=>n.props.className==='mc-coverage-budget')),/Unavailable/,'Missing or invalid spending never implies a full untouched budget');
+}
+for(const invalidBudget of [null,'',-10]) {
+    ctx.currentLeague={...evidenceLeague,settings:{...evidenceLeague.settings,waiver_budget:invalidBudget}};ctx.myRoster={settings:{waiver_budget_used:0}};tree=ctx.renderMissionCoverageDetails();
+    assert.match(flatText(walk(tree).find(n=>n.props.className==='mc-coverage-budget')),/Unavailable.*Total unknown/,'Missing or invalid configured budget never fabricates a zero total');
+    assert(!walk(tree).some(n=>n.props.className==='mc-coverage-bid-row'),'Historical ranges require a known valid budget');
+}
+ctx.currentLeague=evidenceLeague;
+ctx.myRoster={settings:{waiver_budget_used:0}};ctx.bidHistory=null;tree=ctx.renderMissionCoverageDetails();assert.match(flatText(tree),/loading/i);
+ctx.bidHistory={leagueId:'league-b',txns:zeroBids};tree=ctx.renderMissionCoverageDetails();assert.match(flatText(tree),/loading/i);assert.doesNotMatch(flatText(tree),/5\s+completed\s+bids|median/i,'Another league’s completed bids cannot flash in this league');
+ctx.bidHistory={leagueId:'league-a',txns:zeroBids,error:true};tree=ctx.renderMissionCoverageDetails();assert.match(flatText(tree),/could not load|failed|unavailable/i);assert.doesNotMatch(flatText(tree),/5\s+completed\s+bids|median/i,'A failed refresh does not masquerade as current completed history');
+delete window.WrTxns;ctx.bidHistory=null;tree=ctx.renderMissionCoverageDetails();assert.match(flatText(tree),/unavailable/i);assert.doesNotMatch(flatText(tree),/loading/i,'Missing transaction capability does not show a permanent loading state');
+window.WrTxns={fetchLeagueTxns:()=>Promise.resolve([])};ctx.bidHistory={leagueId:'league-a',txns:zeroBids};ctx.isPro=false;tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/\$\s*100/,'Raw personal budget remains available without Pro');assert.equal(walk(tree).find(n=>n.props.className==='mc-coverage-bids').props['data-status'],'locked');assert.match(flatText(tree),/Pro/);assert.doesNotMatch(flatText(tree),/5\s+completed\s+bids|median/i,'Free coverage does not reveal gated bid intelligence');
+ctx.isPro=true;ctx.hasFAAB=false;ctx.currentLeague={...league,settings:{waiver_budget:0}};tree=ctx.renderMissionCoverageDetails();
+assert.match(flatText(tree),/priority/i);assert.doesNotMatch(flatText(tree),/5\s+completed\s+bids|median|completed winning bids/i,'Priority waivers do not display a FAAB history table');
+let oldBoardCalls=0;Object.assign(ctx,{_faPhone:true,renderActionHQ:()=>{oldBoardCalls++;return h('aside',{},'Legacy desktop board');}});ctx.renderMissionCoverage();assert.equal(oldBoardCalls,0,'Phone coverage does not embed the duplicate desktop board');
+ctx._faPhone=false;ctx.renderMissionCoverage();assert.equal(oldBoardCalls,1,'The desktop evidence surface keeps its existing board');
+console.log('PASS Mission Control waivers: legal plan handoff, measured horizons, contextual Alex, FLEX coverage, scoped bid-history states, zero/missing budgets and Pro boundaries');

@@ -118,3 +118,26 @@
 }
 .mc-waiver-claims .mc-claim-notice{margin:8px 0;padding:8px 10px;border-left:3px solid var(--cx-accent,var(--gold));background:var(--ov-3,rgba(255,255,255,.05));font-size:12px;line-height:1.5}
 .mc-waiver-coverage .mc-coverage-position{color:var(--coverage-pos,var(--cx-accent,var(--gold)))!important;background:rgba(183,206,255,.06)}
+
+/* Mobile coverage evidence: one budget, one history list, no nested dashboard. */
+.mc-coverage-evidence{display:grid;gap:14px;padding:0 0 4px}
+.mc-coverage-evidence h3{margin:0;font-size:14px;line-height:1.4}
+.mc-coverage-evidence p{margin:5px 0 0;color:var(--silver);font-size:12px;line-height:1.5}
+.mc-coverage-budget{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--gx-edge,rgba(183,206,255,.2));border-radius:10px;background:rgba(183,206,255,.06)}
+.mc-coverage-budget>div{display:grid;gap:4px;min-width:0}
+.mc-coverage-budget>div+div{text-align:right}
+.mc-coverage-budget strong{font-size:19px;line-height:1.2;color:var(--cx-accent,var(--gold))!important}
+.mc-coverage-budget small{font-size:11px;color:var(--silver);line-height:1.4}
+.mc-coverage-budget span{font-size:12px;line-height:1.4}
+.mc-coverage-bid-rows{margin-top:6px;border-top:1px solid var(--gx-edge,rgba(183,206,255,.2))}
+.mc-coverage-bid-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:56px;border-bottom:1px solid var(--gx-edge,rgba(183,206,255,.2))}
+.mc-coverage-bid-row .mc-coverage-position{min-height:30px;font-size:11px}
+.mc-coverage-bid-row>div{display:grid;gap:3px;padding:6px 0;min-width:0}
+.mc-coverage-bid-row b{font-size:14px;line-height:1.3;font-variant-numeric:tabular-nums}
+.mc-coverage-bid-row small{color:var(--silver);font-size:11px;line-height:1.3}
+.mc-coverage-bid-median{text-align:right}
+.mc-coverage-evidence .mc-coverage-bid-caption,.mc-coverage-evidence .mc-coverage-bid-note{font-size:11px}
+.mc-coverage-counting{border-left:2px solid var(--cx-accent,var(--gold));padding-left:10px}
+.mc-coverage-evidence-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.mc-coverage-evidence-actions>button{min-height:44px;padding:6px!important;font-size:11px!important;line-height:1.4;white-space:normal}
+.mc-coverage-method>summary:focus-visible{outline:2px solid var(--cx-accent,var(--gold));outline-offset:-2px}

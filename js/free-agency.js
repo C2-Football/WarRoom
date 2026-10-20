@@ -1704,6 +1704,33 @@
                 <details className="mc-board-method"><summary>How this board works</summary><p>Each move compares a legal add/drop against your best lineup, protecting marked players and roster coverage. Projections vary with role and game script. Gains are separate alternatives and cannot be added together. Season scoring is a fixed-roster estimate; dynasty value is not a scoring forecast. League bid ranges describe completed transactions. Player locks and claims are confirmed on your league platform.</p></details>
             </section>;
         }
+        function renderMissionCoverageDetails() {
+            const rawBudget = currentLeague?.settings?.waiver_budget;
+            const rawSpent = myRoster?.settings?.waiver_budget_used;
+            const knownBudget = rawBudget != null && rawBudget !== '' && Number.isFinite(Number(rawBudget)) && Number(rawBudget) >= 0;
+            const knownSpent = rawSpent != null && rawSpent !== '' && Number.isFinite(Number(rawSpent)) && Number(rawSpent) >= 0;
+            const usesBids = hasFAAB || (knownBudget && Number(rawBudget) > 0);
+            const history = bidHistory?.leagueId === acquisitionLeagueId ? bidHistory : null;
+            const historyStatus = history ? history.error ? 'error' : 'ready' : window.WrTxns?.fetchLeagueTxns ? 'loading' : 'unavailable';
+            const budgetRead = waiverBidEvidence([], currentLeague, myRoster, playersData, '');
+            const balance = knownBudget && knownSpent ? budgetRead.remaining : null;
+            const rawMin = currentLeague?.settings?.waiver_budget_min;
+            const minimum = rawMin != null && rawMin !== '' ? budgetRead.minBid : null;
+            const positions = [...new Set(rosterGapRows.map(row => row.pos))];
+            return <div className="mc-coverage-evidence">
+                <section className="mc-coverage-budget" aria-label="Waiver budget">
+                    {usesBids ? <><div><small>Your budget</small><strong>{balance == null ? 'Unavailable' : '$' + balance + ' left'}</strong></div><div><span>{knownBudget ? '$' + Number(rawBudget) + ' total' : 'Total unknown'}</span><small>{minimum == null ? 'Minimum unknown' : '$' + minimum + ' minimum'}</small></div></> : <div><small>Waiver system</small><strong>{knownBudget ? 'Priority waivers' : 'Settings unavailable'}</strong><span>{knownBudget ? 'No FAAB bids in this league.' : 'Check your league platform for waiver rules.'}</span></div>}
+                </section>
+                {usesBids && <section className="mc-coverage-bids" aria-label="Completed winning bids" data-status={isPro ? historyStatus : 'locked'}><h3>Completed winning bids</h3>
+                    {!isPro ? <p>Position bid history is included with Pro.</p> : historyStatus === 'loading' ? <p role="status">Loading league bid history…</p> : historyStatus === 'error' ? <p role="status">Bid history could not load. Review league transactions for the latest bids.</p> : historyStatus === 'unavailable' || !knownBudget ? <p>Bid history is unavailable. Review transactions on your league platform.</p> : <><p className="mc-coverage-bid-caption">Middle 50% by position · this league</p><div className="mc-coverage-bid-rows">{positions.map(pos => {
+                        const evidence = waiverBidEvidence(history.txns, currentLeague, myRoster, playersData, pos);
+                        return <div key={pos} className="mc-coverage-bid-row" data-status={evidence.low == null ? 'insufficient' : 'ready'}><strong className="mc-coverage-position" style={{ '--coverage-pos': posColors[pos] || 'var(--silver)' }}>{pos}</strong><div><b>{evidence.low == null ? 'No range yet' : '$' + evidence.low + '–$' + evidence.high}</b><small>{evidence.sampleSize} completed {evidence.sampleSize === 1 ? 'bid' : 'bids'}{evidence.low == null ? ' · 5 needed' : ''}</small></div>{evidence.median != null && <div className="mc-coverage-bid-median"><b>${evidence.median}</b><small>median</small></div>}</div>;
+                    })}</div><p className="mc-coverage-bid-note">Past winning bids, not a recommended price.</p></>}
+                </section>}
+                <div className="mc-coverage-counting"><h3>What counts as ready?</h3><p>Unavailable players, reserve and taxi are excluded. Eligible FLEX players count toward starting-slot coverage.</p></div>
+                <div className="mc-coverage-evidence-actions"><button type="button" onClick={() => setFaSection('market')}>Browse players</button><button type="button" onClick={() => window.wrNavigateTab?.('market-review')}>League transactions →</button></div>
+            </div>;
+        }
         function renderMissionCoverage() {
             const rows = [...rosterGapRows].sort((a, b) => Number(b.fillsStarter) - Number(a.fillsStarter));
             return <section className="mc-waiver-coverage"><header><h2>Roster coverage</h2><b>{rosterRead.known ? rosterRead.coverage + ' / ' + rosterRead.total : '—'} filled</b></header>
@@ -1711,7 +1738,7 @@
                     <summary><strong className="mc-coverage-position" style={{ '--coverage-pos': posColors[row.pos] || 'var(--silver)' }}>{row.pos}</strong><span className="mc-coverage-count">{rosterRead.known ? row.actual + ' ready' : 'Ready count unknown'}<small>{rosterRead.known ? row.owned.length + ' owned' : 'Roster unavailable'}</small></span><b className="mc-coverage-status">{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b><span className="mc-coverage-toggle" aria-hidden="true">+</span></summary>
                     <div className="mc-coverage-detail"><p>{rosterRead.known ? row.owned.map(player => player.name).join(' · ') || 'No players owned' : 'Roster information unavailable'}</p><small>{row.required} dedicated {row.required === 1 ? 'slot' : 'slots'} · FLEX eligibility included in coverage</small><button type="button" onClick={() => { setFaFilter(row.pos); setFaSection('market'); }}>Find {row.pos} help →</button></div>
                 </details>)}</div>
-                <details className="mc-coverage-method"><summary>Coverage &amp; bid details</summary><p>Ready counts exclude unavailable players, reserve and taxi. Starting-slot coverage includes eligible FLEX options.</p>{renderActionHQ(true)}</details>
+                <details className="mc-coverage-method"><summary>Coverage &amp; bid details</summary>{_faPhone ? renderMissionCoverageDetails() : <><p>Ready counts exclude unavailable players, reserve and taxi. Starting-slot coverage includes eligible FLEX options.</p>{renderActionHQ(true)}</>}</details>
             </section>;
         }
         function renderMissionTabs() {
