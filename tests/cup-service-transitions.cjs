@@ -123,5 +123,74 @@ module.exports = async function cupServiceTransitions({ Cup, code, rosters }) {
             assert.equal((await service.call(unusedReset, revision)).status, 400, 'An unused reset cannot be finalized');
         }
     }
-    console.log('Cup service transitions: started edits, retained score evidence, actual revision CAS, double-elimination participants and reset finals passed');
+    // A grouped draw is shared state, not a per-browser preview. Exercise the
+    // real endpoint through qualification and both knockout styles, then reload
+    // the confirmed revision and compare the full assignment and score history.
+    for (const { knockoutStyle, forceReset } of [{ knockoutStyle: 'single', forceReset: false }, { knockoutStyle: 'double', forceReset: false }, { knockoutStyle: 'double', forceReset: true }]) {
+        const service = harness();
+        let state = { ...T.configure({ rosters: rosters.slice(0, 8), settings: { playoff_week_start: 15 } }, 'groups'),
+            name: 'Shared grouped Cup', enabled: true, locked: true,
+            teams: ['1', '2', '3', '4', '5', '6', '7', '8'], groups: { A: ['1', '2', '3', '4'], B: ['5', '6', '7', '8'] },
+            groupCount: 2, qualifiersPerGroup: 2, qualifierCount: 4, knockoutStyle,
+            startWeek: 1, groupWeeks: 3, knockoutStart: 4, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} };
+        let revision = 0, resetForced = false;
+        reply = await service.call(state, revision++);
+        assert.equal(reply.status, 200, JSON.stringify(reply.body));
+        let loaded = await service.call(null, 0, 'load');
+        assert.equal(loaded.body.cup.revision, revision);
+        assert.deepEqual(loaded.body.cup.state.groups, state.groups, 'Reload restores the shared group draw');
+        assert.equal(loaded.body.cup.state.knockoutStyle, knockoutStyle);
+        for (let week = 1; week <= 3; week++) {
+            const scores = Object.fromEntries(state.teams.map(id => [id, week === 1 && id === '1' ? 0 : week === 1 && id === '2' ? -2 : Number(id) * 10 + week]));
+            const missing = { ...scores }; delete missing['8'];
+            const before = service.stored;
+            assert.equal((await service.call({ ...state, weeks: { ...state.weeks, [week]: { scores: missing, final: true } } }, revision)).status, 400);
+            assert.deepEqual(service.stored, before, 'Rejected incomplete group finals consume no revision or state');
+            state = { ...state, weeks: { ...state.weeks, [week]: { scores, final: true } } };
+            reply = await service.call(state, revision++);
+            assert.equal(reply.status, 200, JSON.stringify(reply.body));
+        }
+        assert.equal(service.stored.state.weeks[1].scores['1'], 0, 'Authoritative zero survives persistence');
+        assert.equal(service.stored.state.weeks[1].scores['2'], -2, 'Negative points survive persistence');
+        assert.equal(T.qualifiers(state).length, 4);
+        for (const [group, ids] of Object.entries(state.groups)) {
+            assert.equal(T.qualifiers(state).filter(row => ids.includes(row.id)).length, 2, 'Qualification takes the configured count from ' + group);
+        }
+        for (const week of T.schedule(state).filter(w => w >= state.knockoutStart)) {
+            let ids;
+            try { ids = T.requiredScoreIds(state, week); } catch { break; }
+            const matches = T.knockout(state).flat().filter(match => match.week === week && match.a && match.b);
+            assert.deepEqual([...ids].sort(), matches.flatMap(match => [match.a, match.b]).sort(), 'Grouped knockout only requires current contested participants');
+            const scores = Object.fromEntries(ids.map(id => [id, Number(id) * 10]));
+            const final = matches.find(match => match.bracket === 'final');
+            if (forceReset && final) {
+                scores[final.a] = -2; scores[final.b] = 0;
+                resetForced = true;
+            }
+            for (const missingId of ids) {
+                const incomplete = { ...scores }; delete incomplete[missingId];
+                assert.equal((await service.call({ ...state, weeks: { ...state.weeks, [week]: { scores: incomplete, final: true } } }, revision)).status, 400, 'Missing active grouped knockout score is rejected');
+            }
+            state = { ...state, weeks: { ...state.weeks, [week]: { scores, final: true } } };
+            reply = await service.call(state, revision++);
+            assert.equal(reply.status, 200, JSON.stringify(reply.body));
+        }
+        const result = T.result(state);
+        assert(result?.champion, 'A complete group stage + ' + knockoutStyle + ' result is accepted');
+        if (forceReset) {
+            assert(resetForced, 'The grouped lower finalist can force a reset');
+            assert.equal(result.week, T.schedule(state).at(-1), 'The grouped reset final is accepted in the reserved week');
+        }
+        loaded = await service.call(null, 0, 'load');
+        assert.equal(loaded.status, 200);
+        assert.equal(loaded.body.cup.revision, revision);
+        assert.deepEqual(loaded.body.cup.state, state, 'Save/reload preserves completed grouped scores, assignments and knockout style');
+        const beforeConflict = service.stored;
+        assert.equal((await service.call({ ...state, name: 'Stale grouped edit' }, revision - 1)).status, 409);
+        assert.deepEqual(service.stored, beforeConflict);
+        const malformed = { ...state, groups: { ...state.groups, B: ['1', '6', '7', '8'] } };
+        assert.equal((await service.call(malformed, revision)).status, 400, 'A duplicate assignment cannot overwrite a completed Cup');
+        assert.deepEqual(service.stored, beforeConflict);
+    }
+    console.log('Cup service transitions: started edits, retained evidence, actual revision CAS, grouped save/reload, single/double participants and reset finals passed');
 };

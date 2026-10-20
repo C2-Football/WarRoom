@@ -12,10 +12,15 @@ const call=async(s=state,revision=0,action='save')=>{const r=await handler(new R
 const qualifying=format=>({...state,format,startWeek:1,groupWeeks:format==='round-robin'?5:2,knockoutStart:format==='round-robin'?6:3});
 const direct=n=>({...state,format:'knockout',teams:rosters.slice(0,n).map(r=>String(r.roster_id)),startWeek:1,knockoutStart:1,groupWeeks:0,qualifierCount:n});
 const survivor={...state,format:'survivor',startWeek:1,knockoutStart:1,groupWeeks:3,qualifierCount:1};
+const grouped=(knockoutStyle='single')=>({...state,format:'groups',teams:rosters.slice(0,8).map(r=>String(r.roster_id)),groups:{A:['1','2','3','4'],B:['5','6','7','8']},groupCount:2,qualifiersPerGroup:2,qualifierCount:4,knockoutStyle,startWeek:1,groupWeeks:3,knockoutStart:4,weeks:{}});
 const scores=Object.fromEntries(state.teams.map(id=>[id,10]));
 (async()=>{
  for(const format of ['points','round-robin','all-play','median']){const result=await call(qualifying(format));assert.equal(result.status,200,format+': '+JSON.stringify(result.body));}
  for(const n of [2,3,5,12,64]){const result=await call(direct(n));assert.equal(result.status,200,'knockout '+n+': '+JSON.stringify(result.body));}
+ for(const style of ['single','double']){const result=await call(grouped(style));assert.equal(result.status,200,'group stage + '+style+': '+JSON.stringify(result.body));}
+ for(const late of [{...grouped(),startWeek:14,knockoutStart:17},{...grouped('double'),startWeek:11,knockoutStart:14}]){
+  const result=await call(late);assert.equal(result.status,200,'A grouped schedule may end in Week 18: '+JSON.stringify(result.body));
+ }
  assert.equal((await call(survivor)).status,200);
  assert.equal(record.state.name,'League Cup');
  owner=false;assert.equal((await call()).status,403);assert.equal((await call(state,0,'load')).body.canManage,false);owner=true;
@@ -39,6 +44,22 @@ const scores=Object.fromEntries(state.teams.map(id=>[id,10]));
   {...survivor,survivorRulings:{1:{ids:['1'],reason:''}}}, {...survivor,survivorRulings:{1:{ids:['1'],reason:'x'.repeat(1001)}}},
   {...survivor,seedRuling:{ids:['1'],reason:'Evidence'}}
  ]){const response=await call(invalid);assert.equal(response.status,400,'invalid state accepted: '+JSON.stringify(invalid)+' '+JSON.stringify(response.body));}
+ const groups=grouped();
+ for(const invalid of [
+  {...groups,groups:null}, {...groups,groups:[]}, {...groups,groups:{A:['1','2','3','4'],B:['4','6','7','8']}},
+  {...groups,groups:{A:['1','2','3','4'],B:['5','6','7','90']}}, {...groups,groups:{A:['1','2','3','4']}},
+  {...groups,groups:{...groups.groups,C:[]}}, {...groups,groups:{A:['1','2','3'],B:['5','6','7','8']}},
+  {...groups,groupCount:3}, {...groups,groupCount:'2'}, {...groups,qualifiersPerGroup:5}, {...groups,qualifierCount:2},
+  {...groups,knockoutStyle:'triple'}, {...groups,groupWeeks:2}, {...groups,groupWeeks:2.5}, {...groups,startWeek:0},
+  {...groups,knockoutStart:3}, {...groups,knockoutStart:18}, {...grouped('double'),knockoutStart:15},
+  {...groups,knockoutStart:5,weeks:{4:{scores:{},final:false}}},
+  {...groups,weeks:{0:{scores:{},final:false}}}, {...groups,weeks:{18:{scores:{},final:false}}},
+  {...groups,weeks:{1:{scores:{1:0,2:-2,3:30,4:40,5:50,6:60,7:70},final:true}}},
+  {...groups,weeks:{1:{scores:{1:'0'},final:false}}}, {...groups,weeks:{1:{scores:{90:10},final:false}}},
+  {...groups,weeks:{4:{scores:Object.fromEntries(groups.teams.map(id=>[id,10])),final:true}}}
+ ]){const response=await call(invalid);assert.equal(response.status,400,'invalid grouped state accepted: '+JSON.stringify(invalid)+' '+JSON.stringify(response.body));}
+ const tiedGroups={...groups,weeks:Object.fromEntries([1,2,3].map(week=>[week,{final:true,scores:Object.fromEntries(groups.teams.map(id=>[id,10]))}]))};
+ assert.equal((await call(tiedGroups)).status,200,'Finalized group ties can persist while awaiting a commissioner ruling');
  // A finalized qualifying or survival week may legitimately await a ruling.
  const tiedQualifying={...qualifying('all-play'),weeks:{1:{scores,final:true},2:{scores,final:true}}};
  assert.equal((await call(tiedQualifying)).status,200,'Unresolved qualifying tie must save');

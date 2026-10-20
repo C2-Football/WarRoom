@@ -48,7 +48,14 @@ Deno.serve(async req=>{
   if(state.locked&&ids.length!==12)return reply({error:'Twelve teams required'},400);
  }
  const rosterResponse=await fetch('https://api.sleeper.app/v1/league/'+leagueId+'/rosters');if(!rosterResponse.ok)throw Error('Roster verification unavailable');const rosters=await rosterResponse.json();if(!Array.isArray(rosters)||ids.some(id=>!rosters.some((r:Record<string,unknown>)=>String(r.roster_id)===id)))return reply({error:'Unknown roster'},400);
- const allowedWeeks=state.version===2?cupEngine.tournament.schedule(state):[6,7,8,9,10,11,15,16,17];
+ // Group assignments, qualifying cycles and single/double knockout dates are
+ // validated by the same imported engine used by the client. Persist scores
+ // only against its complete, bounded schedule, including a reserved reset.
+ let allowedWeeks:number[];
+ try{
+  allowedWeeks=state.version===2?cupEngine.tournament.schedule(state):[6,7,8,9,10,11,15,16,17];
+  if(!Array.isArray(allowedWeeks)||!allowedWeeks.length||allowedWeeks.some(week=>!Number.isInteger(week)||week<1||week>18)||new Set(allowedWeeks).size!==allowedWeeks.length)throw Error('Invalid tournament schedule.');
+ }catch(e){return reply({error:(e as Error).message},400);}
  const isRecord=(value:unknown):value is Record<string,any>=>!!value&&typeof value==='object'&&!Array.isArray(value);
  const validReason=(value:unknown)=>typeof value==='string'&&!!value.trim()&&value.length<=1000;
  if(!isRecord(state.weeks))return reply({error:'Invalid week scores'},400);

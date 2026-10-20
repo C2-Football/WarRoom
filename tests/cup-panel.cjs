@@ -10,6 +10,13 @@ const walk = node => node == null || typeof node === 'boolean' ? [] : Array.isAr
 const text = node => walk(node).filter(value => typeof value !== 'object').join('');
 const find = (tree, predicate) => walk(tree).find(node => typeof node === 'object' && predicate(node));
 const button = (tree, label) => find(tree, node => node.type === 'button' && text(node).startsWith(label));
+const control = (tree, label) => find(tree, node => ['input', 'select'].includes(node.type) && node.props['aria-label'] === label);
+const changeControl = async (app, label, value) => {
+    const target = control(app.tree, label);
+    assert(target && typeof target.props.onChange === 'function', 'Editable field exists: ' + label);
+    target.props.onChange({ target: { value: String(value) } });
+    return app.flush();
+};
 const writes = app => app.calls.filter(call => call.action !== 'load');
 const saveActions = tree => find(tree, node => node.props?.className?.split(' ').includes('cup-save-actions'));
 const assertSaveBlocked = (tree, reason) => {
@@ -19,7 +26,7 @@ const assertSaveBlocked = (tree, reason) => {
         assert(action.props.disabled, reason + ': ' + label + ' cannot save');
     }
 };
-function harness({ canManage = false, saved = null, deny = false, saveError = '', deferSaves = false, deferLoads = false, legacy = false } = {}) {
+function harness({ canManage = false, saved = null, deny = false, saveError = '', deferSaves = false, deferLoads = false, legacy = false, teamCount = 5 } = {}) {
     let slots = [], dependencies = [], pendingEffects = [], index = 0, dirty = true, tree;
     const calls = [], storage = new Map(), intervals = [];
     const config = { canManage, saved, deny, saveError, deferSaves, pendingSaves: [], deferLoads, pendingLoads: [], matchups: [] };
@@ -46,7 +53,7 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     } } };
     const context = { React, console, document: { visibilityState: 'visible' }, setInterval: fn => intervals.push(fn), clearInterval() {}, localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) }, window: { WoeppelCup: Cup, App: { OD: { getClient: () => client } }, location: { pathname: '/dist-preview/index.html' }, confirm: () => true, prompt: () => 'Verified league tiebreak evidence', fetchMatchups: async () => config.matchups } };
     vm.createContext(context); vm.runInContext(source, context);
-    const props = { league: legacy ? { ...league, rosters: Array.from({ length: 12 }, (_, i) => ({ roster_id: i + 1 })) } : league, getOwnerName: id => 'Team ' + id, myRoster: { roster_id: 1 } };
+    const props = { league: { ...league, rosters: Array.from({ length: legacy ? 12 : teamCount }, (_, i) => ({ roster_id: i + 1 })) }, getOwnerName: id => 'Team ' + id, myRoster: { roster_id: 1 } };
     const render = () => { index = 0; dirty = false; tree = (legacy ? context.LegacyWoeppelCupPanel : context.window.WoeppelCupPanel)(props); pendingEffects.splice(0).forEach(effect => effect()); return tree; };
     async function flush() { for (let i = 0; i < 12; i++) { if (dirty) render(); await new Promise(resolve => setImmediate(resolve)); if (!dirty && !pendingEffects.length) return tree; } throw Error('React mock did not settle'); }
     async function click(label) { const target = button(tree, label); assert(target, 'Button exists: ' + label); assert(!target.props.disabled, 'Button enabled: ' + label); target.props.onClick(); return flush(); }
@@ -183,6 +190,72 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     assert.equal(writes(draftApp).at(-1).state.enabled, true);
     assert(text(draftApp.tree).includes('Saved & locked'));
 
+    // The primary scheduling choice is the final, with earlier stages placed
+    // backwards for every format rather than a user having to calculate dates.
+    const startsForWeek12 = { points: 8, 'round-robin': 6, 'all-play': 8, median: 8, knockout: 10, survivor: 10, 'round-robin-double': 4, groups: 9 };
+    for (const format of Cup.tournament.formats) {
+        const app = harness({ canManage: true }); await app.flush(); await app.choose(format.id);
+        await changeControl(app, 'Championship week', 12);
+        assert.equal(control(app.tree, 'Championship week').props.value, 12, format.id + ' exposes the selected final week');
+        assert.equal(control(app.tree, 'First Cup week').props.value, startsForWeek12[format.id], format.id + ' displays the correct backwards-calculated first week');
+        assert(text(find(app.tree, node => node.props['aria-label'] === 'Tournament preview')).includes('Championship W12'), format.id + ' preview confirms the final');
+        await app.click('Save draft');
+        const plan = writes(app).at(-1).state;
+        assert.equal(plan.startWeek, startsForWeek12[format.id]);
+        assert.equal(Cup.tournament.championshipWeek(plan), 12, format.id + ' saves the selected championship');
+        assert.equal(Cup.tournament.schedule(plan).at(-1), format.id === 'round-robin-double' ? 13 : 12, format.id + ' reserves only the necessary reset week');
+        const remount = harness({ canManage: true, saved: structuredClone(plan) }); await remount.flush();
+        assert.equal(control(remount.tree, 'Championship week').props.value, 12, format.id + ' final survives a saved-draft remount');
+        assert.equal(control(remount.tree, 'First Cup week').props.value, startsForWeek12[format.id]);
+        assert.equal(writes(remount).length, 0, 'Restoring final-week settings never publishes a new revision');
+    }
+
+    const groupSetup = harness({ canManage: true, teamCount: 8 }); await groupSetup.flush(); await groupSetup.choose('groups');
+    await changeControl(groupSetup, 'Championship week', 12);
+    const initialDraw = find(groupSetup.tree, node => node.props['aria-label'] === 'Group draw');
+    assert(initialDraw && text(initialDraw).includes('Group A') && text(initialDraw).includes('Group B'), 'Group format previews actual named groups before saving');
+    for (let id = 1; id <= 8; id++) assert(text(initialDraw).includes('Team ' + id), 'The draw preview includes participating Team ' + id);
+    assert.equal(control(groupSetup.tree, 'Knockout style').props.value, 'single');
+    const styleOptions = walk(control(groupSetup.tree, 'Knockout style')).filter(node => node.type === 'option');
+    assert.deepEqual(styleOptions.map(node => node.props.value), ['single', 'double'], 'Groups expose both single and double elimination');
+    await changeControl(groupSetup, 'Number of groups', 4);
+    await changeControl(groupSetup, 'Qualifiers per group', 1);
+    assert.equal(control(groupSetup.tree, 'Championship week').props.value, 12, 'Changing groups and qualifiers retains the selected final');
+    await changeControl(groupSetup, 'Group for Team 1', 'B');
+    assert(button(groupSetup.tree, 'Save & lock Cup').props.disabled, 'An intermediate unbalanced draw cannot be locked');
+    assert(text(groupSetup.tree).includes('Keep groups balanced'), 'An invalid assignment explains the required correction');
+    await changeControl(groupSetup, 'Group for Team 2', 'A');
+    const changedDraw = find(groupSetup.tree, node => node.props['aria-label'] === 'Group draw');
+    assert(text(changedDraw).includes('Group ATeam 5 · Team 2') && text(changedDraw).includes('Group BTeam 6 · Team 1'), 'Draw preview follows the edited assignments instead of a generic format example');
+    await changeControl(groupSetup, 'Group-stage weeks', 2);
+    assert.equal(control(groupSetup.tree, 'Group-stage weeks').props.value, 2);
+    assert.equal(control(groupSetup.tree, 'Championship week').props.value, 12, 'An explicit group-stage duration still works backwards from the final');
+    await changeControl(groupSetup, 'Knockout style', 'double');
+    assert.equal(control(groupSetup.tree, 'Championship week').props.value, 12);
+    assert(text(groupSetup.tree).includes('Week 13 reserved for a reset'), 'Double elimination explains the possible extra week next to the championship choice');
+    const validStart = control(groupSetup.tree, 'First Cup week').props.value;
+    await changeControl(groupSetup, 'Championship week', 1);
+    assert.equal(control(groupSetup.tree, 'Championship week').props.value, 12, 'An impossible early final never replaces the valid schedule');
+    assert.equal(control(groupSetup.tree, 'First Cup week').props.value, validStart);
+    assert(text(groupSetup.tree).includes('does not fit before Week 1'), 'A championship that cannot fit gives useful feedback');
+    await groupSetup.rename('Custom Group Cup');
+    await groupSetup.click('Save & lock Cup');
+    const savedGroups = structuredClone(groupSetup.config.saved);
+    assert.equal(savedGroups.format, 'groups');
+    assert.equal(savedGroups.groupCount, 4); assert.equal(savedGroups.qualifiersPerGroup, 1); assert.equal(savedGroups.qualifierCount, 4);
+    assert.equal(savedGroups.groupWeeks, 2, 'The saved group duration matches the commissioner selection');
+    assert.equal(savedGroups.knockoutStyle, 'double'); assert.equal(Cup.tournament.championshipWeek(savedGroups), 12);
+    assert.deepEqual(savedGroups.groups, { A: ['5', '2'], B: ['6', '1'], C: ['3', '7'], D: ['4', '8'] });
+    assert.equal(walk(groupSetup.tree).filter(node => node.type === 'table' && /^Group [A-D] standings$/.test(node.props['aria-label'] || '')).length, 4, 'The saved tournament renders distinct group standings');
+    const groupsRemount = harness({ canManage: true, teamCount: 8, saved: savedGroups }); await groupsRemount.flush(); await groupsRemount.click('Edit Cup');
+    assert.equal(control(groupsRemount.tree, 'Championship week').props.value, 12);
+    assert.equal(control(groupsRemount.tree, 'Number of groups').props.value, 4); assert.equal(control(groupsRemount.tree, 'Qualifiers per group').props.value, 1);
+    assert.equal(control(groupsRemount.tree, 'Knockout style').props.value, 'double');
+    assert.equal(control(groupsRemount.tree, 'Group-stage weeks').props.value, 2);
+    for (const [group, ids] of Object.entries(savedGroups.groups)) for (const id of ids) assert.equal(control(groupsRemount.tree, 'Group for Team ' + id).props.value, group, 'Saved assignments survive remount and editing');
+    assert.equal(writes(groupsRemount).length, 0, 'Reopening the group editor does not rewrite saved configuration');
+    assert(button(groupsRemount.tree, 'Save Cup changes').props.disabled, 'Restored group settings remain unchanged until an edit');
+
     const failed = harness({ canManage: true, saveError: 'Cup save failed. Try again.' }); await failed.flush();
     await failed.choose('knockout'); await failed.rename('Keep My Cup');
     await failed.click('Save & lock Cup');
@@ -270,17 +343,20 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
 
     const structural = harness({ canManage: true, saved: structuredClone(started) }); await structural.flush();
     await structural.click('Edit Cup');
-    const advancing = find(structural.tree, node => node.type === 'select' && node.props.value === started.qualifierCount);
-    advancing.props.onChange({ target: { value: '2' } }); await structural.flush();
-    assert(text(structural.tree).includes('1 finalized score week will need review'), 'Impact is visible before saving a changed bracket');
+    await changeControl(structural, 'Teams advancing', 2);
+    assert(text(structural.tree).includes('2 finalized score weeks will need review'), 'Impact is visible when a fixed championship moves the qualifying dates');
     assert.deepEqual(structural.config.saved, started, 'Draft edits leave the shared Cup unchanged');
     await structural.click('Save Cup changes');
     const adjusted = writes(structural).at(-1).state;
     assert.equal(adjusted.locked, true);
     assert.equal(adjusted.qualifierCount, 2);
-    for (let w = started.startWeek; w < started.knockoutStart; w++) assert.deepEqual(adjusted.weeks[w], started.weeks[w], 'Unaffected qualifying result stays final');
-    assert.deepEqual(adjusted.weeks[started.knockoutStart].scores, originalScores, 'Affected score evidence remains available');
-    assert.equal(adjusted.weeks[started.knockoutStart].final, false, 'Changed bracket needs review before its results count');
+    assert.equal(Cup.tournament.championshipWeek(adjusted), Cup.tournament.championshipWeek(started), 'Changing field size schedules backwards from the selected championship');
+    assert.notEqual(adjusted.startWeek, started.startWeek, 'The shorter bracket moves the qualifying dates while preserving the final');
+    for (const [week, record] of Object.entries(adjusted.weeks)) {
+        assert.deepEqual(record.scores, started.weeks[week].scores, 'Compatible score evidence stays available');
+        assert.equal(record.final, false, 'A shifted qualifying window requires its retained results to be reviewed');
+    }
+    assert(!adjusted.weeks[1] && !adjusted.weeks[6], 'Scores outside the replacement schedule are omitted only after saving');
 
     const robin = { ...Cup.tournament.configure(league, 'round-robin'), locked: true, enabled: true, startWeek: 1, groupWeeks: 5, knockoutStart: 6, weeks: {} };
     for (let w = 1; w <= 6; w++) robin.weeks[w] = { final: true, scores: structuredClone(originalScores) };
@@ -289,14 +365,59 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     assert.equal(robinToDouble.state.weeks[6].final, false);
     assert.equal(robinToDouble.reviewWeeks, 1, 'Only the changed bracket needs review');
 
+    const eightLeague = { ...league, rosters: Array.from({ length: 8 }, (_, i) => ({ roster_id: i + 1 })) };
+    const groupStarted = { ...Cup.tournament.configure(eightLeague, 'groups'), name: 'Started Group Cup', enabled: true, locked: true, startWeek: 4, knockoutStart: 7, weeks: {} };
+    const groupScores = Object.fromEntries(groupStarted.teams.map((id, i) => [id, 180 - i * 10]));
+    for (let week = 4; week <= 7; week++) groupStarted.weeks[week] = { final: true, scores: structuredClone(groupScores), fetchedAt: 'preserved-score-evidence' };
+    const groupNameEdit = harness({ canManage: true, teamCount: 8, saved: structuredClone(groupStarted) }); await groupNameEdit.flush(); await groupNameEdit.click('Edit Cup');
+    await groupNameEdit.rename('Renamed Group Cup'); await groupNameEdit.click('Save Cup changes');
+    assert.deepEqual(writes(groupNameEdit).at(-1).state.weeks, groupStarted.weeks, 'A group Cup name edit keeps completed group and knockout results final');
+    assert.deepEqual(writes(groupNameEdit).at(-1).state.groups, groupStarted.groups, 'Name-only changes retain the actual draw');
+
+    const groupAssignmentEdit = harness({ canManage: true, teamCount: 8, saved: structuredClone(groupStarted) }); await groupAssignmentEdit.flush(); await groupAssignmentEdit.click('Edit Cup');
+    await changeControl(groupAssignmentEdit, 'Group for Team 1', 'B'); await changeControl(groupAssignmentEdit, 'Group for Team 2', 'A');
+    assert(text(groupAssignmentEdit.tree).includes('4 finalized score weeks will need review'), 'Changed group membership explains that qualification and dependent brackets must be reviewed');
+    assert.deepEqual(groupAssignmentEdit.config.saved, groupStarted, 'Editing assignments does not mutate the active shared draw');
+    await groupAssignmentEdit.click('Save Cup changes');
+    const assignmentAdjusted = writes(groupAssignmentEdit).at(-1).state;
+    assert.equal(assignmentAdjusted.locked, true);
+    assert.deepEqual(assignmentAdjusted.groups, { A: ['3', '5', '7', '2'], B: ['4', '6', '8', '1'] });
+    for (const [week, record] of Object.entries(assignmentAdjusted.weeks)) {
+        assert.equal(record.final, false, 'A reassigned group cannot retain a final result for its old opponents');
+        assert.deepEqual(record.scores, groupStarted.weeks[week].scores, 'Reassignment retains underlying fantasy-score evidence for review');
+        assert.equal(record.fetchedAt, 'preserved-score-evidence');
+    }
+
+    const groupStyleOnly = structural.prepareEdit(groupStarted, { ...groupStarted, knockoutStyle: 'double' });
+    for (let week = 4; week <= 6; week++) assert.deepEqual(groupStyleOnly.state.weeks[week], groupStarted.weeks[week], 'A bracket-only style change keeps results from the same group draw and qualifying dates final');
+    assert.equal(groupStyleOnly.state.weeks[7].final, false);
+    assert.equal(groupStyleOnly.reviewWeeks, 1, 'Only the existing bracket result needs review when group provenance is unchanged');
+
+    const fixedFinalStyle = harness({ canManage: true, teamCount: 8, saved: structuredClone(groupStarted) }); await fixedFinalStyle.flush(); await fixedFinalStyle.click('Edit Cup');
+    assert.equal(control(fixedFinalStyle.tree, 'Championship week').props.value, 8);
+    await changeControl(fixedFinalStyle, 'Knockout style', 'double');
+    assert.equal(control(fixedFinalStyle.tree, 'Championship week').props.value, 8, 'Changing group knockout style retains the chosen championship');
+    assert.equal(control(fixedFinalStyle.tree, 'First Cup week').props.value, 2, 'A longer double bracket moves the group stage earlier');
+    assert(text(fixedFinalStyle.tree).includes('4 finalized score weeks will need review'), 'Earlier qualifying dates explicitly require old results to be reviewed');
+    await fixedFinalStyle.click('Save Cup changes');
+    const fixedFinalAdjusted = writes(fixedFinalStyle).at(-1).state;
+    assert.equal(fixedFinalAdjusted.knockoutStyle, 'double'); assert.equal(Cup.tournament.championshipWeek(fixedFinalAdjusted), 8);
+    assert.deepEqual(fixedFinalAdjusted.groups, groupStarted.groups, 'Changing bracket style retains group assignments');
+    for (const [week, record] of Object.entries(fixedFinalAdjusted.weeks)) {
+        assert.equal(record.final, false, 'A moved group week or newly changed stage cannot count a final result from its previous stage');
+        assert.deepEqual(record.scores, groupStarted.weeks[week].scores, 'A shifted stage retains compatible score evidence');
+    }
+
     const survivalEditState = { ...Cup.tournament.configure(league, 'survivor', { teams: ['1', '2', '3', '4'] }), locked: true, enabled: true, startWeek: 1, knockoutStart: 1, groupWeeks: 2,
         weeks: { 1: { final: true, scores: { '1': 20, '2': 10, '3': 10, '4': 0 } } }, survivorRulings: { 1: { ids: ['1', '2'], reason: 'Agreed cutoff tiebreak' } } };
     const survivalEditor = harness({ canManage: true, saved: survivalEditState }); await survivalEditor.flush();
     await survivalEditor.click('Edit Cup');
-    find(survivalEditor.tree, node => node.type === 'input' && node.props.type === 'number' && node.props.value === 2).props.onChange({ target: { value: '3' } }); await survivalEditor.flush();
+    await changeControl(survivalEditor, 'Championship week', 3);
+    await changeControl(survivalEditor, 'Survival weeks', 3);
     assert(!button(survivalEditor.tree, 'Save Cup changes').props.disabled, 'Obsolete cutoff rulings do not block a valid duration change');
     await survivalEditor.click('Save Cup changes');
     const survivalAdjusted = writes(survivalEditor).at(-1).state;
+    assert.equal(survivalAdjusted.startWeek, 1); assert.equal(Cup.tournament.championshipWeek(survivalAdjusted), 3);
     assert.equal(survivalAdjusted.weeks[1].final, false, 'Survivor duration changes require review from the first cut');
     assert.deepEqual(survivalAdjusted.weeks[1].scores, survivalEditState.weeks[1].scores);
     assert.deepEqual(survivalAdjusted.survivorRulings, {}, 'Old cut-size rulings are cleared before validation');
@@ -387,5 +508,5 @@ function harness({ canManage = false, saved = null, deny = false, saveError = ''
     const backup = JSON.parse(legacyRace.storage.get('wr_woeppel_v1_' + league.league_id + '_' + league.season));
     assert.equal(backup.locked, true, 'Legacy local backup records the confirmed server lock');
     assert.deepEqual(backup.groups, legacyDraw.groups);
-    console.log('PASS Cup panel: discoverable permission-aware saves, connection retry and draft preservation, explicit save-and-lock, draft/remount persistence, duplicate-tap guards, all sample formats, score overrides, refresh preservation, legacy routing and save/refresh races');
+    console.log('PASS Cup panel: permission-aware saves, final-week scheduling, group draw/setup and remount, result provenance across edits, duplicate-tap guards, all sample formats, score overrides, legacy routing and save/refresh races');
 })().catch(error => { console.error(error); process.exitCode = 1; });

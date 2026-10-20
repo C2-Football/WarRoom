@@ -24,7 +24,7 @@ function scoreWeek(s, week, choose = match => Number(match.a) < Number(match.b) 
 }
 
 assert.equal(T.formats.filter(format => format.id === 'round-robin-double').length, 1);
-assert.equal(T.formats.length, 7);
+assert.equal(T.formats.length, 8);
 assert.equal(C.isDoubleElimination('round-robin-double'), true);
 assert.equal(C.isDoubleElimination({ format: 'round-robin' }), false);
 assert.deepEqual(C.doubleElimination(T.configure(league(4), 'points')), []);

@@ -59,16 +59,86 @@
         {id:'median',name:'Beat the median',tagline:'Clear the weekly midpoint',description:'Earn one point above the weekly median and half a point when tied with it, then qualify for knockouts.'},
         {id:'knockout',name:'Knockout',tagline:'Win and advance',description:'Go straight into a seeded elimination bracket. Participant order sets the seeds; top seeds receive any byes.'},
         {id:'survivor',name:'Survivor',tagline:'Stay above the cut',description:'Cut the lowest scores each week until one team remains. Ties at the cut require a commissioner ruling.'},
-        {id:'round-robin-double',name:'Round robin + double elimination',tagline:'Qualify, then get a second chance',description:'Play complete round-robin cycles for Cup points. Qualifiers enter upper and lower brackets; a second loss eliminates a team. An undefeated finalist must be beaten twice.'}
+        {id:'round-robin-double',name:'Round robin + double elimination',tagline:'Qualify, then get a second chance',description:'Play complete round-robin cycles for Cup points. Qualifiers enter upper and lower brackets; a second loss eliminates a team. An undefeated finalist must be beaten twice.'},
+        {id:'groups',name:'Group stage + knockout',tagline:'Win your group, then chase the Cup',description:'Play round robin within balanced groups. The top teams from each group advance to a single- or double-elimination bracket.'}
     ];
-    const qualifyingFormats = new Set(['points','round-robin','all-play','median','round-robin-double']);
-    const isDoubleElimination = s => (typeof s === 'string' ? s : s?.format) === 'round-robin-double';
+    const qualifyingFormats = new Set(['points','round-robin','all-play','median','round-robin-double','groups']);
+    const isDoubleElimination = s => (typeof s === 'string' ? s : s?.format) === 'round-robin-double' || (s?.format === 'groups' && s.knockoutStyle === 'double');
     const isRoundRobin = s => s.format === 'round-robin' || isDoubleElimination(s);
     const cents = value => Math.round(value * 100);
+    const powerOfTwo = value => Number.isInteger(value) && value > 0 && Number.isInteger(Math.log2(value));
+    const cycleLength = count => count % 2 ? count : count - 1;
+    function groupName(index) {
+        let name = '';
+        do { name = String.fromCharCode(65 + index % 26) + name; index = Math.floor(index / 26) - 1; } while (index >= 0);
+        return name;
+    }
+    function groupConfig(s) {
+        if (s?.format !== 'groups') return null;
+        const groupCount = s.groupCount, perGroup = s.qualifiersPerGroup;
+        if (!powerOfTwo(groupCount) || groupCount < 2 || groupCount > 32) throw Error('Choose 2, 4, 8, 16 or 32 groups, with at least two teams in each.');
+        const groupKeys = Array.from({ length: groupCount }, (_, index) => groupName(index));
+        if (!s.groups || typeof s.groups !== 'object' || Array.isArray(s.groups) || Object.keys(s.groups).length !== groupCount || groupKeys.some(key => !Array.isArray(s.groups[key]))) throw Error('Assign every participating team to the named groups.');
+        const assigned = groupKeys.flatMap(key => s.groups[key]);
+        if (!Array.isArray(s.teams) || assigned.length !== s.teams.length || new Set(assigned).size !== assigned.length || assigned.some(id => !s.teams.includes(id))) throw Error('Assign every participating team to exactly one group.');
+        const sizes = groupKeys.map(key => s.groups[key].length), minGroupSize = Math.min(...sizes), maxGroupSize = Math.max(...sizes);
+        if (minGroupSize < 2 || maxGroupSize - minGroupSize > 1) throw Error('Keep groups balanced, with at least two teams in each and at most one team difference.');
+        if (!powerOfTwo(perGroup) || perGroup > minGroupSize) throw Error('Choose 1, 2, 4, 8, 16 or 32 qualifiers per group, within the smallest group.');
+        if (!['single', 'double'].includes(s.knockoutStyle)) throw Error('Choose single or double elimination after the group stage.');
+        const qualifierCount = groupCount * perGroup;
+        if (s.qualifierCount !== qualifierCount) throw Error('The final field must equal the number of groups multiplied by the qualifiers per group.');
+        const cycleWeeks = Math.max(...sizes.map(cycleLength));
+        return { groupKeys, groupCount, qualifiersPerGroup: perGroup, qualifierCount, cycleWeeks, minGroupSize, maxGroupSize };
+    }
+    function championshipWeek(s) {
+        if (s.format === 'survivor') return s.startWeek + s.groupWeeks - 1;
+        return s.knockoutStart + roundCount(s) - (isDoubleElimination(s) ? 2 : 1);
+    }
+    function championshipWeeks(s) {
+        const week = championshipWeek(s);
+        return isDoubleElimination(s) ? [week, week + 1] : [week];
+    }
+    function withChampionshipWeek(s, week) {
+        if (!Number.isInteger(week) || week < 1 || week > 18 || (isDoubleElimination(s) && week > 17)) throw Error(isDoubleElimination(s) ? 'Choose a championship week within Weeks 1–17, with the following week reserved for a possible reset.' : 'Choose a championship week within Weeks 1–18.');
+        const next = { ...s };
+        if (s.format === 'survivor') {
+            next.startWeek = week - s.groupWeeks + 1;
+            next.knockoutStart = next.startWeek;
+        } else {
+            const gap = s.format === 'knockout' ? 0 : Math.max(0, s.knockoutStart - s.startWeek - s.groupWeeks);
+            next.knockoutStart = week - roundCount(s) + (isDoubleElimination(s) ? 2 : 1);
+            next.startWeek = s.format === 'knockout' ? next.knockoutStart : next.knockoutStart - s.groupWeeks - gap;
+        }
+        if (next.startWeek < 1) throw Error('This schedule does not fit before Week ' + week + '. Choose a later championship week or a shorter tournament.');
+        tournament.validate(next);
+        return next;
+    }
+    function withGroupConfig(s, options = {}) {
+        const target = Number.isInteger(options.championshipWeek) ? options.championshipWeek : championshipWeek(s);
+        const groupCount = options.groupCount ?? s.groupCount;
+        if (!powerOfTwo(groupCount) || groupCount < 2 || groupCount * 2 > s.teams.length) throw Error('Choose a power-of-two group count with at least two teams per group.');
+        const qualifiersPerGroup = options.qualifiersPerGroup ?? s.qualifiersPerGroup;
+        const knockoutStyle = options.knockoutStyle ?? s.knockoutStyle ?? 'single';
+        const next = { ...s, format: 'groups', groupCount, qualifiersPerGroup, knockoutStyle, qualifierCount: groupCount * qualifiersPerGroup };
+        const keys = Array.from({ length: groupCount }, (_, index) => groupName(index));
+        const oldAssignment = s.format === 'groups' && s.groupCount === groupCount && s.groups && keys.every(key => Array.isArray(s.groups[key]))
+            && keys.flatMap(key => s.groups[key]).length === s.teams.length && new Set(keys.flatMap(key => s.groups[key])).size === s.teams.length
+            && keys.flatMap(key => s.groups[key]).every(id => s.teams.includes(id));
+        next.groups = oldAssignment ? Object.fromEntries(keys.map(key => [key, [...s.groups[key]]])) : Object.fromEntries(keys.map(key => [key, []]));
+        if (!oldAssignment) next.teams.forEach((id, index) => next.groups[keys[index % groupCount]].push(id));
+        const config = groupConfig(next);
+        const previousConfig = s.format === 'groups' ? (() => { try { return groupConfig(s); } catch (_) { return null; } })() : null;
+        const cycles = previousConfig && Number.isInteger(s.groupWeeks / previousConfig.cycleWeeks) ? Math.max(1, s.groupWeeks / previousConfig.cycleWeeks) : 1;
+        next.groupWeeks = options.groupWeeks ?? config.cycleWeeks * cycles;
+        const gap = s.format === 'knockout' || s.format === 'survivor' ? 0 : Math.max(0, s.knockoutStart - s.startWeek - s.groupWeeks);
+        next.knockoutStart = next.startWeek + next.groupWeeks + gap;
+        return withChampionshipWeek(next, target);
+    }
     function roundCount(s) {
         return s.format === 'survivor' ? 0 : s.format === 'knockout' ? Math.ceil(Math.log2(Math.max(2,s.teams.length))) : isDoubleElimination(s) ? 2 * Math.log2(s.qualifierCount) + 1 : Math.log2(s.qualifierCount);
     }
     function stageLabel(s, week) {
+        if (s.format === 'groups' && Number(week) >= s.startWeek && Number(week) < s.startWeek + s.groupWeeks) return 'Group stage';
         if (!isDoubleElimination(s)) return null;
         const offset = Number(week) - s.knockoutStart, upperRounds = Math.log2(s.qualifierCount);
         if (offset < 0) return Number(week) >= s.startWeek && Number(week) < s.startWeek + s.groupWeeks ? 'Round-robin qualifying' : null;
@@ -174,7 +244,7 @@
         return stages;
     }
     const tournament = {
-        formats, roundCount, isDoubleElimination, doubleElimination, stageLabel,
+        formats, roundCount, isDoubleElimination, doubleElimination, stageLabel, groupConfig, withGroupConfig, championshipWeek, championshipWeeks, withChampionshipWeek,
         configure(league,format,existing) {
             if(!formats.some(f=>f.id===format))throw Error('Choose a tournament format.');
             const all=(league.rosters||[]).map(r=>String(r.roster_id));
@@ -188,6 +258,30 @@
             if(isDoubleElimination(format))while(size>2&&cycleWeeks+2*Math.log2(size)+1>18)size/=2;
             const end=Math.max(3,Math.min(18,(Number(league.settings?.playoff_week_start)||15)-1));
             const s={version:2,name:existing?.name||'League Cup',enabled:existing?.enabled===true,locked:false,teams,format,startWeek:1,groupWeeks:3,knockoutStart:1,qualifierCount:size,drawMargin:Number.isFinite(existing?.drawMargin)?existing.drawMargin:0,weeks:{}};
+            if (format === 'groups') {
+                const possible = [2, 4, 8, 16, 32].filter(count => count * 2 <= teams.length);
+                const groupCount = possible.reduce((best, count) => Math.abs(teams.length / count - 3.5) < Math.abs(teams.length / best - 3.5) ? count : best, possible[0] || 2);
+                s.groupCount = groupCount;
+                s.qualifiersPerGroup = Math.floor(teams.length / groupCount) >= 3 ? 2 : 1;
+                s.knockoutStyle = existing?.knockoutStyle === 'double' ? 'double' : 'single';
+                s.qualifierCount = s.groupCount * s.qualifiersPerGroup;
+                s.groups = Object.fromEntries(Array.from({ length: groupCount }, (_, index) => [groupName(index), []]));
+                teams.forEach((id, index) => s.groups[groupName(index % groupCount)].push(id));
+                // Preserve an incomplete selection as an editable draft, as
+                // with the other formats. Validation supplies the explanation.
+                if (teams.length < 4) {
+                    s.groupWeeks = 1;
+                    s.qualifiersPerGroup = 1;
+                    s.qualifierCount = 2;
+                    s.knockoutStart = end - (isDoubleElimination(s) ? 1 : 0);
+                    s.startWeek = s.knockoutStart - 1;
+                    return s;
+                }
+                const config = groupConfig(s);
+                s.groupWeeks = config.cycleWeeks;
+                s.knockoutStart = s.startWeek + s.groupWeeks;
+                return withChampionshipWeek(s, Math.min(isDoubleElimination(s) ? 17 : 18, Math.max(end, s.groupWeeks + roundCount(s) - (isDoubleElimination(s) ? 1 : 0))));
+            }
             if(format==='knockout') {s.groupWeeks=0;s.qualifierCount=teams.length;s.startWeek=Math.max(1,end-Math.ceil(Math.log2(Math.max(2,teams.length)))+1);s.knockoutStart=s.startWeek;}
             else if(format==='survivor') {s.qualifierCount=1;s.groupWeeks=Math.max(1,Math.min(3,teams.length-1,end));s.startWeek=end-s.groupWeeks+1;s.knockoutStart=s.startWeek;}
             else {const rounds=isDoubleElimination(format)?2*Math.log2(size)+1:Math.log2(size);s.groupWeeks=isRoundRobin(s)?cycleWeeks:Math.min(3,end-rounds);s.startWeek=Math.max(1,end-rounds-s.groupWeeks+1);s.knockoutStart=s.startWeek+s.groupWeeks;}
@@ -209,23 +303,68 @@
                 survivorStages(s);
             } else {
                 if(!Number.isInteger(s.qualifierCount)||s.qualifierCount<2||s.qualifierCount>s.teams.length||!Number.isInteger(Math.log2(s.qualifierCount)))throw Error('Knockout field must be 2, 4, 8, 16, 32 or 64 teams, within the participating field.');
-                if(isDoubleElimination(s)&&s.groupWeeks+roundCount(s)>18)throw Error('This round robin + double-elimination field needs '+(s.groupWeeks+roundCount(s))+' weeks, including a possible championship reset. Choose fewer teams or fewer qualifiers to fit Weeks 1–18.');
-                if(s.startWeek<1||s.groupWeeks<1||s.knockoutStart<s.startWeek+s.groupWeeks||s.knockoutStart+roundCount(s)-1>18)throw Error(isDoubleElimination(s)?'Choose non-overlapping round-robin and double-elimination weeks, including a possible championship reset, within Weeks 1–18.':'Choose non-overlapping qualifying and knockout weeks within Weeks 1–18.');
+                if(isDoubleElimination(s)&&s.groupWeeks+roundCount(s)>18)throw Error('This '+(s.format==='groups'?'group stage':'round robin')+' + double-elimination field needs '+(s.groupWeeks+roundCount(s))+' weeks, including a possible championship reset. Choose fewer teams or fewer qualifiers to fit Weeks 1–18.');
+                if(s.startWeek<1||s.groupWeeks<1||s.knockoutStart<s.startWeek+s.groupWeeks||s.knockoutStart+roundCount(s)-1>18)throw Error(isDoubleElimination(s)?'Choose non-overlapping '+(s.format==='groups'?'group stage':'round-robin')+' and double-elimination weeks, including a possible championship reset, within Weeks 1–18.':'Choose non-overlapping qualifying and knockout weeks within Weeks 1–18.');
                 const cycle=s.teams.length%2?s.teams.length:s.teams.length-1;
-                if(isRoundRobin(s)&&s.groupWeeks%cycle!==0)throw Error('Round robin needs a complete '+cycle+'-week cycle so every team plays equally.');
+                if (s.format === 'groups') {
+                    const config = groupConfig(s);
+                    if (s.groupWeeks % config.cycleWeeks !== 0) throw Error('Group stage needs a complete ' + config.cycleWeeks + '-week block so every group completes its round robin.');
+                } else if(isRoundRobin(s)&&s.groupWeeks%cycle!==0)throw Error('Round robin needs a complete '+cycle+'-week cycle so every team plays equally.');
             }
         },
         schedule(s){return s.format==='survivor'?Array.from({length:s.groupWeeks},(_,i)=>s.startWeek+i):s.format==='knockout'?Array.from({length:roundCount(s)},(_,i)=>s.startWeek+i):[...Array.from({length:s.groupWeeks},(_,i)=>s.startWeek+i),...Array.from({length:roundCount(s)},(_,i)=>s.knockoutStart+i)];},
         fixtures(s){
-            tournament.validate(s);if(!isRoundRobin(s))return s.format==='knockout'?tournament.bracket(s).map(([a,b])=>({week:s.startWeek,a,b,bye:b===null})):[];
+            tournament.validate(s);
+            if (s.format === 'groups') {
+                const config = groupConfig(s), out = [];
+                for (const group of config.groupKeys) {
+                    const members = s.groups[group], cycle = cycleLength(members.length);
+                    for (let block = 0; block < s.groupWeeks / config.cycleWeeks; block++) {
+                        const ring = [...members];
+                        if (ring.length % 2) ring.push(null);
+                        for (let round = 0; round < cycle; round++) {
+                            const week = s.startWeek + block * config.cycleWeeks + round;
+                            for (let index = 0; index < ring.length / 2; index++) {
+                                const a = ring[index], b = ring[ring.length - 1 - index];
+                                if (a !== null && b !== null) out.push({ week, group, a, b });
+                            }
+                            ring.splice(1, 0, ring.pop());
+                        }
+                    }
+                }
+                return out.sort((left, right) => left.week - right.week || left.group.localeCompare(right.group));
+            }
+            if(!isRoundRobin(s))return s.format==='knockout'?tournament.bracket(s).map(([a,b])=>({week:s.startWeek,a,b,bye:b===null})):[];
             const ring=[...s.teams];if(ring.length%2)ring.push(null);const out=[];
             for(let i=0;i<s.groupWeeks;i++){
                 for(let j=0;j<ring.length/2;j++)if(ring[j]!==null&&ring[ring.length-1-j]!==null)out.push({week:s.startWeek+i,a:ring[j],b:ring[ring.length-1-j]});
                 ring.splice(1,0,ring.pop());
             }return out;
         },
+        groupTables(s) {
+            tournament.validate(s);
+            if (s.format !== 'groups') return {};
+            const config = groupConfig(s);
+            const rows = Object.fromEntries(config.groupKeys.flatMap(group => s.groups[group].map(id => [id, { id, group, played: 0, w: 0, d: 0, l: 0, points: 0, pf: 0, pa: 0 }])));
+            for (const fixture of tournament.fixtures(s)) {
+                const record = s.weeks[fixture.week];
+                if (!record?.final) continue;
+                const a = record.scores?.[fixture.a], b = record.scores?.[fixture.b];
+                if (!Number.isFinite(a) || !Number.isFinite(b)) throw Error('Finalized week has missing scores.');
+                const draw = Math.abs(cents(a) - cents(b)) <= Math.round(s.drawMargin * 100);
+                for (const [id, pointsFor, pointsAgainst] of [[fixture.a, a, b], [fixture.b, b, a]]) {
+                    const row = rows[id];
+                    row.played++; row.pf += pointsFor; row.pa += pointsAgainst;
+                    if (draw) { row.d++; row.points++; }
+                    else if (pointsFor > pointsAgainst) { row.w++; row.points += 3; }
+                    else row.l++;
+                }
+            }
+            return Object.fromEntries(config.groupKeys.map(key => [key, s.groups[key].map(id => rows[id]).sort(compare).map((row, index) => ({ ...row, groupRank: index + 1 }))]));
+        },
         tables(s){
             tournament.validate(s);
+            if (s.format === 'groups') return Object.values(tournament.groupTables(s)).flat();
             const rows=Object.fromEntries(s.teams.map((id,i)=>[id,{id,seed:i+1,played:0,w:0,d:0,l:0,points:0,pf:0}]));
             if(!qualifyingFormats.has(s.format))return s.teams.map(id=>rows[id]);
             for(let week=s.startWeek;week<s.startWeek+s.groupWeeks;week++){
@@ -251,6 +390,25 @@
             if(s.format==='knockout')return rows;
             if(s.format==='survivor')throw Error('Survivor has no qualifying stage or knockout bracket.');
             if(Array.from({length:s.groupWeeks},(_,i)=>s.startWeek+i).some(w=>!s.weeks[w]?.final))throw Error('Finalize all qualifying weeks before seeding.');
+            if (s.format === 'groups') {
+                const config = groupConfig(s), grouped = tournament.groupTables(s);
+                if (s.seedRuling?.reason?.trim()) {
+                    const ids = s.seedRuling.ids;
+                    if (!Array.isArray(ids) || ids.length !== s.qualifierCount || new Set(ids).size !== ids.length || ids.some(id => !s.teams.includes(id))) throw Error('Select a different participating team for each seed.');
+                    for (const key of config.groupKeys) {
+                        const table = grouped[key], cutoff = table[config.qualifiersPerGroup - 1];
+                        const chosen = ids.filter(id => s.groups[key].includes(id));
+                        if (chosen.length !== config.qualifiersPerGroup || table.filter(row => compare(row, cutoff) < 0).some(row => !chosen.includes(row.id)) || chosen.some(id => compare(table.find(row => row.id === id), cutoff) > 0)) throw Error('A group seeding ruling must retain the top ' + config.qualifiersPerGroup + ' from every group and resolve only tied places.');
+                    }
+                    return ids.map(id => rows.find(row => row.id === id));
+                }
+                for (const key of config.groupKeys) {
+                    const table = grouped[key];
+                    if (table.some((row, index) => index > 0 && index <= config.qualifiersPerGroup && compare(row, table[index - 1]) === 0)) throw Error('Group ' + key + ' qualifying standings are tied. Record a commissioner seeding ruling.');
+                }
+                const qualifiers = config.groupKeys.flatMap(key => grouped[key].slice(0, config.qualifiersPerGroup));
+                return qualifiers.sort((left, right) => left.groupRank - right.groupRank || right.points / right.played - left.points / left.played || right.pf / right.played - left.pf / left.played || left.group.localeCompare(right.group));
+            }
             if(s.seedRuling?.reason?.trim()){
                 const ids=s.seedRuling.ids;
                 if(!Array.isArray(ids)||ids.length!==s.qualifierCount||new Set(ids).size!==ids.length||ids.some(id=>!s.teams.includes(id)))throw Error('Select a different participating team for each seed.');
@@ -261,10 +419,29 @@
         },
         bracket(s){
             if(s.format==='survivor'){tournament.validate(s);return [];}
-            const ids=tournament.qualifiers(s).map(r=>r.id);let order=[1,2];
+            const qualifiers=tournament.qualifiers(s), ids=qualifiers.map(r=>r.id);let order=[1,2];
             const size=2**Math.ceil(Math.log2(ids.length));
             while(order.length<size){const sum=order.length*2+1;order=order.flatMap(n=>[n,sum-n]);}
-            return Array.from({length:size/2},(_,i)=>{const a=ids[order[i*2]-1]||null,b=ids[order[i*2+1]-1]||null;return a?[a,b]:[b,a];});
+            const pairs = Array.from({length:size/2},(_,i)=>{const a=ids[order[i*2]-1]||null,b=ids[order[i*2+1]-1]||null;return a?[a,b]:[b,a];});
+            if (s.format !== 'groups') return pairs;
+            const groupById = new Map(qualifiers.map(row => [row.id, row.group]));
+            const left = pairs.map(pair => pair[0]), right = pairs.map(pair => pair[1]);
+            // A matching is bounded by at most 32 opening games. Augmenting
+            // paths find a rematch-free draw whenever one exists, retaining
+            // the seeded opponents as the first preference.
+            const owner = new Map();
+            const match = (index, seen) => {
+                const preferred = [index, ...right.map((_, candidate) => candidate).filter(candidate => candidate !== index)];
+                for (const candidate of preferred) {
+                    if (seen.has(candidate) || groupById.get(left[index]) === groupById.get(right[candidate])) continue;
+                    seen.add(candidate);
+                    if (!owner.has(candidate) || match(owner.get(candidate), seen)) { owner.set(candidate, index); return true; }
+                }
+                return false;
+            };
+            if (!left.every((_, index) => match(index, new Set()))) return pairs;
+            const opponents = new Map([...owner].map(([candidate, index]) => [index, right[candidate]]));
+            return left.map((id, index) => [id, opponents.get(index)]);
         },
         knockout(s){
             if(s.format==='survivor'){tournament.validate(s);return [];}
@@ -285,6 +462,7 @@
         requiredScoreIds(s,week){
             tournament.validate(s);week=Number(week);
             if(!tournament.schedule(s).includes(week))throw Error('This week is not on the tournament schedule.');
+            if (s.format === 'groups' && week < s.startWeek + s.groupWeeks) return tournament.fixtures(s).filter(fixture => fixture.week === week).flatMap(fixture => [fixture.a, fixture.b]);
             if(qualifyingFormats.has(s.format)&&week<s.startWeek+s.groupWeeks)return [...s.teams];
             if(s.format==='survivor'){
                 const stage=survivorStages(s).find(r=>r.week===week);
@@ -316,6 +494,6 @@
             return {champion:final.winner,runnerUp,winnerScore:final.winner===final.a?final.x:final.y,runnerScore:final.winner===final.a?final.y:final.x,week:final.week};
         }
     };
-    const api={tournament,formats,configure:tournament.configure,roundCount,isDoubleElimination,doubleElimination,stageLabel,survivor:tournament.survivor,result:tournament.result,schedule:tournament.schedule,requiredScoreIds:tournament.requiredScoreIds,...Object.fromEntries(Object.keys(legacy).map(k=>[k,s=>s?.version===2?tournament[k](s):legacy[k](s)]))};root.WoeppelCup=api;
+    const api={tournament,formats,configure:tournament.configure,roundCount,isDoubleElimination,doubleElimination,stageLabel,groupConfig,withGroupConfig,championshipWeek,championshipWeeks,withChampionshipWeek,groupTables:tournament.groupTables,survivor:tournament.survivor,result:tournament.result,schedule:tournament.schedule,requiredScoreIds:tournament.requiredScoreIds,...Object.fromEntries(Object.keys(legacy).map(k=>[k,s=>s?.version===2?tournament[k](s):legacy[k](s)]))};root.WoeppelCup=api;
     if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
