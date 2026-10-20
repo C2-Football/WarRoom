@@ -26,7 +26,7 @@ const walk = n => n && typeof n === 'object' ? [n, ...(n.children || []).flatMap
 const text = n => n == null ? '' : typeof n === 'object' ? (n.children || []).map(text).join(' ') : String(n);
 const find = (tree, label) => walk(tree).find(n => n.type === 'button' && text(n) === label);
 const target = { pid: 'target', pos: 'WR', p: { full_name: 'Target Player', position: 'WR', team: 'KC' }, fit: { weeklyGain: 3.2, seasonGain: 0, benchGain: 0, dropPid: 'drop', dropName: 'Bench Player' } };
-Object.assign(ctx, { React: { createElement: h, Fragment: 'fragment' }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } }, isPro: true, streamCandidates: [], actionBoardPlayers: [target], streamHorizon: 'week', setStreamHorizon: horizon => ctx.streamHorizon = horizon, resolvedLeagueSkin: { type: 'dynasty' }, activeVotes: ctx.readWaiverPreferences(a), preferenceKey: a, setMissionVotes: next => {ctx.activeVotes = next.values;}, setMissionNotice: notice => ctx.missionNotice = notice, missionNotice: '', waiverSnapshot: { rosterPlayerIds: ['drop'], instruction: 'No invented probabilities' }, currentLeague: league, acquisitionLeagueId: 'league-a', playerName: p => p.full_name, openFaPlayer() {}, setFaSection: tab => section = tab, bidHistory: null, myRoster: {settings:{waiver_budget_used:10}}, playersData: {target:target.p}, hasFAAB: true, byeRead: () => 'Bye 6', rosterRead: { known:true }, renderActionHqTeaser: () => 'Pro required' });
+Object.assign(ctx, { React: { createElement: h, Fragment: 'fragment' }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } }, _faPhone: true, isPro: true, streamCandidates: [], actionBoardPlayers: [target], streamHorizon: 'week', setStreamHorizon: horizon => ctx.streamHorizon = horizon, resolvedLeagueSkin: { type: 'dynasty' }, activeVotes: ctx.readWaiverPreferences(a), preferenceKey: a, setMissionVotes: next => {ctx.activeVotes = next.values;}, setMissionNotice: notice => ctx.missionNotice = notice, missionNotice: '', waiverSnapshot: { rosterPlayerIds: ['drop'], instruction: 'No invented probabilities' }, currentLeague: league, acquisitionLeagueId: 'league-a', playerName: p => p.full_name, openFaPlayer() {}, setFaSection: tab => section = tab, bidHistory: null, myRoster: {settings:{waiver_budget_used:10}}, playersData: {target:target.p}, hasFAAB: true, byeRead: () => 'Bye 6', rosterRead: { known:true }, renderActionHqTeaser: () => 'Pro required' });
 const panel = source.slice(source.indexOf('        function renderMissionWaiverBoard()'), source.indexOf('        function renderMissionCoverage()'));
 vm.runInContext(babel.transform(panel, { presets: ['react'] }).code, ctx);
 let tree = ctx.renderMissionWaiverBoard();
@@ -46,6 +46,20 @@ find(tree, 'Why this move?').props.onClick();
 assert.equal(lastEvent.type, 'wr:ask-open'); assert.match(lastEvent.detail.prompt, /"horizon":"week"/); assert.match(lastEvent.detail.prompt, /"dropPid":"drop"/); assert.match(lastEvent.detail.prompt, /"week:target":"up"/);
 walk(tree).find(n => n.props['aria-label'] === 'Unhelpful suggestion for Target Player').props.onClick();
 assert.equal(ctx.readWaiverPreferences(a)['week:target'], 'down'); assert.equal(feedback.recId, 'waiver-board:2026:week:target');
+const alternateTargets=[1,2].map(n=>({...target,pid:'alternate-'+n,p:{...target.p,full_name:'Alternate '+n},fit:{...target.fit,weeklyGain:3.2-n,dropPid:'drop-'+n,dropName:'Bench '+n}}));
+ctx.actionBoardPlayers=[target,...alternateTargets];tree=ctx.renderMissionWaiverBoard();
+const moreIdeas=walk(tree).find(n=>n.type==='details'&&n.props.className==='mc-waiver-more-ideas');
+assert(moreIdeas && !moreIdeas.props.open,'Phone alternate ideas start collapsed');
+const alternatePicks=walk(moreIdeas).filter(n=>n.props.className==='mc-waiver-pick');
+assert.equal(alternatePicks.length,2);
+const featuredPicks=walk(tree).filter(n=>n.props.className==='mc-waiver-pick'&&!alternatePicks.includes(n));
+assert.equal(featuredPicks.length,1);assert.match(text(featuredPicks[0]),/Target Player/,'The top pick remains outside the alternate disclosure');
+alternatePicks.forEach((pick,index)=>{
+    find(pick,'Plan add').props.onClick();assert.equal(opened.pid,alternateTargets[index].pid);assert.equal(opened.dropPid,alternateTargets[index].fit.dropPid);assert.equal(section,'claims','Collapsed alternate ideas retain their acquisition handoff');
+    find(pick,'Why this move?').props.onClick();assert.match(lastEvent.detail.prompt,new RegExp('"pid":"'+alternateTargets[index].pid+'"'));assert.match(lastEvent.detail.prompt,new RegExp('"dropPid":"'+alternateTargets[index].fit.dropPid+'"'));
+});
+ctx._faPhone=false;tree=ctx.renderMissionWaiverBoard();assert.equal(walk(tree).filter(n=>n.props.className==='mc-waiver-pick').length,3);assert(!walk(tree).some(n=>n.props.className==='mc-waiver-more-ideas'),'Desktop keeps all three recommendations exposed');
+ctx._faPhone=true;ctx.actionBoardPlayers=[target];
 ctx.streamHorizon = 'season'; tree = ctx.renderMissionWaiverBoard(); assert.match(text(tree), /No confirmed upgrade/); assert(!find(tree, 'Plan add'), 'A weekly-only gain cannot become a season recommendation');
 ctx.actionBoardPlayers = [{...target, fit:{...target.fit, weeklyGain:0, benchGain:120}}];
 tree = ctx.renderMissionWaiverBoard(); assert.match(text(tree), /120.*bench dynasty value/s); assert(!/120.*ROS lineup points/s.test(text(tree)), 'Dynasty value never masquerades as scoring gain');
@@ -90,6 +104,8 @@ assert.match(flatText(tree),/(?:min(?:imum)?[^$]*\$\s*0)|(?:\$\s*0[^.]*min(?:imu
 assert.match(flatText(tree),/\$\s*0\s*[–-]\s*\$\s*0/,'Five real zero-dollar completed bids yield a real historical zero range');
 assert.match(flatText(tree),/\$\s*0\s+median/i);assert.match(flatText(tree),/5\s+completed\s+bids/);
 assert.match(flatText(tree),/historical|completed winning bids/i,'A descriptive sample is labeled as history');
+assert.equal(walk(tree).filter(n=>n.props.className==='mc-coverage-bid-row').length,1,'Only positions with recorded samples receive history rows');
+assert.match(flatText(walk(tree).find(n=>n.props.className==='mc-coverage-no-bids')),/None recorded: DEF/,'Zero-sample positions are reported together without fabricated empty table rows');
 const link=(label)=>walk(tree).find(n=>n.type==='button'&&flatText(n).includes(label));
 link('League transactions').props.onClick();assert.equal(section,'market-review');
 link('Browse players').props.onClick();assert.equal(section,'market');
@@ -101,12 +117,14 @@ ctx.bidHistory={leagueId:'league-a',txns:Array.from({length:5},(_,i)=>completeBi
 assert.match(flatText(tree),/DEF.*5\s+completed\s+bids/s,'Defense history retains its explicit provider position');
 ctx.myRoster={settings:{}};ctx.bidHistory={leagueId:'league-a',txns:[]};tree=ctx.renderMissionCoverageDetails();
 assert.match(flatText(tree),/budget[^.]*unavailable|budget[^.]*unknown|unknown[^.]*budget/i,'Missing spent data leaves remaining budget unknown');
-assert.match(flatText(tree),/0\s+completed\s+bids.*No range yet|No range yet.*0\s+completed\s+bids/i,'An empty loaded history is not a failed or loading history');
-for(const invalidSpent of [null,'',-1]) {
+const emptyHistory=walk(tree).find(n=>n.props.className==='mc-coverage-bids');
+assert.equal(emptyHistory.props['data-status'],'ready');assert.equal(walk(emptyHistory).filter(n=>n.type==='p'&&/No completed winning bids recorded yet/.test(flatText(n))).length,1,'An empty loaded history uses one empty state instead of repeated zero-sample rows');
+assert(!walk(emptyHistory).some(n=>n.props.className==='mc-coverage-bid-row'||n.props.className==='mc-coverage-no-bids'));
+for(const invalidSpent of [null,'','   ',-1]) {
     ctx.myRoster={settings:{waiver_budget_used:invalidSpent}};tree=ctx.renderMissionCoverageDetails();
     assert.match(flatText(walk(tree).find(n=>n.props.className==='mc-coverage-budget')),/Unavailable/,'Missing or invalid spending never implies a full untouched budget');
 }
-for(const invalidBudget of [null,'',-10]) {
+for(const invalidBudget of [null,'','   ',-10]) {
     ctx.currentLeague={...evidenceLeague,settings:{...evidenceLeague.settings,waiver_budget:invalidBudget}};ctx.myRoster={settings:{waiver_budget_used:0}};tree=ctx.renderMissionCoverageDetails();
     assert.match(flatText(walk(tree).find(n=>n.props.className==='mc-coverage-budget')),/Unavailable.*Total unknown/,'Missing or invalid configured budget never fabricates a zero total');
     assert(!walk(tree).some(n=>n.props.className==='mc-coverage-bid-row'),'Historical ranges require a known valid budget');

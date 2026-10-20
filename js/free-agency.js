@@ -941,6 +941,12 @@
         const [faFilter, setFaFilter] = useState('');
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
         const [faSort, setFaSort] = useState({ key: 'dhq', dir: -1 });
+        useEffect(() => {
+            const supported = ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'];
+            if (_faPhone && metricPreference && faSort.key !== 'name' && (!supported.includes(faSort.key) || !metricPreference.selected.includes(faSort.key))) {
+                setFaSort({ key: metricPreference.selected.includes('dhq') ? 'dhq' : metricPreference.selected.find(key => supported.includes(key)) || 'name', dir: -1 });
+            }
+        }, [_faPhone, metricPreference?.selected.join('|'), faSort.key]);
         const [faSelectedPid, setFaSelectedPid] = useState(null);
         const [faSearch, setFaSearch] = useState('');
         useEffect(() => {
@@ -1042,6 +1048,16 @@
                 if (recent) return { value: recent.value, note: `${recent.count} reported wk${recent.count === 1 ? '' : 's'}` };
             }
             return { value: window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, position) ?? null, note: source.prior ? `${source.year} avg` : ppgWindow !== 'season' ? `${source.year} avg` : '' };
+        }
+        function mobileMarketValues(row) {
+            const historyId = window.S?.weeklyPlayerPointsLeagueId;
+            const recent = historyId && String(historyId) === acquisitionLeagueId && marketIsCurrent
+                ? window.App?.FAMarketData?.recentPpg(window.App?.WeeklyProj?.weeklyHistory?.(row.pid), marketWeek, 5) : null;
+            const source = marketStatSource(row.pid);
+            const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+            return { proj: number(row.proj), ppg: number(recent?.value), dhq: number(row.dhq), age: number(row.p.age),
+                season: source.prior ? null : number(window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, row.pos)),
+                bye: number(window.App?.NFLByes?.weekForPlayer?.(row.p, Number(marketSeason))) };
         }
         const compareMarketNumber = (a, b, dir) => a == null && b == null ? 0 : a == null ? 1 : b == null ? -1 : dir * (a - b);
 
@@ -1277,6 +1293,9 @@
             return filtered.sort((a, b) => {
                 const dir = faSort.dir;
                 const k = faSort.key;
+                if (_faPhone && metricPreference && ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'].includes(k)) {
+                    return compareMarketNumber(mobileMarketValues(a)[k], mobileMarketValues(b)[k], dir);
+                }
                 if (k === 'name') {
                     const na = (a.p.full_name || ((a.p.first_name || '') + ' ' + (a.p.last_name || '')).trim()).toLowerCase();
                     const nb = (b.p.full_name || ((b.p.first_name || '') + ' ' + (b.p.last_name || '')).trim()).toLowerCase();
@@ -1573,6 +1592,9 @@
 
         function renderAcquisitionPlan() {
             if (!acquisitionContext) return null;
+            const knownAmount = value => value != null && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+            const balance = knownAmount(currentLeague?.settings?.waiver_budget) && knownAmount(myRoster?.settings?.waiver_budget_used)
+                ? waiverBidEvidence([], currentLeague, myRoster, playersData, '').remaining : null;
             const target = acquisitionContext.pid ? availablePlayers.find(row => String(row.pid) === acquisitionContext.pid) : null;
             const targetPlayer = playersData[acquisitionContext.pid];
             const ownedIds = [...new Set([...(myRoster?.players || []), ...(myRoster?.taxi || []), ...(myRoster?.reserve || [])].map(String))];
@@ -1590,18 +1612,18 @@
                 {acquisitionContext.reason && <p style={{ margin: '8px 0', color: 'var(--silver)', fontSize: '.82rem' }}>{acquisitionContext.reason}</p>}
                 {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player from Market.</p>}
                 {_faPhone && !target && <button type="button" onClick={() => setFaSection('market')}>Choose player from Market</button>}
-                <div className="mc-claim-editor-fields" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                {(!_faPhone || target) && <div className="mc-claim-editor-fields" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
                     <label className="mc-claim-drop-field" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
-                    {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={myRoster?.settings?.waiver_budget_used != null ? remaining : undefined} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" />{_faPhone && <small>{myRoster?.settings?.waiver_budget_used == null ? 'Remaining budget unavailable' : '$' + remaining + ' remaining'}</small>}</label>}
+                    {target && hasFAAB && <label>Maximum bid <input type="number" min="0" max={balance == null ? undefined : balance} step="1" value={plannedBid} onChange={e => setPlannedBid(e.target.value)} placeholder="Your maximum" aria-label="Planned maximum waiver bid" />{_faPhone && <small>{balance == null ? 'Remaining budget unavailable' : '$' + balance + ' remaining'}</small>}</label>}
                     {target && suggestion && <span style={{ color: 'var(--gold)', fontSize: '.8rem' }}>Historical bid range ${suggestion.lo}–${suggestion.hi}</span>}
                     {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>{_faPhone ? 'Player details' : 'Player details & notebook'}</button>}
-                </div>
+                </div>}
                 {protectedDrop && <p role="alert" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>You marked this player Untouchable. Choose another drop or revisit that decision in My Team.</p>}
                 {acquisitionContext.dropPid && !dropId && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>The earlier drop candidate is no longer on your roster. No drop is selected.</p>}
                 {target && isPro && !_faPhone && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} />}
                 {target && <button type="button" className="mc-claim-save" onClick={() => {
-                    const bid = !hasFAAB || plannedBid === '' ? null : Number(plannedBid);
-                    if (bid != null && (!Number.isInteger(bid) || bid < 0 || (myRoster?.settings?.waiver_budget_used != null && bid > remaining))) { setMissionNotice('Enter a whole-dollar bid within your remaining budget.'); return; }
+                    const bid = !hasFAAB || String(plannedBid).trim() === '' ? null : Number(plannedBid);
+                    if (bid != null && (!Number.isInteger(bid) || bid < 0 || (balance != null && bid > balance))) { setMissionNotice(balance == null ? 'Enter a whole-dollar bid of $0 or more.' : 'Enter a whole-dollar bid within your remaining budget.'); return; }
                     if (protectedDrop) { setMissionNotice('Choose another drop before saving; this player is marked Untouchable.'); return; }
                     const saved = window.WR?.WaiverPlans?.save(currentLeague, { pid: target.pid, dropPid: dropId || null, bid, position: target.pos || normPos(target.p.position), reason: acquisitionContext.reason, source: acquisitionContext.source });
                     if (saved) {
@@ -1636,7 +1658,7 @@
                                 window.dispatchEvent(new CustomEvent('wr:open-trade-finder', { detail: { pid: row.pid } }));
                             } else openFaPlayer(row.pid);
                         }}>{action.kind === 'watch' ? 'View player' : action.label}</button></div>
-                        {React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: row.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
+                        {_faPhone ? <details className="mc-claim-player-notes"><summary>Notes</summary>{React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: row.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}</details> : React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: row.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
                     </article>;
                 })}
             </section>;
@@ -1685,10 +1707,7 @@
                     selectedPlan: row ? { pid: row.pid, name: playerName(row.p), gain: row.gain, gainUnit: row.basis, dropPid: row.fit.dropPid, dropName: row.fit.dropName } : null };
                 window.dispatchEvent(new CustomEvent('wr:ask-open', { detail: { title: row ? 'Waiver plan · ' + playerName(row.p) : 'Your waiver outlook', kind: 'waiver-plan', prompt: 'Help me decide whether to make this waiver move. Use only this supplied league evidence. Discuss risk and the proposed drop. Incorporate my saved up/down preferences without changing the measured gains. Do not invent playoff or title odds, a winning bid, or player news. ' + JSON.stringify(context) } }));
             };
-            return <section className="mc-waiver-board" aria-label="Alex’s waiver board">
-                <header><div><span className="mc-eyebrow">ALEX · YOUR NEXT MOVE</span><h2>Waiver board</h2></div><button type="button" onClick={() => chat(null)}>Chat with Alex ↗</button></header>
-                <div className="mc-horizon" role="group" aria-label="Waiver outlook">{[['week','Win this week'],['season','Season outlook']].map(([key,label]) => <button type="button" key={key} aria-pressed={streamHorizon === key} onClick={() => setStreamHorizon(key)}>{label}</button>)}</div>
-                {boardRows.length ? boardRows.map((row, index) => {
+            const renderPick = (row, index) => {
                     const evidence = waiverBidEvidence(bidHistory?.leagueId === acquisitionLeagueId ? bidHistory.txns : [], currentLeague, myRoster, playersData, row.pos);
                     const vote = activeVotes[streamHorizon + ':' + row.pid];
                     const risk = row.p.injury_status ? 'Injury: ' + row.p.injury_status : Number(row.p.depth_chart_order) > 1 ? 'Depth-chart role may limit opportunity.' : null;
@@ -1699,7 +1718,11 @@
                         {risk && <p className="mc-risk">{risk}</p>}
                         <div className="mc-waiver-pick-actions"><button type="button" className="mc-primary-action" onClick={() => { window.WR?.openAcquisition?.({ pid: row.pid, dropPid: row.fit.dropPid, position: row.pos, leagueId: acquisitionLeagueId, source: 'mission-waiver-board', reason: '+' + row.gain + ' ' + row.basis }); setFaSection('claims'); }}>Plan add</button><button type="button" onClick={() => chat(row)}>Why this move?</button><span className="mc-feedback"><button type="button" aria-label={'Useful suggestion for ' + playerName(row.p)} aria-pressed={vote === 'up'} onClick={() => feedback(row, 'up')}><svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 10v11H3V10zm0 0 5-8a3 3 0 0 1 2 3l-1 5h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/></svg></button><button type="button" aria-label={'Unhelpful suggestion for ' + playerName(row.p)} aria-pressed={vote === 'down'} onClick={() => feedback(row, 'down')}><svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 14V3H3v11zm0 0 5 8a3 3 0 0 0 2-3l-1-5h6a2 2 0 0 0 2-2l-2-7a2 2 0 0 0-2-2H7"/></svg></button></span></div>
                     </article>;
-                }) : <div className="mc-waiver-hold"><strong>{rosterRead.known ? 'No confirmed upgrade in this outlook.' : 'Roster evidence is incomplete.'}</strong><p>{streamHorizon === 'week' ? 'The board compares additions against your best projected lineup. Missing projections stay unknown; you can still review every available player below.' : 'A season scoring gain needs a current rest-of-season forecast. Dynasty value is shown separately when available.'}</p><button type="button" onClick={() => window.wrNavigateTab?.('lineup')}>Review your best lineup →</button></div>}
+            };
+            return <section className="mc-waiver-board" aria-label="Alex’s waiver board">
+                <header><div><span className="mc-eyebrow">ALEX · YOUR NEXT MOVE</span><h2>Waiver board</h2></div><button type="button" onClick={() => chat(null)}>Chat with Alex ↗</button></header>
+                <div className="mc-horizon" role="group" aria-label="Waiver outlook">{[['week','Win this week'],['season','Season outlook']].map(([key,label]) => <button type="button" key={key} aria-pressed={streamHorizon === key} onClick={() => setStreamHorizon(key)}>{label}</button>)}</div>
+                {boardRows.length ? <>{(_faPhone ? boardRows.slice(0, 1) : boardRows).map(renderPick)}{_faPhone && boardRows.length > 1 && <details className="mc-waiver-more-ideas"><summary>{boardRows.length - 1} more waiver {boardRows.length === 2 ? 'idea' : 'ideas'}</summary>{boardRows.slice(1).map((row, index) => renderPick(row, index + 1))}</details>}</> : <div className="mc-waiver-hold"><strong>{rosterRead.known ? 'No confirmed upgrade in this outlook.' : 'Roster evidence is incomplete.'}</strong><p>{streamHorizon === 'week' ? 'The board compares additions against your best projected lineup. Missing projections stay unknown; you can still review every available player below.' : 'A season scoring gain needs a current rest-of-season forecast. Dynasty value is shown separately when available.'}</p><button type="button" onClick={() => window.wrNavigateTab?.('lineup')}>Review your best lineup →</button></div>}
                 {missionNotice && <p className="mc-board-notice" role="status">{missionNotice}</p>}
                 <details className="mc-board-method"><summary>How this board works</summary><p>Each move compares a legal add/drop against your best lineup, protecting marked players and roster coverage. Projections vary with role and game script. Gains are separate alternatives and cannot be added together. Season scoring is a fixed-roster estimate; dynasty value is not a scoring forecast. League bid ranges describe completed transactions. Player locks and claims are confirmed on your league platform.</p></details>
             </section>;
@@ -1707,8 +1730,8 @@
         function renderMissionCoverageDetails() {
             const rawBudget = currentLeague?.settings?.waiver_budget;
             const rawSpent = myRoster?.settings?.waiver_budget_used;
-            const knownBudget = rawBudget != null && rawBudget !== '' && Number.isFinite(Number(rawBudget)) && Number(rawBudget) >= 0;
-            const knownSpent = rawSpent != null && rawSpent !== '' && Number.isFinite(Number(rawSpent)) && Number(rawSpent) >= 0;
+            const knownBudget = rawBudget != null && String(rawBudget).trim() !== '' && Number.isFinite(Number(rawBudget)) && Number(rawBudget) >= 0;
+            const knownSpent = rawSpent != null && String(rawSpent).trim() !== '' && Number.isFinite(Number(rawSpent)) && Number(rawSpent) >= 0;
             const usesBids = hasFAAB || (knownBudget && Number(rawBudget) > 0);
             const history = bidHistory?.leagueId === acquisitionLeagueId ? bidHistory : null;
             const historyStatus = history ? history.error ? 'error' : 'ready' : window.WrTxns?.fetchLeagueTxns ? 'loading' : 'unavailable';
@@ -1717,15 +1740,15 @@
             const rawMin = currentLeague?.settings?.waiver_budget_min;
             const minimum = rawMin != null && rawMin !== '' ? budgetRead.minBid : null;
             const positions = [...new Set(rosterGapRows.map(row => row.pos))];
+            const positionBids = positions.map(pos => ({ pos, ...waiverBidEvidence(history?.txns || [], currentLeague, myRoster, playersData, pos) }));
+            const recorded = positionBids.filter(row => row.sampleSize > 0);
+            const unrecorded = positionBids.filter(row => row.sampleSize === 0).map(row => row.pos);
             return <div className="mc-coverage-evidence">
                 <section className="mc-coverage-budget" aria-label="Waiver budget">
                     {usesBids ? <><div><small>Your budget</small><strong>{balance == null ? 'Unavailable' : '$' + balance + ' left'}</strong></div><div><span>{knownBudget ? '$' + Number(rawBudget) + ' total' : 'Total unknown'}</span><small>{minimum == null ? 'Minimum unknown' : '$' + minimum + ' minimum'}</small></div></> : <div><small>Waiver system</small><strong>{knownBudget ? 'Priority waivers' : 'Settings unavailable'}</strong><span>{knownBudget ? 'No FAAB bids in this league.' : 'Check your league platform for waiver rules.'}</span></div>}
                 </section>
                 {usesBids && <section className="mc-coverage-bids" aria-label="Completed winning bids" data-status={isPro ? historyStatus : 'locked'}><h3>Completed winning bids</h3>
-                    {!isPro ? <p>Position bid history is included with Pro.</p> : historyStatus === 'loading' ? <p role="status">Loading league bid history…</p> : historyStatus === 'error' ? <p role="status">Bid history could not load. Review league transactions for the latest bids.</p> : historyStatus === 'unavailable' || !knownBudget ? <p>Bid history is unavailable. Review transactions on your league platform.</p> : <><p className="mc-coverage-bid-caption">Middle 50% by position · this league</p><div className="mc-coverage-bid-rows">{positions.map(pos => {
-                        const evidence = waiverBidEvidence(history.txns, currentLeague, myRoster, playersData, pos);
-                        return <div key={pos} className="mc-coverage-bid-row" data-status={evidence.low == null ? 'insufficient' : 'ready'}><strong className="mc-coverage-position" style={{ '--coverage-pos': posColors[pos] || 'var(--silver)' }}>{pos}</strong><div><b>{evidence.low == null ? 'No range yet' : '$' + evidence.low + '–$' + evidence.high}</b><small>{evidence.sampleSize} completed {evidence.sampleSize === 1 ? 'bid' : 'bids'}{evidence.low == null ? ' · 5 needed' : ''}</small></div>{evidence.median != null && <div className="mc-coverage-bid-median"><b>${evidence.median}</b><small>median</small></div>}</div>;
-                    })}</div><p className="mc-coverage-bid-note">Past winning bids, not a recommended price.</p></>}
+                    {!isPro ? <p>Position bid history is included with Pro.</p> : historyStatus === 'loading' ? <p role="status">Loading league bid history…</p> : historyStatus === 'error' ? <p role="status">Bid history could not load. Review league transactions for the latest bids.</p> : historyStatus === 'unavailable' || !knownBudget ? <p>Bid history is unavailable. Review transactions on your league platform.</p> : !recorded.length ? <p>No completed winning bids recorded yet.</p> : <><p className="mc-coverage-bid-caption">Middle 50% by position · this league</p><div className="mc-coverage-bid-rows">{recorded.map(evidence => <div key={evidence.pos} className="mc-coverage-bid-row" data-status={evidence.low == null ? 'insufficient' : 'ready'}><strong className="mc-coverage-position" style={{ '--coverage-pos': posColors[evidence.pos] || 'var(--silver)' }}>{evidence.pos}</strong><div><b>{evidence.low == null ? 'No range yet' : '$' + evidence.low + '–$' + evidence.high}</b><small>{evidence.sampleSize} completed {evidence.sampleSize === 1 ? 'bid' : 'bids'}{evidence.low == null ? ' · 5 needed' : ''}</small></div>{evidence.median != null && <div className="mc-coverage-bid-median"><b>${evidence.median}</b><small>median</small></div>}</div>)}</div>{unrecorded.length > 0 && <p className="mc-coverage-no-bids">None recorded: {unrecorded.join(', ')}.</p>}<p className="mc-coverage-bid-note">Past winning bids, not a recommended price.</p></>}
                 </section>}
                 <div className="mc-coverage-counting"><h3>What counts as ready?</h3><p>Unavailable players, reserve and taxi are excluded. Eligible FLEX players count toward starting-slot coverage.</p></div>
                 <div className="mc-coverage-evidence-actions"><button type="button" onClick={() => setFaSection('market')}>Browse players</button><button type="button" onClick={() => window.wrNavigateTab?.('market-review')}>League transactions →</button></div>
@@ -1745,6 +1768,13 @@
             return <nav className="fa-section-tabs mc-market-tabs" aria-label="Free agency sections">{[['market','Market'],['claims',_faPhone ? 'Claim plans' : 'Claims'],['coverage','Coverage']].map(([key,label]) => <button type="button" key={key} aria-pressed={faSection === key} onClick={() => setFaSection(key)}>{label}</button>)}</nav>;
         }
         function renderMissionClaims() {
+            const knownAmount = value => value != null && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+            const rawBudget = currentLeague?.settings?.waiver_budget;
+            const balance = knownAmount(rawBudget) && knownAmount(myRoster?.settings?.waiver_budget_used)
+                ? waiverBidEvidence([], currentLeague, myRoster, playersData, '').remaining : null;
+            const budgetLabel = hasFAAB ? balance == null ? 'Budget unknown' : '$' + balance + ' left'
+                : knownAmount(rawBudget) && Number(rawBudget) === 0 ? 'Priority order' : 'Budget unknown';
+            const ownedIds = new Set([...(myRoster?.players || []), ...(myRoster?.taxi || []), ...(myRoster?.reserve || [])].map(String));
             const edit = plan => {
                 const next = { ...plan, leagueId: acquisitionLeagueId };
                 window.WR.acquisitionContext = next;
@@ -1763,13 +1793,17 @@
                 }
                 setMissionNotice(ok ? 'Local plan removed.' : 'Could not remove the plan on this device.');
             };
-            return <section className="mc-waiver-claims"><header className="mc-claims-heading"><div><h2>Claim plans</h2><small>{claimPlans.length} saved{hasFAAB ? myRoster?.settings?.waiver_budget_used == null ? ' · Budget unknown' : ' · $' + remaining + ' left' : ' · Priority order'}</small></div>{!acquisitionContext && claimPlans.length > 0 && <button type="button" onClick={() => setFaSection('market')}>Add player</button>}</header><p className="mc-claims-scope">Saved on this device. Submit claims on your league platform.</p>
+            return <section className="mc-waiver-claims"><header className="mc-claims-heading"><div><h2>Claim plans</h2><small>{claimPlans.length} saved · {budgetLabel}</small></div>{!acquisitionContext && claimPlans.length > 0 && <button type="button" onClick={() => setFaSection('market')}>Add player</button>}</header><p className="mc-claims-scope">Saved on this device. Submit claims on your league platform.</p>
                 {renderAcquisitionPlan()}
                 {!acquisitionContext && missionNotice && <p className="mc-claim-notice" role="status">{missionNotice}</p>}
                 {(!_faPhone || !acquisitionContext) && <div className="mc-claim-list" aria-label="Saved local claim plans">{claimPlans.length ? claimPlans.map((plan, index) => {
                     const name = playerName(playersData[plan.pid] || {}, plan.pid);
                     const available = availablePlayers.some(row => String(row.pid) === plan.pid);
-                    return <article key={plan.id} className="mc-claim-row"><header><span className="mc-claim-priority">{index + 1}</span><div><strong>Add {name}</strong><small>{plan.dropPid ? 'Drop ' + playerName(playersData[plan.dropPid] || {}, plan.dropPid) : 'No drop selected'}</small></div><b>{hasFAAB ? plan.bid == null ? 'Bid unset' : '$' + plan.bid : 'Priority ' + (index + 1)}</b></header>{!available && <p className="mc-risk">This target is no longer in the available-player pool. Review or remove this plan.</p>}<div className="mc-claim-actions"><button type="button" onClick={() => edit(plan)}>Edit plan</button><details className="mc-claim-manage"><summary>Order &amp; remove</summary><div><button type="button" aria-label={'Move ' + name + ' up'} disabled={index === 0} onClick={() => changeOrder(plan, -1)}>↑</button><button type="button" aria-label={'Move ' + name + ' down'} disabled={index === claimPlans.length - 1} onClick={() => changeOrder(plan, 1)}>↓</button><button type="button" onClick={() => remove(plan)}>Remove</button></div></details></div></article>;
+                    const review = [];
+                    if (plan.dropPid && !ownedIds.has(String(plan.dropPid))) review.push('Drop no longer owned');
+                    else if (plan.dropPid && window._playerTags?.[plan.dropPid] === 'untouchable') review.push('Drop marked Untouchable');
+                    if (hasFAAB && balance != null && plan.bid != null && plan.bid > balance) review.push('Bid exceeds $' + balance + ' remaining');
+                    return <article key={plan.id} className="mc-claim-row"><header><span className="mc-claim-priority">{index + 1}</span><div><strong>Add {name}</strong><small>{plan.dropPid ? 'Drop ' + playerName(playersData[plan.dropPid] || {}, plan.dropPid) : 'No drop selected'}</small></div><b>{hasFAAB ? plan.bid == null ? 'Bid unset' : '$' + plan.bid : 'Priority ' + (index + 1)}</b></header>{!available && <p className="mc-risk">Target no longer available. Review or remove this plan.</p>}{review.length > 0 && <p className="mc-risk" role="alert">Review: {review.join(' · ')}.</p>}<div className="mc-claim-actions"><button type="button" onClick={() => edit(plan)}>Edit plan</button><details className="mc-claim-manage"><summary>Order &amp; remove</summary><div><button type="button" aria-label={'Move ' + name + ' up'} disabled={index === 0} onClick={() => changeOrder(plan, -1)}>↑</button><button type="button" aria-label={'Move ' + name + ' down'} disabled={index === claimPlans.length - 1} onClick={() => changeOrder(plan, 1)}>↓</button><button type="button" onClick={() => remove(plan)}>Remove</button></div></details></div></article>;
                 }) : <div className="mc-claim-empty"><strong>No claim plans yet.</strong><p>Select “Plan add” on a player{hasFAAB ? ", choose a drop and bid" : " and choose a drop"}, then save your plan here.</p><button type="button" onClick={() => setFaSection('market')}>Browse available players →</button></div>}</div>}
                 {(!_faPhone || !acquisitionContext) && <details className="mc-claim-watchlist"><summary>Watchlist &amp; player notes</summary>{renderSavedTargets()}</details>}
             </section>;
@@ -1986,112 +2020,57 @@
             // presets, column picker trigger, PPG window, saved views);
             // every control drives the exact same state setters as the
             // desktop toolbar, which stays untouched for tablet/desktop.
-            const _faTogglePanel = (k) => setFaPanel(p => p === k ? null : k);
-            const _sortCol = faSort.key === 'name' ? { shortLabel: 'Player' } : Object.values(faColumns).find(c => c.sortKey === faSort.key);
-            const _faPillsEl = (
-                <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-                    {React.createElement(window.WR.FilterPill, { label: 'Filters', value: (faFilter ? (window.App?.posLabel?.(faFilter) || faFilter) : 'All') + (rookieOnly ? ' +RK' : ''), onClick: () => _faTogglePanel('filters') })}
-                    {React.createElement(window.WR.FilterPill, { label: 'Sort', value: ((_sortCol && _sortCol.shortLabel) || faSort.key) + (faSort.dir === -1 ? ' ↓' : ' ↑'), onClick: () => _faTogglePanel('sort') })}
-                    {React.createElement(window.WR.FilterPill, { label: 'View', value: faActivePresetKey, onClick: () => _faTogglePanel('view') })}
-                </div>
-            );
-            const _faSheetSelect = (active) => ({ width: '100%', minHeight: '44px', padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)' });
-            const _faChipBtn = (active) => ({ padding: '7px 12px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'transparent', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: active ? 700 : 400 });
-            // ── Inline Filters / Sort / View choosers (owner ask: same as the
-            // Trade Center — each pill opens its own panel directly under the pill
-            // row, no modal sheet). Panels bundle related controls and stay open
-            // until you re-tap the pill or open another; the column customizer is
-            // still a drill-down sheet (opened from the View panel).
-            const _faPanelWrap = (body) => (
-                <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: '9px' }}>{body}</div>
-            );
-            const _faPanelLbl = (t) => <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t}</div>;
+            const _faTogglePanel = key => setFaPanel(current => current === key ? null : key);
+            const _faSortOptions = [{ key: 'name', label: 'Player name', short: 'Player' }, ...(metricPreference
+                ? window.WR.PlayerMetrics.definitions.filter(metric => metricPreference.selected.includes(metric.key) && ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'].includes(metric.key)).map(metric => ({ key: metric.key, label: metric.name, short: metric.label }))
+                : Object.values(faColumns).filter(column => column.sortKey).map(column => ({ key: column.sortKey, label: column.label, short: column.shortLabel })))];
+            const _sortCol = _faSortOptions.find(option => option.key === faSort.key);
+            const _faSheetSelect = active => ({ width: '100%', minWidth: 0, minHeight: '44px', padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid var(--gx-edge,rgba(183,206,255,.2))', borderRadius: '8px' });
+            const _faChipBtn = active => ({ padding: '7px 10px', minHeight: '44px', fontSize: '12px', fontFamily: 'var(--font-body)', background: active ? 'rgba(183,206,255,.12)' : 'transparent', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid var(--gx-edge,rgba(183,206,255,.2))', borderRadius: '8px', cursor: 'pointer', fontWeight: active ? 700 : 400 });
+            const _faPanelWrap = body => <section id="fa-market-options" className="mc-market-panel" aria-label={faPanel === 'filters' ? 'Market filters' : faPanel === 'sort' ? 'Market sorting' : 'Saved market views'}><header><strong>{faPanel === 'filters' ? 'Filters' : faPanel === 'sort' ? 'Sort players' : metricPreference ? 'Saved filters & sort' : 'Market views'}</strong><button type="button" onClick={() => setFaPanel(null)}>Done</button></header>{body}</section>;
+            const _faPanelLbl = text => <div className="mc-market-panel-label">{text}</div>;
             let _faPanelEl = null;
             if (faPanel === 'filters') {
-                _faPanelEl = _faPanelWrap(
-                    <React.Fragment>
-                        {_faPanelLbl('Search')}
-                        <input value={faSearch} onChange={e => setFaSearch(e.target.value)} placeholder="Search player, team, college..." style={_faSheetSelect(!!faSearch)} />
-                        {_faPanelLbl('Position')}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {['', ...leaguePositions].map(pos => (
-                                <button key={pos || 'all'} onClick={() => setFaFilter(pos)} style={_faChipBtn(faFilter === pos)} title={pos && streamPosSet.has(pos) ? 'Streaming upgrade available at ' + pos + ' this week' : undefined}>
-                                    {pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}
-                                    {pos && streamPosSet.has(pos) ? <span style={{ color: 'var(--gold)', marginLeft: '3px', fontWeight: 800 }}>•</span> : null}
-                                </button>
-                            ))}
-                        </div>
-                        {_faPanelLbl('Type')}
-                        <button onClick={() => { const next = !rookieOnly; setRookieOnly(next); if (!next) { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faChipBtn(rookieOnly)} title="Show only rookies / UDFAs">Rookies / UDFAs</button>
-                        {rookieOnly && (
-                            <React.Fragment>
-                                {_faPanelLbl('Rookie drill-down')}
-                                <select value={rookieTeamFilter} onChange={e => setRookieTeamFilter(e.target.value)} style={_faSheetSelect(!!rookieTeamFilter)}>
-                                    <option value="">All teams</option>
-                                    {rookieFilterOptions.teams.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                                <select value={rookieCollegeFilter} onChange={e => setRookieCollegeFilter(e.target.value)} style={_faSheetSelect(!!rookieCollegeFilter)}>
-                                    <option value="">All colleges</option>
-                                    {rookieFilterOptions.colleges.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                    {[{ k: '', label: 'All' }, { k: '1', label: 'R1' }, { k: '2', label: 'R2' }, { k: '3', label: 'R3' }, { k: '4', label: 'R4' }, { k: '5', label: 'R5' }, { k: '6', label: 'R6' }, { k: '7', label: 'R7' }, { k: 'UDFA', label: 'UDFA' }].map(opt => (
-                                        <button key={opt.k || 'all'} onClick={() => setRookieSlotFilter(rookieSlotFilter === opt.k ? '' : opt.k)} style={_faChipBtn(rookieSlotFilter === opt.k)} title={opt.k === 'UDFA' ? 'Undrafted free agents' : opt.k ? 'NFL draft round ' + opt.k : 'Any draft slot'}>{opt.label}</button>
-                                    ))}
-                                </div>
-                            </React.Fragment>
-                        )}
-                        <button onClick={() => { setFaSearch(''); setFaFilter(''); setRookieOnly(false); setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); setVisibleFaCols(faTierCols(FA_COLUMN_PRESETS.default)); setFaColPreset('default'); setFaSort({ key: 'dhq', dir: -1 }); setPpgWindow('season'); }} style={{ ..._faChipBtn(false), marginTop: '2px' }}>Reset all</button>
-                    </React.Fragment>
-                );
+                _faPanelEl = _faPanelWrap(<>
+                    {_faPanelLbl('Position')}
+                    <div className="mc-market-position-filters" role="group" aria-label="Filter by position">{['', ...leaguePositions].map(pos => <button type="button" key={pos || 'all'} aria-pressed={faFilter === pos} onClick={() => setFaFilter(pos)} style={_faChipBtn(faFilter === pos)} title={pos && streamPosSet.has(pos) ? 'Streaming upgrade available at ' + pos + ' this week' : undefined}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}{pos && streamPosSet.has(pos) ? <span aria-hidden="true"> •</span> : null}</button>)}</div>
+                    <button type="button" aria-pressed={rookieOnly} onClick={() => { const next = !rookieOnly; setRookieOnly(next); if (!next) { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faChipBtn(rookieOnly)}>Rookies / UDFAs{rookieOnly ? ' · On' : ''}</button>
+                    {rookieOnly && <details className="mc-market-rookie-filters" open={!!(rookieTeamFilter || rookieCollegeFilter || rookieSlotFilter)}><summary>Rookie details</summary><div>
+                        <label>NFL team<select aria-label="Rookie NFL team" value={rookieTeamFilter} onChange={e => setRookieTeamFilter(e.target.value)} style={_faSheetSelect(!!rookieTeamFilter)}><option value="">All teams</option>{rookieFilterOptions.teams.map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+                        <label>College<select aria-label="Rookie college" value={rookieCollegeFilter} onChange={e => setRookieCollegeFilter(e.target.value)} style={_faSheetSelect(!!rookieCollegeFilter)}><option value="">All colleges</option>{rookieFilterOptions.colleges.map(college => <option key={college} value={college}>{college}</option>)}</select></label>
+                        <label>Draft round<select aria-label="Rookie draft round" value={rookieSlotFilter} onChange={e => setRookieSlotFilter(e.target.value)} style={_faSheetSelect(!!rookieSlotFilter)}><option value="">Any round</option>{['1','2','3','4','5','6','7','UDFA'].map(round => <option key={round} value={round}>{round === 'UDFA' ? 'Undrafted' : 'Round ' + round}</option>)}</select></label>
+                    </div></details>}
+                    <button type="button" onClick={() => { setFaSearch(''); setFaFilter(''); setRookieOnly(false); setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); }} style={_faChipBtn(false)}>Clear filters</button>
+                </>);
             } else if (faPanel === 'sort') {
-                _faPanelEl = _faPanelWrap(
-                    <React.Fragment>
-                        {_faPanelLbl('Sort by')}
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <select value={faSort.key} onChange={e => { const k = e.target.value; setFaSort(prev => ({ key: k, dir: prev.key === k ? prev.dir : -1 })); }} style={{ ..._faSheetSelect(faSort.key !== 'dhq'), flex: 2, width: 'auto' }}>
-                                <option value="name">Player</option>
-                                {Object.entries(faColumns).filter(([, c]) => c.sortKey).map(([k, c]) => <option key={k} value={c.sortKey}>{c.shortLabel}</option>)}
-                            </select>
-                            <button onClick={() => setFaSort(prev => ({ ...prev, dir: prev.dir * -1 }))} style={{ ..._faChipBtn(true), flex: 1 }} title="Flip sort direction">{faSort.dir === -1 ? 'Desc ↓' : 'Asc ↑'}</button>
-                        </div>
-                        {_faPanelLbl('PPG window')}
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                            {[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'L5' }, { k: 'l3', l: 'L3' }].map(opt => (
-                                <button key={opt.k} onClick={() => setPpgWindow(opt.k)} style={{ ..._faChipBtn(ppgWindow === opt.k), flex: 1 }} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' reported completed weeks'}>{opt.l}</button>
-                            ))}
-                        </div>
-                    </React.Fragment>
-                );
+                _faPanelEl = _faPanelWrap(<>
+                    <label className="mc-market-sort-field">Sort by<select aria-label="Sort available players by" value={_sortCol ? faSort.key : 'dhq'} onChange={e => { const key = e.target.value; setFaSort(previous => ({ key, dir: previous.key === key ? previous.dir : key === 'name' ? 1 : -1 })); }} style={_faSheetSelect(true)}>{_faSortOptions.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
+                    <button type="button" aria-label="Reverse player sort order" onClick={() => setFaSort(previous => ({ ...previous, dir: previous.dir * -1 }))} style={_faChipBtn(true)}>{faSort.key === 'name' ? faSort.dir === -1 ? 'Z to A ↓' : 'A to Z ↑' : faSort.dir === -1 ? 'High to low ↓' : 'Low to high ↑'}</button>
+                    {!metricPreference && <><span className="mc-market-panel-label">PPG window</span><div className="mc-market-position-filters">{[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'Last 5' }, { k: 'l3', l: 'Last 3' }].map(option => <button type="button" key={option.k} aria-pressed={ppgWindow === option.k} onClick={() => setPpgWindow(option.k)} style={_faChipBtn(ppgWindow === option.k)}>{option.l}</button>)}</div></>}
+                    {window.WR?.SavedViews?.SavedViewBar && <button type="button" onClick={() => setFaPanel('view')} style={_faChipBtn(false)}>Saved filters &amp; sort →</button>}
+                </>);
             } else if (faPanel === 'view') {
-                _faPanelEl = _faPanelWrap(
-                    <React.Fragment>
-                        {_faPanelLbl('Preset')}
-                        <select value={faActivePresetKey} onChange={e => { const key = e.target.value; const cols = FA_COLUMN_PRESETS[key]; if (!cols) return; setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faSheetSelect(faActivePresetKey !== 'default')} title="Column preset">
-                            {Object.keys(FA_COLUMN_PRESETS).map(k => <option key={k} value={k}>{k}</option>)}
-                            {faActivePresetKey === 'custom' && <option value="custom">custom</option>}
-                        </select>
-                        {_faPanelLbl('Columns')}
-                        <button onClick={() => { setShowFaColPicker(true); setFaPanel(null); }} style={{ ..._faChipBtn(showFaColPicker || faActivePresetKey === 'custom'), width: '100%' }} title="Add or remove market columns">Customize · {shownFaCols.length} fields active</button>
-                        {window.WR?.SavedViews?.SavedViewBar ? (
-                            <React.Fragment>
-                                {_faPanelLbl('Saved views')}
-                                {React.createElement(window.WR.SavedViews.SavedViewBar, {
-                                    surface: 'free_agency',
-                                    leagueId: currentLeague?.id || currentLeague?.league_id,
-                                    currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter, faSearch } },
-                                    onApply: (v) => {
-                                        if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns.filter(k => FA_COLUMNS[k]))); setFaColPreset('custom'); }
-                                        if (v.sort && v.sort.key) setFaSort({ key: v.sort.key, dir: v.sort.dir || 1 });
-                                        if (v.filters && typeof v.filters.faFilter === 'string') setFaFilter(v.filters.faFilter);
-                                        if (v.filters && typeof v.filters.faSearch === 'string') setFaSearch(v.filters.faSearch);
-                                    },
-                                })}
-                            </React.Fragment>
-                        ) : null}
-                    </React.Fragment>
-                );
+                _faPanelEl = _faPanelWrap(<>
+                    {!metricPreference ? <><label className="mc-market-sort-field">Preset<select aria-label="Market column preset" value={faActivePresetKey} onChange={e => { const key = e.target.value, columns = FA_COLUMN_PRESETS[key]; if (!columns) return; setVisibleFaCols(faTierCols(columns)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faSheetSelect(true)}>{Object.keys(FA_COLUMN_PRESETS).map(key => <option key={key} value={key}>{key}</option>)}{faActivePresetKey === 'custom' && <option value="custom">custom</option>}</select></label><button type="button" onClick={() => { setShowFaColPicker(true); setFaPanel(null); }} style={_faChipBtn(false)}>Customize · {shownFaCols.length} fields</button></> : <p>Save your filters and sort. Use Columns to change the stats shared across player lists.</p>}
+                    {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
+                        surface: 'free_agency', leagueId: currentLeague?.id || currentLeague?.league_id,
+                        currentState: { columns: metricPreference ? [] : visibleFaCols, sort: faSort, filters: { faFilter, faSearch, rookieOnly, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter } },
+                        onApply: view => {
+                            if (!metricPreference && Array.isArray(view.columns) && view.columns.length) { setVisibleFaCols(faTierCols(view.columns.filter(key => FA_COLUMNS[key]))); setFaColPreset('custom'); }
+                            if (view.sort?.key) setFaSort({ key: _faSortOptions.some(option => option.key === view.sort.key) ? view.sort.key : _faSortOptions.find(option => option.key === 'dhq')?.key || _faSortOptions[0].key, dir: view.sort.dir === -1 ? -1 : 1 });
+                            if (typeof view.filters?.faFilter === 'string') setFaFilter(view.filters.faFilter);
+                            if (typeof view.filters?.faSearch === 'string') setFaSearch(view.filters.faSearch);
+                            setRookieOnly(view.filters?.rookieOnly === true);
+                            setRookieTeamFilter(view.filters?.rookieOnly ? view.filters.rookieTeamFilter || '' : '');
+                            setRookieCollegeFilter(view.filters?.rookieOnly ? view.filters.rookieCollegeFilter || '' : '');
+                            setRookieSlotFilter(view.filters?.rookieOnly ? view.filters.rookieSlotFilter || '' : '');
+                        },
+                    })}
+                </>);
             }
+            const _faBudgetKnown = [currentLeague?.settings?.waiver_budget, myRoster?.settings?.waiver_budget_used].every(value => value != null && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0);
+            const _faBalance = _faBudgetKnown ? waiverBidEvidence([], currentLeague, myRoster, playersData, '').remaining : null;
+            const _faToolsEl = <div className="mc-market-tools"><input type="search" aria-label="Search available players" placeholder="Find a player, team or college…" value={faSearch} onChange={e => setFaSearch(e.target.value)} /><button type="button" aria-controls="fa-market-options" aria-expanded={faPanel === 'filters'} onClick={() => _faTogglePanel('filters')}><span>Filters</span><b>{(faFilter ? window.App?.posLabel?.(faFilter) || faFilter : 'All') + (rookieOnly ? ' · Rookies' : '')}</b></button><button type="button" aria-controls="fa-market-options" aria-expanded={faPanel === 'sort' || faPanel === 'view'} onClick={() => _faTogglePanel('sort')}><span>Sort</span><b>{(_sortCol?.short || 'VALUE') + (faSort.dir === -1 ? ' ↓' : ' ↑')}</b></button>{metricPreference && window.WR.PlayerMetrics.Picker ? <window.WR.PlayerMetrics.Picker preference={metricPreference} /> : <button type="button" aria-controls="fa-market-options" aria-expanded={faPanel === 'view'} onClick={() => _faTogglePanel('view')}>Columns</button>}</div>;
             // Column picker sheet — the phone home for the EXISTING
             // showFaColPicker state (the desktop inline panel lives in the
             // analyst return below and never renders on phone). The shared
@@ -2185,11 +2164,7 @@
             const _faPhoneMkt = sortedPlayers.slice(0, faPhoneLimit);
             const _faMetricSlots = x => {
                 if (!metricPreference || !window.WR?.PlayerMetrics?.slots) return _faSlotKeys.map(k => ({ key: k, ..._faSlotFor(k, x) }));
-                const historyId = window.S?.weeklyPlayerPointsLeagueId;
-                const recent = historyId && String(historyId) === acquisitionLeagueId && marketIsCurrent ? window.App?.FAMarketData?.recentPpg(window.App?.WeeklyProj?.weeklyHistory?.(x.pid), marketWeek, 5) : null;
-                const source = marketStatSource(x.pid);
-                const seasonPpg = source.prior ? null : window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, x.pos);
-                return window.WR.PlayerMetrics.slots(metricPreference.selected, { proj: x.proj, ppg: recent?.value ?? null, dhq: x.dhq, age: x.p.age, season: seasonPpg, bye: window.App?.NFLByes?.weekForPlayer?.(x.p, Number(marketSeason)) });
+                return window.WR.PlayerMetrics.slots(metricPreference.selected, mobileMarketValues(x));
             };
             const _faMktRows = _faPhoneMkt.map(x => <button key={x.pid} type="button" className="mc-market-row" onClick={() => openFaPlayer(x.pid)} aria-label={playerName(x.p, x.pid) + ': player details'} style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + _faMetricSlots(x).length + ',minmax(33px,.44fr))' }}><span className="mc-market-name"><strong>{playerName(x.p, x.pid)}</strong><small>{x.pos} · {x.p.team || 'FA'}{x.p.injury_status ? ' · ' + x.p.injury_status : ''}</small></span>{_faMetricSlots(x).map(slot => <span key={slot.key} className="mc-market-stat"><b>{slot.value}</b></span>)}</button>);
             const _faMktRowNodes = _faMktRows.length ? _faMktRows : [
@@ -2227,9 +2202,8 @@
                             {renderMissionTabs()}
                             {faSection === 'claims' ? renderMissionClaims() : faSection === 'coverage' ? renderMissionCoverage() : <>
                                 {renderMissionWaiverBoard()}{renderCrazePanel()}
-                                <div className="mc-market-summary"><strong>Available players <span>{sortedPlayers.length}</span></strong>{hasFAAB && <span>{myRoster?.settings?.waiver_budget_used == null ? 'FAAB unknown' : '$' + remaining + ' left'}</span>}</div>
-                                <div className="mc-market-tools"><input type="search" aria-label="Search available players" placeholder="Search the market…" value={faSearch} onChange={e => setFaSearch(e.target.value)} /><button type="button" aria-expanded={faPanel === 'filters'} onClick={() => _faTogglePanel('filters')}>Filters{faFilter || rookieOnly ? ' •' : ''}</button><button type="button" aria-expanded={faPanel === 'sort'} onClick={() => _faTogglePanel('sort')}>Sort</button>{metricPreference && window.WR.PlayerMetrics.Picker ? <window.WR.PlayerMetrics.Picker preference={metricPreference} /> : <button type="button" onClick={() => _faTogglePanel('view')}>Columns</button>}</div>
-                                {_faPanelEl}<details className="mc-market-views"><summary>Advanced &amp; saved market views</summary>{_faPillsEl}</details>
+                                <div className="mc-market-summary"><strong>Available players <span>{sortedPlayers.length}</span></strong>{hasFAAB && <span>{_faBalance == null ? 'Budget unknown' : '$' + _faBalance + ' left'}</span>}</div>
+                                {_faToolsEl}{_faPanelEl}
                                 <div className="mc-market-table" aria-label="Available player comparison"><div className="mc-market-heading" style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + (metricPreference?.selected.length || _faSlotKeys.length) + ',minmax(33px,.44fr))' }}><span>PLAYER</span>{(metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {}) : _faSlotKeys.map(key => ({key,label:faColumns[key]?.shortLabel || key}))).map(slot => <span key={slot.key}>{slot.label}</span>)}</div>{_faMktRowNodes}</div>
                                 {faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}
                             </>}
