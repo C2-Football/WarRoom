@@ -141,7 +141,7 @@
     }
     window.WrTimeLeagueHiddenYearResearch = HiddenYearResearch;
 
-    function PlayerScoutingCard({ league, entry, cards, archiveCards, logIndex, eraFactors, throughWeek, onClose }) {
+    function PlayerScoutingCard({ league, entry, cards, archiveCards, logIndex, eraFactors, throughWeek, onClose, onMove }) {
         const [chosenTab, setChosenTab] = useState(null);
         const read = scoutingRead(league, entry, cards, logIndex, eraFactors, throughWeek);
         const weeklyAdvice = read.status === 'ready' && read.currentAvailable === false
@@ -178,7 +178,10 @@
                 h('button', { type: 'button', className: 'tl-btn', onClick: onClose, 'aria-label': 'Close player history' }, 'Close')),
             h(PlayerSignals, { league, entry, cards, logIndex, eraFactors, throughWeek, className: 'tl-dossier-signals' }),
             h('section', { className: 'tl-lineup-guidance', 'aria-label': 'Start or bench guidance' },
-                h('strong', null, weeklyAdvice.title), h('p', null, weeklyAdvice.detail), h('small', null, weeklyAdvice.basis)),
+                h('strong', null, weeklyAdvice.title), h('p', null, weeklyAdvice.detail), h('small', null, weeklyAdvice.basis),
+                onMove && read.status === 'ready' && (read.currentAvailable === false || read.currentStars != null && read.currentStars <= 2) && h('button', {
+                    type: 'button', className: 'tl-btn', 'aria-label': `Review lineup options for ${entry.name}`, onClick: onMove,
+                }, 'Compare replacements')),
             h('div', { className: 'tl-scouting-season-meta' },
                 h('span', null, `${Number.isFinite(read.points) ? fmt1(read.points) : '—'} YTD pts`),
                 h('span', null, `${Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1)} Vault weeks left`),
@@ -255,6 +258,7 @@
         const [moveChoice, setMoveChoice] = useState(null);
         const [moving, setMoving] = useState(false);
         const [comparisonOpen, setComparisonOpen] = useState(false);
+        const fillInFlightRef = React.useRef(false);
         const moveRef = React.useRef(null);
         const moveTrigger = React.useRef(null);
         const dossierRef=React.useRef(null);
@@ -262,6 +266,39 @@
         const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const revealed = league.seasonsRevealed && !concealed;
         const editable = team.manager === 'human' && league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
+        const emptyStarterSlots = currentTeam => STARTER_SLOTS.reduce((total, slot) => total + Math.max(0,
+            (league.settings.rosterSlots[slot] || 0) - currentTeam.roster.filter(entry => entry.slot === slot).length), 0);
+        const emptyCount = emptyStarterSlots(team);
+        const fillPlan = useMemo(() => {
+            if (!editable || !emptyCount) return null;
+            const next = Engine.autoFillLineup(league, team.teamId, cards);
+            if (next === league) return null;
+            const before = new Map(team.roster.map(entry => [entry.entryId, entry.slot]));
+            const nextTeam = next.teams.find(candidate => candidate.teamId === team.teamId);
+            const moved = nextTeam.roster.filter(entry => before.get(entry.entryId) !== entry.slot);
+            return moved.length ? { next, moved, remaining: emptyStarterSlots(nextTeam) } : null;
+        }, [league, team, cards, editable, emptyCount]);
+        const fillHelpId = `vault-fill-help-${league.leagueId}-${team.teamId}`;
+        const fillHelp = league.phase === 'complete' ? 'This season is complete. Your saved lineup can be reviewed here.'
+            : !editable ? 'Lineups are locked. Empty slots can be filled during the next planning gate.'
+            : !emptyCount ? 'Every starting slot is occupied. Use Move to compare and swap players.'
+                : !fillPlan ? `No eligible bench player can fill ${emptyCount === 1 ? 'the empty starting slot' : `these ${emptyCount} empty starting slots`}. Select + Add player in an empty slot to review your roster options.`
+                    : `Fill ${fillPlan.moved.length} empty starting slot${fillPlan.moved.length === 1 ? '' : 's'} from your bench. Existing starters stay in place.${fillPlan.remaining ? ` ${fillPlan.remaining} other slot${fillPlan.remaining === 1 ? ' needs' : 's need'} an eligible player.` : ''}`;
+        const fillEmptySlots = async () => {
+            if (!editable || moving || fillInFlightRef.current) return;
+            if (!fillPlan) { setMoveNotice(fillHelp); return; }
+            fillInFlightRef.current = true;
+            setMoving(true);
+            setMoveNotice('');
+            try {
+                const saved = await apply(fillPlan.next, { type: 'auto-lineup', teamId: team.teamId });
+                const moves = fillPlan.moved.slice(0, 3).map(entry => `${entry.name} → ${slotName(entry.slot)}`).join('; ');
+                const more = fillPlan.moved.length > 3 ? `; ${fillPlan.moved.length - 3} more` : '';
+                setMoveNotice(saved === false ? 'The filled lineup was not saved. Review your current lineup and try again.'
+                    : `Filled ${fillPlan.moved.length} empty starting slot${fillPlan.moved.length === 1 ? '' : 's'}: ${moves}${more}. Existing starters stayed in place.${fillPlan.remaining ? ` ${fillPlan.remaining} starting slot${fillPlan.remaining === 1 ? ' remains' : 's remain'} open.` : ''}`);
+            } catch { setMoveNotice('The filled lineup could not be saved. Review your current lineup and try again.'); }
+            finally { fillInFlightRef.current = false; setMoving(false); }
+        };
         React.useEffect(() => {
             if (moveChoice?.entryId && !team.roster.some(entry => entry.entryId === moveChoice.entryId)) setMoveChoice(null);
         }, [team.roster, moveChoice?.entryId]);
@@ -382,7 +419,8 @@
 
         const selected=team.roster.find(e=>e.entryId===selectedId);
         const dossier = selected && h('aside', { className: 'tl-roster-dossier tl-scouting-card', ref: dossierRef, tabIndex: -1, 'aria-label': 'Historical player dossier' },
-            h(PlayerScoutingCard, { key: selected.entryId, league, entry: selected, cards, archiveCards, logIndex, eraFactors, throughWeek, onClose: () => setSelectedId(null) }));
+            h(PlayerScoutingCard, { key: selected.entryId, league, entry: selected, cards, archiveCards, logIndex, eraFactors, throughWeek,
+                onClose: () => setSelectedId(null), onMove: editable ? event => openMove({ entryId: selected.entryId }, event) : null }));
         const movingEntry = team.roster.find(entry => entry.entryId === moveChoice?.entryId);
         const sortCandidates = (a, b) => (a.slot === 'BN' ? 0 : 1) - (b.slot === 'BN' ? 0 : 1) || a.name.localeCompare(b.name);
         // Exact target IDs make swaps atomic even with a full bench or several occupants in one slot.
@@ -429,12 +467,14 @@
                     h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal ? 'good' : 'warn'}` }, editable ? optimal ? 'Lineup ready' : `${problems.length} open slot${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
                         PlayerComparison && h('button', { type: 'button', className: 'tl-btn', 'aria-expanded': comparisonOpen, onClick: () => setComparisonOpen(value => !value) }, comparisonOpen ? 'Hide comparison' : 'Compare players'),
                         onStats && h('button', { type: 'button', className: 'tl-btn', onClick: onStats }, 'Player stats'),
-                        h('button', { type: 'button', className: 'tl-btn', disabled: !editable || moving, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, 'Auto-fill'))),
+                        h('button', { type: 'button', className: 'tl-btn', 'aria-label': 'Fill empty slots', 'aria-describedby': fillHelpId,
+                            disabled: !editable || moving || !fillPlan, onClick: fillEmptySlots }, moving && fillInFlightRef.current ? 'Filling slots…' : 'Fill empty slots'))),
+                h('p', { className: 'tl-roster-fill-help', id: fillHelpId }, fillHelp),
                 comparisonOpen && PlayerComparison && h('div', { className: 'tl-roster-comparison' }, h(PlayerComparison, {
                     rows: comparisonRows, columns: comparisonColumns, scoutingForRow: comparisonScouting,
                     workspaceKey: `vault-lineup:${league.leagueId}:${team.teamId}`, title: 'Compare lineup options', onSelect: row => setSelectedId(row.id),
                 })),
-                moveNotice && !moveChoice && h('p', { className: 'tl-roster-notice', role: 'status' }, moveNotice),
+                moveNotice && !moveChoice && h('p', { className: 'tl-roster-notice', role: 'status', 'aria-live': 'polite', 'aria-atomic': true }, moveNotice),
                 !optimal && problems.length > 0 && h('details', { className: 'tl-roster-help tl-roster-problems' }, h('summary', null, headline), problems.map((problem, i) => h('p', { key: i }, problem))),
                 h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),

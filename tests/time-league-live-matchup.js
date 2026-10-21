@@ -108,6 +108,33 @@ const gateButton=label=>button(dock(dockProps()),label);
     const finals=root.states[1].value.finalizedWeeks[0];
     assert.equal(players().length,12,'Both complete starting lineups include zero-score players and superflex');
 
+    // A recap link opens only an already disclosed saved week, once per intent.
+    const receiptProps = { ...component(rootTree(), WrTimeLeagueGamecastPanel).props, active: true, autoPlayWeek: null, throughWeek: 1, onPlaybackChange() {} };
+    const request = { leagueId: receiptProps.league.leagueId, week: 1, requestId: 1 };
+    function inspectReceipt(extra) {
+        const ctx = harness();
+        const props = { ...receiptProps, scoreRequest: request, ...extra };
+        const render = () => ctx.render(() => WrTimeLeagueGamecastPanel(props), true);
+        render(); render();
+        return { ctx, render, props };
+    }
+    assert.equal(inspectReceipt({ scoreRequest: { ...request, leagueId: 'another-room' } }).ctx.states[6].value, null, 'A request for another room cannot open this archive');
+    assert.equal(inspectReceipt({ scoreRequest: { ...request, week: 2 } }).ctx.states[6].value, null, 'An unresolved week cannot be opened');
+    assert.equal(inspectReceipt({ throughWeek: 0 }).ctx.states[6].value, null, 'A saved but undisclosed result remains concealed');
+    assert.equal(inspectReceipt({ active: false }).ctx.states[6].value, null, 'An inactive tab does not consume a scoring intent');
+    const pendingReceipt = inspectReceipt({ autoPlayWeek: 1 });
+    assert.equal(pendingReceipt.ctx.states[6].value, null, 'Pending and unfinished first playback cannot be bypassed by a recap request');
+    pendingReceipt.ctx.states[1].set(60);
+    pendingReceipt.render(); pendingReceipt.render();
+    assert.equal(pendingReceipt.ctx.states[6].value, 1, 'A finished playback can open its saved receipt');
+    assert.equal(pendingReceipt.ctx.states[0].value, null, 'Opening a receipt closes the completed playback');
+    const receipt = inspectReceipt();
+    assert.equal(receipt.ctx.states[6].value, 1, 'The exact saved week opens');
+    receipt.ctx.states[6].set(null); receipt.render();
+    assert.equal(receipt.ctx.states[6].value, null, 'Closing a receipt does not reopen it on the next render');
+    receipt.props.scoreRequest = { ...request, requestId: 2 }; receipt.render();
+    assert.equal(receipt.ctx.states[6].value, 1, 'A new explicit recap click can reopen that same saved week');
+
     tree = play();
     const notice = component(tree, WrTimeLeagueMailNotice);
     assert(notice, 'The final scoreboard surfaces its opponent message');

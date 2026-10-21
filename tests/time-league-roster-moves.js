@@ -51,6 +51,52 @@ const render = (extra = {}) => {
 const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.props['aria-label']);
 
 (async () => {
+    const originalLeague = league;
+    reset();
+    let fillControl = button(render(), 'Fill empty slots');
+    assert(!fillControl.props.disabled);
+    assert(text(byClass(render(), 'tl-roster-fill-help')).includes('Fill 3 empty starting slots from your bench'));
+    assert(fillControl.props['aria-describedby'], 'The fill action has a visible accessible explanation');
+    const pendingFill = fillControl.props.onClick();
+    await fillControl.props.onClick();
+    await pendingFill;
+    assert.equal(applied.length, 1, 'Repeated taps cannot submit the same in-flight fill twice');
+    const filled = applied[0].next;
+    assert.deepEqual(filled.teams[0].roster.filter(item => ['young', 'rice'].includes(item.entryId)).map(item => [item.entryId, item.slot]), [['young', 'QB'], ['rice', 'WR']], 'Gap filling preserves occupied starting slots');
+    assert.equal(filled.teams[0].roster.find(item => item.entryId === 'sharpe').slot, 'TE');
+    assert.equal(filled.teams[0].roster.find(item => item.entryId === 'payton').slot, 'FLEX');
+    assert.equal(filled.teams[0].roster.find(item => item.entryId === 'montana').slot, 'SUPER_FLEX');
+    assert(text(byClass(render(), 'tl-roster-notice')).includes('Filled 3 empty starting slots'));
+    assert(text(byClass(render(), 'tl-roster-notice')).includes('1 starting slot remains open'));
+    assert(byClass(render(), 'tl-roster-notice')[0].props['aria-atomic']);
+
+    reset(); saveResult = false;
+    await button(render(), 'Fill empty slots').props.onClick();
+    assert(text(byClass(render(), 'tl-roster-notice')).includes('was not saved'));
+    assert(!button(render(), 'Fill empty slots').props.disabled, 'An unsuccessful save leaves a retry available');
+    saveResult = true;
+    reset();
+    await button(render({ onUpdate: async () => { throw new Error('fixture save failure'); } }), 'Fill empty slots').props.onClick();
+    assert(text(byClass(render(), 'tl-roster-notice')).includes('could not be saved'));
+
+    league = filled;
+    reset(); fillControl = button(render(), 'Fill empty slots');
+    assert(fillControl.props.disabled, 'A remaining gap with no eligible bench player does not offer an ineffective action');
+    assert(text(byClass(render(), 'tl-roster-fill-help')).includes('No eligible bench player can fill the empty starting slot'));
+    const callsBeforeNoOp = applied.length;
+    await fillControl.props.onClick();
+    assert.equal(applied.length, callsBeforeNoOp, 'No-op fills never write a save');
+    league = { ...filled, settings: { ...filled.settings, rosterSlots: { ...filled.settings.rosterSlots, DEF: 0 } } };
+    reset(); assert(button(render(), 'Fill empty slots').props.disabled);
+    assert(text(byClass(render(), 'tl-roster-fill-help')).includes('Every starting slot is occupied'));
+    league = { ...originalLeague, weekStage: 'ready' };
+    reset(); assert(button(render(), 'Fill empty slots').props.disabled);
+    await button(render(), 'Fill empty slots').props.onClick();
+    assert.equal(applied.length, callsBeforeNoOp, 'Locked lineups do not submit fills');
+    assert(text(byClass(render(), 'tl-roster-fill-help')).includes('Lineups are locked'));
+    league = originalLeague;
+    reset(); applied = [];
+
     assert(byClass(render(), 'tl-lineup-ytd').length === entries.length, 'Starters and bench each show a YTD points column');
     const signals = byClass(render(), 'tl-roster-signals');
     assert.equal(signals.length, entries.length, 'Every starter and bench player has an always-visible metric group');
@@ -197,6 +243,9 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     logs.delete(currentKey); tree = render();
     assert(text(byClass(tree, 'tl-roster-signals')).includes('No recorded game'));
     assert(text(byClass(tree, 'tl-lineup-guidance')).includes('Bench this week') && text(byClass(tree, 'tl-lineup-guidance')).includes('score zero'), 'Confirmed missing games provide a concrete bench reason');
+    button(tree, 'Review lineup options for Steve Young').props.onClick();
+    assert(text(byClass(render(), 'tl-roster-move-sheet')).includes('Move Steve Young'), 'A current no-game warning opens the real replacement chooser');
+    button(render(), 'Close lineup choices').props.onClick();
     assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'A missing current game never reveals future Vault results');
     logs.set(currentKey, currentLog);
     cards.set(entries[0].identity, youngCard);
@@ -403,5 +452,6 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
         assert.deepEqual(walk(table).filter(node => node.type === 'td').slice(1).map(visibleText), fixture.values,
             `${fixture.position} season game values come from stats.extra`);
     }
+    console.log('PASS: empty-slot fills preserve starters, handle save failures and repeat taps, explain unavailable actions, and connect current warnings to real replacement choices');
     console.log('PASS: own-roster focus, named atomic full-bench swaps, all eligible open-slot choices, mobile sheet, stars, sealed archive, locks, hotseat/online seat ownership, filtered free agents, failed-save recovery and viewer-safe public scouting cards');
 })().catch(error => { console.error(error); process.exitCode = 1; });

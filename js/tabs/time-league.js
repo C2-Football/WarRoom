@@ -1061,6 +1061,7 @@
         const [dataLoading, setDataLoading] = useState(true);
         const [eraFactorsMissing, setEraFactorsMissing] = useState(false);
         const [gamecastStatus, setGamecastStatus] = useState(null);
+        const [scoreRequest, setScoreRequest] = useState(null);
         const [mailReads, setMailReads] = useState({});
         const [mailThread, setMailThread] = useState(null);
         const [, refreshMail] = useState(0);
@@ -1123,7 +1124,7 @@
                 setConnectionError('This league needs the latest secure draft view. Refresh the app and try again.');
                 return;
             }
-            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setShowFriends(false); }
+            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setScoreRequest(null); setShowFriends(false); }
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             }
@@ -1392,6 +1393,7 @@
             setIndex(readIndexEntries());
             setAutoPlayWeek(null);
             setGamecastStatus(null);
+            setScoreRequest(null);
             setStorageError(null);
             setSaveConflict(false);
             navigateTab(stored.phase === 'draft' ? 'draft' : 'home');
@@ -1555,6 +1557,7 @@
             catch { throw new Error('This device could not save your league. Allow site storage or free some space, then try again. Your setup is still here.'); }
             setLeague(state);
             leagueRef.current = state;
+            setScoreRequest(null);
             onlineRef.current = null;
             openGeneration.current += 1;
             setOnlineMeta(null);
@@ -1584,6 +1587,7 @@
             setOnlineMeta(null);
             setAutoPlayWeek(null);
             setGamecastStatus(null);
+            setScoreRequest(null);
             setLeague(stored);
             setTab(stored.phase === 'draft' ? 'draft' : 'home');
         }, []);
@@ -1610,6 +1614,7 @@
             setLeague(null);
             setAutoPlayWeek(null);
             setGamecastStatus(null);
+            setScoreRequest(null);
             onlineRef.current = null;
             openGeneration.current += 1;
             setOnlineMeta(null);
@@ -1800,7 +1805,9 @@
                 activeTab === 'home' && watching && !playback.replay ? h('section', { className: 'tl-card' },
                     h('h2', null, `Week ${playback.week} is still in progress`), h('p', null, 'Your week recap opens after the final whistle.'),
                     h('button', { className: 'tl-btn primary', onClick: () => navigateTab('gameday') }, 'Watch game'))
-                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam, cards, logIndex, eraFactors, throughWeek: mailThroughWeek }) : null,
+                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab,
+                        onInspectScore: week => { setScoreRequest(previous => ({ leagueId: league.leagueId, week, requestId: (previous?.requestId || 0) + 1 })); navigateTab('gameday'); },
+                        seatTeamId: responseTeam, cards, logIndex, eraFactors, throughWeek: mailThroughWeek }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
                     key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
@@ -1808,7 +1815,7 @@
                     auctionControls: league.phase === 'draft' && league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft }),
                 }) : loadingNotice) : null,
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday' && !storageError, seatTeamId: responseTeam, mailNotice, throughWeek: mailThroughWeek, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onGoRoster: () => navigateTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, scoreRequest, active: activeTab === 'gameday' && !storageError, seatTeamId: responseTeam, mailNotice, throughWeek: mailThroughWeek, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onGoRoster: () => navigateTab('roster'),
                 })) : null,
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')

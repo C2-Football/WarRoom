@@ -238,20 +238,49 @@
      * against the league's configurable values; anything the row carried in
      * `stats.extra` (kicking, team defense, IDP) is paid against `extended`.
      */
-    function scoreStatLine(stats, scoring, extended = REFERENCE_EXTENDED_SCORING) {
-        const weights = { passYd: scoring.passingYd, passTd: scoring.passTd,
+    function coreScoringWeights(scoring) {
+        return { passYd: scoring.passingYd, passTd: scoring.passTd,
             rushYd: scoring.rushRecYd, recYd: scoring.rushRecYd, rec: scoring.reception,
             rushTd: RUSH_REC_TD_POINTS, recTd: RUSH_REC_TD_POINTS,
             twoPointConversions: TWO_POINT_CONVERSION_POINTS, passInt: scoring.turnover,
             fumblesLost: scoring.turnover, ...scoring.stats };
+    }
+
+    const bonusApplies = (stats, bonus) => ['passYd', 'rushYd', 'recYd', 'rec'].includes(bonus.stat)
+        && Number.isFinite(bonus.threshold) && bonus.threshold > 0 && Number.isFinite(bonus.points)
+        && (stats[bonus.stat] || 0) >= bonus.threshold;
+
+    function scoreStatLine(stats, scoring, extended = REFERENCE_EXTENDED_SCORING) {
+        const weights = coreScoringWeights(scoring);
         const points = Object.entries(weights).reduce((sum, [key, weight]) => sum + (stats[key] || 0) * weight, 0);
         const bonuses = (scoring.bonuses || []).reduce((sum, bonus) =>
-            ['passYd', 'rushYd', 'recYd', 'rec'].includes(bonus.stat)
-                && Number.isFinite(bonus.threshold) && bonus.threshold > 0 && Number.isFinite(bonus.points)
-                && (stats[bonus.stat] || 0) >= bonus.threshold ? sum + bonus.points : sum, 0);
+            bonusApplies(stats, bonus) ? sum + bonus.points : sum, 0);
         const core = Math.round((points + bonuses) * 100) / 100;
         const extraPoints = scoreExtendedStats(stats.extra, scoring.extended || extended);
         return extraPoints === 0 ? core : Math.round((core + extraPoints) * 100) / 100;
+    }
+
+    // On-demand explanation of a recorded line. The scorer above remains the
+    // authority; shared weights/bonus conditions prevent a second UI formula.
+    // Contributions display cents, with an explicit adjustment when the engine's
+    // core/extended group rounding differs from rounding each displayed row.
+    function scoringBreakdown(stats, scoring, extended = REFERENCE_EXTENDED_SCORING) {
+        if (!stats || typeof stats !== 'object' || !scoring) return null;
+        const total = scoreStatLine(stats, scoring, extended);
+        if (!Number.isFinite(total)) return null;
+        const rows = [];
+        const add = (group, stat, value, weight, id = `${group}:${stat}`, threshold) => {
+            if (!Number.isFinite(value) || !Number.isFinite(weight) || value === 0) return;
+            const raw = value * weight;
+            rows.push({ id, group, stat, value, weight, points: Math.round(raw * 100) / 100, ...(threshold === undefined ? {} : { threshold }) });
+        };
+        for (const [stat, weight] of Object.entries(coreScoringWeights(scoring))) add('stat', stat, stats[stat], weight);
+        for (const [index, bonus] of (scoring.bonuses || []).entries()) {
+            if (bonus.points && bonusApplies(stats, bonus)) add('bonus', bonus.stat, 1, bonus.points, `bonus:${index}`, bonus.threshold);
+        }
+        for (const [stat, value] of Object.entries(stats.extra || {})) add('extra', stat, value, (scoring.extended || extended)[stat] ?? 0);
+        const rowCents = rows.reduce((sum, row) => sum + Math.round(row.points * 100), 0);
+        return { rows, total, rounding: (Math.round(total * 100) - rowCents) / 100 };
     }
 
     function eraFactorFor(factors, season, position) {
@@ -460,7 +489,7 @@
 
     const api = {
         isStarterSlot, emptyStatLine, EXTENDED_STAT_IDS, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
-        gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, eraFactorFor,
+        gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, scoringBreakdown, eraFactorFor,
         buildRoundRobinSchedule, rosterOutlook, weeklyStarOutlook, usesGameDeck, dataIndexFor, factorsFor, sourceGames, gameDeck, resolveGameLog, completedProduction, editionKey, gamePoints,
     };
     App.TimeLeagueSeason = api;

@@ -186,7 +186,7 @@
                 nomination
                     ? h('div', { className: 'tl-auction-lot' },
                         h('div', null, h('span', { className: 'tl-pill' }, nomination.position), h('h2', null, nomination.name),
-                            h('p', { className: 'tl-hint' }, 'Mystery season · revealed after the draft')),
+                            h('p', { className: 'tl-hint' }, league.settings.hiddenYears ? 'Hidden year · discover it through recorded games' : 'Mystery season · revealed after the draft')),
                         h('div', { className: 'tl-auction-high-bid' }, h('span', null, 'HIGH BID'), h('strong', { className: 'tabular' }, `$${nomination.highBid}`), h('span', null, highTeam?.name || 'No bidder')))
                     : h('div', { className: 'tl-auction-next' }, h('h2', null, isNominating ? 'Bring a legend to the floor.' : `${nominator?.name || 'The next manager'} nominates next.`), h('p', { className: 'tl-hint' }, 'A nomination opens the bidding to every eligible team.')),
                 isNominating && h('form', { className: 'tl-auction-nominate', onSubmit: event => { event.preventDefault(); if (enabled && selected && validBid) onAction({ type: 'auction-nominate', teamId: viewer.teamId, identity: selected.identity, amount }); } },

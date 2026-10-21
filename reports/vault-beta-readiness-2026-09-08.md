@@ -19,7 +19,7 @@ No new modes, economy, AI service, or data source.
 | C: legal next decisions and saved-result explanation | VERIFIED | Real planning, legal Move swap, lineup lock, game day/instant/recap, exact saved score, box-score route, reload and End week; known tie fixtures |
 | D: existing rival/progression connections | VERIFIED | Actual friendly composer reply and authored reply each survive reload once; fixture-assisted 14-week champion, career/team links and completed shelf resume |
 | E: save compatibility and conflict recovery | VERIFIED | Storage-conflict and recovery tests: stale views/tabs, held locks, switching rooms, quota recovery, old JSON/compression, no overwritten newer progress |
-| E: integrated build, lifecycle/regression and rendered matrix | VERIFIED | 65-command Vault suite, final160-script build, core97/97, first-class7/7, five-size Chromium journey and WebKit phone controls; scoped known telemetry guard error recorded |
+| E: integrated build, lifecycle/regression and rendered matrix | VERIFIED | First slice: 65-command Vault suite,160-script build, core97/97, first-class7/7, five-size Chromium journey and WebKit phone controls; follow-on evidence below |
 | Authenticated hosted multiplayer / physical devices | BLOCKED | No live accounts or production mutations used; outside this local verification pass |
 
 Statuses: NOT STARTED, DESIGNED, IMPLEMENTED, VERIFIED, BLOCKED. Verification
@@ -181,6 +181,105 @@ was performed. Nothing was pushed, merged or deployed.
 4. Address the existing unrelated design-token failure and duplicate roster
    preset label separately. Historical gaps stay documented; corrections require
    evidence and an explicit active-save compatibility decision.
+
+### Follow-on slice: decision evidence
+
+Continued from clean checkpoint `1750851` at the user's request. This finite
+slice completes explanations within existing play; no new mode, scoring rule,
+save schema, backup system or deployment is included.
+
+| Requirement | Status | Acceptance |
+|---|---|---|
+| Saved-player scoring receipt and direct recap link | VERIFIED | Actual Home link opens/focuses the exact saved archive, own team first; keyboard-expandable recorded stats × league weights, bonuses, rounding and saved era factor reconcile to committed points; no-record, missing statistics and older mismatches remain explicit |
+| Gap-only lineup action | VERIFIED | Fill empty slots explains its existing limits, disables full/no-compatible/locked states, preserves occupied starters and confirms named moves; actual Move→Fill→reload plus repeated-tap/save-failure fixtures |
+| Hidden Years AI availability | VERIFIED | Rivals demote an explicitly known current no-game choice using the same coarse clue as the human roster; unknown/stale clues retain existing persona estimates; 36 deterministic legal lineups and private-data getter traps |
+| Default Roulette and alternate draft controls | VERIFIED | Actual reveal/reload and 24-pick two-team standard Hidden Years Roulette draft; 12-pick linear and 12-lot auction, including paused-lot reload, legal human bid and budgets; nomination copy now matches Hidden Years |
+| Integrated regressions and rendered receipt | VERIFIED | 67-command Vault suite, 160-script build, exact 272,473 scorer comparisons, prior saved-result regression, five-size Chromium receipts and WebKit phone controls; expected isolated telemetry errors recorded separately |
+
+The prior finished release remains intact. Regular-season bye scoring/readiness
+semantics are retained; a broader readiness redesign stays future work.
+
+#### What changed for the player
+
+The recap's **Scoring & box scores** action opens its saved week directly and
+focuses the archive. Your matchup and team appear first. Each saved starter
+expands in place to show recorded production, applicable rates, reached bonuses,
+rounding and the saved era adjustment. Saved points remain authoritative even
+when an older result lacks statistics or its original scoring context no longer
+reconciles. A no-record game is distinct from unavailable statistics and from a
+recorded zero. Historical coverage warnings remain visible. The link cannot
+bypass pending/unfinished first playback or disclose a later result, and closing
+the archive stays closed until another explicit request.
+
+**Fill empty slots** now says what it does, disables an impossible/no-op action,
+preserves existing starters, rejects repeated in-flight taps and reports saved
+names or a recoverable failure. Existing scouting warnings offer **Compare
+replacements** through the real legal Move sheet. This is not a new projection
+or persistent automation. Hidden Years rivals now avoid an explicitly known
+current no-record player when a legal replacement is available; their established
+persona estimates still rank other options. Human decisions and settled results
+are unchanged.
+
+#### Rules, saves and evidence
+
+No historical records, scoring weights, randomness, save schema, unlocks or
+settled outcomes changed. The scorer's weights/bonus predicate are shared with
+the receipt rather than maintaining a screen-specific formula. Exact output
+parity against checkpoint `1750851` passed for all 272,461 source scoring lines
+and 12 custom cases (bonuses, negative points, overrides and group rounding).
+Opening a receipt performs no save. Existing plain/compressed save and complete
+season tests still pass. The AI correction affects future lineup preparation
+only; no resolved game is repriced or replayed.
+
+Follow-on evidence is in `output/playwright/vault-next/`:
+
+- `verification-core-variants.json`: PASS, 7 groups, 29 screenshots, 75 intercepted
+  writes, zero page exceptions. Actual two-team standard Roulette draft and
+  compact linear/auction drafts; first game/instant/reload; fixture-assisted
+  scoring and Move/Fill checks. The six-team default was not fully drafted in
+  this browser run. `verification-auction.json` separately records a real human
+  bid after AI consideration and paused-lot reload.
+- `verification-scoring-score-link.json`: PASS, 3 groups, 13 screenshots, 17
+  intercepted writes, zero page exceptions. Final recap link, correct saved
+  week, scroll/focus, own team first, no automatic reopening and stable results.
+- `verification-webkit.json`: PASS, 4 groups, 14 screenshots, 25 intercepted
+  writes; receipt, disclosure, enlarged text, gap-fill, reload and recap-link
+  phone acceptance. Both browsers use disposable local saves and intercepted
+  writes. WebKit's two expected blocked analytics CORS errors are listed
+  separately; zero unexpected application exceptions were accepted.
+- `scorer-parity-result.json`, `scorer-parity.cjs`, `scorer-parity.log`: exact
+  baseline/current source and archive hashes, comparison counts and reproducible
+  scorer check. This is calculation parity, not certification of every source
+  fact or proof of gameplay enjoyment.
+- `final-suite.log`, `final-build.log`, `regression-browser.log`: integrated
+  checks and the first slice's complete signed-out journey regression. Focused
+  receipt/AI/roster tests are now part of `npm run test:timeleague`; live-matchup
+  tests also cover wrong-room, future/undisclosed-week and first-playback guards.
+- `../vault-next-slice/fill-slots-verification.json`: independent roster review,
+  full/partial/no-candidate states and reload at 390/1440.
+
+Representative comparisons: `scoring-archive-before-390.png` versus
+`scoring-receipt-detail-390.png`; desktop `scoring-receipt-detail-1440.png`;
+direct-link `score-link-390.png`; `lineup-gap-390.png` versus
+`lineup-filled-390.png`. Receipt layout was inspected at 390×844, 430×932,
+1024×1366, 1366×1024 and 1440×900. WebKit is phone emulation at 390/430,
+including 125% text, native details and real Move/Fill controls. No physical
+device, hosted multiplayer, offline or performance-improvement claim is made.
+The documented pre-existing unrelated design-token failure remains.
+
+With the 3038 isolated server above running:
+
+```sh
+node tests/vault-next-journey.cjs --roulette --linear --auction --scoring --fill
+node tests/vault-next-journey.cjs --scoring --score-link
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-next-journey.cjs --webkit --scoring --fill --score-link
+node output/playwright/vault-next/scorer-parity.cjs
+```
+
+The first command creates disposable fixtures for the targeted follow-ups.
+Browser artifacts stay in the existing ignored output directory; no account,
+invitation, live room or user's progress was used. The preview remains at
+`http://127.0.0.1:3037/?vault=1`. No push, merge or deployment occurred.
 
 ---
 

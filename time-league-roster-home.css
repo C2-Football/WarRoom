@@ -289,3 +289,5 @@
   .tl-root.tl-play .tl-scouting-card .tl-dossier-title h2 { font-size:21px; }
   .tl-player-card-tabs button { font-size:12px; }
 }
+.tl-root.tl-play .tl-roster-fill-help { margin:0 0 14px; max-width:75ch; color:var(--text-secondary); font-size:14px; line-height:1.5; }
+.tl-root.tl-play .tl-lineup-guidance > .tl-btn { display:block; margin-top:12px; min-height:44px; }

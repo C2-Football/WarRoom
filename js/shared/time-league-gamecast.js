@@ -17,6 +17,7 @@
         sack: 'sacks', int: 'interceptions', ff: 'forced fumbles', fr: 'fumble recoveries', def_td: 'defensive TD', def_st_td: 'return TD', safe: 'safeties',
         idp_tkl_solo: 'solo tackles', idp_tkl_ast: 'assisted tackles', idp_tkl_loss: 'tackles for loss', idp_sack: 'sacks', idp_int: 'interceptions', idp_ff: 'forced fumbles', idp_fr: 'fumble recoveries', idp_pass_def: 'passes defended', idp_td: 'defensive TD', idp_safe: 'safeties' };
     const hasStats = stats => Object.entries(stats).some(([key, value]) => key === 'extra' ? hasStats(value || {}) : Number.isFinite(value) && value !== 0);
+    const statLabel = (stat, group) => (group === 'extra' ? EXTRA_LABELS[stat] : CORE_LABELS[stat]) || stat.replaceAll('_', ' ');
 
     function addStats(target, source) {
         for (const [key, value] of Object.entries(source)) {
@@ -239,7 +240,7 @@
         return headlines.slice(0, 5);
     }
 
-    const api = { GAMECAST_END, QUARTER_LENGTH, quarterAt, nextQuarterEnd, clockLabel, addStats, describeStats, buildGamecast, weekHeadlines };
+    const api = { GAMECAST_END, QUARTER_LENGTH, quarterAt, nextQuarterEnd, clockLabel, addStats, describeStats, statLabel, buildGamecast, weekHeadlines };
     App.TimeLeagueGamecast = api;
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

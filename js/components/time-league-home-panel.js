@@ -40,7 +40,7 @@
             h('span', { className: 'tl-home-action-go', 'aria-hidden': true }, '↗'));
     }
 
-    function SavedResultExplanation({ league, week, team, onNavigate }) {
+    function SavedResultExplanation({ league, week, team, onNavigate, onInspectScore }) {
         const match = week?.matchups.find(row => row.home === team.teamId || row.away === team.teamId);
         const result = week?.results.find(row => row.teamId === team.teamId);
         if (!match || !result) return null;
@@ -56,10 +56,10 @@
                 h('div', null, h('small', null, 'Your result'), h('strong', null, outcome), h('span', null, tieNote || 'Final scores include starting players only.')),
                 top && h('div', null, h('small', null, 'Your top starter'), h('strong', null, top.name), h('span', null, `${top.points.toFixed(2)} points${top.position ? ` · ${top.position}` : ''}`))),
             h('p', { className: 'tl-hint' }, 'Recorded historical game statistics are converted into fantasy points using this league’s scoring.', league.settings.eraAdjusted ? ' Era adjustments are included.' : '', ' Each player’s points and the lineup total are rounded to two decimals.', missing ? ` ${missing} starter${missing === 1 ? ' had' : 's had'} no recorded game and scored zero.` : ''),
-            h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('gameday') }, 'Scoring & box scores →'));
+            h('button', { type: 'button', className: 'tl-btn', onClick: () => onInspectScore ? onInspectScore(week.week) : onNavigate('gameday') }, 'Scoring & box scores →'));
     }
 
-    function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId, cards, logIndex, eraFactors, throughWeek }) {
+    function WrTimeLeagueHomePanel({ league, onNavigate, onInspectScore, seatTeamId, cards, logIndex, eraFactors, throughWeek }) {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((team) => team.teamId === teamId);
@@ -142,7 +142,7 @@
                         h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine', score: myScore, scoreDigits: 2 }),
                         h('div', { className: 'tl-home-vs' }, h('span', null, `WEEK ${justFinished.week}`), h('strong', null, 'FINAL')),
                         h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent', score: opponent && justFinished.results.find(result => result.teamId === opponent.teamId)?.total, scoreDigits: 2 }))),
-                h(SavedResultExplanation, { league, week: justFinished, team: myTeam, onNavigate }),
+                h(SavedResultExplanation, { league, week: justFinished, team: myTeam, onNavigate, onInspectScore }),
                 h('section', { className: 'tl-card tl-league-update' },
                     h('h2', null, 'Around the league'),
                     weeklyLeaders && h('div', { className: 'tl-update-highlights' },
@@ -186,7 +186,7 @@
                     h('button', { type: 'button', className: 'tl-btn primary', onClick: () => onNavigate('career') }, 'My career →'),
                     h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('roster') }, 'Review my team')),
                 h('p', { className: 'tl-hint' }, 'For another season, open League options, then Switch league.')),
-            league.phase === 'complete' && h(SavedResultExplanation, { league, week: lastFinalized, team: myTeam, onNavigate }),
+            league.phase === 'complete' && h(SavedResultExplanation, { league, week: lastFinalized, team: myTeam, onNavigate, onInspectScore }),
 
             league.phase !== 'complete' && !postgame && (showWaiverDecision || showTradeDecision) && h('section', { className: 'tl-home-action-grid' },
                 showWaiverDecision && h(ActionCard, {
