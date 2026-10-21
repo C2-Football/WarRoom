@@ -885,6 +885,33 @@
         const [expanded, setExpanded] = useState(false);
         const dialogRef = React.useRef(null);
         const triggerRef = React.useRef(null);
+        const navRef = React.useRef(null);
+        useEffect(() => {
+            const nav = navRef.current;
+            const root = nav?.closest('.tl-root');
+            if (!root) return undefined;
+            const property = '--tl-mobile-nav-space';
+            const previous = root.style.getPropertyValue(property);
+            let alive = true;
+            const measure = () => {
+                if (!alive) return;
+                const height = Math.ceil(nav.getBoundingClientRect().height);
+                if (height > 0) root.style.setProperty(property, `${height}px`);
+                else root.style.removeProperty(property);
+            };
+            const observer = window.ResizeObserver ? new window.ResizeObserver(measure) : null;
+            observer?.observe(nav);
+            window.addEventListener?.('resize', measure);
+            window.document?.fonts?.ready?.then(measure);
+            measure();
+            return () => {
+                alive = false;
+                observer?.disconnect();
+                window.removeEventListener?.('resize', measure);
+                if (previous) root.style.setProperty(property, previous);
+                else root.style.removeProperty(property);
+            };
+        }, []);
         const close = () => { setExpanded(false); triggerRef.current?.focus?.({ preventScroll: true }); };
         useEffect(() => {
             const dialog = dialogRef.current;
@@ -905,7 +932,7 @@
                 h('div', { className: 'tl-card-title' }, 'More ways to play', h('button', { className: 'tl-btn icon', 'aria-label': 'Close more navigation', autoFocus: true, onClick: close }, '×')),
                 h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab], tab === 'messages' && unread > 0 ? h('em', { className: 'tl-mail-badge' }, unread) : null)),
                     onReportBug && h('button', { type: 'button', onClick: () => { close(); onReportBug(); } }, h('span', { 'aria-hidden': true }, '⚑'), 'Report a bug'))),
-            h('nav', { className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
+            h('nav', { ref: navRef, className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
                 primary.map(tab => h('button', { key: tab, className: activeTab === tab ? 'active' : '', 'aria-current': activeTab === tab ? 'page' : undefined, onClick: () => choose(tab) },
                     h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), h('b', null, labels[tab]))),
                 extra.length > 0 && h('button', { ref: triggerRef, 'aria-haspopup': 'dialog', className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'), unread > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unread} unread messages` }, unread) : null)));
@@ -1828,6 +1855,11 @@
                     ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
                     : h(ActivityPanel, { league })) : null),
                 showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, teamId: responseTeam, league, onlineMeta, saving, authRequired: Boolean(onlineMeta && authRequired), signInHref, saveError: Boolean(storageError), saveConflict, onRetrySave: retryLocalSave, playback, messageAction: mailAction,
+                    onReviewLineup: teamId => {
+                        if (!league.teams.some(team => team.teamId === teamId && team.manager === 'human') || (onlineMeta && teamId !== onlineMeta.seatTeamId)) return;
+                        if (!onlineMeta) setActiveTeamId(teamId);
+                        navigateTab('roster');
+                    },
                     dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab }))));
     }
 

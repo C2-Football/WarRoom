@@ -281,6 +281,120 @@ Browser artifacts stay in the existing ignored output directory; no account,
 invitation, live room or user's progress was used. The preview remains at
 `http://127.0.0.1:3037/?vault=1`. No push, merge or deployment occurred.
 
+### Continued slice: kickoff readiness and unpaired results
+
+Continued from clean checkpoint `fc10c31` at the user's request. The finite
+scope is existing lineup readiness and accurate regular-bye/playoff-observer
+presentation. A regular bye still scores PF/all-play and requires a legal
+lineup. A team outside a playoff round does not block it. No rule, save schema,
+historical data, replay persistence system or multiplayer permission changes.
+
+| Requirement | Status | Completion criteria |
+|---|---|---|
+| One shared participation/readiness contract | VERIFIED | 10 known fixtures; Actions and UI share required-human-team and slot legality calculation, including regular byes and playoff observers; malformed schedules remain unknown |
+| Actionable kickoff readiness | VERIFIED | Named blockers, direct local hotseat repair, authorized reopen after successful save, nonblocking current no-game advisories; 9 focused gate/profile cases retain role, early-vote, timed, save and auth behavior |
+| Accurate Home and saved unpaired results | VERIFIED | Actual three-team bye PF/all-play/H2H calculations, live solo lineup and saved receipt; no false playoff Bye or invented observer score; first pending playback frame contains no final |
+| Compatibility and interactive verification | VERIFIED | 70-command suite, 160-script build, Chromium and WebKit flows, final keyboard focus and measured-navigation full-target checks pass; hosted/physical boundaries unchanged |
+
+First-playback interruption preserves the same committed outcome. Animation
+position is not restored; a saved final remains available for replay.
+
+#### Integrated behavior and compatibility
+
+`weekParticipation` and `lineupReadiness` are derived engine reads, with no new
+saved fields. Regular byes require legal human starters because those points
+count toward points for and all-play. An observer outside the current playoff
+pairings does not block that round. Missing/partial schedules remain unknown,
+without weakening regular-week validation. Saved past matchups take precedence
+over reconstructed schedules. No-record starters remain legal: the roster names
+confirmed current zero-game choices and opens the existing Move comparison,
+without treating unknown or stale reports as zeros.
+
+The fixed week controls name real blocking teams before lock/kickoff. Local
+hotseat repair selects that exact manager; online managers can only review their
+own seat. A locked invalid lineup has a direct authorized **Reopen lineups**
+action, and failed saves do not pretend to reopen it. Majority voting can still
+record an early vote; it does not bypass authoritative lineup validation.
+Readiness details close by button or Escape and return focus to their summary.
+The existing server force behavior is preserved, not exposed as a new bypass.
+Mobile navigation reserves its actual measured height, including wrapped
+enlarged labels and safe-area padding, so it cannot clip the week-action touch
+targets. This presentation measurement has no saved game-state fields.
+
+Home, live playback, saved box scores and team history now distinguish a real
+regular-season bye from a playoff observer or unknown schedule. Every saved
+unpaired team result has reachable starter receipts, shown first for its owner.
+No opposing lineup, win marker or observer score is invented. During first
+playback, bye points follow landed scoring moments. The initial render before
+the playback effect now shows only a preparation status, preventing a brief
+saved-final/archive disclosure. Identified-year tests cover this initial frame,
+unfinished playback and normal/replay/final disclosure.
+
+No migration, historical-data edit, scoring change or outcome correction is
+needed. Existing plain/compressed save, stale-tab recovery, complete-season and
+authoritative endpoint checks pass. An interrupted first playback reloads the
+same committed final, with Replay available; animation position is not restored.
+Repeated End week input advances once and does not grant another result.
+
+#### Verification and inspection
+
+Follow-on checks and before/after evidence are under
+`output/playwright/vault-readiness/`:
+
+- `baseline.json`: 4 behavior/integrity checks and 14 captures, using exact
+  `fc10c31` source overrides with disposable fixtures. It records the incorrect
+  playoff-bye copy and confirms pre-existing settled-result integrity.
+- `verification.json`: PASS, 6 scenarios, 11 checks, 60 viewport captures,
+  36 intercepted writes and zero page exceptions; real controls for interruption,
+  scoring bye, playoff observer, another missing human manager, legal no-record
+  starter and locked legacy repair. Final after images use viewport captures;
+  full-page baseline stitching can repeat fixed headers and is not evidence of
+  duplicate application roots.
+- `webkit.json`: PASS, the same 6 scenarios and 11 checks, 28 phone captures,
+  30 intercepted writes and zero unexpected exceptions. Two expected denied
+  analytics CORS errors are recorded separately. This is browser emulation,
+  not a physical Safari session.
+- `verification-safe-area.json` / `webkit-safe-area.json`: PASS, 9 viewport/text
+  states and 9 captures each, 5 intercepted writes, zero page exceptions. Full
+  44px action targets stay above navigation at 390/430 normal and 125% text,
+  667×375 short landscape, 740×390 tablet navigation and phone return. Desktop
+  restoration removes the mobile reserve and keeps its existing controls fully
+  visible (the existing desktop More control is 40px wide). Actual navigation heights include 75px normally
+  and 90px at enlarged phone text. These emulated geometry checks do not test
+  physical device cutouts; separate `final-*-safe-area.log` files record them.
+- `final-suite.log`, `final-build.log`, `lint.log`: 70-command Vault suite,
+  160 compiled scripts and changed-runtime ESLint. `gate-focus.log` records the
+  final 9-case keyboard/role/profile check after the last focus-handler edit.
+  `nav-lint.log` and targeted integration/playback/recovery/guest checks cover
+  the final navigation-measurement edit; it adds no game-state transition.
+- `core-browser.log` and `core-browser-verification.json`: PASS, 7 journey groups
+  and 41 captures; regression through
+  actual signed-out hub/direct entry, draft, roster, conflict recovery, game day,
+  saved recap, next-week advancement and fixture-assisted 14-week completion.
+
+Representative images: `before-bye-recap-390.png` /
+`after-bye-scoring-receipt-390.png`, `after-missing-other-manager-390.png`,
+`after-legal-no-record-starter-390.png` and
+`after-observer-ready-home-1440.png`. The Chromium matrix uses all five requested
+sizes (390×844, 430×932, 1024×1366, 1366×1024, 1440×900). Browser sessions use
+loopback fixtures and intercept writes; they establish neither hosted
+multiplayer nor physical-device behavior. The prior unrelated design-token
+failure remains outside this scope. No push, merge or deployment occurred.
+
+With the same isolated preview servers above running:
+
+```sh
+node tests/vault-readiness-journey.cjs
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-readiness-journey.cjs --webkit
+node tests/vault-readiness-journey.cjs --safe-area
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-readiness-journey.cjs --webkit --safe-area
+```
+
+The shared engine fixtures, unpaired presentation and gate/profile checks are
+included in `npm run test:timeleague`. Remaining priorities are the hosted
+multi-account and physical-device acceptance already listed above, human pacing
+observations, and separately scoped backup/export work.
+
 ---
 
 September 8, 2026 · Product, browser, rules, and architecture review

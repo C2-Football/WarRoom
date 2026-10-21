@@ -266,6 +266,7 @@
         const concealed = league.settings.hiddenYears && !league.yearsRevealed;
         const revealed = league.seasonsRevealed && !concealed;
         const editable = team.manager === 'human' && league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
+        const participation = Engine.weekParticipation(league, team.teamId);
         const emptyStarterSlots = currentTeam => STARTER_SLOTS.reduce((total, slot) => total + Math.max(0,
             (league.settings.rosterSlots[slot] || 0) - currentTeam.roster.filter(entry => entry.slot === slot).length), 0);
         const emptyCount = emptyStarterSlots(team);
@@ -280,6 +281,7 @@
         }, [league, team, cards, editable, emptyCount]);
         const fillHelpId = `vault-fill-help-${league.leagueId}-${team.teamId}`;
         const fillHelp = league.phase === 'complete' ? 'This season is complete. Your saved lineup can be reviewed here.'
+            : participation.kind === 'observer' ? 'Your team is not in this playoff round. Its lineup does not block kickoff; you can review your roster here.'
             : !editable ? 'Lineups are locked. Empty slots can be filled during the next planning gate.'
             : !emptyCount ? 'Every starting slot is occupied. Use Move to compare and swap players.'
                 : !fillPlan ? `No eligible bench player can fill ${emptyCount === 1 ? 'the empty starting slot' : `these ${emptyCount} empty starting slots`}. Select + Add player in an empty slot to review your roster options.`
@@ -361,6 +363,14 @@
         };
         const weeksRemaining = Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1);
         const problems = Engine.lineupProblems(league, team.teamId);
+        const noGameStarters = useMemo(() => {
+            if (!participation.requiresLineup || !['claims', 'lineup', 'ready'].includes(league.weekStage)) return [];
+            return team.roster.filter(entry => {
+                if (!Season.isStarterSlot(entry.slot)) return false;
+                const read = scoutingRead(league, entry, cards, logIndex, eraFactors, throughWeek);
+                return read.status === 'ready' && read.currentAvailable === false;
+            });
+        }, [league, team.roster, cards, logIndex, eraFactors, throughWeek, participation.requiresLineup]);
         const moveEntry = async (entryId, slot, targetEntryId) => {
             if (!editable || moving) { setMoveNotice('Lineups open during the waiver and roster gates.'); return; }
             const next = Engine.setEntrySlot(league, team.teamId, entryId, slot, targetEntryId);
@@ -415,7 +425,7 @@
         const reserves = RESERVE_SLOTS.filter((slot) => (league.settings.rosterSlots[slot] ?? 0) > 0);
 
         const optimal = league.phase !== 'draft' && problems.length === 0;
-        const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : optimal ? 'LINEUP IS VALID' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
+        const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : participation.kind === 'observer' ? 'ROSTER DETAILS · NOT REQUIRED THIS ROUND' : optimal ? 'LINEUP IS VALID' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
 
         const selected=team.roster.find(e=>e.entryId===selectedId);
         const dossier = selected && h('aside', { className: 'tl-roster-dossier tl-scouting-card', ref: dossierRef, tabIndex: -1, 'aria-label': 'Historical player dossier' },
@@ -464,12 +474,18 @@
             h('div', { className: 'tl-roster-main' },
                 h('div', { className: 'tl-roster-toolbar' },
                     h('div', null, h('h2', null, 'My Roster'), h('p', null, `${team.name} · Week ${league.currentWeek} · ${team.roster.length}/${capacity} players · ${weeksRemaining} weeks left`)),
-                    h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal ? 'good' : 'warn'}` }, editable ? optimal ? 'Lineup ready' : `${problems.length} open slot${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
+                    h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal || participation.kind === 'observer' ? 'good' : 'warn'}` }, participation.kind === 'observer' ? 'No lineup required this round' : editable ? optimal ? 'Lineup legal' : `${problems.length} lineup issue${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
                         PlayerComparison && h('button', { type: 'button', className: 'tl-btn', 'aria-expanded': comparisonOpen, onClick: () => setComparisonOpen(value => !value) }, comparisonOpen ? 'Hide comparison' : 'Compare players'),
                         onStats && h('button', { type: 'button', className: 'tl-btn', onClick: onStats }, 'Player stats'),
                         h('button', { type: 'button', className: 'tl-btn', 'aria-label': 'Fill empty slots', 'aria-describedby': fillHelpId,
                             disabled: !editable || moving || !fillPlan, onClick: fillEmptySlots }, moving && fillInFlightRef.current ? 'Filling slots…' : 'Fill empty slots'))),
                 h('p', { className: 'tl-roster-fill-help', id: fillHelpId }, fillHelp),
+                noGameStarters.length > 0 && h('section', { className: 'tl-roster-game-warning', 'aria-label': 'Current no-game starters' },
+                    h('h3', null, `${noGameStarters.length} starter${noGameStarters.length === 1 ? '' : 's'} with no recorded game`),
+                    h('p', null, `These players will score zero in Vault Week ${league.currentWeek}. They are legal starters; keeping them does not prevent kickoff.`, editable ? ' Compare an eligible replacement before locking.' : ' Lineups are locked; the commissioner can reopen them before kickoff.'),
+                    h('ul', null, noGameStarters.map(entry => h('li', { key: entry.entryId },
+                        h('span', null, `${entry.name} · ${slotName(entry.slot)}`),
+                        editable && h('button', { type: 'button', className: 'tl-btn', disabled: moving, 'aria-label': `Compare replacements for ${entry.name}`, onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Compare replacements'))))),
                 comparisonOpen && PlayerComparison && h('div', { className: 'tl-roster-comparison' }, h(PlayerComparison, {
                     rows: comparisonRows, columns: comparisonColumns, scoutingForRow: comparisonScouting,
                     workspaceKey: `vault-lineup:${league.leagueId}:${team.teamId}`, title: 'Compare lineup options', onSelect: row => setSelectedId(row.id),

@@ -197,18 +197,20 @@
             next = AI.aiRespondToTrades({ ...AI.aiGenerateTrades(next, cards, stamp), weekStage: 'lineup' }, cards, stamp);
             break;
         }
-        case 'finalize-rosters':
+        case 'finalize-rosters': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'lineup') deny('Resolve waivers before finalizing rosters.');
-            if (state.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).some(t => E.lineupProblems(state, t.teamId).length)) deny('Managers still need to fill every starting lineup before finalizing.');
+            const readiness = E.lineupReadiness(state);
+            if (!readiness.ready) deny(`Managers still need to fill every starting lineup before finalizing. Check ${readiness.blockers.map(team => team.name).join(', ')}.`);
             next = { ...state, weekStage: 'ready' };
             break;
+        }
         case 'week': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Complete the weekly planning steps first.');
             const prepared = AI.aiPrepareWeek(state, cards, data.logIndex, data.eraFactors);
-            const problems = prepared.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap(t => E.lineupProblems(prepared, t.teamId));
-            if (problems.length && !action.force) deny('Managers still need to set their lineups.');
+            const readiness = E.lineupReadiness(prepared);
+            if (!readiness.ready && !action.force) deny(`Managers still need to set their lineups. Check ${readiness.blockers.map(team => team.name).join(', ')}.`);
             next = E.finalizeCurrentWeek(prepared, data.logIndex, data.eraFactors, stamp);
             next = { ...next, weekStage: 'postgame' };
             break;

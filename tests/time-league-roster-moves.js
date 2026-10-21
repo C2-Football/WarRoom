@@ -242,6 +242,10 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     const currentKey = S.gameLogKey(entries[0].identity, 1994, 3), currentLog = logs.get(currentKey);
     logs.delete(currentKey); tree = render();
     assert(text(byClass(tree, 'tl-roster-signals')).includes('No recorded game'));
+    assert(text(byClass(tree, 'tl-roster-game-warning')).includes('Steve Young') && text(byClass(tree, 'tl-roster-game-warning')).includes('legal starters'), 'Current zero-game starters are named before lock without becoming illegal');
+    button(tree, 'Compare replacements for Steve Young').props.onClick();
+    assert(text(byClass(render(), 'tl-roster-move-sheet')).includes('Move Steve Young'), 'The visible advisory opens the same legal replacement chooser');
+    button(render(), 'Close lineup choices').props.onClick();
     assert(text(byClass(tree, 'tl-lineup-guidance')).includes('Bench this week') && text(byClass(tree, 'tl-lineup-guidance')).includes('score zero'), 'Confirmed missing games provide a concrete bench reason');
     button(tree, 'Review lineup options for Steve Young').props.onClick();
     assert(text(byClass(render(), 'tl-roster-move-sheet')).includes('Move Steve Young'), 'A current no-game warning opens the real replacement chooser');
@@ -254,6 +258,7 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
 
     league = { ...league, weekStage: 'postgame' };
     tree = render();
+    assert.equal(byClass(tree, 'tl-roster-game-warning').length, 0, 'Postgame does not show stale future-game advisories');
     assert(byClass(tree, 'tl-week-stars').every(node => text(node).includes('Awaiting next week') && !text(node).includes('No recorded game')));
     assert(text(byClass(tree, 'tl-lineup-guidance')).includes('Awaiting a current game clue') && !text(byClass(tree, 'tl-lineup-guidance')).includes('Bench this week'), 'A stale postgame report cannot produce a new recommendation');
     assert(!text(byClass(tree, 'tl-season-game-table')[0]).includes('W3'), 'Postgame keeps the upcoming currentWeek absent from the completed-game table');

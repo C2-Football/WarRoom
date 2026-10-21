@@ -21,11 +21,18 @@
         const scored = league.finalizedWeeks.filter(week => week.week <= league.settings.regularSeasonWeeks).length;
         const leader = standings[0];
         const scoringLeader = [...standings].sort((a,b) => b.pointsFor-a.pointsFor)[0];
-        const past = league.finalizedWeeks.map(week => ({ week: week.week, result: week.results.find(row => row.teamId === selected?.teamId), match: week.matchups.find(match => match.home === selected?.teamId || match.away === selected?.teamId) }));
-        const upcoming = league.schedule.filter(row => row.week >= league.currentWeek).map(row => {
-            const pair = row.pairs.find(pair => pair.includes(selected?.teamId));
-            return { week: row.week, opponent: pair ? teamOf(pair.find(id => id !== selected.teamId))?.name : 'Bye' };
-        });
+        const past = league.finalizedWeeks.map(week => ({ week: week.week, result: week.results.find(row => row.teamId === selected?.teamId),
+            match: week.matchups.find(match => match.home === selected?.teamId || match.away === selected?.teamId),
+            participation: Engine.weekParticipation(league, selected?.teamId, week.week) }));
+        const participationLabel = (participation, week) => participation.kind === 'bye' ? 'Bye · lineup points still count'
+            : participation.kind === 'observer' ? 'Not in this playoff round'
+                : participation.kind === 'inactive' ? 'No scheduled game'
+                    : week > league.settings.regularSeasonWeeks ? 'Playoff matchup not yet set' : 'Matchup not recorded';
+        const upcoming = selected && league.phase !== 'complete' ? Array.from({ length: Math.max(0, Engine.seasonEndWeek(league) - league.currentWeek + 1) }, (_, index) => {
+            const week = league.currentWeek + index;
+            const participation = Engine.weekParticipation(league, selected.teamId, week);
+            return { week, opponent: participation.pair ? teamOf(participation.pair.find(id => id !== selected.teamId))?.name || 'Opponent unavailable' : participationLabel(participation, week) };
+        }) : [];
         const metric = (label, value, detail) => h('div', { className: 'tl-command-metric' }, h('small', null, label), h('strong', null, value), h('span', null, detail));
         const champion = league.phase === 'complete' && league.championTeamId ? teamOf(league.championTeamId) : null;
         const selectTeam = (teamId, event) => {
@@ -85,9 +92,9 @@
                 profileOnly && children,
                 h('div', { className: 'tl-command-columns' },
                     h('div', null, h('h3', null, 'Recent form'),
-                        past.length ? past.slice(-5).reverse().map(row => h('div', { key: row.week, className: 'tl-command-result' }, h('small', null, `W${row.week}`), h('strong', null, row.result ? `${row.result.total.toFixed(1)} pts` : '—'), h('span', null, !row.match ? 'Bye' : `${row.match.winner === null ? 'Tie' : row.match.winner === selected.teamId ? 'Win' : 'Loss'} vs ${teamOf(row.match.home === selected.teamId ? row.match.away : row.match.home)?.name}`))) : h('p', null, 'No games completed yet.')),
+                        past.length ? past.slice(-5).reverse().map(row => h('div', { key: row.week, className: 'tl-command-result' }, h('small', null, `W${row.week}`), h('strong', null, row.result ? `${row.result.total.toFixed(1)} pts` : '—'), h('span', null, !row.match ? participationLabel(row.participation, row.week) : `${row.match.winner === null ? 'Tie' : row.match.winner === selected.teamId ? 'Win' : 'Loss'} vs ${teamOf(row.match.home === selected.teamId ? row.match.away : row.match.home)?.name}`))) : h('p', null, 'No games completed yet.')),
                     h('div', null, h('h3', null, 'Remaining schedule'),
-                        upcoming.length ? upcoming.map(row => h('div', { key: row.week, className: 'tl-command-result' }, h('small', null, `W${row.week}`), h('strong', null, row.opponent))) : h('p', null, 'Season complete.')))));
+                        upcoming.length ? upcoming.map(row => h('div', { key: row.week, className: 'tl-command-result' }, h('small', null, `W${row.week}`), h('strong', null, row.opponent))) : h('p', null, league.phase === 'complete' ? 'Season complete.' : 'No remaining scheduled games.')))));
 
     }
 

@@ -677,6 +677,50 @@
         const winners = (previous?.matchups || []).map(match => match.winner || match.home).sort((a,b) => seeds.indexOf(a)-seeds.indexOf(b));
         return winners.length >= 2 ? winners.slice(0, winners.length / 2).map((seed, index) => [seed, winners[winners.length - 1 - index]]) : [];
     }
+
+    // Participation describes the league's own schedule, never a player's
+    // historical NFL availability. A regular-season bye still scores a lineup
+    // for PF/all-play; teams outside a playoff round have no team result.
+    function weekParticipation(state, teamId, week = state.currentWeek) {
+        const result = (kind, pair = null, requiresLineup = false) => ({ kind, pair: pair ? [...pair] : null, requiresLineup });
+        if (!Number.isInteger(week) || week < 1 || !state.teams.some(team => team.teamId === teamId)) return result('unknown');
+        const saved = state.finalizedWeeks.find(row => row.week === week);
+        if (state.phase === 'draft' || (week > seasonEndWeek(state) && !saved)) return result('inactive');
+        const regular = week <= state.settings.regularSeasonWeeks;
+        const current = state.phase === 'season' && week === state.currentWeek;
+        // A future bracket is not settled by today's standings. Saved older
+        // rounds take precedence over any subsequently reconstructed bracket.
+        if (!regular && week > state.currentWeek && !saved) return result('unknown');
+        const scheduled = regular ? state.schedule.find(row => row.week === week) : null;
+        const pairs = Array.isArray(saved?.matchups) ? saved.matchups.map(match => [match.home, match.away])
+            : regular ? scheduled?.pairs : playoffPairs(state, week);
+        const pair = pairs?.find(row => row.includes(teamId));
+        if (pair) return result('matchup', pair, current);
+        if (regular) {
+            // Preserve the authoritative regular-week requirement even when a
+            // damaged/missing schedule cannot honestly be labeled a bye.
+            const savedBye = saved?.results?.some(row => row.teamId === teamId);
+            const teamIds = new Set(state.teams.map(team => team.teamId));
+            const scheduledIds = scheduled?.pairs?.flat() || [];
+            const validSchedule = scheduled?.pairs?.every(row => row.length === 2 && row.every(id => teamIds.has(id)))
+                && new Set(scheduledIds).size === scheduledIds.length;
+            const unmatched = validSchedule ? state.teams.filter(team => !scheduledIds.includes(team.teamId)) : [];
+            const scheduledBye = scheduled?.byeTeamId === teamId || (unmatched.length === 1 && unmatched[0].teamId === teamId);
+            return result((saved ? savedBye : scheduledBye) ? 'bye' : 'unknown', null, current);
+        }
+        return result(saved || pairs?.length ? 'observer' : 'unknown');
+    }
+
+    function lineupReadiness(state) {
+        const teams = state.teams.filter(team => team.manager === 'human').flatMap(team => {
+            const participation = weekParticipation(state, team.teamId);
+            return participation.requiresLineup ? [{ teamId: team.teamId, name: team.name, kind: participation.kind,
+                problems: lineupProblems(state, team.teamId) }] : [];
+        });
+        const blockers = teams.filter(team => team.problems.length > 0);
+        return { teams, blockers, ready: blockers.length === 0 };
+    }
+
     function startPlayoffs(state, count) {
         // A revealed edition cannot become secret again in an added postseason.
         if (state.settings.hiddenYears && (state.seasonExtensionLocked || state.yearsRevealed || state.yearReveals?.length)) return state;
@@ -1417,7 +1461,7 @@
         AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
-        positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
+        positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems, weekParticipation, lineupReadiness,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
         playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
     };
