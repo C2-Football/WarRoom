@@ -71,8 +71,14 @@ function buildLeagueOverviewDecision({ league, roster, playersData = {}, skin, w
     }
     const upcoming = games.filter(game => gameStatus(game) === 'upcoming').sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
     const next = upcoming[0] || null;
-    const startersInNext = next && known ? roster.starters.filter(pid => [normalize(next.home), normalize(next.away)].includes(normalize(playersData[pid]?.team))).length : 0;
-    return { week, known, automatic, flags, lockedFlags, next, startersInNext, live: games.some(game => ['live', 'locked'].includes(gameStatus(game))), complete };
+    const starterTeams = known ? roster.starters.filter(pid => pid && String(pid) !== '0').map(pid => normalize(playersData[pid]?.team)).filter(Boolean) : [];
+    const countStarters = game => {
+        const teams = [normalize(game?.home), normalize(game?.away)].filter(Boolean);
+        return starterTeams.filter(team => teams.includes(team)).length;
+    };
+    const nextStarterGame = upcoming.find(game => countStarters(game) > 0) || null;
+    return { week, known, automatic, flags, lockedFlags, next, startersInNext: countStarters(next),
+        nextStarterGame, startersInNextStarterGame: countStarters(nextStarterGame), live: games.some(game => ['live', 'locked'].includes(gameStatus(game))), complete };
 }
 
 function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersData, setActiveTab }) {
@@ -104,35 +110,38 @@ function LeagueOverviewDecisions({ currentLeague, leagueSkin, myRoster, playersD
     }, [key, liveSeason]);
     const current = schedule.key === key ? schedule : { status: 'loading', games: [], now: Date.now() };
     const decision = buildLeagueOverviewDecision({ league: currentLeague, roster: myRoster, playersData, skin: leagueSkin, week, games: current.games, now: current.now });
-    const nextLabel = decision.next ? new Date(decision.next.kickoff).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : null;
-    const scheduleLabel = nextLabel ? 'Next kickoff · ' + nextLabel : decision.live ? 'NFL games are underway' : decision.complete ? 'This week’s NFL games are complete' : current.status === 'loading' ? 'Checking kickoff times…' : 'Kickoff times unavailable';
+    const nextGame = decision.nextStarterGame || decision.next;
+    const nextStarters = decision.nextStarterGame ? decision.startersInNextStarterGame : decision.startersInNext;
+    const nextLabel = nextGame ? new Date(nextGame.kickoff).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : null;
+    const scheduleLabel = nextLabel ? (decision.nextStarterGame ? 'Your next kickoff · ' : 'Next NFL kickoff · ') + nextLabel
+        : decision.live ? 'NFL games are underway' : decision.complete ? 'This week’s NFL games are complete' : current.status === 'loading' ? 'Checking kickoff times…' : 'Kickoff times unavailable';
     const actionableFlags = current.status === 'ready' ? decision.flags.filter(flag => flag.gameStatus === 'upcoming' || (decision.next && ['bye', 'empty', 'unsigned'].includes(flag.kind))) : [];
-    const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: actionableFlags, unverifiedStarterChecks: decision.flags.filter(flag => !actionableFlags.includes(flag)), lockedStarterChecks: decision.lockedFlags, nextKickoff: decision.next ? { home: decision.next.home, away: decision.next.away, kickoff: decision.next.kickoff, startersInGame: decision.startersInNext } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Do not recommend replacing players whose games are live, locked, final, or unverified. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
+    const ask = () => window.dispatchEvent(new CustomEvent('wr:mission-alex-open', { detail: { title: 'Your next move', prompt: 'Help me prioritize my next move in this league. Use these current roster checks and schedule facts: ' + JSON.stringify({ leagueId: currentLeague?.league_id || currentLeague?.id, week, rosterKnown: decision.known, automaticLineup: decision.automatic, starterChecks: actionableFlags, unverifiedStarterChecks: decision.flags.filter(flag => !actionableFlags.includes(flag)), lockedStarterChecks: decision.lockedFlags, nextKickoff: nextGame ? { home: nextGame.home, away: nextGame.away, kickoff: nextGame.kickoff, startersInGame: nextStarters, scope: decision.nextStarterGame ? 'your starters' : 'NFL' } : null, scheduleStatus: current.status }) + '. Listed injury statuses may be stale. Do not recommend replacing players whose games are live, locked, final, or unverified. Confirm current player availability and league lock rules before suggesting a change. Do not invent a waiver deadline, projections, or odds; no move has been submitted.' } }));
     const primaryFlag = actionableFlags[0];
     const primaryMove = (() => {
-        if (decision.automatic) return { message: 'Review your roster depth — your league sets the scoring lineup automatically, so check depth and available adds.', action: 'Open roster', tab: 'myteam' };
-        if (!decision.known) return { message: 'Load your starting lineup — starter details have not loaded yet, so open Game Day to review it.', action: 'Open Game Day', tab: 'lineup' };
+        if (decision.automatic) return { message: 'Review your roster depth.', detail: 'Your league sets the scoring lineup automatically.', action: 'Roster', tab: 'myteam' };
+        if (!decision.known) return { message: 'Review your starting lineup.', detail: 'Starter details have not loaded yet.', action: 'Game Day', tab: 'lineup' };
         if (!primaryFlag) {
-            if (current.status === 'loading') return { message: 'Checking your remaining decisions — confirming which starters can still be changed.', action: 'Open Game Day', tab: 'lineup' };
-            if (current.status !== 'ready') return { message: 'Review your remaining lineup — game timing is unavailable, so verify kickoff before making a change.', action: 'Open Game Day', tab: 'lineup' };
-            if (decision.live) return { message: 'Follow your remaining starters.', action: 'Open Game Day', tab: 'lineup' };
-            if (decision.complete) return { message: 'Review this week — NFL games are complete, so see the results across your league.', action: 'Open League', tab: 'central' };
-            return { message: 'Set up your week — compare your starters and bench before the next kickoff.', action: 'Open Game Day', tab: 'lineup' };
+            if (current.status === 'loading') return { message: 'Review your starting lineup.', action: 'Game Day', tab: 'lineup' };
+            if (current.status !== 'ready') return { message: 'Review your starting lineup.', detail: 'Verify kickoff times before changing a starter.', action: 'Game Day', tab: 'lineup' };
+            if (decision.live) return { message: 'Follow your remaining starters.', action: 'Game Day', tab: 'lineup' };
+            if (decision.complete) return { message: 'See how the week finished.', action: 'Results', tab: 'central' };
+            return { message: 'Review your starters and bench.', action: 'Game Day', tab: 'lineup' };
         }
-        if (primaryFlag.kind === 'empty') return { message: 'Fill your ' + primaryFlag.name + ' slot — it is empty.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'bye') return { message: 'Replace ' + primaryFlag.name + ' — they are on bye this week.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'out') return { message: (primaryFlag.gameStatus === 'upcoming' ? 'Replace ' : 'Check availability for ') + primaryFlag.name + ' — they are listed unavailable.', action: 'Open Game Day', tab: 'lineup' };
-        if (primaryFlag.kind === 'unsigned') return { message: 'Replace ' + primaryFlag.name + ' — no NFL team is listed.', action: 'Open Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'empty') return { message: 'Fill your ' + primaryFlag.name + '.', detail: 'Your starting lineup has an open spot.', action: 'Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'bye') return { message: 'Replace ' + primaryFlag.name + '.', detail: 'Bye this week.', action: 'Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'out') return { message: (primaryFlag.gameStatus === 'upcoming' ? 'Replace ' : 'Check availability for ') + primaryFlag.name + '.', detail: 'Listed unavailable for an upcoming game.', action: 'Game Day', tab: 'lineup' };
+        if (primaryFlag.kind === 'unsigned') return { message: 'Replace ' + primaryFlag.name + '.', detail: 'No NFL team is listed.', action: 'Game Day', tab: 'lineup' };
         const status = String(primaryFlag.reason || 'needs monitoring').replace(/^Monitor\s*·\s*/i, '');
-        return { message: 'Plan a backup for ' + primaryFlag.name + ' — they are listed ' + status + '.', action: 'Open Game Day', tab: 'lineup' };
+        return { message: 'Have a backup for ' + primaryFlag.name + '.', detail: 'Listed ' + status + '.', action: 'Game Day', tab: 'lineup' };
     })();
     return <section className="mc-overview-decisions" aria-label="Alex Insights">
         <header><span>Alex Insights</span><small>{week ? 'Week ' + week : 'Your roster'}</small></header>
         <div className="mc-primary-move">
-            <div><h3>{primaryMove.message}</h3></div>
+            <div><h3>{primaryMove.message}</h3>{primaryMove.detail && <p className="mc-next-note">{primaryMove.detail}</p>}</div>
             <button type="button" onClick={() => setActiveTab?.(primaryMove.tab)}>{primaryMove.action} →</button>
         </div>
-        <p className="mc-next-kickoff">{scheduleLabel}{decision.next && decision.startersInNext > 0 ? ' · ' + decision.startersInNext + ' of your starters' : ''}</p>
+        <p className="mc-next-kickoff">{scheduleLabel}{nextStarters > 0 ? ' · ' + nextStarters + (nextStarters === 1 ? ' starter' : ' starters') : ''}</p>
         {actionableFlags.length > 1 && <p className="mc-next-more">+{actionableFlags.length - 1} more lineup {actionableFlags.length === 2 ? 'issue' : 'issues'} to review in Game Day</p>}
         <div className="mc-next-actions"><button type="button" onClick={() => setActiveTab?.('fa')}>Explore waivers</button><button type="button" onClick={ask}>Ask Alex</button></div>
     </section>;
@@ -562,7 +571,9 @@ function LeagueCentralTab({
         const movement = liveReady && before != null && rank != null ? before - rank : null;
         const result = team.currentResult;
         const cutline = cutlineBefore(teams, index, showCutline);
-        return <React.Fragment key={team.rosterId}>{cutline && <p className="la-cutline">{cutline}</p>}<details className={'la-report-row' + (sameId(team.rosterId, myRoster?.roster_id) ? ' la-own' : '')}><summary aria-label={`${rank ?? 'Unranked'}. ${team.teamName || team.displayName || _getOwnerName(team.rosterId)}, ${team.wins}-${team.losses}-${team.ties || 0}, ${score(team.pointsFor)} fantasy points for. Show details`}><span className="la-standing-rank">{rank ?? '—'}</span><span className="la-standing-team"><strong>{team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong>{qualificationLabel(team) && <small className="lct-qualification">{qualificationLabel(team)}</small>}{movement ? <small>{movement > 0 ? '↑' : '↓'}{Math.abs(movement)}</small> : null}</span><span className="la-standing-record">{team.wins}-{team.losses}-{team.ties || 0}</span><span className="la-standing-points">{score(team.pointsFor)}</span></summary><dl className="la-fields"><div><dt>Fantasy points for</dt><dd>{score(team.pointsFor)}</dd></div><div><dt>Points against</dt><dd>{score(team.pointsAgainst)}</dd></div>{liveReady ? <><div><dt>Week {board.week}</dt><dd>{result ? (liveContext.historical ? result : { W:'Leading', L:'Trailing', T:'Tied' }[result]) : team.opponentRosterId == null && team.currentPoints != null ? 'Bye' : 'Pending'}</dd></div><div><dt>Current points</dt><dd>{score(team.currentPoints)}{team.opponentRosterId != null && `–${score(team.opponentPoints)}`}</dd></div>{team.medianResult && <div><dt>Median result</dt><dd>{team.medianResult}</dd></div>}<div><dt>Rank movement</dt><dd>{movement == null ? 'No prior rank' : movement ? `${movement > 0 ? 'Up' : 'Down'} ${Math.abs(movement)} since entering Week ${board.week}` : 'Unchanged'}</dd></div></> : <div><dt>Form</dt><dd>{team.streak || '—'}{team.form?.length > 0 && <span className="la-form-history">{team.form.map(game => `Week ${game.week}: ${game.result}${game.pts != null ? ' · ' + Number(game.pts).toFixed(1) : ''}`).join('; ')}</span>}</dd></div>}{team.projWins != null && <div><dt>Projected record</dt><dd>{Number(team.projWins).toFixed(1)}–{Number(team.projLosses || 0).toFixed(1)}</dd></div>}{team.playoffPct != null && <div><dt>Playoff chance</dt><dd>{team.playoffPct}%</dd></div>}</dl>{onOpenTeam && <button type="button" className="mc-team-link" onClick={() => onOpenTeam(team.rosterId, team)}>Roster &amp; team profile →</button>}</details></React.Fragment>;
+        const form = window.MobileLiveStandingsData?.lastFive?.(team, liveTable?.baselineRows || [], Number(board.week)) || [];
+        const formLabel = form.length ? 'Last ' + form.length + ' completed head-to-head games, oldest to newest: ' + form.join(', ') : 'Last 5 completed head-to-head games: form unavailable';
+        return <React.Fragment key={team.rosterId}>{cutline && <p className="la-cutline">{cutline}</p>}<details className={'la-report-row' + (sameId(team.rosterId, myRoster?.roster_id) ? ' la-own' : '')}><summary aria-label={`${rank ?? 'Unranked'}. ${team.teamName || team.displayName || _getOwnerName(team.rosterId)}, ${team.wins}-${team.losses}-${team.ties || 0}, ${score(team.pointsFor)} fantasy points for. ${formLabel}. Show details`}><span className="la-standing-rank">{rank ?? '—'}</span><span className="la-standing-team"><span className="mc-league-team-line"><strong>{team.teamName || team.displayName || _getOwnerName(team.rosterId)}</strong>{qualificationLabel(team) && <small className="lct-qualification">{qualificationLabel(team)}</small>}{movement ? <small>{movement > 0 ? '↑' : '↓'}{Math.abs(movement)}</small> : null}</span><span className="mc-league-form" role="group" aria-label={formLabel} title={formLabel}><span className="mc-league-form-label" aria-hidden="true">Last 5</span>{form.length ? form.map((game, gameIndex) => <span key={gameIndex} className="mc-league-form-pill" data-result={game} aria-hidden="true">{game}</span>) : <span className="mc-league-form-empty" aria-hidden="true">—</span>}</span></span><span className="la-standing-record">{team.wins}-{team.losses}-{team.ties || 0}</span><span className="la-standing-points">{score(team.pointsFor)}</span></summary><dl className="la-fields"><div><dt>Fantasy points for</dt><dd>{score(team.pointsFor)}</dd></div><div><dt>Points against</dt><dd>{score(team.pointsAgainst)}</dd></div>{liveReady ? <><div><dt>Week {board.week}</dt><dd>{result ? (liveContext.historical ? result : { W:'Leading', L:'Trailing', T:'Tied' }[result]) : team.opponentRosterId == null && team.currentPoints != null ? 'Bye' : 'Pending'}</dd></div><div><dt>Current points</dt><dd>{score(team.currentPoints)}{team.opponentRosterId != null && `–${score(team.opponentPoints)}`}</dd></div>{team.medianResult && <div><dt>Median result</dt><dd>{team.medianResult}</dd></div>}<div><dt>Rank movement</dt><dd>{movement == null ? 'No prior rank' : movement ? `${movement > 0 ? 'Up' : 'Down'} ${Math.abs(movement)} since entering Week ${board.week}` : 'Unchanged'}</dd></div></> : <div><dt>Form</dt><dd>{team.streak || '—'}{team.form?.length > 0 && <span className="la-form-history">{team.form.map(game => `Week ${game.week}: ${game.result}${game.pts != null ? ' · ' + Number(game.pts).toFixed(1) : ''}`).join('; ')}</span>}</dd></div>}{team.projWins != null && <div><dt>Projected record</dt><dd>{Number(team.projWins).toFixed(1)}–{Number(team.projLosses || 0).toFixed(1)}</dd></div>}{team.playoffPct != null && <div><dt>Playoff chance</dt><dd>{team.playoffPct}%</dd></div>}</dl>{onOpenTeam && <button type="button" className="mc-team-link" onClick={() => onOpenTeam(team.rosterId, team)}>Roster &amp; team profile →</button>}</details></React.Fragment>;
     })}</div> : <div className="lct-table-wrap">
         <table className="lct-table" aria-label={liveReady ? `Week ${board.week} live standings` : 'Official standings'}>
             <thead><tr>
@@ -682,8 +693,24 @@ function LeagueCentralTab({
             updatedAt={overviewBoard.updatedAt} onOpenLeague={() => setActiveTab?.('central')} onOpenTeam={onOpenTeam}
             onRefresh={() => { overviewBoard.refresh?.(); overviewContext.refresh?.(); }} />}
         {renderScoreboard()}
-        <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.(isChopped ? 'fa' : 'central')}>{isChopped ? 'Explore waivers →' : 'Full standings →'}</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>
+        {(!showOverviewStandings || !window.MobileLiveStandings) && <div className="mc-context-actions"><button type="button" onClick={() => setActiveTab?.(isChopped ? 'fa' : 'central')}>{isChopped ? 'Explore waivers →' : 'Full standings →'}</button><button type="button" onClick={() => setActiveTab?.('lineup')}>Game Day →</button></div>}
     </div>;
+
+    const providerKey = String(currentLeague?._platform || currentLeague?.platform || currentLeague?.provider || window.S?.platform || 'sleeper').toLowerCase();
+    const providerName = currentLeague?._mfl || currentLeague?._mflLeagueId ? 'MFL' : ({ sleeper: 'Sleeper', mfl: 'MFL', espn: 'ESPN', yahoo: 'Yahoo' })[providerKey] || 'your league platform';
+    const standingsWarning = showLive && (['error', 'stale'].includes(board.status) || ['error', 'stale'].includes(liveContext.history.status) || liveTable?.status === 'partial');
+    const standingsNotice = showLive ? board.status === 'error' ? 'Weekly scores could not load. Showing official records; refresh scores to retry.'
+        : liveContext.history.status === 'error' ? 'Past scores could not load. Showing official records; refresh scores to retry.'
+        : board.status === 'stale' || liveContext.history.status === 'stale' ? 'Refresh interrupted. Showing the last available scores; updates will retry automatically.'
+        : board.status === 'ready' && !board.rows.length ? `Matchups for Week ${board.week} have not been reported. Showing official records.`
+        : board.updatedAt == null ? 'Loading weekly scores. Official records are shown while they load.'
+        : !liveTable ? 'Loading the weekly table. Official records are shown while it loads.'
+        : liveTable.status === 'official' ? liveTable.message
+        : liveContext.historical && liveTable.status === 'live' ? `Weekly results through Week ${board.week}. Movement from the start of that week.`
+        : liveTable.message
+        : isPhone ? 'Official record from ' + providerName + '.' : 'Sleeper’s posted record. Live results appear here once Sleeper adds them to the standings.';
+    const phoneStandingsNotice = isPhone && liveReady && !standingsWarning ? liveTable.status === 'baseline'
+        ? 'Live results begin when matchups start.' : liveContext.historical ? `Results through Week ${board.week} · movement from the start of that week.` : 'Provisional records · official standings may differ.' : standingsNotice;
 
     return (
         <div ref={centralRef} className={isPhone ? 'la-mobile la-central mc-league' : undefined} style={{ padding: isPhone ? '0' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
@@ -699,13 +726,13 @@ function LeagueCentralTab({
 
             {isPhone && <React.Fragment>
                 <nav className="mc-section-tabs" aria-label="League views">
-                    {[['standings', 'Standings'], ['scores', 'Scores']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); }}>{label}</button>)}
-                    {cupVisible && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => setInnerTab('cup')}>Cup</button>}
+                    {[['standings', isChopped ? 'Survival' : 'Standings'], ['scores', 'Scores']].map(([key, label]) => <button type="button" key={key} aria-pressed={phoneLeagueView === key && innerTab === 'league'} onClick={() => { setPhoneLeagueView(key); setInnerTab('league'); setLeagueViewMenuOpen(false); }}>{label}</button>)}
+                    {cupVisible && <button type="button" aria-pressed={innerTab === 'cup'} onClick={() => { setInnerTab('cup'); setLeagueViewMenuOpen(false); }}>Cup</button>}
                     <button type="button" className="mc-league-view-menu" aria-label="Customize League views" aria-expanded={leagueViewMenuOpen} onClick={() => setLeagueViewMenuOpen(open => !open)}>•••</button>
                 </nav>
                 {leagueViewMenuOpen && <div className="mc-league-view-options" role="group" aria-label="Customize League views">
                     <span>League views</span>
-                    <label><input type="checkbox" checked={cupVisible} onChange={event => setCupVisible(event.target.checked)} /> Cup</label>
+                    <label><input type="checkbox" checked={cupVisible} onChange={event => setCupVisible(event.target.checked)} /> Show Cup on this device</label>
                 </div>}
             </React.Fragment>}
             {(!isPhone || (innerTab === 'league' && phoneLeagueView === 'scores')) && renderScoreboard()}
@@ -756,7 +783,7 @@ function LeagueCentralTab({
             {/* The two things that matter: Standings | Stats */}
             <div id="league-central-standings" className={isPhone ? `mc-league-content mc-league-${phoneLeagueView}` : undefined} style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? 'minmax(0,1fr)' : 'minmax(0,1.32fr) minmax(0,1fr)', gap: '14px', alignItems: 'start' }}>
 
-                {(!isPhone || !isChopped) && renderPanel({ title: "Standings", meta: stMode === 'odds' ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools">{!noPlayoffs && <select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select>}{hasDivisions && stMode === 'table' && <select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">League-wide</option><option value="division">Divisions</option></select>}</div> :
+                {(!isPhone || (!isChopped && phoneLeagueView === 'standings')) && renderPanel({ title: isPhone && stMode === 'odds' ? 'Playoff picture' : 'Standings', meta: stMode === 'odds' && !isPhone ? '10,000-sim monte carlo' : null, right: isPhone ? <div className="la-tools mc-league-controls">{!noPlayoffs && <label className="mc-league-control"><span className="mc-league-control-label">View</span><select aria-label="Standings view" value={stMode} onChange={event => setStMode(event.target.value)}><option value="table">Standings</option><option value="odds">Playoff picture</option></select></label>}{hasDivisions && stMode === 'table' && <label className="mc-league-control"><span className="mc-league-control-label">Group</span><select aria-label="Standings grouping" value={standingsView} onChange={event => setStandingsView(event.target.value)}><option value="overall">League-wide</option><option value="division">Divisions</option></select></label>}</div> :
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {hasDivisions && stMode === 'table' && (
                                 <div style={segWrap} role="group" aria-label="Standings grouping">
@@ -779,20 +806,11 @@ function LeagueCentralTab({
                         <div className="lct-status">
                             <div className="lct-status-copy" role="status">
                                 <strong>{liveReady && liveTable.status !== 'baseline' && board.status !== 'stale' && <i className="lct-live-dot" aria-hidden="true" />}{liveReady ? liveTable.status === 'baseline' ? `Entering Week ${board.week}` : liveContext.historical ? `${liveTable.status === 'partial' ? 'Partial results ·' : 'Through'} Week ${board.week}` : `As it stands · Week ${board.week}` : 'Official record'}</strong>
-                                <small>{showLive && board.updatedAt ? `Scores updated ${new Date(board.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })} · Every 30s` : 'Posted by Sleeper'}</small>
+                                <small>{showLive && board.updatedAt ? `${isPhone ? 'Updated' : 'Scores updated'} ${new Date(board.updatedAt).toLocaleTimeString([], isPhone ? { hour: 'numeric', minute: '2-digit' } : { hour: 'numeric', minute: '2-digit', second: '2-digit' })} · ${isPhone ? 'Auto' : 'Every 30s'}` : 'Posted by ' + (isPhone ? providerName : 'Sleeper')}</small>
                             </div>
                             {liveContext?.enabled && <div className="lct-mode-toggle" role="group" aria-label="Standings source"><button type="button" aria-pressed={tableSource === 'live'} onClick={() => setTableSource('live')}>{liveContext.historical ? `Week ${board.week}` : 'Live'}</button><button type="button" aria-pressed={tableSource === 'official'} onClick={() => setTableSource('official')}>Official</button></div>}
                         </div>
-                        <p className="lct-note">{showLive ? board.status === 'error' ? 'Weekly scores could not load. Showing official records; refresh scores to retry.'
-                            : liveContext.history.status === 'error' ? 'Past scores could not load. Showing official records; refresh scores to retry.'
-                            : board.status === 'stale' || liveContext.history.status === 'stale' ? 'Refresh interrupted. Showing the last available scores; updates will retry automatically.'
-                            : board.status === 'ready' && !board.rows.length ? `Matchups for Week ${board.week} have not been reported. Showing official records.`
-                            : board.updatedAt == null ? 'Loading weekly scores. Official records are shown while they load.'
-                            : !liveTable ? 'Loading the weekly table. Official records are shown while it loads.'
-                            : liveTable.status === 'official' ? liveTable.message
-                            : liveContext.historical && liveTable.status === 'live' ? `Weekly results through Week ${board.week}. Movement from the start of that week.`
-                            : liveTable.message
-                            : 'Sleeper’s posted record. Live results appear here once Sleeper adds them to the standings.'}</p>
+                        <p className={'lct-note mc-league-notice' + (standingsWarning ? ' is-warning' : '')}>{phoneStandingsNotice}</p>
                     </>}
                     {/* Your own odds lead the playoff view — the season-odds read,
                         folded into standings instead of a separate slab. */}

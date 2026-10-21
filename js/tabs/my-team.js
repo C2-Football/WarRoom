@@ -1332,16 +1332,16 @@ function MyTeamTab({
 
   return (<React.Fragment>
                       {/* Identity + roster call */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                        <div style={{ flexShrink: 0, position: 'relative' }}>
+                      <div className={phone ? 'wr-roster-player-profile' : undefined} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                        {!phone && <div style={{ flexShrink: 0, position: 'relative' }}>
                           <img src={'https://sleepercdn.com/content/nfl/players/' + r.pid + '.jpg'} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} style={{ width: '58px', height: '58px', borderRadius: 'var(--card-radius-sm, 8px)', objectFit: 'cover', objectPosition: 'top', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))' }} />
                           <div style={{ display: 'none', width: '58px', height: '58px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>{(r.p.first_name || '?')[0]}{(r.p.last_name || '?')[0]}</div>
                           <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '1px 7px', borderRadius: 'var(--card-radius-sm, 8px)', background: (posColors[r.pos] || 'var(--k-666666, #666666)') + '22', color: posColors[r.pos] || 'var(--silver)', whiteSpace: 'nowrap' }}>{posLbl}</div>
-                        </div>
+                        </div>}
                         <div style={{ flex: 1, minWidth: '150px' }}>
-                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.35rem', color: 'var(--white)', letterSpacing: '0.01em', lineHeight: 1.04 }}>{r.p.full_name || getPlayerName(r.pid)}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '3px', lineHeight: 1.4 }}>
-                            {posLbl} {'·'} {r.p.team || 'FA'} {'·'} Age {r.age || '?'} {'·'} {r.p.years_exp || 0}yr exp
+                          {!phone && <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.35rem', color: 'var(--white)', letterSpacing: '0.01em', lineHeight: 1.04 }}>{r.p.full_name || getPlayerName(r.pid)}</div>}
+                          <div className={phone ? 'wr-roster-player-bio' : undefined} style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '3px', lineHeight: 1.4 }}>
+                            {!phone && <>{posLbl} {'·'} {r.p.team || 'FA'} {'·'} </>}Age {r.age || '?'} {'·'} {r.p.years_exp || 0}yr exp
                             {formatHeight(r.p.height) ? ' · ' + formatHeight(r.p.height) : ''}
                             {r.p.college ? ' · ' + r.p.college : ''}
                             {(() => {
@@ -1355,7 +1355,7 @@ function MyTeamTab({
                                 const slot = rf?.draftSlot || (d ? (d.round > 0 ? 'R' + d.round + ' #' + d.overall + (d.year ? ' ’' + String(d.year).slice(2) : '') + (d.team ? ' ' + d.team : '') : 'UDFA' + (d.year ? ' ’' + String(d.year).slice(2) : '')) : null);
                                 return slot ? ' · ' + slot : '';
                             })()}
-                            {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
+                            {!phone && r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>
                         {/* Verdict badge — editable on ALL versions. Tap to open
@@ -1395,8 +1395,14 @@ function MyTeamTab({
                         );
                       })()}
 
+                      {phone && isPro && (_manualCall(r) || r.recReason) && <p className="wr-roster-player-call">{_manualCall(r) ? 'Your call: ' + _manualCall(r) + '.' : r.recReason}</p>}
+
+                      {/* Weekly evidence leads the phone dossier; the row already
+                          supplies identity and the chosen comparison metrics. */}
+                      {phone && window.RosterPlayerStats && <window.RosterPlayerStats pid={r.pid} pos={r.pos} player={r.p} playersData={playersData} currentLeague={currentLeague} statsData={statsData} leagueType={isChoppedRoster ? 'chopped' : resolvedLeagueSkin?.type} phone />}
+
                       {/* Signals chip strip */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                      <div className={phone ? 'wr-roster-player-signals' : undefined} style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
                         <span style={chip(dhqBg(r.dhq), dhqCol(r.dhq, r.pid, r.pos))}>{tier} {'·'} {r.dhq == null ? '—' : r.dhq.toLocaleString()} DHQ</span>
                         {rank > 0 ? <span style={chip('var(--ov-3, rgba(255,255,255,0.05))', 'var(--gold)')}>{r.pos}{rank}</span> : null}
                         <span style={chip(r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : r.peakPhase === 'POST' ? 'rgba(231,76,60,0.1)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', r.peakPhase === 'PRE' ? 'var(--good)' : r.peakPhase === 'POST' ? 'var(--bad)' : 'var(--gold)')}>{r.peakPhase}{r.peakYrsLeft > 0 ? ' · ~' + r.peakYrsLeft + 'yr' : ''}</span>
@@ -1405,7 +1411,7 @@ function MyTeamTab({
                       </div>
 
                       {/* Signals — 2x2 grid, compact now that this box runs full width */}
-                      <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', marginBottom: '10px' }}>
+                      <div className={phone ? 'wr-roster-player-signals-grid' : undefined} style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', marginBottom: '10px' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>Signals</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px 16px' }}>
                           {sigCell('Ceiling', sigCeiling)}
@@ -1426,7 +1432,7 @@ function MyTeamTab({
 	                    const [pLo, pHi] = curve.peak;
 	                    const declineHi = curve.decline[1];
 	                    const ages = Array.from({length: 17}, (_, i) => i + 20);
-                    return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' }}>
+                    return <div className={phone ? 'wr-roster-player-age-curve' : undefined} style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
 	                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + ' peak yr left' : r.valueYrsLeft > 0 ? '~' + r.valueYrsLeft + ' value yr left' : 'Past value window')}</div>
@@ -1445,7 +1451,7 @@ function MyTeamTab({
                   })()}
 
                   {/* The selected format determines the starting stat view. */}
-                  {window.RosterPlayerStats && <window.RosterPlayerStats pid={r.pid} pos={r.pos} player={r.p} playersData={playersData} currentLeague={currentLeague} statsData={statsData} leagueType={isChoppedRoster ? 'chopped' : resolvedLeagueSkin?.type} phone={phone} />}
+                  {!phone && window.RosterPlayerStats && <window.RosterPlayerStats pid={r.pid} pos={r.pos} player={r.p} playersData={playersData} currentLeague={currentLeague} statsData={statsData} leagueType={isChoppedRoster ? 'chopped' : resolvedLeagueSkin?.type} phone={false} />}
 
                   {/* Desktop action buttons. Phone controls stay beside the player identity. */}
                   {!phone && <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1604,7 +1610,7 @@ function MyTeamTab({
     const openSpots = activeCapacity > 0 ? activeCapacity - activeCount : null;
     const record = myRoster.settings || {};
     const hasRecord = Number.isFinite(record.wins) && Number.isFinite(record.losses);
-    const recordLabel = hasRecord ? `${record.wins}–${record.losses}${record.ties ? '–' + record.ties : ''}` : null;
+    const recordLabel = hasRecord && !isChoppedRoster ? `${record.wins}–${record.losses}${record.ties ? '–' + record.ties : ''}` : null;
     const scopeCounts = {
       All: rows.length,
       Starters: rows.filter(r => r.isStarter).length,
@@ -1627,13 +1633,20 @@ function MyTeamTab({
         {(totalRosterAlerts > 0 || (isPro && seasonalRoster)) && <button type="button" className="wr-roster-mobile-review" onClick={() => setReviewOpen(true)}><span>{totalRosterAlerts > 0 ? totalRosterAlerts + ' roster ' + (totalRosterAlerts === 1 ? 'decision' : 'decisions') : 'Roster review'}</span><span>Review <span aria-hidden="true">›</span></span></button>}
       </section>
     );
+    const phoneSortLabel = _phoneSortOptions.find(option => option.key === rosterSort.key)?.label || 'Player';
+    const phoneViewSummary = [phoneTableOpen ? 'Table' : null, !phoneScopes.includes(rosterFilter) ? rosterFilter : null,
+      rosterGroupMode !== 'none' ? activeGroupModeLabel : null,
+      phoneSortLabel + (['name', 'pos'].includes(rosterSort.key) ? _phoneSortDescending ? ' Z–A' : ' A–Z' : _phoneSortDescending ? ' ↓' : ' ↑')].filter(Boolean).join(' · ');
     _phonePillsEl = (
       <div className="wr-roster-mobile-controls">
-        <div className="wr-roster-mobile-list-heading"><h3>Players</h3><button type="button" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}>View &amp; sort <span aria-hidden="true">⌄</span></button>{metricPreference && !phoneTableOpen && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
+        {!phoneTableOpen && <div className="wr-roster-mobile-search">
+          <input type="search" aria-label="Search your roster" placeholder="Find a player, position or team…" value={phoneSearch} onChange={event => setPhoneSearch(event.target.value)} />
+          {phoneSearch && <button type="button" onClick={() => setPhoneSearch('')}>Clear</button>}
+        </div>}
+        <div className="wr-roster-mobile-tools"><button type="button" className="wr-roster-mobile-view" aria-label="Roster view and sort" title={phoneViewSummary} onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen}><span>View &amp; sort <span aria-hidden="true">⌄</span></span><strong>{phoneViewSummary}</strong></button>{metricPreference && !phoneTableOpen && <window.WR.PlayerMetrics.Picker preference={metricPreference} />}</div>
         <div className="wr-roster-mobile-scopes wr-hscroll" role="group" aria-label="Roster group">
           {phoneScopes.map(scope => <button key={scope} type="button" aria-pressed={rosterFilter === scope} onClick={() => { setRosterFilter(scope); setExpandedPid(null); }}><span>{scope}</span><span>{scopeCounts[scope]}</span></button>)}
         </div>
-        {!phoneScopes.includes(rosterFilter) && <button type="button" className="wr-roster-mobile-active-filter" onClick={() => setFiltersOpen(true)}>Showing {rosterFilter} · Change filter</button>}
       </div>
     );
 
@@ -1660,11 +1673,11 @@ function MyTeamTab({
             {sheetField('Group by', <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
               {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
-            {sheetField('Sort by', <select value={rosterSort.key} onChange={e => sortByColumn(e.target.value)} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
+            {sheetField('Sort by', <select value={rosterSort.key} onChange={e => { const key = e.target.value; setRosterGroupMode('none'); setRosterSort(previous => previous.key === key ? previous : { key, dir: 1 }); }} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
               {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
             {sheetField('Order', <button type="button" onClick={() => setRosterSort(prev => ({ ...prev, dir: prev.dir * -1 }))} className="wr-roster-sort-direction" title="Reverse the sort">
-              <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {_phoneSortDescending ? 'High to low' : 'Low to high'}
+              <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {['name', 'pos'].includes(rosterSort.key) ? _phoneSortDescending ? 'Z to A' : 'A to Z' : _phoneSortDescending ? 'High to low' : 'Low to high'}
             </button>)}
           </div>
         ) },
@@ -1699,11 +1712,10 @@ function MyTeamTab({
             })}
           </div>
         ) }] : []),
-        { label: null, node: <p className="wr-roster-view-note">Changes appear as you choose them.</p> },
       ],
       footer: (
         <React.Fragment>
-          <button type="button" onClick={() => { setRosterFilter('All'); setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); if (phoneTableOpen) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); } }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1, textTransform: 'none', fontSize: '14px' }}>Reset</button>
+          <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); setExpandedPid(null); setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); if (phoneTableOpen) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); } }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1, textTransform: 'none', fontSize: '14px' }}>Reset</button>
           <button type="button" onClick={() => setFiltersOpen(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 2, textTransform: 'none', fontSize: '14px' }}>Done</button>
         </React.Fragment>
       ),
@@ -2229,10 +2241,6 @@ function MyTeamTab({
       {_phone && <section className="wr-roster-mobile-players" aria-label="Your players">
         {_phonePillsEl}
         {phoneTableOpen ? <div className="wr-sticky-table-wrap" style={{ border: 'none' }}>{_renderRosterBoard()}</div> : <React.Fragment>
-          <div className="wr-roster-mobile-search">
-            <input type="search" aria-label="Search your roster" placeholder="Find a player" value={phoneSearch} onChange={event => setPhoneSearch(event.target.value)} />
-            {phoneSearch && <button type="button" onClick={() => setPhoneSearch('')}>Clear</button>}
-          </div>
           {_renderPhoneCards()}
         </React.Fragment>}
       </section>}

@@ -7,7 +7,8 @@ const walk = n => n == null || typeof n === 'boolean' ? [] : Array.isArray(n) ? 
 const text = n => walk(n).filter(x => typeof x !== 'object').join('');
 const find = (n, fn) => walk(n).find(x => typeof x === 'object' && fn(x));
 const all = (n, fn) => walk(n).filter(x => typeof x === 'object' && fn(x));
-let slots = [], index = 0, tree;
+let slots = [], index = 0, tree, activeTab;
+const events = [];
 let width = 390;
 const noop = () => {};
 const React = {
@@ -32,13 +33,13 @@ const playersData = {
 };
 const myRoster = { roster_id: 1, players: Object.keys(playersData), starters: ['starter'], reserve: ['ir'], taxi: ['taxi'], settings: { wins: 0, losses: 0, ties: 0 } };
 const root = {
-  innerWidth: 390, addEventListener: noop, removeEventListener: noop,
+  innerWidth: 390, addEventListener: noop, removeEventListener: noop, dispatchEvent: event => events.push(event),
   RosterPlayerStats: 'roster-stats',
   wrIsPro: () => true,
   WR: { useViewport: () => ({ width, isPhone: width < 768 }), GmMode: { useGmEffects: () => ({ mode: 'compete', modeLabel: 'Compete' }), getPreset: () => ({}) }, AssetRow: 'asset-row', CardList: 'card-list', FilterSheet: 'filter-sheet', Sheet: 'sheet' },
   App: { calcRawPts: s => s.pts || 0, normPos: p => p, POS_COLORS: {}, LI: { playerScores: { starter: 8000, bench: 100, ir: 4000, taxi: 2000 } }, NFLByes: { seasonFor: () => 2026, label: () => 'Bye 7', rosterWeeks: () => ({ weeks: [], unknown: [] }) } },
 };
-const context = { window: root, React, console, InlineCareerStats: 'career', getPlayerAnnotation: () => null, wrAlpha: color => color, setTimeout: fn => fn(), requestAnimationFrame: noop, document: { querySelector: () => null }, localStorage: { getItem: () => null, setItem: noop } };
+const context = { window: root, React, console, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } }, InlineCareerStats: 'career', getPlayerAnnotation: () => null, wrAlpha: color => color, setTimeout: fn => fn(), requestAnimationFrame: noop, document: { querySelector: () => null }, localStorage: { getItem: () => null, setItem: noop } };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/shared/roster-review.js','utf8'),context);
 vm.runInContext(Babel.transform(fs.readFileSync('js/tabs/my-team.js', 'utf8'), { presets: ['react'] }).code, context);
@@ -48,10 +49,11 @@ const props = {
   leagueSkin: { type: 'dynasty', features: { showWeeklyVerdict: false, showFuturePicks: true, showTaxi: true } },
   playersData, statsData: {}, stats2025Data: {}, standings: [],
   rosterFilter: 'All', rosterSort: { key: 'name', dir: 1 }, visibleCols: ['pos', 'age', 'dhq', 'posRankLg', 'ppg', 'durability', 'peak', 'action', 'sos'], expandedPid: null, showColPicker: false, colPreset: 'default',
+  setActiveTab: tab => activeTab = tab,
 };
 for (const key of ['rosterFilter', 'rosterSort', 'visibleCols', 'expandedPid', 'showColPicker', 'colPreset']) props['set' + key[0].toUpperCase() + key.slice(1)] = value => { props[key] = typeof value === 'function' ? value(props[key]) : value; };
 function render() { index = 0; tree = context.MyTeamTab(props); return tree; }
-const button = label => find(tree, n => n.type === 'button' && text(n) === label);
+const button = label => find(tree, n => n.type === 'button' && (text(n) === label || n.props['aria-label'] === label));
 function click(label) { const b = button(label); assert(b, 'button ' + label); b.props.onClick(); render(); }
 const rowPids = () => all(tree, n => n.props.className === 'wr-roster-mobile-player').map(n => n.props['data-wr-roster-pid']);
 render();
@@ -60,6 +62,10 @@ assert(text(find(tree, n => n.props.className === 'wr-roster-mobile-summary')).i
 assert(text(tree).includes('1 open'));
 assert(text(tree).includes('0–0 record'), 'An actual zero record stays visible');
 assert.equal(rowPids().length, 4);
+const controls = find(tree, n => n.props.className === 'wr-roster-mobile-controls');
+assert.equal(all(controls, n => n.type === 'input' && n.props.type === 'search').length, 1, 'The player controls contain one search');
+assert.equal(all(controls, n => n.type === 'h3').length, 0, 'A repeated Players title does not consume a control row');
+assert.equal(button('Roster view and sort').props.title, 'Position · Player A–Z', 'Current grouping and direction are visible before opening settings');
 assert(button('Starters1') && button('Bench1') && button('IR1') && button('Taxi1'));
 assert(text(find(tree, n => n.props['data-wr-roster-pid'] === 'bench')).includes('Questionable'));
 assert(text(find(tree, n => n.props['data-wr-roster-pid'] === 'ir')).includes('NYJ · IR'));
@@ -86,12 +92,24 @@ assert(!button('Trade Finder') && !button('COLLAPSE') && !button('Back to roster
 assert(!text(tree).includes('Full player profile'), 'Mobile detail renders the player profile directly without a second disclosure');
 assert.equal(find(tree, n => n.type === 'roster-stats').props.phone, true, 'Mobile mounts the compact stats views');
 assert.equal(find(tree, n => n.type === 'roster-stats').props.leagueType, 'dynasty');
+const phoneDetail = find(tree, n => n.props.className === 'wr-roster-mobile-detail');
+const detailNodes = walk(phoneDetail).filter(n => typeof n === 'object');
+assert.equal(all(phoneDetail, n => n.type === 'roster-stats').length, 1, 'An expanded phone player mounts one stats view');
+assert.equal(all(phoneDetail, n => n.type === 'img').length, 0, 'The open row supplies identity without a duplicate dossier portrait');
+assert(text(find(phoneDetail, n => n.props.className === 'wr-roster-player-bio')).includes('Age 30'), 'The compact dossier retains actual profile facts');
+assert(detailNodes.indexOf(find(phoneDetail, n => n.type === 'roster-stats')) < detailNodes.indexOf(find(phoneDetail, n => n.props.className === 'wr-roster-player-signals-grid')));
+assert(detailNodes.indexOf(find(phoneDetail, n => n.type === 'roster-stats')) < detailNodes.indexOf(find(phoneDetail, n => n.props.className === 'wr-roster-player-age-curve')), 'Scoring evidence precedes the longer age profile');
+button('Build a trade').props.onClick(); assert.equal(activeTab, 'trades');
+assert.equal(root._wrTradeBuilderTarget.pid, 'bench'); assert.equal(root._wrTradeBuilderTarget.returnTab, 'myteam');
+assert.equal(events.at(-1).type, 'wr:open-trade-builder'); assert.equal(events.at(-1).detail.pid, 'bench');
+button('Set lineup').props.onClick(); assert.equal(activeTab, 'lineup', 'Lineup planning remains owned by Game Day');
+button('Ask Alex').props.onClick(); assert.equal(events.at(-1).type, 'wr:mission-alex-open'); assert.equal(events.at(-1).detail.pid, 'bench');
 assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-facts'), 'Mobile detail removes duplicate age and bye facts');
 assert(!find(tree, n => n.props.className === 'wr-roster-mobile-detail-stats'), 'Mobile detail removes duplicate DHQ and scoring stats');
 const expandedBench = find(tree, n => n.props['data-wr-roster-pid'] === 'bench');
 find(expandedBench, n => n.props.className === 'wr-roster-mobile-player-trigger').props.onClick(); render();
 assert.equal(props.expandedPid, null);
-click('View & sort ⌄');
+click('Roster view and sort');
 assert(find(tree, n => n.type === 'filter-sheet' && n.props.title === 'Roster view & sort'));
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster'));
 find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster').props.onChange({ target: { value: 'dhq' } }); render();
@@ -100,13 +118,21 @@ assert.equal(find(tree, n => n.type === 'select' && n.props.title === 'Sort the 
 assert.equal(find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.value, 'none', 'explicit sort clears position grouping');
 find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
 assert.deepEqual(rowPids(), ['bench', 'taxi', 'ir', 'starter'], 'the direction control reverses the complete sorted roster');
+assert.equal(button('Roster view and sort').props.title, 'Value ↑');
+const priorDirection = props.rosterSort.dir;
+find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster').props.onChange({ target: { value: 'dhq' } }); render();
+assert.equal(props.rosterSort.dir, priorDirection, 'Selecting the current sort does not unexpectedly reverse it');
 assert(!find(tree, n => n.type === 'select' && n.props.title === 'Column preset'), 'Player list hides full-table column presets');
 assert(!find(tree, n => n.type === 'select' && n.props.title === 'Row density'), 'Player list hides full-table row density');
 assert(!find(tree, n => n.type === 'select' && n.props.title === 'Points-per-game window'), 'Shared list metrics do not expose a different table PPG window');
 assert(find(tree, n => n.props.className === 'wr-roster-view-grid'), 'Core settings are grouped into a compact grid');
 assert(!button('Apply') && button('Done'), 'Immediate settings close with Done');
 const listColumns = props.visibleCols.slice();
+find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.onChange({ target: { value: 'missing' } }); props.expandedPid = 'bench'; render();
 click('Reset'); assert.deepEqual(props.visibleCols, listColumns, 'Resetting list settings preserves hidden full-table columns');
+assert.equal(rowPids().length, 4); assert.equal(props.expandedPid, null);
+assert.equal(find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.value, '', 'Reset clears the visible player search as well as scopes');
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('A to Z'), 'Alphabetical order has an alphabetical label');
 click('Full table');
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Column preset'), 'Full table retains all column presets');
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Row density'));
@@ -114,7 +140,7 @@ assert(find(tree, n => n.type === 'select' && n.props.title === 'Points-per-game
 assert(find(tree, n => n.type === 'button' && n.props.title === 'Add, remove, or reorder columns'));
 click('Done');
 assert.equal(rowPids().length, 0); assert(text(tree).includes('Roster Board'), 'Full table remains an explicit reachable layout');
-click('View & sort ⌄'); click('Player list'); click('Done');
+click('Roster view and sort'); click('Player list'); click('Done');
 root._playerTags={bench:'cut'}; render();
 click('Starters1');
 find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.onChange({ target: { value: 'missing' } }); render();
@@ -145,7 +171,7 @@ assert(text(tree).includes('No roster reductions are required'));
 assert(!find(tree,n=>n.type==='asset-row'&&n.props.key?.startsWith('rv-')),'No invented drop rows when no reduction is required');
 assert(button('Compare waiver upgrades'));
 const activeReview=find(tree,n=>n.type==='sheet'&&n.props.title==='Review roster'); activeReview.props.onClose(); render();
-click('View & sort ⌄');
+click('Roster view and sort');
 find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.onChange({target:{value:'none'}}); render();
 click('Done');
 assert.deepEqual(rowPids(),['bench','starter','ir','taxi'],'ROS pts sorts by displayed points, not the underlying value rating');
@@ -218,7 +244,7 @@ props.leagueSkin = { type: 'redraft', features: { showWeeklyVerdict: true, showT
 props.rosterFilter = 'All'; props.rosterSort = { key: 'name', dir: 1 }; props.expandedPid = null;
 props.visibleCols = ['pos', 'peak', 'action'];
 props.statsData = { starter: { gp: 1, pts: -1 }, bench: { gp: 1, pts: 3 }, ir: { gp: 1, pts: 0 } };
-render(); click('View & sort ⌄');
+render(); click('Roster view and sort');
 const sortSelect = () => find(tree, n => n.type === 'select' && n.props.title === 'Sort the roster');
 const sortOptions = () => all(sortSelect(), n => n.type === 'option').map(n => ({ key: n.props.value, label: text(n) }));
 const chooseSort = key => { sortSelect().props.onChange({ target: { value: key } }); render(); };
@@ -273,4 +299,24 @@ find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').pro
 assert.deepEqual(rowPids(), ['starter', 'bench', 'taxi', 'ir']);
 props.leagueSkin.type = 'dynasty'; metricSelection = ['proj', 'ppg', 'dhq', 'age']; props.rosterSort = { key: 'name', dir: 1 }; render();
 assert(sortOptions().some(option => option.key === 'dhq' && option.label === 'Player value'), 'Dynasty sorts use the same value unit as the list');
+chooseSort('l5ppg');
+assert.equal(button('Roster view and sort').props.title, 'Last 5 PPG ↓', 'The closed toolbar identifies the actual shared metric rather than a saved table window');
+const preservedTableColumns = props.visibleCols.slice();
+find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.onChange({ target: { value: 'Reserve' } }); render();
+click('Reset');
+assert.deepEqual(metricSelection, ['proj','ppg','dhq','age'], 'Resetting the roster view cannot rewrite shared account/league columns');
+assert.deepEqual(props.visibleCols, preservedTableColumns);
+assert.equal(rowPids().length, 4);
+click('Full table');
+assert.equal(find(tree, n => n.type === 'select' && n.props.title === 'Points-per-game window').props.value, 'l3', 'A list reset leaves the separate table PPG window intact');
+click('Player list'); click('Done');
+props.expandedPid = 'bench'; root.getPlayerAction = () => ({ label: 'Hold', action: 'HOLD', reason: 'Keep this player for lineup coverage.' }); render();
+assert.equal(text(find(tree, n => n.props.className === 'wr-roster-player-call')), 'Keep this player for lineup coverage.', 'The actual roster explanation stays visible before scoring evidence');
+root._playerTags = { bench: 'cut' }; render();
+assert.equal(text(find(tree, n => n.props.className === 'wr-roster-player-call')), 'Your call: Cut.', 'A manual call never inherits a contradictory engine explanation');
+root.wrIsPro = () => false; render();
+assert(!find(tree, n => n.props.className === 'wr-roster-player-call'), 'The compact dossier preserves the Pro boundary for roster explanations');
+assert(find(tree, n => n.type === 'roster-stats'), 'Raw player statistics remain available without Pro');
+root.wrIsPro = () => true; props.expandedPid = null; props.leagueSkin.type = 'chopped'; render();
+assert(!text(find(tree, n => n.props.className === 'wr-roster-mobile-summary')).includes('record'), 'Chopped does not present an unrelated head-to-head record');
 console.log('PASS shared roster metrics: visible-column sort options, separate table preferences, explicit saved sorts, L5/season/bye ordering, signed values and unavailable last in both directions');

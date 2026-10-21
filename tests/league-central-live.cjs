@@ -50,15 +50,29 @@ assert(teamRows(tree).every(row => !text(row).includes('Tied')), 'Pregame zero s
 reset({ rows: [{ roster_id: 1, matchup_id: 1, points: 20 }, { roster_id: 2, matchup_id: 1, points: 10 }], started: ['1', '2'] });
 tree = render(); assert(text(tree).includes('As it stands · Week 2')); assert(text(teamRows(tree)[0]).includes('Alpha')); assert(text(teamRows(tree)[0]).includes('2-0-0'), 'Live record reconstructs Week 1 plus current result without double-counting official totals');
 assert(text(tree).includes('Leading') && text(tree).includes('Trailing'));
+let completedForm = find(teamRows(tree)[0], n => n.props.className === 'mc-league-form');
+assert(completedForm && /Last 1 completed head-to-head games/.test(completedForm.props['aria-label']));
+assert.equal(walk(completedForm).filter(n => n?.props?.className === 'mc-league-form-pill').length, 1, 'League Last 5 includes completed history, excluding the current provisional win');
+assert.equal(find(completedForm, n => n.props.className === 'mc-league-form-pill').props['data-result'], 'W');
+const completeBoard = board;
+board = {...completeBoard, status:'stale'}; tree = render();
+assert(find(tree, n => n.props.className === 'lct-note mc-league-notice is-warning' && /last available scores/.test(text(n))), 'Condensed League copy keeps stale-score warnings visible');
+board = {...completeBoard, rows:completeBoard.rows.map((row,index)=>index ? {...row,points:null} : row)}; tree = render();
+assert(find(tree, n => n.props.className === 'lct-note mc-league-notice is-warning'), 'Partial current-week scores retain a prominent caveat');
+board = completeBoard; tree = render();
 const source = find(tree, n => n.props['aria-label'] === 'Standings source');
 find(source, n => n.type === 'button' && text(n) === 'Official').props.onClick(); tree = render();
 assert.equal(table(tree).props['aria-label'], 'Official standings'); assert(text(teamRows(tree)[0]).includes('5-0-0'));
+league.platform='mfl';tree=render();assert(text(tree).includes('Posted by MFL'),'Official phone source copy reflects the league provider');delete league.platform;tree=render();
 find(tree, n => n.type === 'button' && text(n) === 'Live').props.onClick(); tree = render();
 assert.equal(table(tree).props['aria-label'], 'Week 2 live standings');
 board = { ...board, rows: [{ roster_id: 1, matchup_id: 1, points: 5 }, { roster_id: 2, matchup_id: 1, points: 200 }], updatedAt: 2000 };
 tree = render(); assert(text(teamRows(tree)[0]).includes('Beta'), 'Changed live results reorder the visible table');
 assert(text(teamRows(tree)[0]).includes('1-1-0'));
+completedForm = find(teamRows(tree)[0], n => n.props.className === 'mc-league-form');
+assert.equal(find(completedForm, n => n.props.className === 'mc-league-form-pill').props['data-result'], 'L', 'Live reversal does not rewrite the completed form baseline');
 find(tree, n => n.type === 'button' && text(n) === 'Scores').props.onClick(); tree = render();
+assert.equal(table(tree), undefined, 'The phone Scores view does not mount a hidden duplicate standings panel');
 let scoreboard = find(tree, n => n.type === boundary);
 assert.equal(scoreboard.props.selectedWeek, 2); assert.equal(typeof scoreboard.props.onWeekChange, 'function'); assert.equal(scoreboard.props.onRefresh, liveContext.refresh);
 scoreboard.props.onWeekChange(1); tree = render(); scoreboard = find(tree, n => n.type === boundary);
@@ -83,6 +97,9 @@ const cupToggle = find(tree, n => n.type === 'input' && n.props.type === 'checkb
 assert.equal(cupToggle.props.checked, false, 'The view menu accurately reflects hidden Cup state');
 cupToggle.props.onChange({ target: { checked: true } }); tree = render();
 assert(find(tree, n => n.type === 'button' && text(n) === 'Cup'), 'The view menu restores Cup without affecting shared league data');
+find(tree, n => n.type === 'button' && text(n) === 'Scores').props.onClick(); tree = render();
+assert.equal(find(tree, n => n.props.className === 'mc-league-view-options'), undefined, 'Choosing a League destination closes optional view customization');
+find(tree, n => n.type === 'button' && text(n) === 'Standings').props.onClick(); tree = render();
 console.log('PASS League Central live rendering: unavailable/empty feeds, pregame baselines, reconstructed records, score reorder, source toggle and shared week selection');
 
 // React preserves native disclosure state only when enclosing component types stay
@@ -128,6 +145,7 @@ assert(topLevel.indexOf(find(tree, n => n.type === boundary)) > topLevel.indexOf
 props.overview = false;
 reset(); tree = render();
 assert(find(tree, n => n.props['aria-label'] === 'Desktop survival widget on phone'));
+assert(find(tree, n => n.type === 'button' && text(n) === 'Survival'), 'Chopped phone navigation retains survival branding');
 assert.equal(survivalProps.phone, true, 'Full survival panel receives phone branding');
 assert(!table(tree), 'Chopped standings avoids a meaningless head-to-head table');
 find(tree, n => n.type === 'button' && text(n) === 'Scores').props.onClick(); tree = render();

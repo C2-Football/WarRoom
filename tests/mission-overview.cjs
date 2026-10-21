@@ -35,6 +35,24 @@ test('scheduled next kickoff requires a future timestamp and excludes postponed 
     assert.equal(h.read({games:[{...game,kickoff:'bad'}]}).next,null);
 });
 
+test('overview prioritizes the next kickoff involving your starters while retaining the NFL schedule fact',()=>{
+    const h=fixture(); h.props.myRoster={starters:['a']};
+    const earlier={home:'DAL',away:'PHI',state:'pre',kickoff:'2026-10-08T18:00:00Z'};
+    const personal={home:'KC',away:'LV',state:'pre',kickoff:'2026-10-08T20:00:00Z'};
+    const read=h.read({roster:h.props.myRoster,games:[personal,earlier]});
+    assert.equal(read.next.kickoff,earlier.kickoff,'The league-wide next kickoff remains available');
+    assert.equal(read.nextStarterGame.kickoff,personal.kickoff);
+    assert.equal(read.startersInNext,0); assert.equal(read.startersInNextStarterGame,1);
+    h.render(); h.hooks[0]={key:'l1|2026|6',status:'ready',games:[earlier,personal],now:Date.parse('2026-10-07T12:00:00Z')};
+    let tree=h.render(); assert.match(text(tree),/Your next kickoff/); assert.match(text(tree),/1 starter/);
+    button(tree,'Ask Alex').props.onClick();
+    assert.match(h.events[0].detail.prompt, /"kickoff":"2026-10-08T20:00:00Z"/);
+    assert.match(h.events[0].detail.prompt, /"scope":"your starters"/);
+    h.hooks[0]={...h.hooks[0],games:[earlier]}; tree=h.render();
+    assert.match(text(tree),/Next NFL kickoff/); assert.doesNotMatch(text(tree),/Your next kickoff/);
+    assert.equal(h.read({roster:{starters:['unknown']},games:[{state:'pre',kickoff:personal.kickoff}]}).startersInNext,0,'Missing NFL teams never count as participating starters');
+});
+
 test('unavailable starters stop being replacement advice once their game starts',()=>{
     const h=fixture(), upcoming={home:'NYJ',away:'LV',state:'pre',kickoff:'2026-10-08T20:00:00Z'};
     const onlyOut={starters:['c']};
@@ -58,17 +76,27 @@ test('questionable is a monitoring flag and automatic lineup leagues get a clear
     const h=fixture(); const players={a:{full_name:'Questionable QB',team:'KC',injury_status:'Questionable'}};
     assert.equal(h.read({roster:{starters:['a']},playersData:players}).flags[0].kind,'monitor');
     h.props.leagueSkin={type:'best_ball'}; const tree=h.render(); assert.match(text(tree),/sets the scoring lineup automatically/);
-    assert(!button(tree,'Open Game Day →')); button(tree,'Open roster →').props.onClick(); assert.equal(h.events[0],'myteam');
+    assert(!button(tree,'Game Day →')); button(tree,'Roster →').props.onClick(); assert.equal(h.events[0],'myteam');
 });
 
 test('overview names one primary lineup move and keeps waivers and Alex within reach',()=>{
     const h=fixture(); h.render(); h.hooks[0]={key:'l1|2026|6',status:'ready',games:[{home:'KC',away:'NYJ',state:'pre',kickoff:'2099-10-08T20:00:00Z'}],now:Date.now()}; const tree=h.render();
-    assert.match(text(tree),/Alex Insights/); assert.match(text(tree),/Replace Bye Receiver — they are on bye this week\./); assert.match(text(tree),/\+1 more lineup issue/);
-    const primary=walk(tree).find(n=>n.props?.className==='mc-primary-move'); assert.equal(walk(primary).filter(n=>n.type==='p').length,0);
-    button(tree,'Open Game Day →').props.onClick(); button(tree,'Explore waivers').props.onClick(); button(tree,'Ask Alex').props.onClick();
+    assert.match(text(tree),/Alex Insights/); assert.match(text(tree),/Replace Bye Receiver\./); assert.match(text(tree),/Bye this week\./); assert.match(text(tree),/\+1 more lineup issue/);
+    const primary=walk(tree).find(n=>n.props?.className==='mc-primary-move');
+    assert.equal(text(walk(primary).find(n=>n.type==='h3')),'Replace Bye Receiver.','Headline states the action without repeating its explanation');
+    assert.equal(text(walk(primary).find(n=>n.type==='p')),'Bye this week.','Decision evidence stays beside the action');
+    button(tree,'Game Day →').props.onClick(); button(tree,'Explore waivers').props.onClick(); button(tree,'Ask Alex').props.onClick();
     assert.equal(h.events[0],'lineup'); assert.equal(h.events[1],'fa'); assert.equal(h.events[2].type,'wr:mission-alex-open');
     assert.match(h.events[2].detail.prompt,/"week":6/); assert.match(h.events[2].detail.prompt,/"kind":"bye"/); assert.match(h.events[2].detail.prompt,/no move has been submitted/);
     assert.equal(walk(tree).some(n=>n.type==='details'),false);
+});
+
+test('an empty starter has a clear short action without duplicated slot wording',()=>{
+    const h=fixture(); h.props.myRoster={starters:['0','b','c']}; h.render();
+    h.hooks[0]={key:'l1|2026|6',status:'ready',games:[{home:'KC',away:'NYJ',state:'pre',kickoff:'2099-10-08T20:00:00Z'}],now:Date.now()};
+    const tree=h.render();
+    assert.match(text(tree),/Fill your QB slot\./); assert.doesNotMatch(text(tree),/slot slot/);
+    assert.match(text(tree),/Your starting lineup has an open spot\./);
 });
 
 test('live overview uses the headline for the action and reports game state once',()=>{

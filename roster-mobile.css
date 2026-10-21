@@ -33,6 +33,11 @@
   .wr-roster-mobile-content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .wr-roster-mobile-players { order: -1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .wr-roster-mobile-controls { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .wr-roster-mobile-tools { display:flex; align-items:stretch; gap:8px; min-width:0; }
+  .wr-roster-mobile-tools .wr-roster-mobile-view { display:flex; flex:1; flex-direction:column; justify-content:center; align-items:flex-start; gap:3px; min-width:0; min-height:48px; padding:7px 10px; text-align:left; border:1px solid var(--gx-edge, rgba(183,206,255,.2)); border-radius:10px; color:var(--silver, #b6c5dc); background:rgba(183,206,255,.06); font:500 12px/1.3 var(--font-body, sans-serif); cursor:pointer; }
+  .wr-roster-mobile-view > strong { display:block; width:100%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gold, #b3ccff); font-size:12px; font-weight:600; }
+  .wr-roster-mobile-tools > .mc-metric-picker { display:flex; flex-shrink:0; }
+  .wr-roster-mobile-tools .mc-columns-button { min-height:48px; padding:8px 12px; font-size:12px; white-space:nowrap; }
   .wr-roster-mobile-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .wr-roster-mobile-list-heading h3 { font-family: var(--font-body, sans-serif); font-size: 18px; font-weight: 650; color: var(--white); margin: 0; }
   .wr-roster-mobile-list-heading button { min-height: 44px; padding: 8px 0 8px 12px; font-size: 14px; color: var(--gold); background: none; border: 0; cursor: pointer; white-space: nowrap; }
@@ -46,6 +51,9 @@
   .wr-roster-mobile-active-filter { min-height: 44px; background: transparent; color: var(--gold); border: 0; font-size: 14px; text-align: left; cursor: pointer; }
   .wr-roster-mobile-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .wr-roster-view-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .wr-sheet:has(.wr-roster-view-grid) .wr-sheet-body { display:flex; flex-direction:column; overflow:hidden!important; padding-bottom:0!important; }
+  .wr-sheet:has(.wr-roster-view-grid) .wr-sheet-body > div:first-child { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-bottom:12px!important; }
+  .wr-sheet:has(.wr-roster-view-grid) .wr-sheet-body > div:last-child { position:relative!important; bottom:auto!important; flex:none; margin-top:0!important; padding-bottom:calc(10px + var(--sab,env(safe-area-inset-bottom,0px)))!important; background:var(--surf-solid,#202d44)!important; }
   .wr-roster-view-field { display:flex; flex-direction:column; gap:5px; min-width:0; color:var(--silver, #b6c5dc); font:500 12px/1.3 var(--font-body, sans-serif); }
   .wr-roster-view-field > span { padding-inline:1px; }
   .wr-roster-view-field select { width:100%; max-width:100%; min-width:0; min-height:44px; text-overflow:ellipsis; }
@@ -82,6 +90,19 @@
   .wr-roster-mobile-player-value[data-tone="warn"] strong { color: var(--warn, #f0a500); }
   .wr-roster-mobile-player-chevron { flex-shrink: 0; font-size: 20px; color: var(--silver); }
   .wr-roster-mobile-detail { padding: 16px 12px; border-top: 1px solid var(--ov-5, rgba(255,255,255,.09)); overflow-wrap: anywhere; }
+  .wr-roster-mobile-detail .wr-roster-player-profile { gap:8px!important; margin-bottom:8px!important; align-items:flex-start!important; }
+  .wr-roster-mobile-detail .wr-roster-player-profile > div { min-width:120px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-profile .wr-roster-player-bio { font-size:12px!important; line-height:1.4; margin-top:0!important; }
+  .wr-roster-mobile-detail .wr-roster-player-profile > button { font-family:var(--font-body, sans-serif)!important; font-size:14px!important; min-height:44px; padding:7px 10px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-call { margin:0 0 10px; padding-left:9px; border-left:2px solid var(--gold, #b3ccff); color:var(--silver, #b6c5dc); font:400 12px/1.45 var(--font-body, sans-serif); }
+  .wr-roster-mobile-detail .wr-roster-player-signals { gap:5px!important; margin-bottom:8px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-signals > span { font-size:12px!important; padding:3px 8px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-signals-grid { padding:8px!important; margin-bottom:8px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-signals-grid > div:last-child { grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:7px 10px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-signals-grid > div:last-child > div { display:flex; flex-direction:column; gap:2px; font-size:12px!important; }
+  .wr-roster-mobile-detail .wr-roster-player-age-curve { padding:8px!important; margin-bottom:0!important; }
+  .wr-roster-mobile-detail .wr-roster-player-age-curve > div:first-child { align-items:flex-start!important; flex-direction:column; gap:3px; }
+  .wr-roster-mobile-detail .wr-roster-player-age-curve > div:first-child > div { font-size:12px!important; }
   .wr-roster-mobile-detail [style*="font-size: 0."],
   .wr-roster-mobile-planning [style*="font-size: 0."],
   .wr-roster-mobile-byes [style*="font-size: 0."],
