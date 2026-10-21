@@ -367,8 +367,8 @@
         const playoffs = season?.data?.playoffs;
         const playoffDelta = playoffs?.available && playoffs.beforePct != null && playoffs.afterPct != null ? Math.round(playoffs.afterPct) - Math.round(playoffs.beforePct) : null;
         return <section className={'mc-trade-builder-summary' + (season ? ' has-season' : '')} aria-label="Trade summary" aria-live="polite">
-            <div className="mc-trade-summary-grade"><span>Value grade</span><strong style={{ color: verdict.verdictColor }}>{verdict.grade?.grade || '--'}</strong><small>{verdict.diffDisplay}</small></div>
-            <div className="mc-trade-summary-acceptance"><span>Acceptance</span><strong style={{ color: pro ? verdict.likelihoodColor : undefined }}>{pro ? verdict.likelihood + '%' : 'Pro'}</strong><small>{pro ? 'Owner estimate' : 'Owner acceptance'}</small></div>
+            <div className="mc-trade-summary-grade"><span>Value grade</span><div className="mc-trade-summary-value"><strong style={{ color: verdict.verdictColor }}>{verdict.grade?.grade || '--'}</strong><small><span className="mc-trade-sr-only">Value difference </span>{verdict.diffDisplay}</small></div></div>
+            <div className="mc-trade-summary-acceptance" aria-label="Owner acceptance estimate"><span>Acceptance estimate</span><div className="mc-trade-summary-value"><strong style={{ color: pro ? verdict.likelihoodColor : undefined }}>{pro ? verdict.likelihood + '%' : 'Pro'}</strong></div></div>
             {season && <div className={'mc-trade-summary-season is-' + season.tone}><span>Season outlook</span><strong>{season.ready ? season.headline : season.message?.startsWith('Calculating') ? 'Calculating…' : 'Unavailable'}</strong><small>{season.ready ? wins || 'Impact incomplete' : 'See analysis below'}</small>{playoffDelta != null && <small>{playoffDelta > 0 ? '+' : ''}{playoffDelta} pp playoff chance</small>}</div>}
             {season && <p>{season.data?.status === 'limited' ? 'Partial model estimate' : 'Model estimate'}{season.effectiveWeek ? ' · Starts Week ' + season.effectiveWeek : ''} · This week's roster unchanged</p>}
         </section>;

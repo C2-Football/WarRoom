@@ -231,17 +231,27 @@
  .wr-mission-v8 .mc-owner-profile :is(.tc-owner-signal-grid strong,.tc-owner-trade-row>strong) { font-family:var(--font-body,"DM Sans",sans-serif); font-variant-numeric:tabular-nums; }
  .wr-mission-v8 .mc-owner-profile :is(.tc-dhq-dossier-block p,.tc-dhq-dossier-block li,.tc-owner-panel-head em,.tc-owner-trade-row p,.tc-owner-trade-row em,.tc-owner-signal-grid em) { opacity:1; }
  .mc-trades { gap:10px!important; padding-bottom:12px!important; }
- .mc-trade-builder>div { padding:0!important; }
- .mc-trade-builder-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:11px; border:1px solid var(--gx-edge); border-radius:12px; background:linear-gradient(120deg,rgba(183,206,255,.12),rgba(15,27,46,.4)); font-family:var(--font-body,"DM Sans",sans-serif); }
- .mc-trade-builder-summary.has-season { grid-template-columns:minmax(0,.7fr) minmax(0,.9fr) minmax(0,1.5fr); }
+ .mc-trade-builder>div { padding:0!important; gap:8px!important; }
+ .mc-trade-builder-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 8px; padding:7px 9px; border:1px solid var(--gx-edge); border-radius:12px; background:linear-gradient(120deg,rgba(183,206,255,.12),rgba(15,27,46,.4)); font-family:var(--font-body,"DM Sans",sans-serif); }
+ .mc-trade-builder-summary.has-season { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .mc-trade-builder-summary>div { min-width:0; }
  .mc-trade-builder-summary>div+div { border-left:1px solid rgba(183,206,255,.17); padding-left:9px; }
  .mc-trade-builder-summary span,.mc-trade-builder-summary small { display:block; color:var(--cx-muted,var(--silver)); font:400 11px/1.4 var(--font-body); overflow-wrap:anywhere; }
- .mc-trade-builder-summary strong { display:block; margin:4px 0 2px; color:var(--cx-ink,var(--white)); font:600 24px/1.2 var(--font-body); font-variant-numeric:tabular-nums; }
- .mc-trade-builder-summary .mc-trade-summary-season strong { font-size:14px; line-height:1.35; }
+ .mc-trade-builder-summary strong { display:block; margin:0; color:var(--cx-ink,var(--white)); font:600 22px/1.2 var(--font-body); font-variant-numeric:tabular-nums; }
+ .mc-trade-builder-summary .mc-trade-summary-value { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 7px; margin-top:2px; }
+ .mc-trade-summary-value small { font-variant-numeric:tabular-nums; }
+ .mc-trade-builder-summary .mc-trade-summary-season { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; border-left:0; padding:6px 0 0; border-top:1px solid rgba(183,206,255,.14); }
+ .mc-trade-builder-summary .mc-trade-summary-season strong { max-width:170px; font-size:13px; line-height:1.35; text-align:right; }
+ .mc-trade-summary-season > small:last-child:nth-child(4) { text-align:right; }
  .mc-trade-summary-season.is-positive strong { color:var(--good); }
  .mc-trade-summary-season.is-negative strong { color:var(--bad); }
- .mc-trade-builder-summary>p { grid-column:1/-1; margin:0; padding-top:7px; border-top:1px solid rgba(183,206,255,.14); color:var(--cx-muted,var(--silver)); font:400 10px/1.4 var(--font-body); }
+ .mc-trade-builder-summary>p { grid-column:1/-1; margin:0; padding-top:5px; border-top:1px solid rgba(183,206,255,.14); color:var(--cx-muted,var(--silver)); font:400 10px/1.4 var(--font-body); }
+ .mc-trade-builder .mc-trade-packages { align-items:start; gap:8px; }
+ .mc-trade-builder .mc-trade-packages>div { padding:5px 7px; border-radius:10px; }
+ .mc-trade-builder .mc-trade-packages header { padding-bottom:2px; font-size:11px; }
+ .mc-trade-builder .mc-trade-packages>div>div { min-height:44px; padding:0; font-size:12px; }
+ .mc-trade-builder .mc-trade-packages button { padding:0; min-width:44px; min-height:44px; }
+ .mc-trade-builder .mc-trade-packages p { margin:6px 0; }
  .mc-trade-builder .tc-ta-side { min-width:0!important; padding:10px!important; }
  .mc-trade-builder .tc-ta-side>span:first-child { display:none; }
  .mc-trade-builder .tc-ta-player-row { display:none; } /* selected packages are always visible above both side selectors */
@@ -252,7 +262,7 @@
  .mc-trade-builder .tc-ta-roster-filter,.mc-trade-builder select { width:100%; box-sizing:border-box; min-width:0; font-size:16px; }
  .mc-trade-builder .tc-ta-total-row { display:none; }
  /* Both rosters remain visible while building a package. */
- .mc-trade-builder-toolbar { display:flex; align-items:center; gap:10px; }
+ .mc-trade-builder-toolbar { display:flex; align-items:center; gap:8px; }
  .mc-trade-builder-toolbar>small { min-width:0; color:var(--cx-muted,var(--silver)); font:400 11px/1.4 var(--font-body); }
  .mc-trade-builder-toolbar>small strong { font-weight:500; color:var(--cx-accent,var(--gold)); }
  .mc-trade-builder-sides { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }

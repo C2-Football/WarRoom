@@ -706,7 +706,27 @@ test('the phone roster can sort, and its presets are column-guarded', () => {
   // Full table and hunting a column in a horizontal scroller.
   sourceHas(myTeamSrc, "sheetField('Sort by', <select", 'the phone filter sheet needs a labeled sort control');
   sourceHas(myTeamSrc, 'title="Reverse the sort"', 'and a direction toggle');
-  sourceHas(myTeamSrc, 'onChange={e => sortByColumn(e.target.value)}', 'phone sort must go through sortByColumn so it flattens grouping');
+  const Babel = require('@babel/standalone');
+  const ast = Babel.packages.parser.parse(myTeamSrc, { plugins: ['jsx'] });
+  let sortHandler;
+  Babel.packages.traverse.default(ast, { JSXElement(p) {
+    const attributes = p.node.openingElement.attributes;
+    if (p.node.openingElement.name.name === 'select' && attributes.some(a => a.name?.name === 'title' && a.value?.value === 'Sort the roster')) {
+      sortHandler = attributes.find(a => a.name?.name === 'onChange')?.value?.expression;
+    }
+  } });
+  ok(sortHandler, 'phone roster sort control missing');
+  let group = 'position', sort = { key: 'name', dir: 1 };
+  const changeSort = vm.runInNewContext('(' + myTeamSrc.slice(sortHandler.start, sortHandler.end) + ')', {
+    setRosterGroupMode: value => { group = value; },
+    setRosterSort: update => { sort = typeof update === 'function' ? update(sort) : update; },
+  });
+  changeSort({ target: { value: 'dhq' } });
+  eq(group, 'none', 'phone sort flattens position grouping');
+  eq(sort.key, 'dhq', 'phone sort selects the requested field');
+  sort.dir = -1;
+  changeSort({ target: { value: 'dhq' } });
+  eq(sort.dir, -1, 'reselecting a field preserves its direction');
   sourceHas(myTeamSrc, 'View &amp; sort', 'the phone player list needs a visible sort entry point');
   sourceHas(myTeamSrc, 'select value={rosterSort.key}', 'the sort selector must reflect the active choice');
   // Reset has to clear the sort too, or "Reset" leaves the board reordered.
