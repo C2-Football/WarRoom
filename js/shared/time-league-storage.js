@@ -26,11 +26,32 @@
         return JSON.parse(json);
     }
     const isQuota = error => error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error?.code === 22 || error?.code === 1014;
-    function writeSnapshot(state, entries) {
+    function snapshotMatches(expected, current, leagueId) {
+        if (expected === null) return current === null;
+        if (typeof expected !== 'string' || typeof current !== 'string') return false;
+        try {
+            const before = decode(expected), saved = decode(current);
+            // Encoding can change during quota recovery without changing the
+            // game. Compare the actual snapshot, never only a timestamp or phase.
+            return before && saved && typeof before === 'object' && typeof saved === 'object'
+                && before.leagueId === leagueId && saved.leagueId === leagueId
+                && JSON.stringify(before) === JSON.stringify(saved);
+        } catch { return false; }
+    }
+    function writeSnapshot(state, entries, options = {}) {
         const db = root.localStorage, types = App.TimeLeagueTypes;
         const key = types.timeLeagueStorageKey(state.leagueId), indexKey = types.TIME_LEAGUE_INDEX_KEY;
         const packed = encode(state), shelf = JSON.stringify(entries);
         const save = () => {
+            // Callers that retain the raw snapshot they opened can reject a
+            // stale tab before either durable record changes. This synchronous
+            // optimistic check is not a cross-tab transaction or a server lock.
+            if (Object.prototype.hasOwnProperty.call(options, 'expectedSnapshot')
+                && !snapshotMatches(options.expectedSnapshot, db.getItem(key), state.leagueId)) {
+                const conflict = new Error('This season changed in another tab. Reload its saved progress before making another move.');
+                conflict.name = 'VaultSnapshotConflictError';
+                throw conflict;
+            }
             const previousIndex = db.getItem(indexKey);
             // The game is authoritative and is replaced last, atomically.
             // A failed write cannot replace it with a partly saved season.
@@ -60,6 +81,7 @@
             db.setItem(key, compact);
             save();
         }
+        return packed;
     }
     const api = { encode, decode, writeSnapshot };
     App.TimeLeagueStorage = api;

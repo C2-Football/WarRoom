@@ -29,7 +29,7 @@ const all = value => !value || typeof value !== 'object' ? [] : Array.isArray(va
 const words = node => !node ? '' : Array.isArray(node) ? node.map(words).join(' ') : typeof node === 'object' ? words(node.children) : String(node);
 const button = (tree,label) => all(tree).find(node=>node.type==='button' && words(node)===label);
 const component = (tree,type) => all(tree).find(node=>node.type===type);
-const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{gameDeckVersion:0,rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
+const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{gameDeckVersion:0,waiversEnabled:true,rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
 const slots=['QB','RB','RB','SUPER_FLEX','K','DEF','BN'];
 const statLines=[{passYd:320,passTd:4},{rushYd:80,rushTd:1},null,{passInt:2},{extra:{xpm:4}},{extra:{sack:3}}, {rushYd:200,rushTd:4}];
 const cards=new Map(), logs=new Map();

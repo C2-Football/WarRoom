@@ -112,21 +112,26 @@
         const [confirming, setConfirming] = useState(false);
         const phase = entry.phase || 'draft';
         const tone = phase === 'draft' ? 'warn' : phase === 'season' ? 'info' : 'gold';
+        const nextStep = phase === 'draft' ? Number.isInteger(entry.draftPickCount) && entry.draftTotalPicks ? `${entry.draftPickCount} of ${entry.draftTotalPicks} picks saved` : 'Your draft is waiting'
+            : phase === 'complete' ? 'Season record saved'
+                : ({ claims: 'Planning window open', lineup: 'Set your lineup', ready: 'Lineups locked · ready for game day', postgame: 'Final score saved · review the recap' })[entry.weekStage] || 'Continue your season';
         return h('article', { className: 'tl-season-card' },
             h('div', { className: `tl-season-mark ${online ? 'friends' : 'solo'}` }, online ? '◆' : 'V'),
             h('div', { className: 'tl-season-copy' },
                 h('div', { className: 'tl-season-name' }, entry.name),
+                h('p', { className: 'tl-season-next' }, entry.teamName ? `${entry.teamName} · ${nextStep}` : nextStep),
                 h('div', { className: 'tl-season-meta' },
                     h('span', { className: `tl-pill ${tone}` }, phase.toUpperCase()),
-                    h('span', null, online ? 'FRIENDS LEAGUE' : 'SOLO SEASON'),
-                    phase !== 'draft' && h('span', null, `WEEK ${Math.min(entry.currentWeek ?? 1, window.TimeLeagueUtils.REGULAR_SEASON_WEEKS)}`),
+                    h('span', null, online ? 'FRIENDS LEAGUE' : 'THIS BROWSER'),
+                    phase === 'season' && h('span', null, `WEEK ${entry.weekStage === 'postgame' ? Math.max(1, (entry.currentWeek ?? 1) - 1) : entry.currentWeek ?? 1}`),
+                    Number.isInteger(entry.completedWeeks) && phase !== 'draft' && h('span', null, `${entry.completedWeeks}${entry.totalWeeks ? `/${entry.totalWeeks}` : ''} WEEKS SAVED`),
                     h('span', null, `${entry.teamCount ?? 0} TEAMS`))),
             confirming
                 ? h('div', { className: 'tl-season-actions' },
                     h('button', { type: 'button', className: 'tl-btn danger', onClick: () => onDelete(entry.leagueId) }, 'DELETE'),
                     h('button', { type: 'button', className: 'tl-btn', onClick: () => setConfirming(false) }, 'KEEP'))
                 : h('div', { className: 'tl-season-actions' },
-                    h('button', { type: 'button', className: 'tl-btn primary', onClick: onOpen }, phase === 'draft' ? 'ENTER DRAFT →' : 'CONTINUE →'),
+                    h('button', { type: 'button', className: 'tl-btn primary', onClick: onOpen }, phase === 'draft' ? 'ENTER DRAFT →' : phase === 'complete' ? 'SEASON RECORD →' : 'CONTINUE →'),
                     !online && h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': `Delete ${entry.name}`, onClick: () => setConfirming(true) }, '•••')));
     }
 
@@ -135,7 +140,7 @@
         return h('section', { className: 'tl-season-shelf' },
             h('div', { className: 'tl-section-heading' },
                 h('div', null, h('span', { className: 'tl-eyebrow' }, 'BACK IN THE HUDDLE'), h('h2', null, 'Continue playing')),
-                h('small', null, `${index.length + onlineIndex.length} active ${index.length + onlineIndex.length === 1 ? 'league' : 'leagues'}`)),
+                h('small', null, `${index.length + onlineIndex.length} saved ${index.length + onlineIndex.length === 1 ? 'league' : 'leagues'}`)),
             h('div', { className: 'tl-season-list' },
                 index.map((entry) => h(LeagueCard, { key: entry.leagueId, entry, onOpen: () => onOpen(entry.leagueId), onDelete })),
                 onlineIndex.map((entry) => h(LeagueCard, { key: entry.rowId, entry, online: true, onOpen: () => onOpenOnline(entry.rowId) }))));
@@ -330,6 +335,9 @@
                 h('div', null, h('span', { className: 'tl-eyebrow' }, 'THE VAULT'), h('h2', null, 'Start your season')),
                 h('div', { className: 'tl-flow-steps', 'aria-label': 'League setup progress' },
                     ['PLAY', 'DRAFT', 'TEAM'].map((label, index) => h('a', { key: label, href: `#vault-setup-${index}`, className: 'active' }, h('b', null, index + 1), label)))),
+            h('p', { className: 'tl-draft-premise' }, hiddenYears
+                ? 'Draft a player. The Vault assigns one eligible season and keeps its year hidden. Discover it through recorded performances as you build your team.'
+                : 'Draft a player. The Vault assigns one eligible season, revealed after the draft. Set your lineup and compete using recorded historical performances.'),
 
             h(SetupStep, { id: 'vault-setup-0', title: 'Play mode', summary: playMode === 'friends' ? 'With friends' : 'Solo · AI rivals', first: true },
                 h('div', { className: 'tl-question' }, h('span', null, '1'), h('div', null, h('h3', null, 'Choose your rivals'), h('p', null, 'A solo season or a private league.'))),
@@ -484,8 +492,8 @@
     function WrTimeLeagueSetupPanel({ index, onOpen, onDelete, onCreate, onlineIndex, onlineIndexState, onOpenOnline, onCreateOnline }) {
         const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         return h('div', { className: 'tl-vault-lobby' },
-            !phone && h(LobbyStory, null),
             h(LeagueShelf, { index, onlineIndex, onOpen, onDelete, onOpenOnline }),
+            !phone && h(LobbyStory, null),
             h(LeagueBuilder, { key: window.App.OD?.getCurrentUserId?.() || 'guest', onCreate, onCreateOnline, onOpenOnline, onlineIndexState }), phone && h(LobbyStory, null));
     }
 

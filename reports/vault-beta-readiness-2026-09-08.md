@@ -1,5 +1,189 @@
 # The Vault — beta readiness review
 
+## October 21, 2026 implementation release
+
+Local branch: `codex/vault-experience-20261021`, reversible baseline `47bb5dd`.
+Workspace: `/Users/jacobc/Projects/work/warroom-vault-experience-20261021`.
+The main checkout and its unrelated changes are untouched. No push or deployment is authorized.
+
+Finite release: make the existing solo journey easier to resume, guide the real
+weekly decisions, explain saved results, and prevent a stale local tab from
+silently overwriting newer progress. Preserve all draft formats, era rules,
+historical data, scoring, characters, earned progress and online contracts.
+No new modes, economy, AI service, or data source.
+
+| Requirement / phase | Status | Completion evidence |
+|---|---|---|
+| A: inspect architecture, rules, baseline and disposable browser journey | VERIFIED | Baseline 47bb5dd; original Vault suite passed; real lobby/setup/draft captures in output/playwright/vault-experience/before-* |
+| B: entry/resume and point-of-use draft premise | VERIFIED | Real hub/direct setup, 12-pick local draft, reload, saved shelf/team/stage/week context; fixed hub URL now retains vault=1 |
+| C: legal next decisions and saved-result explanation | VERIFIED | Real planning, legal Move swap, lineup lock, game day/instant/recap, exact saved score, box-score route, reload and End week; known tie fixtures |
+| D: existing rival/progression connections | VERIFIED | Actual friendly composer reply and authored reply each survive reload once; fixture-assisted 14-week champion, career/team links and completed shelf resume |
+| E: save compatibility and conflict recovery | VERIFIED | Storage-conflict and recovery tests: stale views/tabs, held locks, switching rooms, quota recovery, old JSON/compression, no overwritten newer progress |
+| E: integrated build, lifecycle/regression and rendered matrix | VERIFIED | 65-command Vault suite, final160-script build, core97/97, first-class7/7, five-size Chromium journey and WebKit phone controls; scoped known telemetry guard error recorded |
+| Authenticated hosted multiplayer / physical devices | BLOCKED | No live accounts or production mutations used; outside this local verification pass |
+
+Statuses: NOT STARTED, DESIGNED, IMPLEMENTED, VERIFIED, BLOCKED. Verification
+means evidence from this branch, with fixture/browser/hosted boundaries stated.
+Other discoveries enter future work unless needed for this finite core journey.
+
+### Verified architecture, rules and inventory
+
+The Vault is `js/tabs/time-league.js` plus existing `time-league-*` components,
+shared engine/actions/scoring/storage, historical assets and Supabase actions.
+Dynasty HQ owns the hub, module loader, navigation, account/guest identities,
+shared runtime and infrastructure. No parallel account or inventory was added.
+
+| Existing surface/system | Observed release state |
+|---|---|
+| Hub/direct entry and setup | Working local routes; solo is browser-local; friends has account/guest waiting-room contracts |
+| Player acquisition | Player identity, not a specific season; snake, linear and auction; Position Roulette, All-Era and selected decades; legal capacity/QB/position rules shared with AI |
+| Season discovery | One eligible assigned season; Hidden Years reveals through public candidate evidence and final reveal; Classic reveals after draft. Local storage contains private state and is not secure secrecy |
+| Team, claims, trades | Shared legality; four stages: claims/planning, lineup, ready, postgame. Disabled mechanics now have honest navigation; no new management subsystem |
+| Competition and results | Recorded game statistics produce fantasy points; version1 shuffles source performances without repetition. Simulated quarter timing presents an already saved result |
+| Rivals and progression | Steward Vance and existing owners, context templates, saved message IDs, expressive/relationship replies, achievements, ceremony and career are retained; no paid AI or new rewards |
+| Friends multiplayer | Authoritative server permissions/versioning and sealed public-state tests pass locally. Real hosted multi-account acceptance is unverified |
+| Incomplete/duplicate options | Full squad and Standard use the same roster shape; retained as existing setup options, not advertised as distinct strategic modes |
+
+Default setup is six teams, Hidden Years, Position Roulette, snake, half-PPR and
+12 regular games plus a four-team playoff (14 total). Supported setup variants
+retain their existing season calculations. Legacy `gameDeckVersion:0` calendar
+saves keep original assets; version1 keeps full regular-season game decks.
+
+Data is unchanged: the archive validator reports 3,586 identities, 22,906
+player-seasons and 272,461 unique scoring lines. See
+[data provenance and limits](../data/time-league/REGULAR-SEASON-DATA.md) and the
+manifest: 1970–1998 corpus has missing fumbles/two-point statistics; nflverse
+1999–2025 is REG-filtered; K/DEF start in1999; documented exclusions remain.
+Counts prove internal archive consistency, not independent certification of
+every historical fact.
+
+Scoring remains `TimeLeagueSeason.scoreStatLine` / `gamePoints`, including
+custom weights, bonuses and optional era factors. Starter and team totals use
+two-decimal precision. Regular ties stand; playoff ties go to the higher seed.
+New recap presentation uses saved totals and starters, never future game draws.
+
+### Save compatibility and recovery
+
+No save schema, scoring version, historical asset or settled outcome changed.
+New shelf metadata is optional; old indexes still open. Both plain JSON and
+checksummed compressed saves remain readable. Unknown/unreadable saves are
+kept and receive recovery feedback; they are never reset automatically.
+
+Each local view now carries its own durable snapshot token. A changed/deleted
+save is rejected before either shelf or game writes. **Load latest save** reads
+the committed state and discards the rejected action; **Return to saved seasons**
+allows leaving a missing/unreadable conflict without overwriting anything.
+Recovery hides disabled gameplay overlays, releases native top-layer dialogs,
+and focuses the recovery alert. Ordinary storage failures retain **Retry save** / **Keep previous save** and the
+existing clock-preserving quota recovery. Browser Web Locks serialize cooperating
+local saves; browsers/older clients without these locks retain optimistic checks,
+not a cross-device transaction guarantee. Held-lock and room-switch fixtures
+prove a delayed action cannot reopen a room that was left.
+
+### Run and inspect
+
+The local preview is running at `http://127.0.0.1:3037/?vault=1`. Its localhost
+banner/identity is the repository's existing development behavior. To restart:
+
+```sh
+cd /Users/jacobc/Projects/work/warroom-vault-experience-20261021
+node scripts/serve-static.cjs --port=3037 --compile
+```
+
+Dependencies and the exact workflow-pinned shared runtime (`74d6369`) were
+prepared locally. A clean copy of that Git revision is at
+`/tmp/vault-shared-20261021`; no dirty shared checkout was consumed.
+
+```sh
+SHARED_SOURCE=/tmp/vault-shared-20261021 npm run build:preview
+npm run test:timeleague
+npm run test:core
+npm run test:first-class
+```
+
+True signed-out browser acceptance uses the separate local server below.
+The Chromium harness maps only `vault-qa.test` to127.0.0.1; it does not use a
+live hostname, account or save. Its route guard intercepts backend mutations;
+analytics may receive a synthetic local response without transmitting data.
+
+```sh
+node scripts/serve-static.cjs --port=3038 --compile --allowed-hosts=vault-qa.test
+# In a second terminal:
+node tests/vault-experience-journey.cjs
+node tests/vault-experience-journey.cjs --acceptance-only
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-experience-journey.cjs --webkit-smoke
+```
+
+The WebKit executable override matches this host's installed runtime; another
+machine should use its own installed compatible runtime. Both browsers are
+emulation, not physical devices. The actual controls cover a two-team compact
+All-Era snake league; shared-engine/endpoint tests additionally cover other
+formats, Position Roulette, custom scoring, larger leagues and permissions.
+No new mode or multiplayer-support claim follows from these fixtures.
+
+### Verification evidence and limitations
+
+Evidence is under `output/playwright/vault-experience/` in this worktree:
+
+- `verification.json`: PASS,7 journey groups and41 screenshots,38 intercepted
+  backend mutation requests, zero page exceptions; actual hub/direct entry, setup and draft, legal roster,
+  two-tab conflict, focus/hit-tested recovery, game day, stable final, advancement,
+  fixture-assisted 14-week completion, career and saved-record resume.
+- `acceptance-verification.json`: PASS,2 groups,12 intercepted requests, zero
+  page exceptions; actual rival reply persistence and stale
+  native-waiver-dialog recovery. No duplicate message or overwritten newer save.
+- `webkit-verification.json`: PASS,1 group,2 screenshots,7 intercepted requests;
+  390×844/430×932 phone controls, reduced motion,
+  More-dialog Escape/focus return, legal roster swap, lock/game day/instant,
+  enlarged text and reload. One explicitly recorded blocked-analytics CORS error
+  comes from the isolation guard; no other application exception was accepted.
+- `home-layout-verification.json`: long names separated at all five sizes,
+  text-only125% font enlargement and no horizontal overflow. Default theme was
+  inspected. Light mode is disabled upstream and is not claimed as verified.
+- `baseline-suite.log`, `final-suite.log`, `final-build.log`, `core.log` and
+  `entry.log`: original/final automated checks. Changed runtime JS passed ESLint;
+  `git diff --check` passed.
+
+Representative screen pairs: `before-lobby-390.png` / `after-lobby-390.png`,
+`before-draft-1440.png` / `after-draft-1440.png`; final
+`after-recap-390.png`, `after-complete-1440.png`,
+`home-name-fix-enlarged-390.png`. The Chromium matrix uses390×844,430×932,
+1024×1366,1366×1024 and1440×900 for lobby, draft, Home, roster, ready game day,
+recap and completion. Setup additionally has390/1440 captures. Baseline captures
+used local development identity; supporting Home/roster/game-day baselines were
+reconstructed from exact baseline sources and their provenance is recorded; the final core journey verifies the actual
+signed-out path without that bypass. No user's live progress was used.
+
+The full historical fixtures run92 saved/reloaded actions per12-team,
+156-pick season in legacy, full-game-deck and Hidden Years scenarios; scoring,
+source-game uniqueness, AI legal rosters and playoff advancement reconcile.
+Storage compatibility separately covers88 durable actions,14-week completion,
+quota compaction, corrupt records and unrelated-data preservation. No new AI or
+simulation strategy was introduced and no enjoyment/performance claim is made
+from those checks.
+
+Known pre-existing check failure: `node tests/design-tokens-contract.js` is3/4,
+with two hardcoded8px radius literals in unchanged `js/free-agency.js` at the
+baseline revision. `design-tokens-known-failure.log` records it; unrelated
+Free Agency was not modified. Existing compiler size notes/Node localStorage
+warnings are recorded in the logs. No source-data certification, offline test,
+physical-device test, production performance test or hosted multiplayer session
+was performed. Nothing was pushed, merged or deployed.
+
+### Prioritized future work
+
+1. Run a real hosted multi-account invitation/draft/reconnect/conflict session
+   before widening friends-play claims; preserve server-owned disclosure.
+2. Physically test Safari/Android touch, text scaling and screen-reader flow;
+   observe human default-season pacing and whether newcomers return.
+3. Plan save export/backup and unattended room advancement as separately scoped
+   features; do not promise cross-device solo restoration or offline progression.
+4. Address the existing unrelated design-token failure and duplicate roster
+   preset label separately. Historical gaps stay documented; corrections require
+   evidence and an explicit active-save compatibility decision.
+
+---
+
 September 8, 2026 · Product, browser, rules, and architecture review
 
 **Recommendation: run a small invited beta with 5–10 trusted testers. Do not launch public, ranked multiplayer yet.** The game has a distinctive premise, a complete season loop, and enough personality to invite repeat play. Keep the current architecture. The next investment should be reliability, clearer decisions, and observing real players—not another large feature expansion.

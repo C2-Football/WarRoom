@@ -8,10 +8,13 @@
         { id: 'postgame', title: 'Week recap', action: 'advance-week', button: 'End week', tab: 'home', open: 'Week recap' },
     ];
 
-    function WeekGates({ league, onlineMeta, saving, authRequired, signInHref = 'login.html?vault=1&reauth=1', saveError, onRetrySave, dataReady, onAction, onNavigate, currentTab, teamId, playback, messageAction }) {
+    function WeekGates({ league, onlineMeta, saving, authRequired, signInHref = 'login.html?vault=1&reauth=1', saveError, saveConflict, onRetrySave, dataReady, onAction, onNavigate, currentTab, teamId, playback, messageAction }) {
         const [showSettings, setShowSettings] = React.useState(false);
         if (!['season', 'complete'].includes(league.phase)) return null;
-        const stage = STAGES.find(row => row.id === league.weekStage) || STAGES[2];
+        const baseStage = STAGES.find(row => row.id === league.weekStage) || STAGES[2];
+        const stage = baseStage.id === 'claims' && !league.settings.waiversEnabled
+            ? { ...baseStage, title: league.settings.tradesEnabled ? 'Trade planning' : 'Planning window', button: 'Continue to lineup', tab: league.settings.tradesEnabled ? 'trades' : 'roster', open: league.settings.tradesEnabled ? 'Review trades' : 'Review team' }
+            : baseStage;
         const live = playback && !playback.done;
         const complete = league.phase === 'complete';
         const host = !onlineMeta || onlineMeta.role === 'commissioner';
@@ -34,7 +37,7 @@
         if (authRequired) {
             primary = h('a', { className: 'tl-btn primary', href: signInHref }, 'Sign in again');
         } else if (saveError) {
-            primary = h('button', { type: 'button', className: 'tl-btn primary', disabled: saving, onClick: onRetrySave }, saving ? 'Saving…' : 'Retry save');
+            primary = h('button', { type: 'button', className: 'tl-btn primary', disabled: saving, onClick: onRetrySave }, saving ? 'Saving…' : saveConflict ? 'Load latest save' : 'Retry save');
         } else if (live) {
             primary = currentTab !== 'gameday'
                 ? go('gameday', playback.replay ? 'Watch replay' : 'Watch game')
@@ -50,8 +53,8 @@
                 : h('button', { type: 'button', className: 'tl-btn primary', disabled: disabled || (mode === 'majority' ? voted : !host), onClick: advance },
                     saving ? 'Saving…' : mode === 'majority' ? voted ? 'Vote recorded' : stage.id === 'postgame' ? 'Vote to end week' : 'Vote to advance' : host ? stage.button : 'Waiting for commissioner');
             secondary = stage.id === 'postgame' ? (currentTab === 'home' ? go('gameday', 'Box scores') : null)
-                : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : tradeLabel)
-                    : stage.id === 'lineup' ? go('trades', tradeLabel) : null;
+                : stage.id === 'claims' ? currentTab === 'trades' && league.settings.waiversEnabled ? go('waivers', 'Waiver bids') : currentTab !== 'trades' && league.settings.tradesEnabled ? go('trades', tradeLabel) : null
+                    : stage.id === 'lineup' && league.settings.tradesEnabled ? go('trades', tradeLabel) : null;
         }
         if (!authRequired && !saveError && !live && !incomingOffers && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
         const title = authRequired ? 'Sign-in required' : saveError ? 'Save needs attention' : live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.id === 'postgame' ? `Week ${week} recap` : stage.title;
@@ -60,14 +63,14 @@
         return h('footer', { className: 'tl-week-action-row', 'aria-label': 'Week actions' },
             h('div', { className: 'tl-week-action-inner' },
                 h('div', { className: 'tl-week-action-status', role: 'status' },
-                    h('small', null, `WEEK ${week}${!complete ? ` · ${live ? 3 : STAGES.indexOf(stage) + 1} OF 4` : ''}`),
+                    h('small', null, `WEEK ${week}${!complete ? ` · ${live ? 3 : STAGES.indexOf(baseStage) + 1} OF 4` : ''}`),
                     h('strong', null, title), status && h('span', null, status)),
                 h('div', { className: 'tl-week-action-buttons' }, secondary, primary),
                 !authRequired && !live && !complete && h('div', { className: 'tl-week-action-more' },
                     h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Week options', 'aria-expanded': showSettings, 'aria-controls': 'vault-week-options', onClick: () => setShowSettings(value => !value) }, '•••'),
                     showSettings && h('div', { className: 'tl-week-action-menu', id: 'vault-week-options' },
                         h('div', { className: 'tl-card-title' }, 'This week', h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Close week options', onClick: () => setShowSettings(false) }, '×')),
-                        h('ol', { className: 'tl-stage-track' }, STAGES.map((row, i) => h('li', { key: row.id, 'aria-current': row.id === stage.id ? 'step' : undefined, className: row.id === stage.id ? 'active' : '' }, h('span', null, i + 1), row.title))),
+                        h('ol', { className: 'tl-stage-track' }, STAGES.map((row, i) => h('li', { key: row.id, 'aria-current': row.id === stage.id ? 'step' : undefined, className: row.id === stage.id ? 'active' : '' }, h('span', null, i + 1), row.id === 'claims' && !league.settings.waiversEnabled ? league.settings.tradesEnabled ? 'Trade planning' : 'Planning window' : row.title))),
                         host && stage.id === 'ready' && h('button', { className: 'tl-btn', disabled: busy, onClick: () => { setShowSettings(false); onAction({ type: 'reopen-lineups' }); } }, 'Reopen lineups'),
                         host && mode !== 'commissioner' && h('button', { className: 'tl-btn', disabled, onClick: () => { setShowSettings(false); if (needsScreen) onNavigate(stage.tab); else onAction({ type: stage.action }); } }, `Commissioner override · ${stage.button}`),
                         onlineMeta && host && h('div', { className: 'tl-stage-settings' },

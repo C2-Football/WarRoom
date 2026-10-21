@@ -23,13 +23,13 @@
         return { decades: [...decades].sort(), oldest };
     }
 
-    function TeamLockup({ team, standing, side, score }) {
+    function TeamLockup({ team, standing, side, score, scoreDigits = 1 }) {
         if (!team) return h('div', { className: `tl-home-team ${side}` }, h('div', { className: 'tl-home-bye' }, 'BYE'));
         return h('div', { className: `tl-home-team ${side}` },
             h('span', { className: `tl-matchup-helmet${side === 'mine' ? ' is-left' : ''}` },
                 h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 86 })),
             h('strong', null, team.name),
-            Number.isFinite(score) && h('strong', { className: 'tabular', style: { fontSize: 28 } }, score.toFixed(1)),
+            Number.isFinite(score) && h('strong', { className: 'tabular', style: { fontSize: 28 } }, score.toFixed(scoreDigits)),
             h('span', null, standing ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ''} · ${standing.pointsFor.toFixed(1)} PF` : '0-0 · SEASON OPENER'));
     }
 
@@ -38,6 +38,25 @@
             h('span', { className: 'tl-home-action-icon' }, icon),
             h('span', { className: 'tl-home-action-copy' }, h('small', null, kicker), h('strong', null, title), h('span', null, detail)),
             h('span', { className: 'tl-home-action-go', 'aria-hidden': true }, '↗'));
+    }
+
+    function SavedResultExplanation({ league, week, team, onNavigate }) {
+        const match = week?.matchups.find(row => row.home === team.teamId || row.away === team.teamId);
+        const result = week?.results.find(row => row.teamId === team.teamId);
+        if (!match || !result) return null;
+        const margin = Math.abs(Math.round(match.homePoints * 100) - Math.round(match.awayPoints * 100)) / 100;
+        const won = match.winner === team.teamId;
+        const top = [...(result.starters || [])].filter(entry => Number.isFinite(entry.points)).sort((left, right) => right.points - left.points)[0];
+        const missing = (result.starters || []).filter(entry => entry.availability === 'no-record').length;
+        const outcome = match.winner === null ? 'Tied game' : margin === 0 ? won ? 'Won on the tiebreaker' : 'Lost on the tiebreaker' : `${won ? 'Won' : 'Lost'} by ${margin.toFixed(2)} points`;
+        const tieNote = margin === 0 ? match.winner === null ? 'A tied score. Regular-season ties stand.' : week.week > league.settings.regularSeasonWeeks ? 'The higher seed wins the playoff tiebreaker.' : 'The saved result determines the winner.' : null;
+        return h('section', { className: 'tl-card tl-home-result-explainer', 'aria-label': `What decided Week ${week.week}` },
+            h('h2', null, 'What decided the game'),
+            h('div', { className: 'tl-update-highlights' },
+                h('div', null, h('small', null, 'Your result'), h('strong', null, outcome), h('span', null, tieNote || 'Final scores include starting players only.')),
+                top && h('div', null, h('small', null, 'Your top starter'), h('strong', null, top.name), h('span', null, `${top.points.toFixed(2)} points${top.position ? ` · ${top.position}` : ''}`))),
+            h('p', { className: 'tl-hint' }, 'Recorded historical game statistics are converted into fantasy points using this league’s scoring.', league.settings.eraAdjusted ? ' Era adjustments are included.' : '', ' Each player’s points and the lineup total are rounded to two decimals.', missing ? ` ${missing} starter${missing === 1 ? ' had' : 's had'} no recorded game and scored zero.` : ''),
+            h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('gameday') }, 'Scoring & box scores →'));
     }
 
     function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId, cards, logIndex, eraFactors, throughWeek }) {
@@ -58,7 +77,7 @@
         const opponentStanding = opponent ? standingOf(opponent.teamId) : null;
         const lineupProblems = Engine.lineupProblems(league, myTeam.teamId);
         const pendingWaivers = league.pendingClaims.filter((claim) => claim.teamId === myTeam.teamId).length;
-        const openTrades = league.trades.filter((trade) => trade.status === 'pending' && trade.toTeamId === myTeam.teamId).length;
+        const openTrades = league.trades.filter((trade) => trade.status === 'pending' && trade.toTeamId === myTeam.teamId && !(trade.deferredUntilWeek > league.currentWeek)).length;
         const lastFinalized = league.finalizedWeeks[league.finalizedWeeks.length - 1] ?? null;
         const lastMatchup = lastFinalized?.matchups.find((matchup) => matchup.home === myTeam.teamId || matchup.away === myTeam.teamId) ?? null;
         const lastResult = lastMatchup ? (lastMatchup.winner === null ? 'T' : lastMatchup.winner === myTeam.teamId ? 'W' : 'L') : null;
@@ -80,6 +99,21 @@
                 ? `${lastResult === 'W' ? 'WIN' : lastResult === 'L' ? 'LOSS' : 'TIE'} IN WEEK ${lastFinalized?.week ?? league.currentWeek - 1}`
                 : `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · SEASON OPENER`;
         const ready = lineupProblems.length === 0;
+        const stage = league.weekStage || 'ready';
+        const watchingPlayoffs = league.phase === 'season' && league.currentWeek > league.settings.regularSeasonWeeks && !currentPair;
+        const nextAction = watchingPlayoffs
+            ? { tab: 'gameday', label: 'Follow the playoffs →', detail: 'Your team is out of this playoff round. Follow the remaining matchups and the road to the title.' }
+            : stage === 'claims'
+                ? league.settings.waiversEnabled
+                    ? { tab: 'waivers', label: 'Review waiver claims →', detail: pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? ' is' : 's are'} pending. Review your claims before the waiver window closes.` : 'Add a player or keep your roster. Review waiver claims before moving to final lineup decisions.' }
+                    : league.settings.tradesEnabled
+                        ? { tab: 'trades', label: 'Review trades →', detail: openTrades ? `${openTrades} trade offer${openTrades === 1 ? ' is' : 's are'} waiting. Review your trades before final lineup decisions.` : 'Explore a trade or keep your team. Continue to final lineup decisions when you are ready.' }
+                        : { tab: 'roster', label: 'Review lineup →', detail: 'Your roster is ready to review. Continue to the lineup stage with the week actions below.' }
+                : stage === 'lineup'
+                    ? { tab: 'roster', label: ready ? 'Review lineup →' : `Fix lineup (${lineupProblems.length}) →`, detail: ready ? 'Your lineup is legal. Make any final changes, then use Lock lineup when you are ready.' : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before you can lock the lineup.` }
+                    : { tab: ready ? 'gameday' : 'roster', label: ready ? 'Go to game day →' : 'Review lineup issue →', detail: ready ? 'Lineup locked. Review the matchup, then start game day with the week actions below.' : 'The locked lineup needs attention. Open Week options to reopen lineups before making changes.' };
+        const showWaiverDecision = !watchingPlayoffs && league.settings.waiversEnabled && stage === 'claims';
+        const showTradeDecision = !watchingPlayoffs && league.settings.tradesEnabled && (stage === 'claims' || (stage === 'lineup' && openTrades > 0));
         const playoffCount = Engine.playoffCount(league);
         const showHunt = playoffCount > 0 && league.currentWeek > Math.floor(league.settings.regularSeasonWeeks / 2);
         const remaining = Math.max(0, league.settings.regularSeasonWeeks - league.finalizedWeeks.filter(week => week.week <= league.settings.regularSeasonWeeks).length);
@@ -94,6 +128,7 @@
         if (postgame && league.phase === 'season' && justFinished) {
             const nextPair = currentSchedule?.pairs.find(pair => pair.includes(myTeam.teamId));
             const nextOpponent = nextPair ? teamOf(nextPair.find(id => id !== myTeam.teamId)) : null;
+            const playoffObserver = league.currentWeek > league.settings.regularSeasonWeeks && !nextPair;
             const myScore = justFinished.results.find(result => result.teamId === myTeam.teamId)?.total;
             return h('section', { className: 'tl-home tl-week-recap', 'aria-label': `Week ${justFinished.week} recap` },
                 h('header', { className: 'tl-recap-heading' },
@@ -102,11 +137,12 @@
                 h('section', { className: 'tl-home-hero tl-recap-result' },
                     h('div', { className: 'tl-home-hero-copy' }, h('span', { className: 'tl-eyebrow' }, 'YOUR RESULT'),
                         h('h2', null, lastResult === 'W' ? 'A win in the books.' : lastResult === 'L' ? 'A tough week. A fresh start ahead.' : lastResult === 'T' ? 'All square at the final whistle.' : 'Your bye week is complete.'),
-                        h('p', null, `${myTeam.name} · ${myStanding.wins}–${myStanding.losses}${myStanding.ties ? '–' + myStanding.ties : ''} · ${myStanding.pointsFor.toFixed(1)} season points`)),
+                        h('p', null, `${myTeam.name} · ${myStanding.wins}–${myStanding.losses}${myStanding.ties ? '–' + myStanding.ties : ''} regular-season record · ${myStanding.pointsFor.toFixed(1)} regular-season points`)),
                     h('div', { className: 'tl-home-matchup' },
-                        h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine', score: myScore }),
+                        h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine', score: myScore, scoreDigits: 2 }),
                         h('div', { className: 'tl-home-vs' }, h('span', null, `WEEK ${justFinished.week}`), h('strong', null, 'FINAL')),
-                        h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent', score: opponent && justFinished.results.find(result => result.teamId === opponent.teamId)?.total }))),
+                        h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent', score: opponent && justFinished.results.find(result => result.teamId === opponent.teamId)?.total, scoreDigits: 2 }))),
+                h(SavedResultExplanation, { league, week: justFinished, team: myTeam, onNavigate }),
                 h('section', { className: 'tl-card tl-league-update' },
                     h('h2', null, 'Around the league'),
                     weeklyLeaders && h('div', { className: 'tl-update-highlights' },
@@ -117,8 +153,8 @@
                             [[match.home, match.homePoints], [match.away, match.awayPoints]].map(([id, points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' }, h('span', null, teamName(id)), h('strong', null, points.toFixed(1)))))))),
                 h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Updated standings & team profiles'), h(window.WrTimeLeagueStandingsPanel, { league, embedded: true })),
                 h('section', { className: 'tl-card tl-recap-next' }, h('span', { className: 'tl-eyebrow' }, `UP NEXT · WEEK ${league.currentWeek}`),
-                    h('h2', null, nextOpponent ? `${myTeam.name} vs. ${nextOpponent.name}` : 'No matchup scheduled'),
-                    h('p', null, league.settings.waiversEnabled ? 'End week opens the next waiver window. Submit claims, resolve waivers, then set your lineup for kickoff.' : 'End week opens the next planning window. Review trades and set your lineup for kickoff.')));
+                    h('h2', null, nextOpponent ? `${myTeam.name} vs. ${nextOpponent.name}` : playoffObserver ? 'Follow the championship' : 'No matchup scheduled'),
+                    h('p', null, playoffObserver ? 'Your playoff run is complete. End week when you are ready, then follow the remaining games from game day.' : league.settings.waiversEnabled ? 'End week opens the next waiver window. Submit claims, resolve waivers, then set your lineup for kickoff.' : 'End week opens the next planning window. Review trades and set your lineup for kickoff.')));
         }
 
         return h('div', { className: 'tl-home' },
@@ -128,17 +164,11 @@
                     h('span', { className: 'tl-eyebrow' }, heroStatus),
                     league.phase === 'complete'
                         ? h('h1', null, champion?.teamId === myTeam.teamId ? 'Your championship season.' : `${champion?.name ?? 'Your champion'} takes the title.`)
-                        : h('h1', { className: 'tl-home-matchup-heading' }, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
-                    h('p', null, league.phase === 'complete'
-                        ? `${champion?.name ?? 'The champion'} wins ${league.name}.`
-                        : postgame
-                            ? 'Results are final. End the week when you’re ready for the next round of claims.'
-                        : ready
-                            ? 'Lineup ready. Review your team or head to game day.'
-                            : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before kickoff.`),
+                        : h('h1', { className: 'tl-home-matchup-heading' }, opponent ? `${myTeam.name} vs. ${opponent.name}` : watchingPlayoffs ? `${myTeam.name} is following the playoffs` : `${myTeam.name} has the week off`),
+                    h('p', null, league.phase === 'complete' ? `${champion?.name ?? 'The champion'} wins ${league.name}.` : nextAction.detail),
                     league.phase !== 'complete' && !postgame && h('div', { className: 'tl-home-hero-actions' },
-                        h('button', { type: 'button', className: `tl-btn ${ready ? '' : 'primary'}`, onClick: () => onNavigate('roster') }, ready ? 'REVIEW LINEUP' : `FIX LINEUP (${lineupProblems.length})`),
-                        h('button', { type: 'button', className: `tl-btn ${ready ? 'primary' : ''}`, onClick: () => onNavigate('gameday') }, 'GO TO GAME DAY →'))),
+                        h('button', { type: 'button', className: 'tl-btn primary', onClick: () => onNavigate(nextAction.tab) }, nextAction.label),
+                        nextAction.tab !== 'roster' && h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('roster') }, stage === 'ready' || watchingPlayoffs ? 'View lineup' : 'Review lineup'))),
                 h('div', { className: 'tl-home-matchup' },
                     league.phase === 'complete'
                         ? h('div', { className: 'tl-home-trophy' }, h('span', null, '♛'), h('strong', null, 'VAULT CHAMPION'), h('small', null, champion?.name ?? 'Season complete'))
@@ -149,17 +179,26 @@
                 h('div', { className: 'tl-home-yardline one' }),
                 h('div', { className: 'tl-home-yardline two' })),
 
-            league.phase !== 'complete' && !postgame && h('section', { className: 'tl-home-action-grid' },
-                h(ActionCard, {
+            league.phase === 'complete' && h('section', { className: 'tl-card tl-recap-next', 'aria-label': 'Your completed season' },
+                h('span', { className: 'tl-eyebrow' }, myTeam.name), h('h2', null, 'Your season is saved.'),
+                h('p', null, `${myStanding.wins}–${myStanding.losses}${myStanding.ties ? `–${myStanding.ties}` : ''} regular-season record · ${myStanding.pointsFor.toFixed(2)} regular-season points. Your results, roster and discovered seasons remain available here.`),
+                h('div', { className: 'tl-home-hero-actions' },
+                    h('button', { type: 'button', className: 'tl-btn primary', onClick: () => onNavigate('career') }, 'My career →'),
+                    h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('roster') }, 'Review my team')),
+                h('p', { className: 'tl-hint' }, 'For another season, open League options, then Switch league.')),
+            league.phase === 'complete' && h(SavedResultExplanation, { league, week: lastFinalized, team: myTeam, onNavigate }),
+
+            league.phase !== 'complete' && !postgame && (showWaiverDecision || showTradeDecision) && h('section', { className: 'tl-home-action-grid' },
+                showWaiverDecision && h(ActionCard, {
                     icon: '+', kicker: 'WAIVER WIRE', tone: pendingWaivers ? 'info' : '',
                     title: 'Players',
-                    detail: !league.settings.waiversEnabled ? 'Waivers are off' : pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find your next addition',
+                    detail: pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find your next addition',
                     onClick: () => onNavigate('waivers'),
                 }),
-                h(ActionCard, {
+                showTradeDecision && h(ActionCard, {
                     icon: '⇄', kicker: 'TRADE BLOCK', tone: openTrades ? 'gold' : '',
                     title: 'Trades',
-                    detail: !league.settings.tradesEnabled ? 'Trades are off' : openTrades ? `${openTrades} offer${openTrades === 1 ? '' : 's'} waiting` : 'Make your next deal',
+                    detail: openTrades ? `${openTrades} offer${openTrades === 1 ? '' : 's'} waiting` : 'Make your next deal',
                     onClick: () => onNavigate('trades'),
                 })),
 
