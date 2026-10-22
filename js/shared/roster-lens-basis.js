@@ -29,16 +29,15 @@
             if (String(native.season) === season && native.week == null && raw.week == null && native.scoringKey === scoringKey(scoring) && matches(opts.statsContext, opts) && average != null)
                 return { value: average, games: number(native.games), season, source: 'MFL official season average' };
         }
+        // MFL history may have been scored from flattened rule approximations.
+        // Its scope alone cannot prove an authoritative native average.
+        if (native || league._mfl || String(league._platform || '') === 'mfl' || leagueId(opts).startsWith('mfl_')) return missing;
         const WP = App.WeeklyProj, expected = WP?.weeklyPointsScope?.(leagueId(opts), season, scoring);
         if (expected && root.S?.weeklyPlayerPointsScope === expected) {
             const form = WP.formStats?.(pid, 'season'), value = number(form?.rollingPPG);
             if (value != null && number(form?.games) > 0) return { value, games: Number(form.games), season, source: 'Completed games · league scoring' };
         }
-        if (native) return missing;
         if (!raw || typeof raw !== 'object' || raw.week != null || raw.season != null && String(raw.season) !== season) return missing;
-        // Native MFL scoring cannot be reconstructed from the flattened NFL
-        // rule approximation when its authoritative average is unavailable.
-        if (league._mfl || String(league._platform || '') === 'mfl' || leagueId(opts).startsWith('mfl_')) return missing;
         const games = number(raw.gp), pos = position((opts.players || opts.playersData)?.[pid]?.position);
         const hasScoredData = Object.keys(raw).some(key => !['gp', 'season', 'season_type', 'week', 'player_id', 'team_id'].includes(key) && number(raw[key]) != null);
         if (!(games > 0) || !hasScoredData || !Object.keys(scoring).length) return missing;

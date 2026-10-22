@@ -68,6 +68,21 @@ test('official MFL average requires current-league provenance, never estimates a
     opts = await f.basis.prepare({ ...f.args, basis: 'average' });
     assert.equal(f.basis.currentAverage('old', opts).value, -1.2, 'official AVG remains available when unrelated detailed stats fail');
 });
+test('old pinned MFL connectors cannot promote flattened-rule history to an official average', async () => {
+    for (const identity of [{ _mfl: true }, { _platform: 'mfl' }, { league_id: 'mfl_2026_one' }]) {
+        const f = fixture(); Object.assign(f.args.league, identity);
+        f.window.App.WeeklyProj = { weeklyPointsScope: () => 'matching-scope', formStats: () => ({ rollingPPG: 99, games: 4 }) };
+        f.window.S.weeklyPlayerPointsScope = 'matching-scope';
+        const opts = await f.basis.prepare({ ...f.args, basis: 'average' });
+        assert.equal(f.basis.currentAverage('old', opts).value, null, 'no native AVG API at the shared pin');
+        delete opts.statsData.old;
+        assert.equal(f.basis.currentAverage('old', opts).value, null, 'even scoped completed history cannot prove native MFL scoring');
+        const context = f.basis.sourceContext(opts);
+        opts.statsData.old = { _mflScoring: { scoringKey: context.scoringKey, season: '2026', week: null, average: 0 } };
+        assert.equal(f.basis.currentAverage('old', opts).value, null, 'native metadata still needs current-league provenance');
+        assert.equal(f.basis.currentAverage('old', { ...opts, statsContext: context }).value, 0, 'verified official native AVG remains available');
+    }
+});
 test('average comparisons retain current bye/OUT eligibility and missing averages remain unknown', () => {
     const f = fixture();
     f.args.players.old.bye = 6;
