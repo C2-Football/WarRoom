@@ -4,7 +4,33 @@
 
 Local branch: `codex/vault-experience-20261021`, reversible baseline `47bb5dd`.
 Workspace: `/Users/jacobc/Projects/work/warroom-vault-experience-20261021`.
-The main checkout and its unrelated changes are untouched. No push or deployment is authorized.
+The main checkout and its unrelated changes are untouched. The user authorized
+deployment on October 22, 2026; the release scope is both Pages hosts and the
+matching Vault (`time-league`) authoritative runtime.
+
+### October 22 deployment
+
+Status: IMPLEMENTED — release preparation and verification in progress.
+Production and sandbox were refreshed and both remain at `47bb5dd`; the eight
+completed Vault commits fast-forward that base. Both workflow dependency pins
+remain `74d6369224db5b814a9f3fdeff8fb7d60735aa81`.
+
+The backend uses the existing manual C2 release guard with a fresh
+`.github/c2-releases/vault-experience-20261022.json`, official Node 20.20.2 /
+zlib 1.3.1-e00f703, read-only schema/source preflight and post-deploy byte checks.
+Only `time-league` is selected; no SQL migrations or other functions are part of
+this release. Pages runs for this release will be held until backend verification
+completes, then production and sandbox must serve the same exact release SHA.
+
+Evidence is recorded in `output/playwright/vault-release-deployment/` and the
+standard `reports/public-readiness/evidence/release-<sha>.json`. Final proof must
+include green relevant workflows, exact frontend revisions/content hashes,
+verified deployed Vault function sources/version and actual hosted guest smoke.
+
+Rollback must preserve `planningRecoveryWeek`, `bestDecadeSpread`,
+`preNinetyRostered` and `waiverClaimsLanded`; old normalizers discard these fields.
+Use a compatible hotfix rather than restoring an old serializer. Existing local
+Vault tabs should be reloaded after release before making further save changes.
 
 Finite release: make the existing solo journey easier to resume, guide the real
 weekly decisions, explain saved results, and prevent a stale local tab from
