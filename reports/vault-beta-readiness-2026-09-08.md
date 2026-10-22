@@ -20,11 +20,110 @@ No new modes, economy, AI service, or data source.
 | D: existing rival/progression connections | VERIFIED | Actual friendly composer reply and authored reply each survive reload once; fixture-assisted 14-week champion, career/team links and completed shelf resume |
 | E: save compatibility and conflict recovery | VERIFIED | Storage-conflict and recovery tests: stale views/tabs, held locks, switching rooms, quota recovery, old JSON/compression, no overwritten newer progress |
 | E: integrated build, lifecycle/regression and rendered matrix | VERIFIED | First slice: 65-command Vault suite,160-script build, core97/97, first-class7/7, five-size Chromium journey and WebKit phone controls; follow-on evidence below |
+| Final release acceptance | VERIFIED | Runtime checkpoint `4f29dfd`; independent reviews clear; 75-command Vault suite and minified 300-module build pass; 11-group connected default journey plus nine tracked boundary checks pass with exact saved-state and served-byte evidence |
 | Authenticated hosted multiplayer / physical devices | BLOCKED | No live accounts or production mutations used; outside this local verification pass |
 
 Statuses: NOT STARTED, DESIGNED, IMPLEMENTED, VERIFIED, BLOCKED. Verification
 means evidence from this branch, with fixture/browser/hosted boundaries stated.
 Other discoveries enter future work unless needed for this finite core journey.
+
+### Final acceptance gate
+
+The closing independent product/rules reviews found three bounded correctness
+repairs within the original completion and earned-progress requirements:
+
+- Runner-Up must identify the opponent in the saved championship, rather than
+  the second regular-season seed. Missing postseason evidence must stay unknown.
+- Existing roster and waiver achievements must retain proven accomplishments
+  after legal trades/drops, including a move before the next saved game and an
+  older save without waiver receipts. Three optional per-team peak counters
+  (`bestDecadeSpread`, `preNinetyRostered`, `waiverClaimsLanded`) use the existing
+  game save/transaction. No threshold, currency or reward grant is added.
+- Saved decisive scores must retain two decimals. A `100.04–100.00` final must
+  read as a narrow win; an exact playoff tie must retain its saved winner and
+  explain the existing higher-seed rule.
+
+All closing gates passed. Other feature ideas remain future work. The final
+journey covers the default six-team rules through a real draft/game, save/resume,
+fixture-assisted season boundary, ceremony, trophy case, career/history, archived
+replay and a fresh season that preserves the completed save.
+
+The completed local implementation is committed at runtime checkpoint
+`4f29dfdf56f413aa2374acdf02bc348f97a41411`. The subsequent acceptance/handoff
+commit adds the repeatable harness and this report without changing runtime
+sources. Nothing was pushed, merged or published.
+
+#### Final evidence and reproduction
+
+`output/playwright/vault-release-acceptance/verification.json` records 11 passing
+groups, 34 viewport captures, 117 intercepted requests to mutation endpoints,
+232 served minified-overlay assets, and zero page/route errors or in-browser
+Babel requests. It pins the exact runtime checkpoint above. The fresh default
+game used six teams, 72 real draft picks, Hidden Years, Position Roulette,
+standard roster, snake, half-PPR, 12 regular weeks and four-team playoffs.
+Only manual draft order, no pick timer and fast AI pacing were selected for QA.
+Week 1 and the championship used actual game-day controls. Intervening Weeks
+2–13 used shared authoritative fixture actions on that same UI-created save;
+this is not a manual full-season pacing or enjoyment claim.
+
+`boundaries-verification.json` records the promoted tracked harness passing all
+nine cases: true finalist versus regular-season second seed, retained modern
+and receipt-less legacy waiver badges, duplicate-award denial, pregame roster
+milestones after a legal trade, a `0.04` final margin, an exact saved-away-winner
+playoff tie, and precise Home margins. Its 18 captures overlap the full run;
+they are not 18 additional distinct screens. It records 202 minified overlay
+and 97 fallback assets, including all four archive GETs at HTTP 200 with
+SHA-256 values matching repository bytes. Both runs use disposable saves and
+block all outbound mutations.
+
+The full journey also verifies ceremony minimize/replay, explicit final-year
+reveal, Trophy Case, career Open league, Week 1 replay, reload, new-save creation
+and reopening the old completed save. Replays preserve the entire committed
+game, including results, roster, messages, editions and progress. New-game
+creation preserves the old completed save exactly.
+
+Checks after the closeout fixes: `npm run test:timeleague` (75 commands),
+`npm run test:core` (97/97), `npm run test:first-class` (7/7),
+`npm run test:login-auth` (32 session scenarios plus request recovery), source
+ESLint and `git diff --check` all pass. The minified build compiles 161 JSX
+scripts and minifies 300 modules; `dist-deploy/release.json` has the exact
+runtime revision and `local-preview` environment. Archive counts and legacy
+data hashes remain unchanged. The independent milestone reviewer reproduced
+badge permanence through a legal pregame trade, repeated reloads and public
+projection, and confirmed sealed draft counters stay absent.
+
+To reproduce, start the isolated QA server in one terminal, then build and run
+the self-contained acceptance harness in another:
+
+```sh
+node scripts/serve-static.cjs --port=3038 --compile --allowed-hosts=vault-qa.test
+# Second terminal, in this worktree:
+node scripts/build-deploy.cjs
+node tests/vault-release-acceptance.cjs
+# Focused rerun of the nine self-generated boundary cases:
+node tests/vault-release-acceptance.cjs --boundaries-only
+```
+
+The first full run used the same harness from the evidence directory; the
+tracked form was then checked with `node --check` and reran all nine boundary
+cases. Its loopback response adapter serves exact local bytes without disabling
+browser security. The first synthetic-document private-network restriction and
+a voluntarily stopped redundant full rerun are retained and explained in
+`attempt-notes.json`; neither is counted as a passing run or an application fix.
+`final-suite.log`, `core.log`, `entry.log`, `login.log`, `lint.log`,
+`minified-build.log` and `verification-summary.json` bind the checks and hashes.
+
+Representative captures:
+[default draft](../output/playwright/vault-release-acceptance/default-draft-390.png),
+[championship](../output/playwright/vault-release-acceptance/championship-ceremony-390.png),
+[precise narrow final](../output/playwright/vault-release-acceptance/boundary-ceremony-narrow-win-390.png),
+[retained roster trophies](../output/playwright/vault-release-acceptance/boundary-roster-trophies-retained-before-game-390.png),
+[old season after a fresh start](../output/playwright/vault-release-acceptance/old-season-after-new-start-390.png).
+Final minified acceptance is local Chromium at 390×844 and 1440×900; the prior
+five-size, short-landscape and WebKit/touch matrices remain separately recorded.
+Physical devices, hosted authentication/multiplayer, production performance and
+deployment remain outside this verified local release. The prioritized future
+work below is unchanged.
 
 ### Verified architecture, rules and inventory
 
@@ -65,10 +164,24 @@ New recap presentation uses saved totals and starters, never future game draws.
 ### Save compatibility and recovery
 
 The existing save version, scoring version, historical assets and settled outcomes
-are unchanged. New shelf metadata and the recovery-week field described below
-are optional; old saves and indexes still open. Both plain JSON and
+are unchanged. New shelf metadata, the recovery-week field described below and
+the three per-team milestone counters are optional; old saves and indexes still
+open. Both plain JSON and
 checksummed compressed saves remain readable. Unknown/unreadable saves are
 kept and receive recovery feedback; they are never reset automatically.
+
+Milestone normalization takes the largest valid stored/current value and each
+own saved starter cohort separately. It never combines different weeks or
+ownerless player-production snapshots into an imagined roster. Distinct saved
+waiver awards and current legacy waiver entries provide conservative evidence;
+each new successful award increments the retained count once. Pre-action proof
+is captured before a trade/drop, including before the first saved game. No
+view-only achievement write or database migration is required. Missing historical
+bench/between-game evidence from before this release cannot be reconstructed and
+is not invented. Friends play requires the matching shared authoritative runtime
+when this branch is eventually published; no hosted rollout is part of this work.
+Sealed draft public snapshots omit all three counters. Active Hidden Years uses
+public decades, with exact-year fallback only after the existing year reveal.
 
 Each local view now carries its own durable snapshot token. A changed/deleted
 save is rejected before either shelf or game writes. **Load latest save** reads
