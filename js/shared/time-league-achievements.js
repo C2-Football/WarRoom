@@ -106,13 +106,23 @@
     /** Derives every stat the catalog needs from one league's own state, for one team. */
     function computeStats(league, teamId) {
         const Engine = App.TimeLeagueEngine;
-        const EraRules = App.TimeLeagueEraRules;
         const standings = Engine.computeStandings(league);
         const standing = standings.find((s) => s.teamId === teamId) ?? { wins: 0, losses: 0, ties: 0, pointsFor: 0 };
         const team = league.teams.find((t) => t.teamId === teamId);
         const seasonComplete = league.phase === 'complete';
         const champion = seasonComplete && league.championTeamId === teamId;
-        const runnerUp = seasonComplete && !champion && standings[1]?.teamId === teamId;
+        const postseason = league.finalizedWeeks.filter(week => week.week > league.settings.regularSeasonWeeks);
+        const titleWeek = postseason.reduce((latest, week) => !latest || week.week > latest.week ? week : latest, null);
+        const expectedTitleWeek = Engine.playoffCount(league) ? Engine.seasonEndWeek(league) : null;
+        const title = titleWeek?.matchups?.length === 1 && (!expectedTitleWeek || titleWeek.week === expectedTitleWeek) ? titleWeek.matchups[0] : null;
+        const titleOpponent = title && league.championTeamId && title.winner === league.championTeamId && [title.home, title.away].includes(league.championTeamId)
+            ? title.home === league.championTeamId ? title.away : title.home : null;
+        // Playoff seeding remains a regular-season table. Its second seed is
+        // not necessarily the finalist; the saved winner also settles tied
+        // title scores. Incomplete postseason evidence cannot invent a medal.
+        const hasPostseason = postseason.length > 0 || league.settings.playoffTeams >= 2;
+        const runnerUpId = titleOpponent || (!hasPostseason ? standings[1]?.teamId : null);
+        const runnerUp = seasonComplete && !champion && runnerUpId === teamId;
 
         let bestWinStreak = 0, currentRun = 0, seasonHigh = 0, bestMargin = 0;
         for (const week of league.finalizedWeeks) {
@@ -131,22 +141,25 @@
             }
         }
 
-        const decades = new Set();
-        let preNinetyEntries = 0;
-        for (const entry of (team?.roster ?? [])) {
-            const decade = league.settings.hiddenYears && !league.yearsRevealed ? entry.hiddenDecade : EraRules.decadeOf(entry.drawnSeason);
-            if (decade) decades.add(decade);
-            if (decade && parseInt(decade, 10) < 1990) preNinetyEntries += 1;
-        }
+        const cohorts = [team?.roster || [], ...league.finalizedWeeks.flatMap(week => week.results
+            .filter(result => result.teamId === teamId).map(result => result.starters || []))];
+        const milestones = cohorts.map(roster => Engine.rosterMilestones(roster, league.settings, league.yearsRevealed === true));
+        const decadeSpread = Math.max(Number.isInteger(team?.bestDecadeSpread) ? team.bestDecadeSpread : 0, ...milestones.map(row => row.bestDecadeSpread));
+        const preNinetyEntries = Math.max(Number.isInteger(team?.preNinetyRostered) ? team.preNinetyRostered : 0, ...milestones.map(row => row.preNinetyRostered));
 
         const tradesAccepted = league.trades.filter((t) => t.status === 'accepted' && (t.fromTeamId === teamId || t.toTeamId === teamId)).length;
-        const waiverAdds = (team?.roster ?? []).filter((e) => e.acquiredVia === 'waiver').length;
+        const awarded = Engine.waiverAwardCount(league.waiverResults || [], teamId);
+        const rosteredWaivers = new Set((team?.roster ?? []).filter(entry => entry.acquiredVia === 'waiver').map(entry => entry.identity));
+        // Awards outlive a later trade/drop. Old saves without receipts retain
+        // their provable roster count; taking the larger count avoids adding
+        // overlapping evidence or granting a badge for duplicate receipts.
+        const waiverAdds = Math.max(awarded, rosteredWaivers.size, Number.isSafeInteger(team?.waiverClaimsLanded) ? team.waiverClaimsLanded : 0);
 
         return {
             champion, runnerUp, seasonComplete,
             wins: standing.wins, losses: standing.losses, ties: standing.ties, pointsFor: standing.pointsFor,
             bestWinStreak, seasonHigh, bestMargin,
-            decadeSpread: decades.size, preNinetyEntries,
+            decadeSpread, preNinetyEntries,
             tradesAccepted, waiverAdds,
         };
     }

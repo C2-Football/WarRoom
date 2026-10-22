@@ -30,7 +30,7 @@ button(tree,'Vote to advance').props.onClick();assert.equal(called.type,'vote-ad
 reset();tree=gates({role:'commissioner',seatTeamId:league.teams[0].teamId});
 walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(button(tree,'Commissioner override'));
 // Incoming offers are reachable from the user's roster, without opening More.
-const withOffer = { ...league, trades: [{ tradeId: 'tr1', fromTeamId: league.teams[1].teamId, toTeamId: league.teams[0].teamId, status: 'pending' }] };
+const withOffer = { ...league, settings: { ...league.settings, tradesEnabled: true }, trades: [{ tradeId: 'tr1', fromTeamId: league.teams[1].teamId, toTeamId: league.teams[0].teamId, status: 'pending' }] };
 reset(); tree = render(() => WrTimeLeagueWeekGates({ league: withOffer, teamId: league.teams[0].teamId, currentTab: 'roster', dataReady: true, onNavigate: tab => { called = tab; } }));
 button(tree, '1 trade offer').props.onClick(); assert.equal(called, 'trades');
 reset(); tree = render(() => WrTimeLeagueWeekGates({ league: withOffer, teamId: league.teams[1].teamId, currentTab: 'roster', dataReady: true, onNavigate() {} }));
@@ -51,6 +51,17 @@ assert(!button(tree, 'Saving…'), 'A failed save is never presented as an in-fl
 assert(!button(tree, 'Retry save').props.disabled, 'The failed-save dock provides an available recovery action');
 button(tree, 'Retry save').props.onClick(); assert.equal(called, 'retry');
 assert(text(tree).includes('Save needs attention'));
+reset(); tree = recapGate({ saveError: true, saveConflict: true, onRetrySave: () => { called = 'load-latest'; } });
+assert(!button(tree, 'Retry save'), 'Conflicts offer reload instead of replaying the stale move');
+button(tree, 'Load latest save').props.onClick(); assert.equal(called, 'load-latest');
+// Planning still advances through the same authoritative action when optional
+// mechanics are off; the controls must lead to the enabled decision screen.
+const quietLeague = { ...league, weekStage: 'claims', settings: { ...league.settings, waiversEnabled: false, tradesEnabled: false } };
+const quietGate = currentTab => render(() => WrTimeLeagueWeekGates({ league: quietLeague, currentTab, dataReady: true, onAction: action => { called = action; }, onNavigate: tab => { called = tab; } }));
+reset(); tree = quietGate('home'); button(tree, 'Review team').props.onClick(); assert.equal(called, 'roster');
+assert(!button(tree, 'Trades') && !button(tree, 'Waiver bids') && !button(tree, 'Run waivers'));
+reset(); tree = quietGate('roster'); button(tree, 'Continue to lineup').props.onClick(); assert.equal(called.type, 'process-claims');
+assert(text(tree).includes('1 OF 4'), 'The adapted stage retains its real progression index');
 reset();const cast=()=>render(()=>WrTimeLeagueGamecastPanel({league,cards,logIndex:new Map(),onUpdate:()=>{},autoPlayWeek:1}));cast();effects[0]();tree=cast();assert.equal(state[2],true);assert.equal(state[3],300);assert(state[0].live);assert.equal(state[0].weekData.week,1);
 state[1]=35;effects[0]();assert.equal(state[1],35,'Autoplay must not rewind same week on rerender');
 reset(); cast(); effects[0](); tree=cast();

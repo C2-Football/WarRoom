@@ -184,21 +184,48 @@
         return next === state ? state : { ...next, draftAuction: { ...next.draftAuction, lastAiAt: stamp } };
     }
 
-    function aiPrepareWeek(state, cards, logIndex) {
+    function aiPrepareWeek(state, cards, logIndex, eraFactors) {
         cards = App.TimeLeagueEngine.cardsFor(state, cards);
+        const currentAvailability = entry => {
+            const endWeek = App.TimeLeagueEngine.seasonEndWeek(state);
+            if (state.phase !== 'season' || !state.seasonsRevealed || state.weekStage === 'postgame' || state.currentWeek > endWeek) return null;
+            if (state.publicSnapshotVersion === 1) {
+                const key = App.TimeLeagueHiddenYears?.editionKey(entry) || entry.editionId || entry.entryId;
+                const report = state.playerReports?.[key];
+                return report?.week === state.currentWeek && typeof report.currentAvailable === 'boolean' ? report.currentAvailable : null;
+            }
+            // The same coarse clue is visible in the human roster. Missing
+            // data is unknown; it must never turn into a no-game decision.
+            if (!logIndex?.size) return null;
+            const clue = App.TimeLeagueSeason.weeklyStarOutlook(entry, state.currentWeek, endWeek, logIndex,
+                state.settings.scoring, state.settings.eraAdjusted ? eraFactors : null, state);
+            const available = clue?.schedule?.find(row => row.week === state.currentWeek)?.available;
+            return typeof available === 'boolean' ? available : null;
+        };
         return state.teams.reduce((next, team) => {
             if (team.manager !== "ai") return next;
             if (hidden(next)) {
                 const persona = adaptivePersona(next, team);
+                const values = new Map();
                 const value = entry => {
+                    if (values.has(entry.entryId)) return values.get(entry.entryId);
+                    // Keep the persona's visible-evidence ordering, but prefer
+                    // a legal substitute over an explicitly known zero. Only
+                    // availability crosses this boundary, never the game score.
+                    if (currentAvailability(entry) === false) { values.set(entry.entryId, -1); return -1; }
                     const read = observedRead(next, cards, entry, logIndex);
-                    return Math.max(0, (read.estimatedAverage || 0) + (read.spread || 0) * (persona.riskTolerance - 50) / 500);
+                    const estimate = Math.max(0, (read.estimatedAverage || 0) + (read.spread || 0) * (persona.riskTolerance - 50) / 500);
+                    values.set(entry.entryId, estimate);
+                    return estimate;
                 };
                 const plan = tradeLineup(team.roster, next.settings, value);
-                return { ...next, teams: next.teams.map(item => item.teamId !== team.teamId ? item : { ...item, roster: item.roster.map(entry =>
-                    ['IR', 'TAXI'].includes(entry.slot) ? entry : { ...entry, slot: plan.starterSlots.get(entry.entryId) || 'BN' }) }) };
+                return { ...next, teams: next.teams.map(item => item.teamId !== team.teamId ? item : repairAiLineup({ ...item, roster: item.roster.map(entry =>
+                    ['IR', 'TAXI'].includes(entry.slot) ? entry : { ...entry, slot: plan.starterSlots.get(entry.entryId) || 'BN' }) }, next.settings)) };
             }
             let prepared = autoFillLineup(next, team.teamId, cards);
+            const current = prepared.teams.find(item => item.teamId === team.teamId);
+            const repaired = repairAiLineup(current, prepared.settings);
+            if (repaired !== current) prepared = { ...prepared, teams: prepared.teams.map(item => item.teamId === team.teamId ? repaired : item) };
             if (!logIndex || state.phase !== 'season') return prepared;
             // Availability is already visible to managers. A rival should not
             // leave a guaranteed no-game zero in while a legal substitute plays.
@@ -320,6 +347,18 @@
     // leaving ordinary twelve-player rosters with no trade candidates at all.
     // The supported eligibility sets are nested or disjoint. Filling narrower
     // sets first, in value order, finds their best lineup without combinatorics.
+    function repairAiLineup(team, settings) {
+        const assigned = !App.TimeLeagueEngine.lineupProblems({ settings, teams: [team] }, team.teamId).length
+            && ['BN', 'IR', 'TAXI'].every(slot => team.roster.filter(entry => entry.slot === slot).length <= (settings.rosterSlots[slot] || 0));
+        if (assigned) return team;
+        const plan = App.TimeLeagueEngine.rosterFeasibility(team.roster, settings);
+        if (!plan.legal) return team;
+        const slots = new Map(plan.slots.map(row => [row.entryId, row.slot]));
+        // Preserve normal persona/value decisions. Only an invalid assignment
+        // uses the same public legal reserve repair available to human managers.
+        return { ...team, roster: team.roster.map(entry => slots.get(entry.entryId) === entry.slot ? entry : { ...entry, slot: slots.get(entry.entryId) }) };
+    }
+
     function tradeLineup(roster, settings, valueOf, depthWeight = .2) {
         const remaining = roster.filter(entry => entry.slot !== 'IR' && entry.slot !== 'TAXI')
             .slice().sort((a, b) => valueOf(b) - valueOf(a) || a.entryId.localeCompare(b.entryId));
@@ -337,9 +376,7 @@
         }
         return { starters, filled, required, starterSlots,
             total: starters + remaining.reduce((sum, entry) => sum + valueOf(entry) * depthWeight, 0),
-            legal: filled === required && remaining.length <= (settings.rosterSlots.BN || 0)
-                && roster.filter(entry => entry.position === 'QB').length <= settings.maxQuarterbacks
-                && ['IR', 'TAXI'].every(slot => roster.filter(entry => entry.slot === slot).length <= (settings.rosterSlots[slot] || 0)) };
+            legal: App.TimeLeagueEngine.rosterFeasibility(roster, settings).legal };
     }
 
     function tradeEntryAverage(cards, entry, state) {
@@ -428,8 +465,8 @@
                 next = { ...next, teams: next.teams.map(team => {
                     if (![proposer.teamId, partner.teamId].includes(team.teamId)) return team;
                     const lineup = tradeLineup(team.roster, next.settings, valueOf);
-                    return { ...team, roster: team.roster.map(entry => entry.slot === 'IR' || entry.slot === 'TAXI' ? entry
-                        : { ...entry, slot: lineup.starterSlots.get(entry.entryId) || 'BN' }) };
+                    return repairAiLineup({ ...team, roster: team.roster.map(entry => entry.slot === 'IR' || entry.slot === 'TAXI' ? entry
+                        : { ...entry, slot: lineup.starterSlots.get(entry.entryId) || 'BN' }) }, next.settings);
                 }) };
                 aiDeals++;
             }

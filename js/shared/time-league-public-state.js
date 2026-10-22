@@ -180,11 +180,11 @@
         const hidden = state.settings.hiddenYears === true && !yearsRevealed;
         const visibility = draftVisibility(state, seatTeamId);
         const result = {
-            ...pick(state, fields('version leagueId name createdAt phase currentWeek weekStage gateStartedAt championTeamId')),
+            ...pick(state, fields('version leagueId name createdAt phase currentWeek weekStage planningRecoveryWeek gateStartedAt championTeamId')),
             publicSnapshotVersion: 1,
             draftVisibility: visibility,
             settings: publicSettings(state, visibility),
-            teams: state.teams.map(team => ({ ...pick(team, TEAM), helmet: pick(team.helmet, HELMET),
+            teams: state.teams.map(team => ({ ...pick(team, TEAM), ...(!sealed ? pick(team, fields('bestDecadeSpread preNinetyRostered waiverClaimsLanded')) : {}), helmet: pick(team.helmet, HELMET),
                 roster: list(team.roster).map(entry => pick(entry, [...ENTRY, 'editionId', ...(!sealed || state.settings.eraRules.mode !== 'position-roulette' || visibility.revealedPositions.includes(entry.position) ? ['hiddenDecade'] : []), ...(!sealed && !hidden ? ['drawnSeason'] : [])])),
                 queue: team.teamId === seatTeamId ? strings(team.queue) : [] })),
             draftOrder: list(state.draftOrder).map(seat => pick(seat, fields('overall round teamId'))),

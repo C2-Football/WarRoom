@@ -141,18 +141,23 @@
             if (state.weekStage !== 'claims') deny('Waiver planning is not open.');
             const card = E.freeAgents(state, cards).find(c => c.identity === action.identity);
             if (!card) deny('That free agent is no longer available.');
-            next = E.submitWaiverClaim(state, { teamId: own, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: action.dropEntryId || '', bidAmount: action.bidAmount }, stamp);
+            const claim = { teamId: own, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: action.dropEntryId || '', bidAmount: action.bidAmount };
+            const problem = E.waiverClaimProblem(state, claim);
+            if (problem) deny(problem);
+            next = E.submitWaiverClaim(state, claim, stamp);
             break;
         }
         case 'cancel-claim':
             if (!state.pendingClaims.some(c => c.claimId === action.claimId && c.teamId === own)) deny('This claim belongs to another manager.');
             next = E.cancelWaiverClaim(state, action.claimId);
             break;
-        case 'trade':
+        case 'trade': {
             ownTeam();
             if (state.weekStage !== 'claims') deny('Submit trade requests during waiver planning.');
-            next = E.proposeTrade(state, { fromTeamId: own, toTeamId: action.toTeamId, giveEntryIds: action.giveEntryIds, receiveEntryIds: action.receiveEntryIds, note: String(action.note || '').slice(0, 500) }, stamp);
+            const offer = { fromTeamId: own, toTeamId: action.toTeamId, giveEntryIds: action.giveEntryIds, receiveEntryIds: action.receiveEntryIds, note: String(action.note || '').slice(0, 500) };
+            next = E.proposeTrade(state, offer, stamp);
             break;
+        }
         case 'respond-trade':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.tradeId === action.tradeId && t.toTeamId === own && t.status === 'pending')) deny('Only the receiving manager can answer this offer.');
@@ -162,7 +167,7 @@
         case 'refresh-trade-offers':
             if (state.phase !== 'season' || !['claims', 'lineup'].includes(state.weekStage)) deny('Trade suggestions open during weekly planning.');
             if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can refresh trade offers.');
-            next = AI.aiGenerateTrades(state, cards, stamp, { humanOnly: true });
+            next = state.planningRecoveryWeek === state.currentWeek ? state : AI.aiGenerateTrades(state, cards, stamp, { humanOnly: true });
             break;
         case 'ping-ai':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
@@ -179,6 +184,14 @@
             if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Only a finalized lineup gate can be reopened.');
             next = { ...state, weekStage: 'lineup' };
             break;
+        case 'reopen-planning': {
+            commissioner();
+            if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can reopen planning.');
+            const recovery = E.planningRecovery(state);
+            if (!recovery.available) deny(recovery.reason);
+            next = E.reopenPlanning(state, stamp);
+            break;
+        }
         case 'start-playoffs':
             commissioner();
             next = E.startPlayoffs(state, Number(action.count));
@@ -191,24 +204,29 @@
         case 'process-claims': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'claims') deny('Open waiver planning first.');
-            // Each AI files against the same pre-resolution pool as human managers.
-            const staged = AI.aiSubmitWaiverClaims(state, cards, stamp);
+            // Ordinary planning gives each AI the same pre-resolution pool.
+            // A repair round preserves that week's automated decisions; only
+            // actually pending claims and manually negotiated offers settle.
+            const recovery = state.planningRecoveryWeek === state.currentWeek;
+            const staged = recovery ? state : AI.aiSubmitWaiverClaims(state, cards, stamp);
             next = E.processWaivers(staged, cards, stamp);
-            next = AI.aiRespondToTrades({ ...AI.aiGenerateTrades(next, cards, stamp), weekStage: 'lineup' }, cards, stamp);
+            next = AI.aiRespondToTrades({ ...(recovery ? next : AI.aiGenerateTrades(next, cards, stamp)), weekStage: 'lineup' }, cards, stamp);
             break;
         }
-        case 'finalize-rosters':
+        case 'finalize-rosters': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'lineup') deny('Resolve waivers before finalizing rosters.');
-            if (state.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).some(t => E.lineupProblems(state, t.teamId).length)) deny('Managers still need to fill every starting lineup before finalizing.');
+            const readiness = E.lineupReadiness(state);
+            if (!readiness.ready) deny(`Managers still need to fill every starting lineup before finalizing. Check ${readiness.blockers.map(team => team.name).join(', ')}.`);
             next = { ...state, weekStage: 'ready' };
             break;
+        }
         case 'week': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Complete the weekly planning steps first.');
-            const prepared = AI.aiPrepareWeek(state, cards, data.logIndex);
-            const problems = prepared.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap(t => E.lineupProblems(prepared, t.teamId));
-            if (problems.length && !action.force) deny('Managers still need to set their lineups.');
+            const prepared = AI.aiPrepareWeek(state, cards, data.logIndex, data.eraFactors);
+            const readiness = E.lineupReadiness(prepared);
+            if (!readiness.ready && !action.force) deny(`Managers still need to set their lineups. Check ${readiness.blockers.map(team => team.name).join(', ')}.`);
             next = E.finalizeCurrentWeek(prepared, data.logIndex, data.eraFactors, stamp);
             next = { ...next, weekStage: 'postgame' };
             break;

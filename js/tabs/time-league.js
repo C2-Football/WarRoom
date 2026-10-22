@@ -40,6 +40,9 @@
         home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', stats: '▥', trades: '⇄',
         achievements: '♛', messages: '✉', career: '★', community: '◎', standings: '≡', activity: '◷',
     };
+    const gateWorkspace = league => league.weekStage === 'claims'
+        ? league.settings.waiversEnabled ? 'waivers' : league.settings.tradesEnabled ? 'trades' : 'roster'
+        : ({ lineup: 'roster', ready: 'gameday', postgame: 'gameday' })[league.weekStage] || 'home';
 
     const PERSONA_IDS = Engine.AI_PERSONA_IDS;
     // Helmet defaults are deterministic per name (see time-league-helmet.js) so
@@ -67,6 +70,12 @@
                     teamCount: typeof item.teamCount === 'number' ? item.teamCount : 0,
                     currentWeek: typeof item.currentWeek === 'number' ? item.currentWeek : 1,
                     createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+                    weekStage: ['claims', 'lineup', 'ready', 'postgame'].includes(item.weekStage) ? item.weekStage : undefined,
+                    teamName: typeof item.teamName === 'string' ? item.teamName : undefined,
+                    draftPickCount: Number.isInteger(item.draftPickCount) ? item.draftPickCount : undefined,
+                    draftTotalPicks: Number.isInteger(item.draftTotalPicks) ? item.draftTotalPicks : undefined,
+                    completedWeeks: Number.isInteger(item.completedWeeks) ? item.completedWeeks : undefined,
+                    totalWeeks: Number.isInteger(item.totalWeeks) ? item.totalWeeks : undefined,
                 }];
             });
         } catch { return []; }
@@ -74,18 +83,20 @@
     function writeIndexEntries(entries) {
         try { window.localStorage.setItem(Types.TIME_LEAGUE_INDEX_KEY, JSON.stringify(entries)); } catch { /* in-memory only */ }
     }
-    function readLeague(leagueId) {
+    function readLeague(leagueId, snapshotRef) {
         try {
             const raw = window.localStorage.getItem(Types.timeLeagueStorageKey(leagueId));
-            return Engine.normalizeTimeLeague(Storage ? Storage.decode(raw) : JSON.parse(raw ?? 'null'));
+            const state = Engine.normalizeTimeLeague(Storage ? Storage.decode(raw) : JSON.parse(raw ?? 'null'));
+            if (state && snapshotRef) snapshotRef.current = { leagueId: state.leagueId, raw };
+            return state;
         }
         catch { return null; }
     }
     function writeLeague(state) {
         window.localStorage.setItem(Types.timeLeagueStorageKey(state.leagueId), Storage ? Storage.encode(state) : JSON.stringify(state));
     }
-    function writeLeagueSnapshot(state, entries) {
-        if (Storage) return Storage.writeSnapshot(state, entries);
+    function writeLeagueSnapshot(state, entries, options) {
+        if (Storage) return Storage.writeSnapshot(state, entries, options);
         // Save the discoverable shelf first and the authoritative game last.
         // A failed game write leaves the previous game untouched; roll back
         // the shelf so a failed creation cannot leave a phantom league.
@@ -106,6 +117,9 @@
     const indexEntryOf = (state) => ({
         leagueId: state.leagueId, name: state.name, phase: state.phase,
         teamCount: state.teams.length, currentWeek: state.currentWeek, createdAt: state.createdAt,
+        weekStage: state.weekStage, teamName: state.teams.find(team => team.manager === 'human')?.name,
+        draftPickCount: state.draftPicks.length, draftTotalPicks: state.teams.length * Engine.rosterCapacity(state.settings),
+        completedWeeks: state.finalizedWeeks.length, totalWeeks: Engine.seasonEndWeek(state),
     });
     function readUiPrefs() {
         try {
@@ -874,6 +888,33 @@
         const [expanded, setExpanded] = useState(false);
         const dialogRef = React.useRef(null);
         const triggerRef = React.useRef(null);
+        const navRef = React.useRef(null);
+        useEffect(() => {
+            const nav = navRef.current;
+            const root = nav?.closest('.tl-root');
+            if (!root) return undefined;
+            const property = '--tl-mobile-nav-space';
+            const previous = root.style.getPropertyValue(property);
+            let alive = true;
+            const measure = () => {
+                if (!alive) return;
+                const height = Math.ceil(nav.getBoundingClientRect().height);
+                if (height > 0) root.style.setProperty(property, `${height}px`);
+                else root.style.removeProperty(property);
+            };
+            const observer = window.ResizeObserver ? new window.ResizeObserver(measure) : null;
+            observer?.observe(nav);
+            window.addEventListener?.('resize', measure);
+            window.document?.fonts?.ready?.then(measure);
+            measure();
+            return () => {
+                alive = false;
+                observer?.disconnect();
+                window.removeEventListener?.('resize', measure);
+                if (previous) root.style.setProperty(property, previous);
+                else root.style.removeProperty(property);
+            };
+        }, []);
         const close = () => { setExpanded(false); triggerRef.current?.focus?.({ preventScroll: true }); };
         useEffect(() => {
             const dialog = dialogRef.current;
@@ -894,7 +935,7 @@
                 h('div', { className: 'tl-card-title' }, 'More ways to play', h('button', { className: 'tl-btn icon', 'aria-label': 'Close more navigation', autoFocus: true, onClick: close }, '×')),
                 h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab], tab === 'messages' && unread > 0 ? h('em', { className: 'tl-mail-badge' }, unread) : null)),
                     onReportBug && h('button', { type: 'button', onClick: () => { close(); onReportBug(); } }, h('span', { 'aria-hidden': true }, '⚑'), 'Report a bug'))),
-            h('nav', { className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
+            h('nav', { ref: navRef, className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
                 primary.map(tab => h('button', { key: tab, className: activeTab === tab ? 'active' : '', 'aria-current': activeTab === tab ? 'page' : undefined, onClick: () => choose(tab) },
                     h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), h('b', null, labels[tab]))),
                 extra.length > 0 && h('button', { ref: triggerRef, 'aria-haspopup': 'dialog', className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'), unread > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unread} unread messages` }, unread) : null)));
@@ -979,7 +1020,6 @@
 
     // ── shell ──
     function TimeLeagueMode({ onClose, pendingInvite, onInviteConsumed }) {
-        const phone = window.WR?.useViewport ? window.WR.useViewport().isPhone : false;
         const [index, setIndex] = useState([]);
         const [league, setLeague] = useState(null);
         const leagueRef = useRef(null);
@@ -1032,12 +1072,26 @@
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
         const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
-        const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, slot: null });
+        const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, teamId: null, week: null, slot: null, replacementEntryId: null, requestId: 0 });
         const [storageError, setStorageError] = useState(null);
+        const [saveConflict, setSaveConflict] = useState(false);
+        const saveRecoveryRef = useRef(null);
+        const gameplayRef = useRef(null);
+        useEffect(() => {
+            if (!storageError) return;
+            // Native modal dialogs occupy the top layer even when their parent
+            // is hidden. Release that layer before presenting save recovery.
+            gameplayRef.current?.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+            saveRecoveryRef.current?.focus({ preventScroll: false });
+        }, [storageError]);
+        // Keep the durable snapshot paired with the local view. Reading the
+        // newest disk value just before saving would accept a stale tab's move.
+        const localSnapshot = useRef({ leagueId: null, raw: null });
         const [dataAttempt, setDataAttempt] = useState(0);
         const [dataLoading, setDataLoading] = useState(true);
         const [eraFactorsMissing, setEraFactorsMissing] = useState(false);
         const [gamecastStatus, setGamecastStatus] = useState(null);
+        const [scoreRequest, setScoreRequest] = useState(null);
         const [mailReads, setMailReads] = useState({});
         const [mailThread, setMailThread] = useState(null);
         const [, refreshMail] = useState(0);
@@ -1100,7 +1154,7 @@
                 setConnectionError('This league needs the latest secure draft view. Refresh the app and try again.');
                 return;
             }
-            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setShowFriends(false); }
+            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setScoreRequest(null); setShowFriends(false); }
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             }
@@ -1157,8 +1211,9 @@
                 return;
             }
             if (prefs.leagueId) {
-                const stored = readLeague(prefs.leagueId);
+                const stored = readLeague(prefs.leagueId, localSnapshot);
                 if (stored) {
+                    leagueRef.current = stored;
                     setLeague(stored);
                     setTab(stored.phase !== 'draft' && prefs.tab === 'draft' ? 'home' : prefs.tab);
                     if (prefs.teamId) setActiveTeamId(prefs.teamId);
@@ -1229,13 +1284,14 @@
             return unsubscribe;
         }, [onlineMeta?.rowId, actorKey]);
 
-        const persistLeague = useCallback((state) => {
+        const persistLeague = useCallback((state, options) => {
             const previous = readIndexEntries();
             const entry = indexEntryOf(state);
             const next = previous.some(item => item.leagueId === state.leagueId)
                 ? previous.map(item => item.leagueId === state.leagueId ? entry : item)
                 : [...previous, entry];
-            writeLeagueSnapshot(state, next);
+            const written = writeLeagueSnapshot(state, next, options);
+            localSnapshot.current = { leagueId: state.leagueId, raw: written || (Storage ? Storage.encode(state) : JSON.stringify(state)) };
             // Career summaries and React state change only after durable storage.
             try { window.App.TimeLeagueCareerStore?.remember(state, null); } catch { /* Derived career summaries can be rebuilt from the saved game. */ }
             setIndex(next);
@@ -1269,13 +1325,43 @@
             const retryingLocalSave = pendingLocalSave.current === next;
             if (pendingLocalSave.current && !retryingLocalSave) return false;
             const previous = leagueRef.current;
+            if (options.base && options.base !== previous) {
+                setConflictNotice('The game changed before this move was saved. Review the current state and try again.');
+                return false;
+            }
             const stamp = new Date().toISOString();
             if (!retryingLocalSave && previous?.phase === 'draft' && next.phase === 'season' && cards) next = window.App.TimeLeagueAI.aiGenerateTrades(next, cards, stamp);
             if (previous && (previous.weekStage !== next.weekStage || previous.phase !== next.phase)) next = { ...next, gateStartedAt: stamp, gateVotes: [] };
             const safe = Engine.normalizeTimeLeague(next);
             if (!safe) return false;
-            try { persistLeague(safe); }
-            catch {
+            const expectedSnapshot = localSnapshot.current.leagueId === safe.leagueId ? localSnapshot.current.raw : null;
+            const generation = openGeneration.current;
+            try {
+                const save = () => {
+                    if (openGeneration.current !== generation || leagueRef.current !== previous || onlineRef.current) {
+                        const error = new Error('The view changed before this move was saved. Review the current game and try again.');
+                        error.name = 'VaultViewChangedError';
+                        throw error;
+                    }
+                    persistLeague(safe, { expectedSnapshot });
+                    leagueRef.current = safe;
+                };
+                // Supported browsers serialize cooperating local tabs; the
+                // expected snapshot still protects older browsers and retries.
+                if (window.document && window.navigator?.locks?.request) await window.navigator.locks.request(`vault-save:${safe.leagueId}`, save);
+                else save();
+            }
+            catch (error) {
+                if (error.name === 'VaultViewChangedError') {
+                    if (openGeneration.current === generation) setConflictNotice(error.message);
+                    return false;
+                }
+                if (error.name === 'VaultSnapshotConflictError') {
+                    pendingLocalSave.current = safe;
+                    setSaveConflict(true);
+                    setStorageError('This season changed in another tab. This move was not saved. Load the latest save to continue with its progress.');
+                    return false;
+                }
                 if (!previousLocalSave.current && previous) {
                     // Capture the previous seat's clock at the first storage
                     // failure, before a later retry can consume its remaining time.
@@ -1287,10 +1373,12 @@
                 setStorageError('This move could not be saved on this device. Your previous save is intact. Retry, or keep your previous save to go back.');
                 return false;
             }
+            if (openGeneration.current !== generation || onlineRef.current) return true;
             pendingLocalSave.current = null;
             pendingSaveTime.current = null;
             previousLocalSave.current = null;
             setStorageError(null);
+            setSaveConflict(false);
             if (previous?.leagueId === safe.leagueId && safe.finalizedWeeks.length > previous.finalizedWeeks.length) setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             if (previous?.leagueId === safe.leagueId && previous.phase === 'draft' && safe.phase !== 'draft') {
                 setTab(current => current === 'draft' ? 'home' : current);
@@ -1305,7 +1393,8 @@
         const tradeRefreshKey = useRef(null);
         useEffect(() => {
             if (!league || !cards?.size || saving || storageError || (onlineMeta && authRequired) || !league.seasonsRevealed
-                || league.phase !== 'season' || !league.settings.tradesEnabled || !['claims', 'lineup'].includes(league.weekStage)) return;
+                || league.phase !== 'season' || !league.settings.tradesEnabled || !['claims', 'lineup'].includes(league.weekStage)
+                || league.planningRecoveryWeek === league.currentWeek) return;
             const current = leagueRef.current;
             if (!current || pendingLocalSave.current || writeBusy.current) return;
             const key = `${onlineMeta?.rowId || current.leagueId}:${current.currentWeek}:${current.weekStage}`;
@@ -1319,9 +1408,32 @@
                 const next = window.App.TimeLeagueAI.aiGenerateTrades(current, cards, new Date().toISOString(), { humanOnly: true });
                 if (next !== current) handleUpdate(next);
             }
-        }, [league?.leagueId, league?.currentWeek, league?.weekStage, league?.seasonsRevealed, onlineMeta?.rowId, cards, saving, storageError, handleUpdate, authRequired]);
+        }, [league?.leagueId, league?.currentWeek, league?.weekStage, league?.seasonsRevealed, league?.planningRecoveryWeek, onlineMeta?.rowId, cards, saving, storageError, handleUpdate, authRequired]);
+
+        const loadLatestLocalSave = useCallback(() => {
+            const stored = readLeague(leagueRef.current?.leagueId, localSnapshot);
+            if (!stored) {
+                setStorageError('The latest save is missing or unreadable. This view has been kept without overwriting anything. Restore the save in the other tab, then try again.');
+                return false;
+            }
+            pendingLocalSave.current = null;
+            pendingSaveTime.current = null;
+            previousLocalSave.current = null;
+            leagueRef.current = stored;
+            setLeague(stored);
+            setIndex(readIndexEntries());
+            setAutoPlayWeek(null);
+            setGamecastStatus(null);
+            setScoreRequest(null);
+            setStorageError(null);
+            setSaveConflict(false);
+            navigateTab(stored.phase === 'draft' ? 'draft' : 'home');
+            setConflictNotice('Latest saved progress loaded. Review it before making your next move.');
+            return true;
+        }, [navigateTab]);
 
         const retryLocalSave = useCallback(async () => {
+            if (saveConflict) return loadLatestLocalSave();
             let pending = pendingLocalSave.current;
             if (!pending) return false;
             // Time spent fixing device storage must not consume the next
@@ -1332,17 +1444,25 @@
             }
             const previousStage = leagueRef.current?.weekStage;
             const saved = await handleUpdate(pending);
-            if (saved && leagueRef.current?.weekStage !== previousStage) navigateTab(({claims:'waivers', lineup:'roster', ready:'gameday', postgame:'gameday'})[leagueRef.current.weekStage] || 'home');
+            if (saved && leagueRef.current?.weekStage !== previousStage) {
+                if (!onlineRef.current && Engine.planningRecovery(pending).active) {
+                    const affected = Engine.planningRecovery(pending).teams;
+                    const selected = affected.find(team => team.teamId === activeTeamId) || affected[0];
+                    if (selected) setActiveTeamId(selected.teamId);
+                }
+                navigateTab(gateWorkspace(leagueRef.current));
+            }
             return saved;
-        }, [handleUpdate, navigateTab]);
+        }, [activeTeamId, handleUpdate, navigateTab, saveConflict, loadLatestLocalSave]);
 
         const keepPreviousSave = useCallback(() => {
+            if (saveConflict) return loadLatestLocalSave();
             const previous = previousLocalSave.current;
             if (!pendingLocalSave.current || !previous) return false;
             // A running draft must durably return in a paused state. Do not
             // discard its pending move while storage still cannot save that pause.
             if (previous !== leagueRef.current) {
-                try { persistLeague(previous); }
+                try { persistLeague(previous, { expectedSnapshot: localSnapshot.current.raw }); }
                 catch {
                     setStorageError('The previous draft could not be restored and paused. Your move is still waiting here. Allow site storage or free some space, then try again.');
                     return false;
@@ -1355,7 +1475,7 @@
             previousLocalSave.current = null;
             setStorageError(null);
             return true;
-        }, [persistLeague]);
+        }, [persistLeague, saveConflict, loadLatestLocalSave]);
 
         const dispatchGate = useCallback(async action => {
             const current = leagueRef.current;
@@ -1370,8 +1490,13 @@
                 const saved = await handleUpdate(next, action);
                 if (saved) {
                     const result = saved && typeof saved === 'object' ? saved : next;
+                    if (action.type === 'reopen-planning' && !onlineRef.current) {
+                        const affected = Engine.planningRecovery(current).teams;
+                        const selected = affected.find(team => team.teamId === action.teamId) || affected.find(team => team.teamId === own) || affected[0];
+                        if (selected) setActiveTeamId(selected.teamId);
+                    }
                     if (result.weekStage !== current.weekStage) {
-                        navigateTab(({claims:'waivers', lineup:'roster', ready:'gameday', postgame:'gameday'})[result.weekStage] || 'home');
+                        navigateTab(gateWorkspace(result));
                     }
                 }
                 return saved;
@@ -1471,9 +1596,11 @@
             const createdAt = new Date().toISOString();
             const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'time-league';
             const state = Engine.createTimeLeague({ name: input.name, seed: `${slug}:${createdAt}`, createdAt, settings: input.settings, seats: input.seats });
-            try { persistLeague(state); }
+            try { persistLeague(state, { expectedSnapshot: null }); }
             catch { throw new Error('This device could not save your league. Allow site storage or free some space, then try again. Your setup is still here.'); }
             setLeague(state);
+            leagueRef.current = state;
+            setScoreRequest(null);
             onlineRef.current = null;
             openGeneration.current += 1;
             setOnlineMeta(null);
@@ -1492,13 +1619,18 @@
 
         const openLeague = useCallback((leagueId) => {
             if (pendingLocalSave.current) return;
-            const stored = readLeague(leagueId);
-            if (!stored) return;
+            const stored = readLeague(leagueId, localSnapshot);
+            if (!stored) {
+                setInviteError('This saved season could not be read. Its data has been kept. Restore it in the original browser or retry after restoring site storage.');
+                return;
+            }
+            leagueRef.current = stored;
             onlineRef.current = null;
             openGeneration.current += 1;
             setOnlineMeta(null);
             setAutoPlayWeek(null);
             setGamecastStatus(null);
+            setScoreRequest(null);
             setLeague(stored);
             setTab(stored.phase === 'draft' ? 'draft' : 'home');
         }, []);
@@ -1519,9 +1651,13 @@
             pendingSaveTime.current = null;
             previousLocalSave.current = null;
             setStorageError(null);
+            setSaveConflict(false);
+            leagueRef.current = null;
+            localSnapshot.current = { leagueId: null, raw: null };
             setLeague(null);
             setAutoPlayWeek(null);
             setGamecastStatus(null);
+            setScoreRequest(null);
             onlineRef.current = null;
             openGeneration.current += 1;
             setOnlineMeta(null);
@@ -1603,11 +1739,10 @@
                             h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
                             pendingInvite && actor?.kind === 'account' && !authRequired && h('button', { type: 'button', className: 'tl-btn', disabled: claimingInvite, onClick: () => setInviteAttempt(value => value + 1) }, 'Retry joining'),
                             h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setInviteError(null) }, '✕'))),
-                    !phone && lobbyExtras,
                     SetupPanel ? h(SetupPanel, {
                         index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague,
                         onlineIndex, onlineIndexState, onOpenOnline: openOnlineLeague, onCreateOnline: createOnlineLeague,
-                    }) : null, phone && lobbyExtras));
+                    }) : null, lobbyExtras));
         }
 
         const tabs = league.phase === 'draft'
@@ -1620,6 +1755,7 @@
             ? activeTeamId
             : (league.teams.find((team) => team.manager === 'human')?.teamId ?? league.teams[0]?.teamId ?? 't1');
         const responseTeam = onlineMeta?.seatTeamId || (league.teams.find(team => team.teamId === activeTeam && team.manager === 'human')?.teamId ?? league.teams.find(team => team.manager === 'human')?.teamId);
+        const currentWaiverBrowse = waiverBrowse.leagueId === league.leagueId && waiverBrowse.teamId === responseTeam && waiverBrowse.week === league.currentWeek ? waiverBrowse : null;
         const phaseTone = league.phase === 'draft' ? 'warn' : league.phase === 'season' ? 'info' : 'gold';
         const cardsReady = cards !== null && cards.size > 0;
         const pendingPlayback = autoPlayWeek && league.finalizedWeeks.some(week => week.week === autoPlayWeek)
@@ -1680,7 +1816,7 @@
                                 onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: openFriends }, 'Friends & invites'),
                                 reportBug && h('button', { type: 'button', className: 'tl-btn', onClick: event => { event.currentTarget.closest('details')?.removeAttribute('open'); reportBug(); } }, 'Report a bug'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
-                                h('button', { type: 'button', className: 'tl-btn', onClick: () => { if (!storageError || keepPreviousSave()) onClose(); } }, storageError ? 'Keep previous save & go back' : 'Back to dashboard'))))),
+                                h('button', { type: 'button', className: 'tl-btn', onClick: () => { if (!storageError || keepPreviousSave()) onClose(); } }, saveConflict ? 'Load latest save & go back' : storageError ? 'Keep previous save & go back' : 'Back to dashboard'))))),
                 onlineMeta && window.App.GameRoomStatus && h(window.App.GameRoomStatus, { authRequired, saving, error: connectionError, lastSyncedAt, retrying: reconnecting, onRetry: reconnectRoom,
                     joined: onlineMeta.members.filter(member => member.joined).length, total: onlineMeta.members.length,
                     ready: onlineMeta.members.filter(member => member.joined && member.ready_week === league.currentWeek).length }),
@@ -1691,11 +1827,12 @@
                 signInNotice,
                 guestAccess,
                 connectionError && !authRequired && !window.App.GameRoomStatus && h('p', { className: 'tl-card', role: 'status' }, 'Connection interrupted. Reconnecting automatically; your last saved game is shown.'),
-                storageError && h('div', { className: 'tl-card', role: 'alert' },
+                storageError && h('div', { className: 'tl-card', role: 'alert', tabIndex: -1, ref: saveRecoveryRef, 'aria-label': 'Save recovery' },
                     h('p', null, storageError),
                     h('div', { className: 'tl-stage-actions' },
-                        h('button', { type: 'button', className: 'tl-btn primary', onClick: retryLocalSave }, 'Retry save'),
-                        h('button', { type: 'button', className: 'tl-btn', onClick: keepPreviousSave }, 'Keep previous save'))),
+                        h('button', { type: 'button', className: 'tl-btn primary', onClick: retryLocalSave }, saveConflict ? 'Load latest save' : 'Retry save'),
+                        saveConflict && h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'Return to saved seasons'),
+                        !saveConflict && h('button', { type: 'button', className: 'tl-btn', onClick: keepPreviousSave }, 'Keep previous save'))),
                 dataNotice,
                 onlineMeta && (showFriends || !onlineMeta.draftStarted) && h(FriendsRoom, {
                     key: `${onlineMeta.rowId}:${onlineMeta.seatTeamId}`, league, meta: onlineMeta, saving, onAction: action => handleUpdate(league, action), onClose: () => setShowFriends(false),
@@ -1704,7 +1841,7 @@
                 activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
                 activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, throughWeek: mailThroughWeek, threadRequest: mailThread, onRead: onMailRead, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
-                h('fieldset', { disabled: saving || Boolean(storageError) || Boolean(onlineMeta && (authRequired || !onlineMeta.draftStarted)), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
+                h('fieldset', { ref: gameplayRef, hidden: Boolean(storageError), disabled: saving || Boolean(storageError) || Boolean(onlineMeta && (authRequired || !onlineMeta.draftStarted)), style: { border: 0, padding: 0, margin: 0, minWidth: 0, display: storageError ? 'none' : undefined } },
                 ['home', 'gameday'].includes(activeTab) && addPlayoffCounts.length > 0 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
                     addPlayoffCounts.map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
@@ -1712,27 +1849,49 @@
                 activeTab === 'home' && watching && !playback.replay ? h('section', { className: 'tl-card' },
                     h('h2', null, `Week ${playback.week} is still in progress`), h('p', null, 'Your week recap opens after the final whistle.'),
                     h('button', { className: 'tl-btn primary', onClick: () => navigateTab('gameday') }, 'Watch game'))
-                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam, cards, logIndex, eraFactors, throughWeek: mailThroughWeek }) : null,
+                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab,
+                        onInspectScore: week => { setScoreRequest(previous => ({ leagueId: league.leagueId, week, requestId: (previous?.requestId || 0) + 1 })); navigateTab('gameday'); },
+                        seatTeamId: responseTeam, cards, logIndex, eraFactors, throughWeek: mailThroughWeek }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
-                    key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
+                    key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
                     draftControls: league.phase === 'draft' && DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
                     auctionControls: league.phase === 'draft' && league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft }),
                 }) : loadingNotice) : null,
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, throughWeek: mailThroughWeek, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, scoreRequest, active: activeTab === 'gameday' && !storageError, seatTeamId: responseTeam, mailNotice, throughWeek: mailThroughWeek, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onGoRoster: () => navigateTab('roster'),
                 })) : null,
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onReopenPlanning: teamId => dispatchGate({ type: 'reopen-planning', teamId }), onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta,
+                            waiverSlot: currentWaiverBrowse?.slot || null,
+                            waiverContext: currentWaiverBrowse && !currentWaiverBrowse.contextCleared ? currentWaiverBrowse : null,
+                            onClearWaiverContext: () => setWaiverBrowse(previous => previous.leagueId === league.leagueId && previous.teamId === responseTeam
+                                && previous.week === league.currentWeek && previous.requestId === waiverBrowse.requestId
+                                ? { ...previous, replacementEntryId: null, contextCleared: true } : previous),
+                            onBrowseWaivers: (slot, replacementEntryId = null) => {
+                                const current = leagueRef.current;
+                                if (!current || current.leagueId !== league.leagueId || current.currentWeek !== league.currentWeek) return;
+                                const owner = current.teams.find(team => team.teamId === responseTeam && team.manager === 'human');
+                                if (!owner) return;
+                                const replacement = owner.roster.find(entry => entry.entryId === replacementEntryId);
+                                setWaiverBrowse(previous => ({ leagueId: current.leagueId, teamId: owner.teamId, week: current.currentWeek, slot,
+                                    replacementEntryId: replacement?.entryId || null, requestId: (previous.requestId || 0) + 1 }));
+                                navigateTab('waivers');
+                            } })
                         : loadingNotice)
                     : null,
 
                 activeTab === 'activity' && ActivityPanel ? (league.phase === 'draft' && !draftRevealed
                     ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
                     : h(ActivityPanel, { league })) : null),
-                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, teamId: responseTeam, league, onlineMeta, saving, authRequired: Boolean(onlineMeta && authRequired), signInHref, saveError: Boolean(storageError), onRetrySave: retryLocalSave, playback, messageAction: mailAction,
+                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, teamId: responseTeam, league, onlineMeta, saving, authRequired: Boolean(onlineMeta && authRequired), signInHref, saveError: Boolean(storageError), saveConflict, onRetrySave: retryLocalSave, playback, messageAction: mailAction,
+                    onReviewLineup: teamId => {
+                        if (!league.teams.some(team => team.teamId === teamId && team.manager === 'human') || (onlineMeta && teamId !== onlineMeta.seatTeamId)) return;
+                        if (!onlineMeta) setActiveTeamId(teamId);
+                        navigateTab('roster');
+                    },
                     dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab }))));
     }
 

@@ -60,6 +60,92 @@ const input = { name: 'Recovery league', seats: [{ name: 'Human', manager: 'huma
     draft = panel(tree, WrTimeLeagueDraftPanel); assert(draft);
     assert.equal(calls.get('data/time-league/player-cards.json'), 2, 'Failed card cache is retried');
     assert.equal(calls.get('data/time-league/regular-season-game-logs.csv'), 2, 'Failed game-log cache is retried');
+
+    // A second event queued from the same rendered view cannot replace the
+    // first committed action, even before React renders the updated draft.
+    const staleDraft = draft, sameView = staleDraft.league;
+    assert.equal(await staleDraft.onUpdate(E.configureDraft(sameView, { draftAiSeconds: 1 }, new Date().toISOString())), true);
+    const firstPaceSave = disk.get(App.TimeLeagueTypes.timeLeagueStorageKey(sameView.leagueId));
+    assert.equal(await staleDraft.onUpdate(E.configureDraft(sameView, { draftAiSeconds: 4 }, new Date().toISOString())), false, 'A stale rendered callback cannot overwrite its first accepted action');
+    assert.equal(disk.get(App.TimeLeagueTypes.timeLeagueStorageKey(sameView.leagueId)), firstPaceSave);
+    tree = render(); draft = panel(tree, WrTimeLeagueDraftPanel);
+    assert.equal(draft.league.settings.draftAiSeconds, 1);
+
+    // Browser locks are asynchronous. Hold requests deliberately so overlapping
+    // callbacks and a room switch happen before the queued write can run.
+    const oldNavigator = Object.getOwnPropertyDescriptor(window, 'navigator');
+    const oldDocument = Object.getOwnPropertyDescriptor(window, 'document');
+    const heldLocks = [];
+    Object.defineProperty(window, 'document', { configurable: true, value: {} });
+    Object.defineProperty(window, 'navigator', { configurable: true, value: { locks: {
+        request: (name, save) => new Promise((resolve, reject) => heldLocks.push(() => {
+            try { resolve(save()); } catch (error) { reject(error); }
+        })),
+    } } });
+    try {
+        const lockedView = draft, lockBase = lockedView.league;
+        const firstQueued = lockedView.onUpdate(E.configureDraft(lockBase, { draftAiSeconds: 2 }, new Date().toISOString()));
+        const secondQueued = lockedView.onUpdate(E.configureDraft(lockBase, { draftAiSeconds: 8 }, new Date().toISOString()));
+        assert.equal(heldLocks.length, 2);
+        heldLocks.shift()();
+        assert.equal(await firstQueued, true);
+        const committedWhileQueued = disk.get(App.TimeLeagueTypes.timeLeagueStorageKey(lockBase.leagueId));
+        heldLocks.shift()();
+        assert.equal(await secondQueued, false, 'Only the first queued update from the same view can commit');
+        assert.equal(disk.get(App.TimeLeagueTypes.timeLeagueStorageKey(lockBase.leagueId)), committedWhileQueued);
+        tree = render(); draft = panel(tree, WrTimeLeagueDraftPanel);
+        assert.equal(draft.league.settings.draftAiSeconds, 2);
+        assert(!button(tree, 'Retry save'), 'A stale queued callback does not create a pending storage failure');
+
+        const abandonedId = draft.league.leagueId;
+        const abandonedKey = App.TimeLeagueTypes.timeLeagueStorageKey(abandonedId);
+        const beforeSwitch = disk.get(abandonedKey);
+        const abandoned = draft.onUpdate(E.configureDraft(draft.league, { draftAiSeconds: 8 }, new Date().toISOString()));
+        const switchedFrom = draft;
+        assert.equal(heldLocks.length, 1);
+        button(tree, 'Switch league').props.onClick();
+        assert.equal(await switchedFrom.onUpdate(E.configureDraft(switchedFrom.league, { draftAiSeconds: 1 }, new Date().toISOString())), false, 'A stale callback after switching away cannot queue another write');
+        assert.equal(heldLocks.length, 1);
+        tree = render();
+        panel(tree, WrTimeLeagueSetupPanel).onCreate({ ...input, name: 'Another season while save waits' }); tree = render();
+        const otherId = panel(tree, WrTimeLeagueDraftPanel).league.leagueId;
+        const otherKey = App.TimeLeagueTypes.timeLeagueStorageKey(otherId), otherSaved = disk.get(otherKey);
+        assert.notEqual(otherId, abandonedId);
+        heldLocks.shift()();
+        assert.equal(await abandoned, false, 'A queued save cannot commit after changing rooms');
+        tree = render();
+        assert.equal(panel(tree, WrTimeLeagueDraftPanel).league.leagueId, otherId, 'Completing an abandoned lock cannot reopen the old room');
+        assert.equal(disk.get(abandonedKey), beforeSwitch);
+        assert.equal(disk.get(otherKey), otherSaved, 'The newly opened room remains untouched');
+        button(tree, 'Switch league').props.onClick(); tree = render();
+        panel(tree, WrTimeLeagueSetupPanel).onOpen(abandonedId); tree = render(); draft = panel(tree, WrTimeLeagueDraftPanel);
+        assert.equal(draft.league.settings.draftAiSeconds, 2);
+    } finally {
+        if (oldNavigator) Object.defineProperty(window, 'navigator', oldNavigator); else delete window.navigator;
+        if (oldDocument) Object.defineProperty(window, 'document', oldDocument); else delete window.document;
+    }
+
+    // Another tab makes a real settings change. The current view must reload
+    // that durable state before it can act; retrying never overwrites it.
+    const externalKey = App.TimeLeagueTypes.timeLeagueStorageKey(draft.league.leagueId);
+    const externalIndexKey = App.TimeLeagueTypes.TIME_LEAGUE_INDEX_KEY;
+    const externalState = E.configureDraft(draft.league, { draftAiSeconds: 8 }, new Date().toISOString());
+    App.TimeLeagueStorage.writeSnapshot(externalState, JSON.parse(disk.get(externalIndexKey)), { expectedSnapshot: disk.get(externalKey) });
+    const externalGame = disk.get(externalKey), externalShelf = disk.get(externalIndexKey);
+    assert.equal(await draft.onUpdate(E.configureDraft(draft.league, { draftAiSeconds: 2 }, new Date().toISOString())), false);
+    tree = render();
+    assert.equal(disk.get(externalKey), externalGame, 'A conflict cannot overwrite progress saved by another tab');
+    assert.equal(disk.get(externalIndexKey), externalShelf);
+    assert(all(tree).some(node => node.type === 'fieldset' && node.props.disabled), 'Conflict recovery locks stale gameplay controls');
+    assert(button(tree, 'Load latest save'), 'Conflict recovery presents a reachable reload action');
+    assert.equal(await button(tree, 'Load latest save').props.onClick(), true);
+    tree = render(); draft = panel(tree, WrTimeLeagueDraftPanel);
+    assert.equal(draft.league.settings.draftAiSeconds, 8, 'Recovery loads the committed action from the other tab');
+    assert.equal(disk.get(externalKey), externalGame, 'Loading latest never writes the abandoned action');
+    assert(!button(tree, 'Load latest save'));
+    assert.equal(await draft.onUpdate(E.configureDraft(draft.league, { draftAiSeconds: 4 }, new Date().toISOString())), true, 'A fresh view can continue after conflict recovery');
+    tree = render(); draft = panel(tree, WrTimeLeagueDraftPanel);
+
     const saved = draft.league, key = App.TimeLeagueTypes.timeLeagueStorageKey(saved.leagueId);
     const previousGame = disk.get(key), previousIndex = disk.get(App.TimeLeagueTypes.TIME_LEAGUE_INDEX_KEY);
     failKey = key;
@@ -135,5 +221,5 @@ const input = { name: 'Recovery league', seats: [{ name: 'Human', manager: 'huma
     assert(closed, 'A save error provides an explicit way back without silently accepting the failed move');
     assert.equal(disk.get(key), beforeExit, 'Leaving retains the last saved season');
     assert.equal(panel(tree, WrTimeLeagueWeekGates).saveError, false);
-    console.log('PASS: offline startup, retry/reconnection, successful cache reuse, failed creation, quota rollback, pending-save isolation, retry/discard, preserved draft time, actionable recovery dock and safe back navigation.');
+    console.log('PASS: offline startup, stale-view and cross-tab conflicts, queued browser locks and room switches, load-latest continuation, cache reuse, failed creation, quota rollback, pending-save isolation, retry/discard, preserved draft time, actionable recovery dock and safe back navigation.');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { global.Date = RealDate; });

@@ -979,6 +979,11 @@
         const openTimeLeague = () => {
             cancelLinkedLeagueRoute(true);
             setTimeLeagueMode(true);
+            setDuatMode(false);
+            const url = new URL(window.location.href);
+            url.searchParams.set('vault', '1');
+            url.searchParams.delete('duat');
+            window.history.replaceState(window.history.state, '', url);
             if (typeof window.TimeLeague === 'function') { setTimeLeagueModuleState('ready'); return; }
             if (!window.wrLoadModuleGroup) { setTimeLeagueModuleState('error'); return; }
             setTimeLeagueModuleState('loading');

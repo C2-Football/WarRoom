@@ -56,7 +56,7 @@ const matchRows = leagueTwelve.schedule[0].pairs.map(([home, away]) => {
     const homePoints = resultRows.find(row => row.teamId === home).total, awayPoints = resultRows.find(row => row.teamId === away).total;
     return { home, away, homePoints, awayPoints, winner: homePoints > awayPoints ? home : away };
 });
-const phoneLeague = { ...leagueTwelve, phase: 'season', currentWeek: 2, weekStage: 'claims', finalizedWeeks: [{ week: 1, results: resultRows, matchups: matchRows }], activity: [{ id: 'move-1', kind: 'trade', week: 2, message: 'A current-week trade update.' }] };
+const phoneLeague = { ...leagueTwelve, settings: { ...leagueTwelve.settings, waiversEnabled: true, tradesEnabled: true }, phase: 'season', currentWeek: 2, weekStage: 'claims', finalizedWeeks: [{ week: 1, results: resultRows, matchups: matchRows }], activity: [{ id: 'move-1', kind: 'trade', week: 2, message: 'A current-week trade update.' }] };
 let target;
 states = [];
 tree = render(() => WrTimeLeagueHomePanel({ league: phoneLeague, onNavigate: tab => { target = tab; } }));

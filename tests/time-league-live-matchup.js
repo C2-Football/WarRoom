@@ -29,7 +29,7 @@ const all = value => !value || typeof value !== 'object' ? [] : Array.isArray(va
 const words = node => !node ? '' : Array.isArray(node) ? node.map(words).join(' ') : typeof node === 'object' ? words(node.children) : String(node);
 const button = (tree,label) => all(tree).find(node=>node.type==='button' && words(node)===label);
 const component = (tree,type) => all(tree).find(node=>node.type===type);
-const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{gameDeckVersion:0,rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
+const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{gameDeckVersion:0,waiversEnabled:true,rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
 const slots=['QB','RB','RB','SUPER_FLEX','K','DEF','BN'];
 const statLines=[{passYd:320,passTd:4},{rushYd:80,rushTd:1},null,{passInt:2},{extra:{xpm:4}},{extra:{sack:3}}, {rushYd:200,rushTd:4}];
 const cards=new Map(), logs=new Map();
@@ -107,6 +107,33 @@ const gateButton=label=>button(dock(dockProps()),label);
     assert(gateButton('End week'));assert(!gateButton('Next quarter'));
     const finals=root.states[1].value.finalizedWeeks[0];
     assert.equal(players().length,12,'Both complete starting lineups include zero-score players and superflex');
+
+    // A recap link opens only an already disclosed saved week, once per intent.
+    const receiptProps = { ...component(rootTree(), WrTimeLeagueGamecastPanel).props, active: true, autoPlayWeek: null, throughWeek: 1, onPlaybackChange() {} };
+    const request = { leagueId: receiptProps.league.leagueId, week: 1, requestId: 1 };
+    function inspectReceipt(extra) {
+        const ctx = harness();
+        const props = { ...receiptProps, scoreRequest: request, ...extra };
+        const render = () => ctx.render(() => WrTimeLeagueGamecastPanel(props), true);
+        render(); render();
+        return { ctx, render, props };
+    }
+    assert.equal(inspectReceipt({ scoreRequest: { ...request, leagueId: 'another-room' } }).ctx.states[6].value, null, 'A request for another room cannot open this archive');
+    assert.equal(inspectReceipt({ scoreRequest: { ...request, week: 2 } }).ctx.states[6].value, null, 'An unresolved week cannot be opened');
+    assert.equal(inspectReceipt({ throughWeek: 0 }).ctx.states[6].value, null, 'A saved but undisclosed result remains concealed');
+    assert.equal(inspectReceipt({ active: false }).ctx.states[6].value, null, 'An inactive tab does not consume a scoring intent');
+    const pendingReceipt = inspectReceipt({ autoPlayWeek: 1 });
+    assert.equal(pendingReceipt.ctx.states[6].value, null, 'Pending and unfinished first playback cannot be bypassed by a recap request');
+    pendingReceipt.ctx.states[1].set(60);
+    pendingReceipt.render(); pendingReceipt.render();
+    assert.equal(pendingReceipt.ctx.states[6].value, 1, 'A finished playback can open its saved receipt');
+    assert.equal(pendingReceipt.ctx.states[0].value, null, 'Opening a receipt closes the completed playback');
+    const receipt = inspectReceipt();
+    assert.equal(receipt.ctx.states[6].value, 1, 'The exact saved week opens');
+    receipt.ctx.states[6].set(null); receipt.render();
+    assert.equal(receipt.ctx.states[6].value, null, 'Closing a receipt does not reopen it on the next render');
+    receipt.props.scoreRequest = { ...request, requestId: 2 }; receipt.render();
+    assert.equal(receipt.ctx.states[6].value, 1, 'A new explicit recap click can reopen that same saved week');
 
     tree = play();
     const notice = component(tree, WrTimeLeagueMailNotice);

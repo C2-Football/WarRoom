@@ -40,7 +40,11 @@ function assertLabels(tree, identified) {
 assertLabels(render(WrTimeLeagueGamecastPanel), true);
 for (const throughWeek of [0, null, '1', NaN, -1]) assertLabels(render(WrTimeLeagueGamecastPanel, { throughWeek }), false);
 assertLabels(render(WrTimeLeagueGamecastPanel, { logIndex: new Map() }), false);
-assertLabels(render(WrTimeLeagueGamecastPanel, { autoPlayWeek: 1 }), false);
+const pending = render(WrTimeLeagueGamecastPanel, { autoPlayWeek: 1 });
+assert(text(pending).includes('Opening Week 1 gamecast'));
+assert(!player(pending, 'e0') && !player(pending, 'e1'), 'Before the playback effect, no saved player line or year is briefly rendered');
+assert(!text(pending).includes('1992') && !text(pending).includes('1999'));
+assert(!classes(pending, 'tl-box-scores').length, 'Pending playback contains no archived final');
 const timeline = G.buildGamecast({ week: 1, results: week.results, matchups: week.matchups, seed: league.seed, scoring });
 const live = { timeline, weekData: week, finalized: league, live: true };
 assertLabels(render(WrTimeLeagueGamecastPanel, {}, [live, 15, false, 300]), false);

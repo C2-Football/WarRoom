@@ -1,0 +1,181 @@
+{
+  "base": "47bb5dd7bbb808431fe7bb081ad2423714a4c6b2",
+  "candidate": {
+    ".github/workflows/deploy-functions.yml": "f788d69324d367b2747f885a7d9a46878d969708f35b3ba5a6a526d176abc473",
+    "data/time-league/REGULAR-SEASON-DATA.md": "27cfd5e9340c453c3927488263396eb09ae5c975dee63997120dae9158c85bef",
+    "data/time-league/era-factors.json": "f970630eea9fe943f59a181309bff335e8361ca4290807ffac8b7e1ca3adb7c7",
+    "data/time-league/legacy-player-cards.json": "e085e014140cd98ad6ed89cef991b27f289bbeb205349cedb7a7ba956852c537",
+    "data/time-league/nflverse-game-logs.csv": "ef44cb85bde16f72a53f4d7c979b981048e912996bcc4c5c08511a95f8142be5",
+    "data/time-league/player-cards.json": "1308f90fb38c6dd237d64cf78b3d23a3d1f7e2351d2b87efb7bf16b0979da789",
+    "data/time-league/regular-season-era-factors.json": "52bfde5f4e96aaad2da9e78200a7a1afdbaae88e7ab5ac264e453021840f5d7a",
+    "data/time-league/regular-season-game-logs.csv": "ae01a348bb1d1cc696b83edd964368b4b9fec68b6c0b77a0882ba6bcda762cca",
+    "data/time-league/regular-season-manifest.json": "b72f398b60fc181cc8311f78819578724ac29b30a2eee77deddec051d9cb3a96",
+    "index.html": "af8ac70530619efa6eef0055f0928d2f3ad532643ae95ba5e034b38a16642746",
+    "js/app.js": "89f23a5930629017c88e70e27b3626ced2f97bc29e011dd40cbb47bc0cc158d0",
+    "js/components/time-league-ceremony.js": "f9626b676c69e6d26656cb5c339a12ce0020168bbc76f6f2c307c5dbc6fb59b5",
+    "js/components/time-league-draft-controls.js": "328e628a2864961cd35dbc73caaa412b69d0847ee7ce489eae579bf5efdb6a91",
+    "js/components/time-league-gamecast-panel.js": "dc1f6b8e2cf725afea5de57687fa0462d6db18c14c0fd8a884712edd9bbdfb80",
+    "js/components/time-league-home-panel.js": "9a2a67916b78713ebc32956f36af3771f1b20d06151fe54ec92361581e4969e6",
+    "js/components/time-league-setup-panel.js": "5f2589e1ee7de576bb7e7abe0b0d649cf3c8d1e9da2908f5832ea887b85e70f0",
+    "js/components/time-league-standings-panel.js": "86d80f69afc434ce61f9e28fb562c74f0b87cf739891bb6b7a4bfc0c095a8fb2",
+    "js/components/time-league-team-panel.js": "16e5baa5d025858300041daee0544a208198768b3c597f9310a32256e189d62f",
+    "js/components/time-league-week-gates.js": "b71016aa37369c72966073a485c466e8723a5efd1263b0b7f07b08813e8af82d",
+    "js/shared/time-league-achievements.js": "8f6969417bfbe69242fc3c100f14ae7a6ffe9f5a855cd585a5a76ed77903c64e",
+    "js/shared/time-league-actions.js": "f3bf1e54d060884531109fdf52152909a3543ad07b9b5f575bb4c67d7c3ec7d0",
+    "js/shared/time-league-ai.js": "5e88ee8663d7a49cb265874d89506f6dbfcafa23060330992202b1431ab5b68d",
+    "js/shared/time-league-career-store.js": "068a9c656c189b99b257870c3b3026ebce9ff1a569813233aeea5d0d9618bfa9",
+    "js/shared/time-league-career.js": "417481f4be1942a07b11011bba700e4c8836eb46363380ba7a7a19186221df71",
+    "js/shared/time-league-draft-clock.js": "0345678aa7badc672d9cccbf3499631d8d1e856ecfaa6c92f2e26571b2b82ebd",
+    "js/shared/time-league-draft-room.js": "a5de7246dae611ea3e8f3206170cc324fbbdccbde5cbf1582303ce0c726024cd",
+    "js/shared/time-league-engine.js": "1702cbb5136b94ccabcdb40d1a7e9493029df7a8df64185183e48e7983aec25f",
+    "js/shared/time-league-era-rules.js": "098e5e5a8600433f10315623f22fecde504423081575a70fc39dba8bab1dbb38",
+    "js/shared/time-league-gamecast.js": "8f0f932faa46af1185bda92bb33b72742623fc9723920be066acda2fa37c2b46",
+    "js/shared/time-league-helmet-artwork.js": "0e667a8f82428323863a7ebdb021afebf13a02dd10a13d88c97ca81f8ed383cc",
+    "js/shared/time-league-helmet-sources.js": "3235a3c025624845d031350f53152439a28408478c2ff22f5921847ff79fcbc2",
+    "js/shared/time-league-helmet.js": "86d451e2286c54027d3b53429dfc381894c0f08164704118655e41a4f94f87cb",
+    "js/shared/time-league-hidden-years.js": "72189164c33f681022ca4f0a85fa9c773baf32c7c232fe41bc61e94101b517c4",
+    "js/shared/time-league-player-cards.js": "b2c5555744420246113e0950954cf7e7ad78b4280a282c3c5020f2cd9d2255ce",
+    "js/shared/time-league-player-stats.js": "7ae5c1581b1c6c1c43c2379b60d80d1ec7fa4b50074a75f8abb127cedaf1fc37",
+    "js/shared/time-league-profile.js": "8ce0e1e7a43200d06795c3ad48a99cb4c359dc8e08f9ab759e49042c784eca63",
+    "js/shared/time-league-public-state.js": "ae56c23f97a3c93a3943640ac3d066316f73d24ef6be3d799ca45547380e29d5",
+    "js/shared/time-league-remote-client.js": "8eee946eab75d4f63051f2c939ac379f7c07ab5019323ff709b1969b20f479d8",
+    "js/shared/time-league-rivals.js": "b8da06d635da558d2381297abcae7e573af3802531d8e036edb81eef45591416",
+    "js/shared/time-league-roster.js": "1121ed58a381ddfe6f3c01f2f203feab679954800eec827e4a722fc377f2fc4b",
+    "js/shared/time-league-rules.js": "eddd919186568613171d2c33cdc9cda41a7cfccd51d217c0b506740416c5b2ec",
+    "js/shared/time-league-season.js": "dc2a4d56111b174dc7a36a3dde86d4b7d0d684c76348e7849815abfcad6de4c2",
+    "js/shared/time-league-storage.js": "58f5e00bf8e318bde247eaa68ddddddafe4011f0535c3057f43966188fef3c25",
+    "js/shared/time-league-strategy.js": "337fb720235ab2a3a4f9eebbe96ab655766d103d3966e04030a74d195c22ee67",
+    "js/shared/time-league-types.js": "f64b7f36ca87710539b95911a7eaeb0580aacf31f07f1ef63b393ff7eafcdefe",
+    "js/shared/time-league-ui.js": "5e77af2f8cda8a1a994dbd39eff54a3ee5f514da078db3cd3af46cb1afd33852",
+    "js/tabs/time-league.js": "2ce07d70a96b9fc046d23537d1f98b99c9bc3b60f4fe94ec6351e169291b5cd5",
+    "package-lock.json": "723e5b8ffb57d8b7ec856d1f378c0ab80d71ac9e879594f49f9056c0ddc51746",
+    "package.json": "be7c21accde8af1daf184a23524c9018b02035ee17eadd2709bff8f6ec4fc8ac",
+    "reports/vault-beta-readiness-2026-09-08.md": "41205528f622a3f3785c27523991aaf177a6f87c5d84482471430ea0af12b894",
+    "scripts/build-time-league-server.cjs": "e1e761b68b924a9c2ef0322bc7e43c02e2bea98c8c794df1c186a609887564f3",
+    "scripts/c2-edge-release.py": "7c79a8cb9a2f80edceb4bdb12df85435bbf78f2ac24332116214c1c82bc02c44",
+    "scripts/extract-edge-source.mjs": "0af89184e8947b14fa5f663b2f01d25466ecc0f3217b95d7cbc46322c065a15f",
+    "supabase/config.toml": "5fb49fc2041b9fa6ebffdcdf4816a2de156a8082a72c23d5bc576bb8f1d91905",
+    "supabase/functions/_shared/game-guest.ts": "443f5a4a2dbde2d8d6a24024daea75bb62e8bb302a9e6c790f233e1f99d54b16",
+    "supabase/functions/_shared/security.ts": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+    "supabase/functions/time-league/community-model.mjs": "f3c537c261dfc2ed0bdbf655b52be95b6c929525046e3535bb9b7e194cc03682",
+    "supabase/functions/time-league/community.ts": "edbfd1204cb9f46dd0818ec426f5afe921dfce7de32e2b0a2b54a068dc6ccd26",
+    "supabase/functions/time-league/index.ts": "328dd07f60152810fab3b7919e83106695721e1495be3ab408e5b0155d60d265",
+    "supabase/functions/time-league/messages.ts": "d78fef8d8b95b657c7baeef2982ae6927f10166e6bbe2f000346caaa9feb884e",
+    "supabase/functions/time-league/sealed-draws.ts": "2ec3887f03abc27dbd2752f788f9ad7aa2fc83cbd48e20040977c8274f353c8a",
+    "supabase/migrations/20260317000000_app_users_and_subscriptions.sql": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789",
+    "supabase/migrations/20260502020000_security_baseline.sql": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb",
+    "supabase/migrations/20260907193000_time_league_multiplayer.sql": "cdf7da0f2f8ce529f3a03826c65b35b2d3b5c8c3ab70a8c9724fcaec1f344d9b",
+    "supabase/migrations/20260908010000_time_league_community.sql": "8ac391682d0b3fcec93d0f3de7a674b252750b795c0d0945e20ac0a158248abf",
+    "supabase/migrations/20260908020000_time_league_draft_readiness.sql": "0e6f38057b9c1660e7be20f7e8a38b3304247c4c2e34d09a555be47c7170fac4",
+    "supabase/migrations/20260908030000_time_league_messages.sql": "8ab8d9715a69373df7249d142191e0a2f908fe1c689614d77706356949e8e618",
+    "supabase/migrations/20260908040000_time_league_message_week.sql": "4ed4561fa62079d998ea3ed4a43e30f42598bab44a5da014010cbdd6e02cdd61",
+    "supabase/migrations/20260908050000_time_league_sealed_state.sql": "db24cecf43b6e0ba904e6aceeae5f0ef4c803910fc264cbb91b50e186745455a",
+    "supabase/migrations/20260909000000_security_audit_fixes.sql": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0",
+    "supabase/migrations/20260918020000_account_session_rls.sql": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a",
+    "supabase/migrations/20260926010000_game_guest_sessions.sql": "6b56acf561b9f6a0d4877b3be02b40d9c312bba19665f0204f17001042cfaa29",
+    "tests/time-league-achievements.js": "85c355838c3a534afc398484eca4817db3e98904ad2f8551967b431c628414ef",
+    "tests/time-league-acquisition-integrity.js": "c3cf079b3d38faf62008717605519d4dcc9a2df7507a5a281d00038929649753",
+    "tests/time-league-acquisitions-ui.js": "7c3c97e45cb9d0e7acd4d774d89678d7fa0e9ce478c11aca4e3dd5b748319d0b",
+    "tests/time-league-ai-availability.js": "3f6759ed23ea5842e3fcbe044f9120ca2a35dde54b23942f1ad861bd666620db",
+    "tests/time-league-ceremony.js": "1538e2fb30cfe731f0bb0a5c37082e7882931f6f164799b9bc54bd5bc2392b70",
+    "tests/time-league-hidden-years-ui.js": "152568465b0b81660caba87cc746ac9b76cbb9981153d724150195375f463701",
+    "tests/time-league-home-journey.js": "bd1a24420aa56c87160f490d3cc81c7267b8184fcb41c702cc70c83d6f19fed9",
+    "tests/time-league-identified-season-ui.js": "fcbab5c53a3877af38e4316f26ae9a94efdae69e1db79b1fa5807ba8347e873b",
+    "tests/time-league-integration-render.js": "2a6bdc10beb2f9ef6af73f0d131f03fb328ee5870ed9410ea9313e7e13aadfaf",
+    "tests/time-league-live-matchup.js": "91dc1d779860f461857d98b8427f4226b264a74c331e9ecaed1af646e5a0bb72",
+    "tests/time-league-mobile-decisions-ui.js": "e1507171713dc179d07efd3292562edd9c3567d8fa22e932645772502356e32b",
+    "tests/time-league-owner-workspaces.js": "808616d94cca6fab11d3014ccb37d49bf546e28bbded7ace693805435b5a0664",
+    "tests/time-league-planning-recovery-ui.js": "e40ea964f6b60865300fa30b9e5216b7f9180fc4ebe76184806ea100a860f649",
+    "tests/time-league-planning-recovery.js": "043d0ccf6e522cf3146224929e7980d7e79d7025b9dea161d9d601dddad1f389",
+    "tests/time-league-public-endpoint.cjs": "b1fd4d0552a55367fc8556616e1eda229856e06e3fcf73dd3987f76c71e3673f",
+    "tests/time-league-recovery.js": "546f7f3782ab0429d7dc18e9227ca9bd96699b00e21f475e4ef310ccc19c0293",
+    "tests/time-league-roster-home.js": "c257ea10a8dfcf8e49f142c7c0318a48a797dee8aa178937a0f4e0f2a6472453",
+    "tests/time-league-roster-moves.js": "a8f9c8d04ed5bc87b993c722078169bccf4530282c46383e97403383c39bd59a",
+    "tests/time-league-scoring-receipt.js": "def585a52f849eeb55beb0b6768cc16f37a8c9599f10993c04a0cacb72088dd9",
+    "tests/time-league-storage-conflict.js": "447f3161bd59cd872fc21bda1bf6c39a653d16cf9965c533ba063b28cb248077",
+    "tests/time-league-unpaired-ui.js": "796ab81fce3336a28019ef285e2eeec6031e93ba9be535323017c4ac34bb5085",
+    "tests/time-league-week-gates-readiness.js": "666693c1db3c45e8d7cbef7392372a9df9246d7eee1d2ef00c9f4c97304abb91",
+    "tests/time-league-week-readiness.js": "44191b9dce58d112baeb46ecd42ea667655cad084cd5c64baad4d72a716e511d",
+    "tests/vault-acquisitions-journey.cjs": "ce842e261c7c63c9c0a6d1df6d1de2e55a3153389fabeb47e8b416f4fe614f08",
+    "tests/vault-experience-journey.cjs": "71876a6669a6ea6ccaf8d0177e3b07a8ac3222ab1e12112f9cd2caf2fb730395",
+    "tests/vault-mobile-decisions-journey.cjs": "984a530081f79d1cfcfbb30303f8e3bbf720dd70281f08d3bac6e37653dfb8e0",
+    "tests/vault-next-journey.cjs": "3feb9bcba7cffd1e0eef86fb41c8d09992169a92b5c6b7aae8d3d8f5b7f995dd",
+    "tests/vault-planning-recovery-journey.cjs": "8472bee5ee367835b8160ddce573c939edffe86ef91e430b91a60f8aa55e3093",
+    "tests/vault-readiness-journey.cjs": "b74c09595f810aa14a5818e4b0b657fa9eb4ccc5a3111b6db8169b9137ec333c",
+    "tests/vault-release-acceptance.cjs": "2ae3e156d728d252b7d1bcfd7985d5e6497195f5ff79318ae74c97d68dea14e0",
+    "time-league-focus.css": "38ecdc635d0a991121785c4fe0059866637da839209531400d015f47555bc6f5",
+    "time-league-roster-home.css": "f9a17f04edaceee38b1a33cb3987d3cdc4f70450ebd7aff50a8980423b52c0eb"
+  },
+  "databaseSchemaSha256": "e091e13f7e7b363c7f4bdc0c1748a4de5d9e96a2be3927cec7b29cf7d3f76fae",
+  "functions": [
+    "time-league"
+  ],
+  "generated": {
+    "supabase/functions/time-league/runtime.js": "620f54fce48256b3b49b012b8793858a88a3ab934f5a62e73573658514880ec4"
+  },
+  "hosted": {
+    "time-league": {
+      "sources": {
+        "supabase/functions/_shared/game-guest.ts": "443f5a4a2dbde2d8d6a24024daea75bb62e8bb302a9e6c790f233e1f99d54b16",
+        "supabase/functions/_shared/security.ts": "2f28faa792a51696c892e920f9d670b2c18c96ce880e05dbb5ef1eb9c075fc2b",
+        "supabase/functions/time-league/community-model.mjs": "f3c537c261dfc2ed0bdbf655b52be95b6c929525046e3535bb9b7e194cc03682",
+        "supabase/functions/time-league/community.ts": "edbfd1204cb9f46dd0818ec426f5afe921dfce7de32e2b0a2b54a068dc6ccd26",
+        "supabase/functions/time-league/index.ts": "328dd07f60152810fab3b7919e83106695721e1495be3ab408e5b0155d60d265",
+        "supabase/functions/time-league/messages.ts": "d78fef8d8b95b657c7baeef2982ae6927f10166e6bbe2f000346caaa9feb884e",
+        "supabase/functions/time-league/runtime.js": "3579ccbcbe4f1604b9d45dbf5b49d4b595a1ee6c3989e0baf985bd2b2a79c318",
+        "supabase/functions/time-league/sealed-draws.ts": "2ec3887f03abc27dbd2752f788f9ad7aa2fc83cbd48e20040977c8274f353c8a"
+      },
+      "verify_jwt": false,
+      "version": 41
+    }
+  },
+  "project": "sxshiqyxhhifvtfqawbq",
+  "repository": "C2-Football/WarRoom",
+  "requiredMigrations": {
+    "20260317000000": {
+      "path": "supabase/migrations/20260317000000_app_users_and_subscriptions.sql",
+      "sha256": "3ebc1df431475cd78ffab217f05294c5224a4c2be43b23ff3cf0c78caec58789"
+    },
+    "20260502020000": {
+      "path": "supabase/migrations/20260502020000_security_baseline.sql",
+      "sha256": "2536f012e1cc662f06779af63ee90566b1651f2a30dced9a207293f5c9b6defb"
+    },
+    "20260907193000": {
+      "path": "supabase/migrations/20260907193000_time_league_multiplayer.sql",
+      "sha256": "cdf7da0f2f8ce529f3a03826c65b35b2d3b5c8c3ab70a8c9724fcaec1f344d9b"
+    },
+    "20260908010000": {
+      "path": "supabase/migrations/20260908010000_time_league_community.sql",
+      "sha256": "8ac391682d0b3fcec93d0f3de7a674b252750b795c0d0945e20ac0a158248abf"
+    },
+    "20260908020000": {
+      "path": "supabase/migrations/20260908020000_time_league_draft_readiness.sql",
+      "sha256": "0e6f38057b9c1660e7be20f7e8a38b3304247c4c2e34d09a555be47c7170fac4"
+    },
+    "20260908030000": {
+      "path": "supabase/migrations/20260908030000_time_league_messages.sql",
+      "sha256": "8ab8d9715a69373df7249d142191e0a2f908fe1c689614d77706356949e8e618"
+    },
+    "20260908040000": {
+      "path": "supabase/migrations/20260908040000_time_league_message_week.sql",
+      "sha256": "4ed4561fa62079d998ea3ed4a43e30f42598bab44a5da014010cbdd6e02cdd61"
+    },
+    "20260908050000": {
+      "path": "supabase/migrations/20260908050000_time_league_sealed_state.sql",
+      "sha256": "db24cecf43b6e0ba904e6aceeae5f0ef4c803910fc264cbb91b50e186745455a"
+    },
+    "20260909000000": {
+      "path": "supabase/migrations/20260909000000_security_audit_fixes.sql",
+      "sha256": "5bfcf1a0b214d020bfd2b73fe8ae6e9ad4197c826aa274fbdf2f4ac7318ea6f0"
+    },
+    "20260918020000": {
+      "path": "supabase/migrations/20260918020000_account_session_rls.sql",
+      "sha256": "5dc455ed10a6407a8bb00b78f96909b01f7ade7e37b36f090c5cf68b9279f34a"
+    },
+    "20260926010000": {
+      "path": "supabase/migrations/20260926010000_game_guest_sessions.sql",
+      "sha256": "6b56acf561b9f6a0d4877b3be02b40d9c312bba19665f0204f17001042cfaa29"
+    }
+  },
+  "schema": 1
+}
