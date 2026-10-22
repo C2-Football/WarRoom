@@ -5,7 +5,7 @@
     // Roster occupancy and waiver fit must use owned players and league slots,
     // not NFL depth-chart starter counts or generic dynasty quality targets.
     function buildFaRosterRead(roster, league, players, valueOf, options = {}) {
-        const norm = pos => ({ DST: 'DEF', 'D/ST': 'DEF', DE: 'DL', DT: 'DL', EDGE: 'DL', CB: 'DB', S: 'DB', SS: 'DB', FS: 'DB', OLB: 'LB', ILB: 'LB' }[pos] || pos);
+        const norm = pos => root.App?.normPos?.(pos) || root.App?.RosterLensBasis?.position?.(pos) || ({ DST: 'DEF', 'D/ST': 'DEF', DE: 'DL', DT: 'DL', NT: 'DL', IDL: 'DL', EDGE: 'DL', CB: 'DB', S: 'DB', SS: 'DB', FS: 'DB', OLB: 'LB', ILB: 'LB', MLB: 'LB' }[pos] || pos);
         const flex = { FLEX: ['RB','WR','TE'], WRRBTE_FLEX: ['RB','WR','TE'], WRRB_FLEX: ['WR','RB'], REC_FLEX: ['WR','TE'], SUPER_FLEX: ['QB','RB','WR','TE'], QB_FLEX: ['QB','RB','WR','TE'], SFLEX: ['QB','RB','WR','TE'], OP: ['QB','RB','WR','TE'], IDP_FLEX: ['DL','LB','DB'] };
         const type = root.App?.LeagueSkin?.build?.({league})?.type || ({0:'redraft',1:'keeper',2:'dynasty',3:'chopped'})[league?.settings?.type] || 'unknown';
         const dynasty = type === 'dynasty';

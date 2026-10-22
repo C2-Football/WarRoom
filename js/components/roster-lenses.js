@@ -11,6 +11,8 @@
     const pidOf = asset => text(asset?.pid || asset?.id);
     const nameOf = asset => asset?.name || asset?.player?.full_name || 'Player';
     const metricOf = (candidate, horizon) => candidate?.[horizon === 'season' ? 'season' : 'weekly'];
+    const normalizeBasis = basis => ['average', 'idp-average'].includes(basis) ? basis : 'projected';
+    const dynastyOf = input => ['dynasty', 'keeper', 'empire'].includes(input.skin?.type);
     const futureView = lens => lens.mode === 'trades' && lens.input.skin?.type !== 'redraft' && lens.ui.horizon === 'season';
     const deltaOf = (candidate, horizon) => {
         const metric = metricOf(candidate, horizon);
@@ -29,6 +31,7 @@
         return JSON.stringify({
             week: root.App?.WeeklyProj?.currentWeek?.() || root.S?.nflState?.week || null,
             revision: input.revision || 0,
+            statsSeason: input.statsSeason,
             rosters: (input.league?.rosters || []).map(r => [text(r.roster_id), text(r.owner_id), r.players, r.reserve, r.taxi, r.keepers, r.locked_players, r.settings]),
             roster: [input.roster?.players, input.roster?.reserve, input.roster?.taxi, input.roster?.keepers, input.roster?.locked_players],
             scoring: input.league?.scoring_settings, settings: input.league?.settings, slots: input.league?.roster_positions,
@@ -36,7 +39,7 @@
                 targets: [...(input.gm?.targetPositions || [])].map(text).sort(), sell: [...(input.gm?.sellPositions || [])].map(text).sort(), rules: input.gm?.sellRules },
         });
     }
-    const initial = scope => ({ scope, mode: 'off', horizon: 'week', selected: null, exploreMode: null, review: false, bid: '', notice: '', error: false });
+    const initial = scope => ({ scope, mode: 'off', horizon: 'week', basis: 'projected', selected: null, exploreMode: null, review: false, bid: '', notice: '', error: false });
     function ranked(candidates, horizon) {
         return (candidates || []).slice().sort((a, b) => {
             const av = deltaOf(a, horizon), bv = deltaOf(b, horizon);
@@ -72,11 +75,13 @@
         // Scope is checked during render too, so old recommendations never flash
         // for a newly selected account or league before its reset effect runs.
         const scopedUi = state.scope === scope ? state : initial(scope);
-        const ui = input.skin?.type === 'chopped' ? { ...scopedUi, horizon: 'week' } : scopedUi;
+        const basis = normalizeBasis(scopedUi.basis);
+        const allowSeasonView = input.skin?.type !== 'chopped' && (basis === 'projected' || scopedUi.mode === 'trades' && dynastyOf(input));
+        const ui = { ...scopedUi, basis, horizon: allowSeasonView ? scopedUi.horizon : 'week' };
         const allowed = !!input.isPro && !!input.roster && !!account(input);
         const canTrade = input.skin?.features?.showTrades !== false && input.skin?.type !== 'chopped' && Number(input.league?.settings?.disable_trades || 0) !== 1;
         const mode = allowed && (ui.mode !== 'trades' || canTrade) ? ui.mode : 'off';
-        const key = JSON.stringify([scope, dataSignature, references.current.revision, tick, retry, mode, ui.exploreMode]);
+        const key = JSON.stringify([scope, dataSignature, references.current.revision, tick, retry, mode, ui.exploreMode, basis]);
         const live = React.useRef(null);
         live.current = { key, scope, input, ui, mode };
         const result = load.key === key ? load.value : null;
@@ -84,7 +89,7 @@
         const baseSelected = ui.selected === '' ? null : options.find(candidate => candidate.id === ui.selected) || (ui.selected == null ? options[0] : null);
         const seasonKey = JSON.stringify([key, baseSelected?.id]);
         const lazySeason = seasonLoad.key === seasonKey ? seasonLoad.value?.season : null;
-        const seasonNeeded = mode === 'trades' && input.skin?.type === 'redraft' && ui.horizon === 'season' && !!baseSelected;
+        const seasonNeeded = mode === 'trades' && basis === 'projected' && input.skin?.type === 'redraft' && ui.horizon === 'season' && !!baseSelected;
         const selected = baseSelected && seasonNeeded ? { ...baseSelected, season: lazySeason || { status: 'loading', reason: 'Comparing the remaining season…' } } : baseSelected;
         const update = patch => setState(previous => ({ ...(previous.scope === scope ? previous : initial(scope)), ...patch }));
         function isCurrent(candidate) {
@@ -110,10 +115,10 @@
             const service = root.App?.[mode === 'waivers' ? 'RosterWaiverLens' : 'RosterTradeLens'];
             setLoad({ key, value: { status: 'loading', candidates: [] } });
             const opts = { league: input.league, roster: input.roster, rosters: input.league?.rosters, players: input.players,
-                statsData: input.statsData, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
+                statsData: input.statsData, statsSeason: input.statsSeason, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
                 projectionsData: text(root.S?.currentLeagueId) === text(input.league?.league_id || input.league?.id) ? root.S?.projectionsData : undefined,
                 accountKey: account(input), skin: input.skin, gm: input.gm, exploreMode: ui.exploreMode,
-                horizon: 'week', revision: dataSignature };
+                horizon: 'week', basis, revision: dataSignature };
             Promise.resolve().then(() => {
                 if (!service?.load) throw new Error('The acquisition comparison has not loaded. Try again.');
                 return service.load(opts);
@@ -122,7 +127,7 @@
                 const next = value && Array.isArray(value.candidates) ? value : { status: 'unavailable', reason: 'No verified comparison was returned.', candidates: [] };
                 setLoad({ key, value: next });
                 setState(previous => {
-                    if (previous.scope !== scope || previous.mode !== mode || previous.exploreMode !== ui.exploreMode || previous.selected != null) return previous;
+                    if (previous.scope !== scope || previous.mode !== mode || previous.exploreMode !== ui.exploreMode || normalizeBasis(previous.basis) !== basis || previous.selected != null) return previous;
                     const first = (mode === 'trades' && previous.horizon === 'week' ? next.candidates : ranked(next.candidates, previous.horizon))[0];
                     const saved = first && mode === 'waivers' ? WR.WaiverPlans?.get?.(input.league, first.pid || pidOf(first.incoming?.[0])) : null;
                     return first ? { ...previous, selected: first.id, bid: previous.bid !== '' ? previous.bid : saved?.bid == null ? '' : text(saved.bid) } : previous;
@@ -142,9 +147,9 @@
             setSeasonLoad({ key: seasonKey, value: { season: { status: 'loading', reason: 'Comparing the remaining season…' } } });
             const service = root.App?.RosterTradeLens;
             const opts = { league: input.league, roster: input.roster, rosters: input.league?.rosters, players: input.players,
-                statsData: input.statsData, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
+                statsData: input.statsData, statsSeason: input.statsSeason, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
                 accountKey: account(input), gm: input.gm, skin: input.skin, exploreMode: ui.exploreMode,
-                revision: dataSignature,
+                basis, revision: dataSignature,
                 projectionsData: text(root.S?.currentLeagueId) === text(input.league?.league_id || input.league?.id) ? root.S?.projectionsData : undefined,
                 result, candidateId: baseSelected.id };
             Promise.resolve().then(() => service?.loadSeason ? service.loadSeason(opts) : { season: { status: 'unavailable', reason: 'Remaining-season analysis has not loaded.' } }).then(value => {
@@ -209,7 +214,8 @@
         return { input, scope, key, ui, mode, enabled: allowed, canTrade, result, options, selected, byAnchor,
             loading: mode !== 'off' && (!result || result.status === 'loading'), seasonLoading: seasonNeeded && selected?.season?.status === 'loading',
             setMode, choose, clear, openReview, savePlan, openModule,
-            setHorizon: horizon => update({ horizon: input.skin?.type === 'chopped' ? 'week' : horizon, selected: selected?.id || '', notice: '', error: false }),
+            setHorizon: horizon => update({ horizon: allowSeasonView ? horizon : 'week', selected: selected?.id || '', notice: '', error: false }),
+            setBasis: next => update({ basis: normalizeBasis(next), horizon: 'week', selected: null, review: false, bid: '', notice: '', error: false }),
             explore: next => update({ exploreMode: next, selected: null, review: false, notice: '', error: false }),
             setBid: bid => update({ bid, notice: '', error: false }), retry: () => setRetry(value => value + 1),
         };
@@ -220,15 +226,17 @@
             return <strong className="wr-lens-gain wr-lens-age">{finite(age) ? compactNumber(Math.abs(age)) : '—'}<small>{finite(age) ? age > 0 ? 'years younger' : age < 0 ? 'years older' : 'same age' : 'age comparison'}</small></strong>;
         }
         const delta = deltaOf(candidate, lens.ui.horizon);
-        return <strong className={'wr-lens-gain' + (delta != null && delta < 0 ? ' is-loss' : '')}>{signed(delta)}<small>{lens.ui.horizon === 'season' ? 'ROS pts' : 'lineup pts'}</small></strong>;
+        return <strong className={'wr-lens-gain' + (delta != null && delta < 0 ? ' is-loss' : '')}>{signed(delta)}<small>{lens.ui.horizon === 'season' ? 'ROS pts' : lens.ui.basis === 'average' ? 'avg pts' : 'lineup pts'}</small></strong>;
     }
     function Impact({ lens }) {
         const candidate = lens.selected, metric = metricOf(candidate, lens.ui.horizon);
         if (candidate && futureView(lens)) return <div className="wr-lens-impact" aria-live="polite"><div><span>Average age · Preview</span><strong>{finite(candidate.futureFit?.outgoingAverageAge) && finite(candidate.futureFit?.incomingAge) ? compactNumber(candidate.futureFit.outgoingAverageAge) + ' → ' + compactNumber(candidate.futureFit.incomingAge) : 'Age unavailable'}</strong></div><Gain candidate={candidate} lens={lens} /></div>;
         const usable = finite(metric?.before) && finite(metric?.after) && deltaOf(candidate, lens.ui.horizon) != null;
         const week = lens.result?.timing?.fromWeek || lens.result?.week;
+        const label = lens.ui.horizon === 'season' ? 'Season lineup' : lens.ui.basis === 'average' ? text(lens.input.league?.season) + ' avg lineup'
+            : lens.ui.basis === 'idp-average' ? 'IDP avg + projections' : week ? 'Week ' + week + ' lineup' : 'Projected lineup';
         return <div className="wr-lens-impact" aria-live="polite">
-            <div><span>{lens.ui.horizon === 'season' ? 'Season lineup' : (week ? 'Week ' + week + ' lineup' : 'Projected lineup')} · Preview</span>
+            <div><span>{label} · Preview</span>
                 {usable ? <strong>{number(metric.before)} <span aria-hidden="true">→</span> {number(metric.after)}</strong> : <strong className="wr-lens-unavailable">{lens.seasonLoading ? 'Comparing the season…' : candidate ? 'Comparison unavailable' : 'Choose a move to compare'}</strong>}
             </div>{candidate && <Gain candidate={candidate} lens={lens} />}
         </div>;
@@ -239,7 +247,8 @@
         const anchor = text(selected?.anchorPlayerId || selected?.dropPid || pidOf(selected?.outgoing?.[0]));
         const inline = !!anchor && inlinePids?.has(anchor);
         const strategy = result?.strategy;
-        const dynasty = ['dynasty', 'keeper', 'empire'].includes(lens.input.skin?.type);
+        const dynasty = dynastyOf(lens.input);
+        const showHorizon = lens.input.skin?.type !== 'chopped' && (lens.ui.basis === 'projected' || lens.mode === 'trades' && dynasty);
         return <section className={'wr-roster-lens' + (active ? ' is-on' : '')} data-lens={lens.mode} aria-label="Roster acquisition lenses">
             <div className="wr-lens-switch" role="group" aria-label="Roster lens">
                 <button type="button" aria-pressed={!active} onClick={() => lens.setMode('off')}>Lens off</button>
@@ -247,12 +256,14 @@
                 <button type="button" aria-pressed={lens.mode === 'trades'} disabled={!lens.canTrade} onClick={() => lens.setMode('trades')}>Trades{!lens.canTrade ? ' off' : ''}</button>
             </div>
             {active && <React.Fragment>
-                {lens.input.skin?.type !== 'chopped' && <div className="wr-lens-context">
+                <div className="wr-lens-context">
                     {lens.mode === 'trades' && dynasty && <label className="wr-lens-strategy"><span>{strategy?.source === 'saved' || lens.input.gm?.hasStrategy ? 'Saved plan' : 'GM direction'}: <strong>{strategy?.savedLabel || lens.input.gm?.modeLabel || 'Compete'}</strong></span>
                         <select aria-label="Explore a trade strategy without saving it" value={lens.ui.exploreMode || ''} onChange={event => lens.explore(event.target.value || null)}><option value="">Follow my plan</option><option value="win_now">Explore win now</option><option value="rebuild">Explore rebuild</option><option value="compete">Explore compete</option></select>
                     </label>}
-                    <div className="wr-lens-horizons" role="group" aria-label="Acquisition projection horizon"><button type="button" aria-pressed={lens.ui.horizon === 'week'} onClick={() => lens.setHorizon('week')}>{lens.mode === 'trades' ? 'Next full week' : 'This week'}</button><button type="button" aria-pressed={lens.ui.horizon === 'season'} onClick={() => lens.setHorizon('season')}>{lens.mode === 'trades' && dynasty ? 'Future fit' : 'Season'}</button></div>
-                </div>}
+                    <div className="wr-lens-tools"><select className="wr-lens-basis" aria-label="Point comparison basis" value={lens.ui.basis} onChange={event => lens.setBasis(event.target.value)}><option value="projected">Projected</option><option value="average">Avg points</option><option value="idp-average">IDP avg</option></select>
+                        {showHorizon && <div className="wr-lens-horizons" role="group" aria-label="Acquisition projection horizon"><button type="button" aria-pressed={lens.ui.horizon === 'week'} onClick={() => lens.setHorizon('week')}>{lens.mode === 'trades' ? 'Next full week' : 'This week'}</button><button type="button" aria-pressed={lens.ui.horizon === 'season'} onClick={() => lens.setHorizon('season')}>{lens.mode === 'trades' && dynasty ? 'Future fit' : 'Season'}</button></div>}
+                    </div>
+                </div>
                 {lens.loading ? <p className="wr-lens-status" role="status">Finding {lens.mode === 'waivers' ? 'waiver moves' : 'trade fits'}…</p> : result?.status === 'unavailable' || result?.status === 'disabled' ? <div className="wr-lens-status" role="status"><p>{result.reason || 'This comparison is not available for the current league.'}</p><button type="button" onClick={lens.retry}>Try again</button></div> : <React.Fragment>
                     {selected && <Impact lens={lens} />}
                     {!selected && lens.ui.selected && <p className="wr-lens-note" role="status">Move no longer available. Choose another.</p>}
@@ -272,8 +283,8 @@
         const otherDelta = deltaOf(candidate, lens.ui.horizon === 'season' ? 'week' : 'season');
         const left = budget(lens.input);
         return <div className="wr-lens-preview" data-lens-preview={candidate.id} aria-label="Acquisition preview">
-            <div className="wr-lens-incoming"><div>{incoming.map(asset => <strong key={pidOf(asset)}>{nameOf(asset)}<small>{[asset.position || asset.pos, asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).join(' · ')}</small><small className="wr-lens-player-stats"><span>{trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b></span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong>)}</div><Gain candidate={candidate} lens={lens} /></div>
-            <div className="wr-lens-costs"><p className="wr-lens-price"><span>You {trade ? 'send' : 'drop'}</span> {outgoing.length ? outgoing.map(nameOf).join(' + ') : 'No drop needed'}</p>
+            <div className="wr-lens-incoming"><div>{incoming.map(asset => <strong key={pidOf(asset)}>{nameOf(asset)}<small><span className="wr-lens-position" style={{ '--wr-position-color': root.App?.positionColor?.(asset.position || asset.pos) || root.App?.POS_COLORS?.[asset.position || asset.pos] }}>{asset.position || asset.pos}</span>{[asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).map(detail => ' · ' + detail)}</small><small className="wr-lens-player-stats"><span title={asset.comparisonBasis === 'average' ? [asset.averageSeason || lens.input.league?.season, 'season average', finite(asset.averageGames) ? asset.averageGames + ' games' : ''].filter(Boolean).join(' · ') : undefined}>{asset.comparisonBasis === 'average' ? 'Avg' : trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b>{asset.comparisonBasis === 'average' && finite(asset.averageGames) && <small>{compactNumber(asset.averageGames)} games</small>}</span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong>)}</div><Gain candidate={candidate} lens={lens} /></div>
+            <div className="wr-lens-costs"><p className="wr-lens-price">{outgoing.length ? <React.Fragment><span>You {trade ? 'send' : 'drop'}</span> {outgoing.map((asset, index) => <React.Fragment key={pidOf(asset)}>{index > 0 ? ' + ' : ''}{nameOf(asset)}{lens.ui.basis !== 'projected' && <small> · {asset.comparisonBasis === 'average' ? 'Avg' : 'Proj'} {number(asset.projection)}</small>}</React.Fragment>)}</React.Fragment> : 'No drop needed'}</p>
                 {!trade && usesBids(lens.input) && lens.ui.bid !== '' && <p className="wr-lens-price"><span>Max bid</span> ${lens.ui.bid}</p>}
                 {trade && candidate.price && finite(candidate.price.delta) && <p className="wr-lens-price"><span>Value change</span> {candidate.price.delta > 0 ? '+' : ''}{compactNumber(candidate.price.delta)} {candidate.price.unit || 'value'}</p>}
             </div>

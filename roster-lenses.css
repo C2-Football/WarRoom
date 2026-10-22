@@ -7,6 +7,8 @@
 .wr-lens-switch button:disabled{opacity:.5;cursor:default}
 .wr-lens-context{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;padding:4px 0;color:var(--silver);font-size:12px;line-height:1.4}
 .wr-lens-context strong{color:var(--white)}
+.wr-lens-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;width:100%;min-width:0}
+.wr-lens-basis{min-height:44px;max-width:100%;width:116px;padding:6px 22px 6px 8px;border:1px solid var(--ov-6,rgba(203,213,229,.2));border-radius:var(--card-radius-sm,8px);background:var(--surf-solid);color:var(--gold);font:400 16px var(--font-body,sans-serif)}
 .wr-lens-horizons{display:flex;gap:3px;flex-shrink:0}
 .wr-lens-horizons button{border:0;padding:6px 9px;background:transparent;font-size:12px}
 .wr-lens-horizons button[aria-pressed=true]{background:var(--acc-fill2,rgba(180,205,255,.12));color:var(--gold)}
@@ -35,8 +37,11 @@
 .wr-lens-incoming strong small{display:block;font-size:11px;font-weight:400;color:var(--silver)}
 .wr-lens-incoming strong small.wr-lens-player-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:5px;font-size:12px}
 .wr-lens-player-stats b{color:var(--white);font-variant-numeric:tabular-nums;margin-left:3px;font-weight:650}
+.wr-lens-player-stats>span>small{display:inline;margin-left:5px}
+.wr-lens-position{color:var(--wr-position-color,var(--silver));font-weight:700}
 .wr-lens-price,.wr-lens-partner{margin:5px 0;font-size:12px;color:var(--white);line-height:1.5;overflow-wrap:anywhere}
 .wr-lens-price>span{color:var(--silver);margin-right:5px}
+.wr-lens-price small{font-size:inherit;color:var(--silver)}
 .wr-lens-costs{display:flex;align-items:baseline;justify-content:space-between;gap:2px 12px;flex-wrap:wrap}
 .wr-lens-costs>.wr-lens-price{margin:0}
 .wr-lens-partner{color:var(--silver);font-size:12px}

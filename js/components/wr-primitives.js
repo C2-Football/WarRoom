@@ -43,7 +43,7 @@
     const KIND_COLORS = {
         // positions
         qb: 'var(--k-60a5fa, #60a5fa)', rb: 'var(--k-2ecc71, #2ecc71)', wr: 'var(--k-d4af37, #d4af37)', te: 'var(--k-fbbf24, #fbbf24)',
-        k: 'var(--k-a8acb8, #a8acb8)', dl: 'var(--k-fb923c, #fb923c)', lb: 'var(--k-a78bfa, #a78bfa)', db: 'var(--k-f472b6, #f472b6)',
+        k: 'var(--k-a8acb8, #a8acb8)', dl: 'var(--k-e67e22, #e67e22)', lb: 'var(--k-1abc9c, #1abc9c)', db: 'var(--k-e91e63, #e91e63)',
         def: 'var(--k-f87171, #f87171)',
         // transaction / event types
         trade: 'var(--k-9b8afb, #9b8afb)', waiver: 'var(--k-2ecc71, #2ecc71)', fa: 'var(--k-3498db, #3498db)',
@@ -80,7 +80,8 @@
     // ── Badge ─────────────────────────────────────────────────────
     // Compact label tag. `kind` maps to a semantic color via KIND_COLORS.
     function Badge({ label, kind, size }) {
-        const color = KIND_COLORS[(kind || '').toLowerCase()] || KIND_COLORS.neutral;
+        const defensiveColor = window.App?.idpPositionFamily?.(kind) ? window.App.positionColor(kind) : null;
+        const color = defensiveColor || KIND_COLORS[(kind || '').toLowerCase()] || KIND_COLORS.neutral;
         const s = size === 'sm' ? { fs: '0.56rem', pad: '1px 6px' } : { fs: '0.62rem', pad: '2px 7px' };
         return h('span', {
             style: {
@@ -617,7 +618,8 @@
 
     // Position badge tints — the calm desaturated scheme from the approved
     // mockup design system (QB red / RB green / WR blue / TE amber /
-    // K purple / DEF silver); IDP + unknown fall back to neutral.
+    // K purple / DEF silver). Defensive badges use the shared DL/LB/DB/IDP
+    // family palette; an unknown position stays neutral.
     const POS_TINTS = {
         QB:  { bg: 'rgba(231,76,60,0.16)',   fg: '#F0997B' },
         RB:  { bg: 'rgba(46,204,113,0.14)',  fg: '#5DCAA5' },
@@ -687,7 +689,9 @@
     //              clicks don't re-toggle).
     //   ...rest  — forwarded to the card root (data-* hooks etc.).
     function AssetRow({ pos, pid, name, tag, slots, verdict, onClick, expanded, children, details, accent, ...rest }) {
-        const tint = POS_TINTS[String(pos || '').toUpperCase()] || { bg: 'var(--ov-4, rgba(255,255,255,0.06))', fg: 'var(--silver, #BDB8AD)' };
+        const defensiveColor = window.App?.idpPositionFamily?.(pos) ? window.App.positionColor(pos) : null;
+        const tint = defensiveColor ? { bg: 'color-mix(in srgb, ' + defensiveColor + ' 16%, transparent)', fg: defensiveColor }
+            : POS_TINTS[String(pos || '').toUpperCase()] || { bg: 'var(--ov-4, rgba(255,255,255,0.06))', fg: 'var(--silver, #BDB8AD)' };
         const borderColor = accent === 'gold' ? 'rgba(212,175,55,0.4)'
             : accent === 'risk' ? 'rgba(240,165,0,0.4)'
             : 'rgba(255,255,255,0.06)';

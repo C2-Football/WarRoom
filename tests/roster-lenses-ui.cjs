@@ -89,7 +89,7 @@ function harness({ integrated = false, pro = true } = {}) {
             RosterTradeLens: {
                 load: options => { const next = deferred(); calls.push({ mode: 'trades', options, ...next }); return next.promise; },
                 loadSeason: options => { const next = deferred(); seasonCalls.push({ options, ...next }); return next.promise; },
-                toBuilderContext: (move, result) => ({ kind: 'roster-lens-package', leagueId: 'one', candidateId: move.id, resultWeek: result.week, givePlayerIds: move.outgoing.map(asset => asset.pid), receivePlayerIds: move.incoming.map(asset => asset.pid) }),
+                toBuilderContext: (move, result) => ({ kind: 'roster-lens-package', leagueId: 'one', candidateId: move.id, resultWeek: result.week, basis: result.basis || 'projected', givePlayerIds: move.outgoing.map(asset => asset.pid), receivePlayerIds: move.incoming.map(asset => asset.pid) }),
             },
         },
     };
@@ -341,4 +341,78 @@ test('actual My Roster places review inside its player row and restores untouche
     assert.equal(h.props.rosterFilter, 'Starters'); assert.equal(JSON.stringify(h.props.rosterSort), beforeSort); assert.equal(JSON.stringify(h.props.visibleCols), beforeColumns);
     assert.equal(JSON.stringify(h.roster), beforeRoster); assert(!find(h.tree, node => node.props.className === 'wr-lens-roster-settings'));
     assert(!find(h.tree, node => node.props['data-lens-preview'])); assert(!text(h.tree).includes('Starting lineup'), 'Roster lenses do not mount a second Game Day lineup workflow');
+});
+
+test('changing point basis clears the old scenario until a newly optimized comparison arrives', async () => {
+    const h = harness(), original = JSON.stringify(h.roster); await loadWaivers(h);
+    const prior = h.lens, move = prior.selected;
+    assert.equal(h.lens.ui.basis, 'projected'); assert.equal(h.calls[0].options.basis, 'projected');
+    const basis = find(h.tree, node => node.type === 'select' && node.props['aria-label'] === 'Point comparison basis');
+    assert.deepEqual(all(basis, node => node.type === 'option').map(node => node.props.value), ['projected', 'average', 'idp-average']);
+    h.change('Point comparison basis', 'average');
+    assert.equal(h.lens.ui.basis, 'average'); assert.equal(h.lens.loading, true); assert(h.lens.selected == null); assert.equal(h.lens.options.length, 0);
+    assert(!find(h.tree, node => node.props['data-lens-preview']));
+    prior.savePlan(move); prior.openModule(move); assert.equal(h.writes.length, 0); assert.equal(h.acquisition.length, 0, 'Captured projected actions cannot operate under the average label');
+    await h.flush(); assert.equal(h.calls[1].options.basis, 'average');
+    const averaged = candidate('avg-a', 'Average Runner', 5, 0, { basis: 'average',
+        incoming: [{ pid: 'avg-a', name: 'Average Runner', position: 'RB', team: 'CHI', projection: 12.5, comparisonBasis: 'average', averageGames: 4, averageSeason: '2026' }],
+        outgoing: [{ pid: 'bench', name: 'Bench Runner', projection: 7.5, comparisonBasis: 'average' }],
+        weekly: { status: 'ready', before: 70, after: 75, delta: 5 }, season: { status: 'unavailable', delta: null } });
+    h.calls[1].resolve({ ...ready([averaged]), basis: 'average' }); await h.flush();
+    const preview = find(h.tree, node => node.props['data-lens-preview'] === 'avg-a');
+    const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
+    assert.match(text(impact), /2026 avg lineup.*70\.0.*75\.0.*\+5\.0avg pts/);
+    assert.match(text(preview), /Avg\s*12\.54 games/); assert(!text(preview).includes('Proj'));
+    assert.match(text(preview), /Bench Runner.*Avg 7\.5/, 'Outgoing average stays explicit beside the incoming average, independent of roster projection columns');
+    assert.equal(h.lens.selected.id, 'avg-a'); assert.equal(h.lens.ui.horizon, 'week');
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Acquisition projection horizon'));
+    h.lens.setHorizon('season'); h.render(); await h.flush(); assert.equal(h.lens.ui.horizon, 'week'); assert.equal(h.seasonCalls.length, 0);
+    assert.equal(JSON.stringify(h.roster), original);
+});
+
+test('a late projected result cannot be relabeled as averages or overwrite the average selection', async () => {
+    const h = harness(); h.click('Waivers'); await h.flush(); const projected = h.calls[0];
+    h.change('Point comparison basis', 'average'); await h.flush(); const averaged = h.calls[1];
+    assert.equal(projected.options.basis, 'projected'); assert.equal(averaged.options.basis, 'average');
+    const move = candidate('same-asset', 'Average Selection', 4, 0, { basis: 'average', incoming: [{ pid: 'same-asset', name: 'Average Selection', position: 'RB', projection: 10, comparisonBasis: 'average', averageGames: 5, averageSeason: '2026' }] });
+    averaged.resolve({ ...ready([move]), basis: 'average' }); await h.flush();
+    projected.resolve(ready([candidate('same-asset', 'Late Projected Selection', 999, 999)])); await h.flush();
+    assert.equal(h.lens.ui.basis, 'average'); assert.equal(h.lens.selected.weekly.delta, 4); assert.equal(h.lens.selected.incoming[0].name, 'Average Selection');
+    assert(!text(h.tree).includes('Late Projected Selection')); assert(!text(h.tree).includes('+999.0'));
+});
+
+test('IDP average mode labels each asset source and keeps offensive projections distinct', async () => {
+    const h = harness(); await loadWaivers(h); h.change('Point comparison basis', 'idp-average'); await h.flush();
+    assert.equal(h.calls.at(-1).options.basis, 'idp-average');
+    const idp = candidate('idp-a', 'Tackle Leader', 3, 0, { basis: 'idp-average',
+        incoming: [{ pid: 'idp-a', name: 'Tackle Leader', position: 'LB', projection: 0, comparisonBasis: 'average', averageGames: 5, averageSeason: '2026' }], season: { status: 'unavailable', delta: null } });
+    const offense = candidate('offense-a', 'Offense Receiver', 2, 0, { basis: 'idp-average',
+        incoming: [{ pid: 'offense-a', name: 'Offense Receiver', position: 'WR', projection: 12.3, comparisonBasis: 'projected' }], season: { status: 'unavailable', delta: null } });
+    h.calls.at(-1).resolve({ ...ready([idp, offense]), basis: 'idp-average' }); await h.flush();
+    assert.match(text(find(h.tree, node => node.props.className === 'wr-lens-impact')), /IDP avg \+ projections/);
+    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'idp-a');
+    assert.match(text(preview), /LB/); assert.match(text(preview), /Avg\s*0\.05 games/, 'A measured zero remains visible with its observed-game count');
+    h.lens.choose(h.lens.options.find(move => move.id === 'offense-a')); h.render();
+    preview = find(h.tree, node => node.props['data-lens-preview'] === 'offense-a');
+    assert.match(text(preview), /WR/); assert.match(text(preview), /Proj\s*12\.3/); assert(!text(preview).includes('Avg'));
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Acquisition projection horizon'));
+});
+
+test('average trade scenarios retain age-fit exploration and hand off the selected basis', async () => {
+    const h = harness(), originalStrategy = JSON.stringify(h.gm);
+    h.input.skin = { type: 'dynasty', features: { showTrades: true } }; h.render(); h.click('Trades'); await h.flush();
+    const first = h.calls[0]; h.change('Point comparison basis', 'average'); await h.flush(); const next = h.calls[1];
+    assert.equal(next.options.basis, 'average');
+    const move = candidate('average-trade', 'Younger Defender', -4, 0, { basis: 'average',
+        incoming: [{ pid: 'average-trade', name: 'Younger Defender', position: 'DB', projection: 8.5, comparisonBasis: 'average', averageGames: 6, averageSeason: '2026' }],
+        futureFit: { outgoingAverageAge: 32, incomingAge: 24, ageDifference: 8 }, season: { status: 'unavailable', delta: null } });
+    next.resolve({ ...ready([move]), basis: 'average', week: 7 }); await h.flush(); first.resolve(ready(tradeCandidates())); await h.flush();
+    h.click('Future fit'); await h.flush();
+    assert.equal(h.lens.ui.horizon, 'season'); assert.match(text(find(h.tree, node => node.props.className === 'wr-lens-impact')), /32.*24/);
+    assert.equal(h.seasonCalls.length, 0, 'Age fit is not a fabricated average-based season simulation');
+    h.click('Review trade'); h.click('Open in Trade Builder');
+    assert.equal(h.events.at(-1).detail.basis, 'average'); assert.equal(h.events.at(-1).detail.candidateId, 'average-trade');
+    assert.deepEqual(Array.from(h.events.at(-1).detail.receivePlayerIds), ['average-trade']); assert.equal(JSON.stringify(h.gm), originalStrategy);
+    const old = h.lens, eventCount = h.events.length; h.change('Point comparison basis', 'idp-average');
+    old.openModule(old.selected); assert.equal(h.events.length, eventCount, 'A prior-basis trade cannot open after switching the comparison');
 });

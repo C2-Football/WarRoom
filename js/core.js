@@ -21,6 +21,8 @@
 //     .peakWindows     — { QB:[lo,hi], RB:[lo,hi], … } — set by ReconAI CDN;
 //                        core.js provides fallback default via PEAK_WINDOWS_DEFAULT
 //     .POS_COLORS      — { QB:'var(--k-e74c3c, #e74c3c)', … }  (set by core.js)
+//     .positionColor(pos) — shared position color without changing its display label
+//     .idpPositionFamily(pos) — DL/LB/DB/IDP color family, or null
 //     .POS_GROUPS      — { DB:[…], DL:[…], LB:[…] }  (set by core.js)
 //     .PEAK_WINDOWS_DEFAULT — frozen copy of fallback values  (set by core.js)
 //     .normPos(pos)    — canonical position normalizer  (set by core.js)
@@ -288,9 +290,23 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     window.App = window.App || {};
 
     // Position colors — single source of truth (was copy-pasted across 6 locations)
-    window.App.POS_COLORS = window.App.POS_COLORS || {
+    window.App.POS_COLORS = Object.assign({
         QB:'var(--k-e74c3c, #e74c3c)', RB:'var(--k-2ecc71, #2ecc71)', WR:'var(--k-3498db, #3498db)', TE:'var(--k-f0a500, #f0a500)',
-        K:'var(--k-9b59b6, #9b59b6)',  DEF:'var(--k-85929e, #85929e)', DL:'var(--k-e67e22, #e67e22)', LB:'var(--k-1abc9c, #1abc9c)', DB:'var(--k-e91e63, #e91e63)'
+        K:'var(--k-9b59b6, #9b59b6)',  DEF:'var(--k-85929e, #85929e)', DL:'var(--k-e67e22, #e67e22)', LB:'var(--k-1abc9c, #1abc9c)', DB:'var(--k-e91e63, #e91e63)', IDP:'var(--k-8e8cdb, #8e8cdb)'
+    }, window.App.POS_COLORS || {});
+    // Color families never replace the player's position label or roster-slot
+    // identity. EDGE remains EDGE, for example, while sharing DL's color.
+    const idpColorFamilies = {
+        DL:'DL', DE:'DL', DT:'DL', NT:'DL', IDL:'DL', EDGE:'DL',
+        LB:'LB', OLB:'LB', ILB:'LB', MLB:'LB',
+        DB:'DB', CB:'DB', S:'DB', SS:'DB', FS:'DB',
+        IDP:'IDP', IDP_FLEX:'IDP',
+    };
+    window.App.idpPositionFamily = pos => idpColorFamilies[String(pos || '').trim().toUpperCase()] || null;
+    Object.entries(idpColorFamilies).forEach(([alias, family]) => { window.App.POS_COLORS[alias] = window.App.POS_COLORS[family]; });
+    window.App.positionColor = pos => {
+        const label = String(pos || '').trim().toUpperCase();
+        return window.App.POS_COLORS[window.App.idpPositionFamily(label) || label] || null;
     };
 
     // Position groups — canonical arrays for normPos (was inline in 20+ locations)

@@ -11,6 +11,7 @@ function MyTeamTab({
   leagueSkin,
   playersData,
   statsData,
+  statsSeason,
   stats2025Data,
   standings,
   sleeperUserId,
@@ -111,7 +112,7 @@ function MyTeamTab({
   // nudge on the roster recommendation. Hook is called once, unconditionally.
   const gm = window.WR.GmMode.useGmEffects(currentLeague);
   const rosterLens = window.WR?.RosterLens?.useLens?.({
-    league: currentLeague, roster: myRoster, players: playersData, statsData,
+    league: currentLeague, roster: myRoster, players: playersData, statsData, statsSeason,
     priorData: stats2025Data, userId: sleeperUserId, gm, skin: resolvedLeagueSkin,
     revision: timeRecomputeTs, isPro, setActiveTab,
   }) || null;
@@ -1805,7 +1806,7 @@ function MyTeamTab({
           <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
             <span className="wr-roster-mobile-player-identity">
-              <span className="wr-roster-position-icon" style={{ '--wr-position-color': posColors[r.pos] || ({ QB: '#e74c3c', RB: '#2ecc71', WR: '#3498db', TE: '#f0a500', K: '#9b59b6', DEF: '#85929e' })[r.pos] || 'var(--silver)' }}>{r.pos}</span>
+              <span className="wr-roster-position-icon" style={{ '--wr-position-color': window.App.positionColor?.(r.p.position || r.pos) || posColors[r.pos] || ({ QB: '#e74c3c', RB: '#2ecc71', WR: '#3498db', TE: '#f0a500', K: '#9b59b6', DEF: '#85929e' })[r.pos] || 'var(--silver)' }}>{window.App.idpPositionFamily?.(r.p.position) ? String(r.p.position).toUpperCase() : r.pos}</span>
               <span className="wr-roster-identity-copy"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r, false)}</span></span>
             </span>
             {metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {

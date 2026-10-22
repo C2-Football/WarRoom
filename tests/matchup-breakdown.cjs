@@ -4,14 +4,47 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const babel = require('@babel/standalone');
 const h = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity).filter(x => x != null && x !== false) });
-let state = [], cursor = 0;
-const ctx = { window: {}, React: { createElement: h, Fragment: 'fragment', useState(initial) { const index = cursor++; if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial; return [state[index], value => { state[index] = typeof value === 'function' ? value(state[index]) : value; }]; } } };
+let state = [], cursor = 0, dirty = false, latestProps, latestTree;
+const pending = new Map();
+const same = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
+const ctx = { window: {}, React: {
+    createElement: h, Fragment: 'fragment',
+    useState(initial) {
+        const index = cursor++;
+        if (!(index in state)) state[index] = { value: typeof initial === 'function' ? initial() : initial };
+        return [state[index].value, next => {
+            const value = typeof next === 'function' ? next(state[index].value) : next;
+            if (!Object.is(value, state[index].value)) { state[index].value = value; dirty = true; }
+        }];
+    },
+    useRef(initial) { const index = cursor++; if (!(index in state)) state[index] = { current: initial }; return state[index]; },
+    useEffect(fn, deps) {
+        const index = cursor++, previous = state[index];
+        if (!previous || !same(previous.deps, deps)) {
+            state[index] = { deps, cleanup: previous?.cleanup }; pending.set(index, fn);
+        }
+    },
+} };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync('js/shared/matchup-score-comparison.js', 'utf8'), ctx);
 vm.runInContext(babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { presets: ['react'] }).code, ctx);
 const text = node => node == null ? '' : typeof node === 'object' ? node.children.map(text).join(' ').replace(/\s+/g, ' ') : String(node);
 const all = node => node && typeof node === 'object' ? [node, ...node.children.flatMap(all)] : [];
-const render = (props, reset = false) => { if (reset) state = []; cursor = 0; return ctx.MatchupBreakdown(props); };
+const render = (props, reset = false, commit = true) => {
+    if (reset) { state.forEach(slot => slot?.cleanup?.()); state = []; pending.clear(); }
+    latestProps = props;
+    let passes = 0;
+    do {
+        assert(++passes < 20, 'The hook render should settle');
+        cursor = 0; dirty = false; latestTree = ctx.MatchupBreakdown(props);
+        if (!commit) break;
+        const effects = [...pending]; pending.clear();
+        for (const [index, fn] of effects) { state[index].cleanup?.(); state[index].cleanup = fn(); }
+    } while (dirty);
+    return latestTree;
+};
+const flush = async () => { for (let pass = 0; pass < 12; pass++) { await Promise.resolve(); if (dirty) render(latestProps); } return latestTree; };
+const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const button = (tree, label) => all(tree).find(node => node.type === 'button' && text(node).trim() === label);
 const slotRows = tree => all(tree).filter(node => node.props['data-slot-index'] != null);
 const props = {
@@ -190,4 +223,137 @@ assert(!all(tree).some(node => node.type === 'em' && /vs pregame/.test(text(node
 tree = render({ ...reviewProps, pro: false }, true);
 assert.match(text(tree), /2\.50.*14\.00/);
 assert(!button(tree, 'Show all players'), 'the actual score header preserves the existing free/Pro breakdown boundary');
-console.log('PASS matchup breakdown: unified slot disclosures, signed/missing values, submitted actual/projection toggles, source labels, stale-grade boundaries, scope resets, accessible bars and free-tier boundary');
+
+// Use the real comparison adapter: selection changes only this display, with
+// current-season league scoring and defensive position aliases kept intact.
+vm.runInContext(fs.readFileSync('js/shared/roster-lens-basis.js', 'utf8'), ctx);
+let viewer = 'viewer-a';
+ctx.window.WR = { WaiverPlans: { account: () => viewer } };
+ctx.window.S = { currentLeagueId: 'basis-one', platform: 'sleeper' };
+ctx.window.App.LeagueStats = { score: (raw, scoring, pos) => raw.pts + (pos === 'LB' ? scoring.lb_bonus : 0) };
+const basisPlayers = {
+    mineLB: { position: 'OLB', team: 'BUF' }, theirLB: { position: 'ILB', team: 'KC' },
+    mineDB: { position: 'CB', team: 'BUF' }, theirDL: { position: 'EDGE', team: 'KC' },
+    mineQB: { position: 'QB', team: 'BUF' }, theirQB: { position: 'QB', team: 'KC' },
+    mineDEF: { position: 'DEF', team: 'BUF' }, theirDEF: { position: 'D/ST', team: 'KC' },
+};
+const basisLeague = { league_id: 'basis-one', season: '2026', scoring_settings: { pts: 1, lb_bonus: 2 } };
+const basisStats = {
+    mineLB: { pts: -2, gp: 2, season: 2026 }, theirLB: { pts: 8, gp: 2, season: 2026 },
+    mineDB: { pts: -6, gp: 2, season: 2026 }, theirDL: { pts: 12, gp: 3, season: 2026 },
+    mineQB: { pts: 100, gp: 4, season: 2026 }, theirQB: { pts: 80, gp: 4, season: 2026 },
+    mineDEF: { pts: 8, gp: 4, season: 2026 }, theirDEF: { pts: 4, gp: 4, season: 2026 },
+};
+const basisProps = { ...props, compact: true, week: 6,
+    benchmarkContext: { league: basisLeague, players: basisPlayers, statsData: basisStats, statsSeason: '2026', revision: 1, userId: 'owner' },
+    matchup: { ...props.matchup, fc: { projMe: 60, projOpp: 43, margin: 17, winPct: 70 }, h2h: [
+        { slot: 'LB', myPid: 'mineLB', theirPid: 'theirLB', myMed: 15, theirMed: 8 },
+        { slot: 'IDP_FLEX', myPid: 'mineDB', theirPid: 'theirDL', myMed: 9, theirMed: 10 },
+        { slot: 'QB', myPid: 'mineQB', theirPid: 'theirQB', myMed: 30, theirMed: 20 },
+        { slot: 'DEF', myPid: 'mineDEF', theirPid: 'theirDEF', myMed: 6, theirMed: 5 },
+    ] },
+};
+const control = value => all(value).find(node => node.type === 'select' && node.props['aria-label'] === 'Matchup point comparison basis');
+const totals = value => all(value).find(node => node.props.className === 'gd-matchup-totals');
+const changeBasis = (value, input = basisProps) => { assert(control(latestTree), 'Point basis selector is available'); control(latestTree).props.onChange({ target: { value } }); return render(input); };
+const sourceBefore = JSON.stringify(basisProps);
+tree = render(basisProps, true);
+assert.equal(control(tree).props.value, 'projected');
+assert.match(text(totals(tree)), /60\.0 You vs 43\.0 Them/);
+assert.match(text(tree), /Win probability/);
+tree = changeBasis('average');
+assert.equal(tree.props['data-score-view'], 'average');
+assert.match(text(tree), /2026 average points/);
+assert.match(text(totals(tree)), /24\.0 You vs 30\.0 Them/, 'Average totals use signed current-season league points, including LB bonuses');
+assert.doesNotMatch(text(tree), /Win probability|Matchup outlook|saved pregame/, 'Historical averages never masquerade as a forecast or saved baseline');
+button(tree, 'Show all players').props.onClick(); tree = render(basisProps);
+assert.match(text(slotRows(tree)[0]), /mineLB 0\.0 Avg · 2 games.*theirLB 5\.0 Avg · 2 games/);
+assert.match(text(slotRows(tree)[1]), /mineDB -3\.0 Avg.*theirDL 4\.0 Avg/, 'A negative empirical average stays signed');
+assert(!all(tree).some(node => /is-strong|is-quiet|is-typical/.test(node.props.className || '')), 'Empirical comparisons do not receive saved-pregame performance colors');
+tree = changeBasis('idp-average');
+assert.match(text(totals(tree)), /33\.0 You vs 34\.0 Them/, 'Hybrid uses averages for OLB/ILB/CB/EDGE and retains QB/DST projections');
+assert.match(text(slotRows(tree)[2]), /mineQB 30\.0 Proj.*theirQB 20\.0 Proj/);
+assert.match(text(slotRows(tree)[3]), /mineDEF 6\.0 Proj.*theirDEF 5\.0 Proj/, 'D/ST is not an individual defensive player');
+tree = changeBasis('projected');
+assert.match(text(totals(tree)), /60\.0 You vs 43\.0 Them/);
+assert.match(text(tree), /Win probability/);
+assert.equal(JSON.stringify(basisProps), sourceBefore, 'Choosing a display basis never changes assigned players, planner projections or source stats');
+
+tree = changeBasis('average');
+const missingBasis = { ...basisProps, benchmarkContext: { ...basisProps.benchmarkContext, statsData: { ...basisStats, mineDB: { pts: 99, gp: 0, season: 2026 } } } };
+tree = render(missingBasis);
+assert.match(text(totals(tree)), /— You vs 30\.0 Them/, 'Missing GP makes the whole side unavailable, not a partial team total');
+assert.match(text(slotRows(tree)[1]), /mineDB — Avg/, 'Missing averages remain distinguishable from verified zero');
+const previousSeason = { ...basisProps, benchmarkContext: { ...basisProps.benchmarkContext, statsSeason: 2025 } };
+tree = render(previousSeason);
+assert.match(text(totals(tree)), /— You vs — Them/, 'Prior-season stats cannot be presented as the selected current-season average');
+
+tree = render({ ...basisProps, pro: false }, true);
+assert.equal(control(tree), undefined, 'A display basis cannot expose the existing Pro opponent-lineup breakdown through the free header');
+viewer = 'viewer-b'; tree = render(basisProps, true); tree = changeBasis('average');
+viewer = 'viewer-c'; tree = render(basisProps, false, false);
+assert.equal(control(tree).props.value, 'projected', 'A different account never inherits the prior empirical selection before effects');
+assert.match(text(totals(tree)), /60\.0 You vs 43\.0 Them/);
+viewer = 'viewer-a';
+
+// A started matchup still opens saved actual/projection review. Average mode
+// is an alternate display on those exact submitted players, never a snapshot.
+const reviewWithBasis = { ...reviewProps, benchmarkContext: basisProps.benchmarkContext };
+const savedBefore = JSON.stringify(completedComparison);
+tree = render(reviewWithBasis, true);
+assert.equal(control(tree), undefined, 'Actual review keeps its existing actual/saved-projection numbers');
+button(tree, 'Projection').props.onClick(); tree = render(reviewWithBasis);
+tree = changeBasis('average', reviewWithBasis);
+assert.equal(tree.props['data-score-view'], 'average');
+assert.doesNotMatch(text(tree), /saved pregame|Final points|Win probability/);
+button(tree, 'Actual vs proj').props.onClick(); tree = render(reviewWithBasis);
+assert.equal(tree.props['data-score-view'], 'actual');
+assert.match(text(tree), /Final points.*2\.50 You Proj 13\.0.*14\.00 Them Proj 11\.0/);
+assert.equal(JSON.stringify(completedComparison), savedBefore, 'Average display cannot overwrite submitted scores or captured forecasts');
+
+(async () => {
+    const requests = [];
+    ctx.window.MFL = { loadPlayerStats: (league, options) => { const task = deferred(); requests.push({ league, options, ...task }); return task.promise; } };
+    const mflLeague = { ...basisLeague, league_id: 'mfl_a', _platform: 'mfl' };
+    const mflProps = { ...basisProps, benchmarkContext: { ...basisProps.benchmarkContext, league: mflLeague, statsData: {} } };
+    const nativeStats = value => Object.fromEntries(Object.keys(basisPlayers).map(pid => [pid, { _mflScoring: { average: value, games: 4, season: 2026, week: null, scoringKey: JSON.stringify(Object.entries(mflLeague.scoring_settings).sort(([a], [b]) => a.localeCompare(b))) } }]));
+    ctx.window.S.currentLeagueId = 'mfl_a';
+    tree = render(mflProps, true); await flush();
+    assert.equal(requests.length, 0, 'Projected display makes no native average request');
+    tree = changeBasis('average', mflProps); await flush();
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].league, mflLeague);
+    assert.equal(requests[0].options.players, basisPlayers);
+    assert.equal(requests[0].options.week, null, 'Native averages use an explicit season aggregate, never this week as a proxy');
+    assert.match(text(latestTree), /Loading averages/);
+    assert.match(text(totals(latestTree)), /— You vs — Them/);
+    tree = changeBasis('idp-average', mflProps); await flush();
+    assert.equal(requests.length, 2);
+    requests[0].resolve({ statsByPid: nativeStats(999) }); await flush();
+    assert.doesNotMatch(text(latestTree), /999\.0|3996\.0/, 'A late full-average response cannot become a hybrid result');
+    requests[1].resolve({ statsByPid: nativeStats(4) }); await flush();
+    assert.match(text(totals(latestTree)), /44\.0 You vs 33\.0 Them/, 'Only the currently selected native request populates the IDP display');
+    assert.doesNotMatch(text(latestTree), /Loading averages/);
+
+    // Switch league/account while a request is in flight. The previous values
+    // disappear during render, before the effect cleanup has committed.
+    tree = changeBasis('average', mflProps); await flush();
+    const staleAccount = requests.at(-1);
+    viewer = 'new-account';
+    tree = render(mflProps, false, false);
+    assert.equal(control(tree).props.value, 'projected');
+    staleAccount.resolve({ statsByPid: nativeStats(888) }); await flush();
+    assert.doesNotMatch(text(latestTree), /888\.0|3552\.0/);
+    tree = changeBasis('average', mflProps); await flush();
+    const staleLeague = requests.at(-1);
+    ctx.window.S.currentLeagueId = 'mfl_b';
+    const otherLeague = { ...mflProps, benchmarkContext: { ...mflProps.benchmarkContext, league: { ...mflLeague, league_id: 'mfl_b' } } };
+    tree = render(otherLeague, false, false);
+    assert.equal(control(tree).props.value, 'projected');
+    staleLeague.resolve({ statsByPid: nativeStats(777) }); await flush();
+    assert.doesNotMatch(text(latestTree), /777\.0|3108\.0/);
+    tree = changeBasis('average', otherLeague); await flush();
+    requests.at(-1).resolve({ statsByPid: nativeStats(2), error: 'Unrelated raw stats unavailable' }); await flush();
+    assert.match(text(totals(latestTree)), /8\.0 You vs 8\.0 Them/, 'Verified current-league official averages remain usable despite unrelated raw-stat errors');
+    console.log('PASS matchup breakdown: signed/missing slot disclosures; actual/saved projections; scoped empirical bases; native async races; no forecast grades or source mutation');
+})().catch(error => { console.error(error); process.exitCode = 1; });

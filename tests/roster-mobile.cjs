@@ -320,3 +320,35 @@ assert(find(tree, n => n.type === 'roster-stats'), 'Raw player statistics remain
 root.wrIsPro = () => true; props.expandedPid = null; props.leagueSkin.type = 'chopped'; render();
 assert(!text(find(tree, n => n.props.className === 'wr-roster-mobile-summary')).includes('record'), 'Chopped does not present an unrelated head-to-head record');
 console.log('PASS shared roster metrics: visible-column sort options, separate table preferences, explicit saved sorts, L5/season/bye ordering, signed values and unavailable last in both directions');
+// IDP aliases share a color family without changing the player's visible role.
+const corePositionSource=fs.readFileSync('js/core.js','utf8');
+root.App.POS_COLORS={QB:'#existing-quarterback'};
+vm.runInContext(corePositionSource.slice(corePositionSource.indexOf('    // Position colors —'),corePositionSource.indexOf('    // Age curves default')),context);
+delete root.App.normPos;
+vm.runInContext(corePositionSource.slice(corePositionSource.indexOf('    window.App.normPos ='),corePositionSource.indexOf('    // posLabel —')),context);
+assert.equal(root.App.POS_COLORS.QB,'#existing-quarterback','An imported offense palette is preserved');
+for (const [family,aliases] of Object.entries({DL:['DL','DE','DT','NT','IDL','EDGE'],LB:['LB','OLB','ILB','MLB'],DB:['DB','CB','S','SS','FS'],IDP:['IDP','IDP_FLEX']})) {
+  for(const alias of aliases) assert.equal(root.App.positionColor(alias.toLowerCase()),root.App.POS_COLORS[family],alias+' resolves to its defensive color family');
+}
+assert.equal(root.App.positionColor('UNKNOWN'),null,'Unknown roles do not inherit a defensive color');
+slots=[];width=390;
+const defenders={end:{full_name:'Edge Defender',position:'EDGE',team:'PIT'},mike:{full_name:'Middle Linebacker',position:'MLB',team:'SF'},safety:{full_name:'Strong Safety',position:'SS',team:'SEA'}};
+props.playersData=defenders;props.statsData={};props.stats2025Data={};props.rosterFilter='All';props.rosterSort={key:'name',dir:1};props.expandedPid=null;
+props.myRoster={roster_id:1,players:Object.keys(defenders),starters:Object.keys(defenders),reserve:[],taxi:[],settings:{}};
+props.currentLeague={league_id:'idp-league',season:2026,roster_positions:['DL','LB','DB'],scoring_settings:{},settings:{type:2},rosters:[props.myRoster]};
+props.leagueSkin={type:'dynasty',features:{showWeeklyVerdict:false,showFuturePicks:true,showTaxi:false}};
+render();
+const defensiveBadges=all(tree,n=>n.props.className==='wr-roster-position-icon');
+assert.deepEqual(defensiveBadges.map(text),['EDGE','MLB','SS'],'Mobile roster preserves specific defensive position labels while grouping by canonical roles');
+assert.deepEqual(defensiveBadges.map(n=>n.props.style['--wr-position-color']),['DL','LB','DB'].map(pos=>root.App.POS_COLORS[pos]));
+assert.equal(root.App.normPos('EDGE'),'DL','Color labels do not change the existing roster eligibility normalizer');
+console.log('PASS IDP roster icons: imported palettes, defensive family aliases, distinct groups, raw position labels and unchanged eligibility');
+context.document.getElementById=()=>({});
+vm.runInContext(Babel.transform(fs.readFileSync('js/components/wr-primitives.js','utf8'),{presets:['react']}).code,context);
+const linebackerBadge=root.WR.Badge({label:'OLB',kind:'OLB'});
+assert.equal(text(linebackerBadge),'OLB');assert.equal(linebackerBadge.props.style.color,root.App.POS_COLORS.LB,'Shared badges use the canonical defensive color without rewriting the label');
+const secondaryAsset=root.WR.AssetRow({pos:'SS',name:'Strong Safety',slots:[]});
+const secondaryAvatar=find(secondaryAsset,n=>n.props.className==='wr-asset-avatar');
+assert.equal(text(secondaryAvatar),'SS');assert.equal(secondaryAvatar.props.style.color,root.App.POS_COLORS.DB,'Shared player tiles use the same secondary palette');
+const quarterbackAsset=root.WR.AssetRow({pos:'QB',name:'Quarterback',slots:[]});
+assert.equal(find(quarterbackAsset,n=>n.props.className==='wr-asset-avatar').props.style.color,'#F0997B','Existing offense tile colors stay unchanged');

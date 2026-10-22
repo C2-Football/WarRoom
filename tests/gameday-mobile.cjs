@@ -7,7 +7,7 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, forecastsByWeek = {}, scoreRowsByWeek = {}, scoreStatus = 'ready', scoreError = null } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, withBasis = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, forecastsByWeek = {}, scoreRowsByWeek = {}, scoreStatus = 'ready', scoreError = null } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
@@ -22,6 +22,7 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
             if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial;
             return [state[index], update => { const next = typeof update === 'function' ? update(state[index]) : update; if (next !== state[index]) { state[index] = next; changed = true; } }];
         },
+        useRef(initial) { const index = cursor++; if (!(index in state)) state[index] = { current: initial }; return state[index]; },
         useMemo: fn => fn(), useCallback: fn => fn,
         useEffect(fn, next = []) {
             const index = effectCursor++;
@@ -62,8 +63,15 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
         },
     };
     vm.createContext(ctx);
+    const corePositions=fs.readFileSync('js/core.js','utf8');
+    vm.runInContext(corePositions.slice(corePositions.indexOf('    // Position colors —'),corePositions.indexOf('    // Age curves default')),ctx);
+    vm.runInContext(corePositions.slice(corePositions.indexOf('    window.App.normPos ='),corePositions.indexOf('    // posLabel —')),ctx);
     vm.runInContext(fs.readFileSync('js/shared/scoring-visuals.js', 'utf8'), ctx);
     vm.runInContext(fs.readFileSync('js/shared/matchup-score-comparison.js', 'utf8'), ctx);
+    if (withBasis) {
+        ctx.window.App.LeagueStats = { score: raw => raw.pts };
+        vm.runInContext(fs.readFileSync('js/shared/roster-lens-basis.js', 'utf8'), ctx);
+    }
     const savedForecasts = { players: forecasts, persistent: true };
     const forecastsForWeek = week => forecastsByWeek[week] ? { players: forecastsByWeek[week], persistent: true } : savedForecasts;
     ctx.window.App.LineupForecastSnapshots = { read: (league, week) => forecastsForWeek(week), capture: options => { forecastCaptures.push(options.week); return forecastsForWeek(options.week); } };
@@ -78,8 +86,10 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
         initialView,
         rosterView,
         myRoster: { roster_id: 1, starters: ['a', 'b', 'c'], players: ['a', 'b', 'c', 'd'] },
-        currentLeague: { league_id: '123', season: 2026, roster_positions: ['QB', 'RB', 'WR'], rosters: [{ roster_id: 2, owner_id: 'owner2' }], users: [{ user_id: 'owner2', display_name: 'Opponent Name' }] },
+        currentLeague: { league_id: '123', season: 2026, scoring_settings: { pts: 1 }, roster_positions: ['QB', 'RB', 'WR'], rosters: [{ roster_id: 2, owner_id: 'owner2' }], users: [{ user_id: 'owner2', display_name: 'Opponent Name' }] },
         playersData: { a: { full_name: 'Zero Starter', team: 'KC', position: 'QB' }, b: { full_name: 'Negative Starter', team: 'BUF', position: 'RB' }, c: { full_name: 'Missing Starter', team: 'ATL', position: 'WR' }, d: { full_name: 'Bench Option', team: 'NYJ', position: 'QB' } },
+        statsData: { a: { pts: 40, gp: 4, season: 2026 }, b: { pts: -8, gp: 4, season: 2026 }, c: { pts: 0, gp: 4, season: 2026 }, d: { pts: 20, gp: 4, season: 2026 } },
+        statsSeason: 2026,
     };
     async function render() {
         for (let cycle = 0; cycle < 12; cycle++) {
@@ -116,6 +126,15 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert.equal(button(withoutOpponent.out, 'Matchup').props['aria-pressed'], true);
     assert.match(textOf(withoutOpponent.out), /The matchup appears when an opponent and projections are available/, 'Missing opponent context stays in the requested view');
 
+    const idp = await fixture({upcoming:true});
+    idp.props.currentLeague.roster_positions=['DL','LB','DB'];
+    idp.props.playersData.a.position='EDGE';idp.props.playersData.b.position='MLB';idp.props.playersData.c.position='SS';
+    await idp.render();
+    for(const [alias,color] of [['EDGE','var(--k-e67e22, #e67e22)'],['MLB','var(--k-1abc9c, #1abc9c)'],['SS','var(--k-e91e63, #e91e63)']]) {
+        const badge=select(idp.out,n=>n.props.className==='gd-player-initial gd-pos-'+alias.toLowerCase());
+        assert(badge,'Game Day retains '+alias+' as a visible player role');assert.equal(textOf(badge),alias);
+        assert.equal(badge.props.style['--gd-position-ink'],color,'Game Day uses the same defensive family color as My Roster');
+    }
     const active = await fixture();
     const currentWeekOption = all(active.out).find(node => node.type === 'option' && textOf(node) === 'Wk 2 · Current');
     assert(currentWeekOption, 'the phone week picker identifies the current week with its compact label');
@@ -292,6 +311,38 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     assert(!all(select(staleReview.out, matchupPanel)).some(node => node.type === 'em' && /vs pregame/.test(textOf(node))), 'stale actuals lose final variance claims');
     const actualWithoutProjection = await fixture({ initialView: 'matchup', withMatchup: true, noProjection: true });
     assert.match(textOf(select(actualWithoutProjection.out, matchupPanel)), /-2\.50You.*0\.00Them/, 'submitted actual review does not depend on optimizer projections being available');
+
+    // Both MyLineupTab render branches supply the selected league's current
+    // stats and players. The benchmark switch stays local to the comparison;
+    // assignments and stored actual/pregame records remain untouched.
+    for (const noProjection of [false, true]) {
+        const basis = await fixture({ initialView: 'matchup', withMatchup: true, withBasis: true, noProjection });
+        const sourceRoster = JSON.stringify(basis.props.myRoster);
+        const sourceProjections = JSON.stringify(basis.result.projections);
+        const savedBefore = JSON.stringify([...basis.storage]);
+        button(basis.out, 'Projection').props.onClick(); await basis.render();
+        const picker = select(basis.out, node => node.props['aria-label'] === 'Matchup point comparison basis');
+        assert(picker, noProjection ? 'Read-only actual review receives benchmark context without the optimizer' : 'Normal Game Day matchup receives benchmark context');
+        picker.props.onChange({ target: { value: 'average' } }); await basis.render();
+        const panel = select(basis.out, matchupPanel);
+        assert.equal(panel.props['data-score-view'], 'average');
+        assert.match(textOf(panel), /2026 average points/);
+        assert.match(textOf(select(panel, node => node.props.className === 'gd-matchup-totals')), /8\.0You.*—Them/, 'Unreported opponent slots do not become invented empirical zeroes');
+        button(basis.out, 'Show all players').props.onClick(); await basis.render();
+        const myRows = all(select(basis.out, matchupPanel)).filter(node => node.props['data-slot-index'] != null);
+        assert.match(textOf(myRows[0]), /Zero Starter10\.0Avg · 4 games/);
+        assert.match(textOf(myRows[1]), /Negative Starter-2\.0Avg · 4 games/);
+        assert.match(textOf(myRows[2]), /Missing Starter0\.0Avg · 4 games/, 'A verified average zero remains readable');
+        assert.doesNotMatch(textOf(select(basis.out, matchupPanel)), /Win probability|vs pregame/);
+        basis.props.statsSeason = 2025; await basis.render();
+        assert.match(textOf(select(select(basis.out, matchupPanel), node => node.props.className === 'gd-matchup-totals')), /—You.*—Them/, 'The explicitly supplied stats season takes precedence over the league label');
+        basis.props.statsSeason = 2026; await basis.render();
+        button(basis.out, 'Actual vs proj').props.onClick(); await basis.render();
+        assert.match(textOf(select(basis.out, matchupPanel)), /-2\.50You.*0\.00Them/, 'Returning to actuals restores the provider scores');
+        assert.equal(JSON.stringify(basis.props.myRoster), sourceRoster);
+        assert.equal(JSON.stringify(basis.result.projections), sourceProjections);
+        assert.equal(JSON.stringify([...basis.storage]), savedBefore, 'Display selection cannot write lineup plans or captured pregame records');
+    }
 
     // Past matchup review has its own score read and archived baseline. It must
     // not create a past lineup plan or move the live planner into a closed week.

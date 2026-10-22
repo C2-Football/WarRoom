@@ -3441,7 +3441,7 @@
                         || (accountId ? 'account:' + accountId : sleeperUserId ? 'viewer:' + String(sleeperUserId) : '');
                     const check = window.App?.RosterTradeLens?.validateBuilderContext?.(target, {
                         league: currentLeague, roster: myRoster, rosters: allRosters,
-                        userId: sleeperUserId, accountKey, skin: resolvedLeagueSkin, players: playersData,
+                        userId: sleeperUserId, accountKey, skin: resolvedLeagueSkin, players: playersData, basis: target.basis,
                     });
                     window._wrTradeBuilderTarget = null;
                     if (!check?.ok) {

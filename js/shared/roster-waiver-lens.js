@@ -7,8 +7,9 @@
         ? null : Number.isFinite(Number(value)) ? Number(value) : null;
     const idOf = league => String(league?.league_id || league?.id || '');
     const own = (map, key) => Object.prototype.hasOwnProperty.call(map || {}, key);
+    const basisOf = args => App.RosterLensBasis?.normalize?.(args.basis) || (['average','idp-average'].includes(args.basis) ? args.basis:'projected');
     const ids = roster => [...new Set([...(roster?.players || []), ...(roster?.reserve || []), ...(roster?.taxi || [])].filter(x => x != null && String(x) !== '0').map(String))];
-    const norm = pos => App.normPos?.(pos) || ({ DST:'DEF', 'D/ST':'DEF', DE:'DL', DT:'DL', EDGE:'DL', CB:'DB', S:'DB', SS:'DB', FS:'DB', OLB:'LB', ILB:'LB' }[pos] || pos);
+    const norm = pos => App.normPos?.(pos) || App.RosterLensBasis?.position?.(pos) || ({ DST:'DEF', 'D/ST':'DEF', DE:'DL', DT:'DL', NT:'DL', IDL:'DL', EDGE:'DL', CB:'DB', S:'DB', SS:'DB', FS:'DB', OLB:'LB', ILB:'LB', MLB:'LB' }[pos] || pos);
     const typeOf = args => args.skin?.type || App.LeagueSkin?.build?.({league:args.league})?.type
         || ({0:'redraft',1:'keeper',2:'dynasty',3:'chopped'})[args.league?.settings?.type] || 'unknown';
     function account(args) {
@@ -20,12 +21,13 @@
     function scope(args) {
         const league=args.league || {}, owner=account(args);
         const platform=league._platform || (league._mfl ? 'mfl' : league._espn ? 'espn' : league._yahoo ? 'yahoo' : root.S?.platform || 'sleeper');
-        return owner && idOf(league) && league.season ? [owner,platform,idOf(league),league.season].map(encodeURIComponent).join(':') : null;
+        return owner && idOf(league) && league.season ? [owner,platform,idOf(league),league.season,basisOf(args)].map(encodeURIComponent).join(':') : null;
     }
     function result(args, status, reason, extras) {
         return { status, reason, scope:scope(args), week:number(args.week) || App.WeeklyProj?.currentWeek?.() || null,
             candidates:[], readiness:{weekly:false,season:false}, before:null,
-            notice:'Preview only. Review the drop, bid and player locks on your league platform.', ...extras };
+            notice:'Preview only. Review the drop, bid and player locks on your league platform.', ...extras,
+            basis:basisOf(args),basisLabel:App.RosterLensBasis?.describe?.(basisOf(args))?.label || ({projected:'Projected',average:'Avg points','idp-average':'IDP avg'})[basisOf(args)] };
     }
     function restrictions(args) {
         const league=args.league || {}, settings=league.settings || {}, skin=args.skin || {};
@@ -67,6 +69,7 @@
             && (state.scope == null || state.scope === scope(args));
     }
     function verifiedRos(args, week) {
+        if (basisOf(args) !== 'projected') return () => null;
         const state=args.rosState;
         if (!rosMatches(args,week)) return () => null;
         return pid => {
@@ -102,7 +105,9 @@
         const args={...input,priorData:input.priorData || input.priorStatsData || {}};
         const blocked=restrictions(args);
         if (blocked) return result(args,...blocked);
-        const week=number(args.week) || App.WeeklyProj?.currentWeek?.() || null;
+        const basis=basisOf(args), week=number(args.week) || App.WeeklyProj?.currentWeek?.() || null;
+        if (basis !== 'projected' && !App.RosterLensBasis) return result(args,'unavailable','The current-season average comparison service has not loaded.');
+        if (basis !== 'projected') args.projectionsByPid=App.RosterLensBasis.adapt(args);
         if (!(week >= 1 && week <= 18)) return result(args,'unavailable','The current NFL week is unavailable.');
         const players=args.players || {}, owned=new Set(ids(args.roster));
         if (!Object.keys(players).length || [...owned].some(pid => !players[pid]?.position)) return result(args,'unavailable','Player and roster data are still loading.');
@@ -120,7 +125,8 @@
         const excluded=new Set((filters.excludePositions || []).map(norm));
         const beforeWeek=read.beforeWeekly.complete ? number(read.beforeWeekly.total) : null;
         const beforeRos=read.beforeRos?.complete ? number(read.beforeRos.total) : null;
-        if (beforeWeek == null && beforeRos == null) return result(args,'unavailable','Lineup forecasts are incomplete. Missing forecasts stay unknown.');
+        if (beforeWeek == null && beforeRos == null) return result(args,'unavailable',basis === 'projected' ? 'Lineup forecasts are incomplete. Missing forecasts stay unknown.'
+            : basis === 'average' ? 'Current-season average comparisons are incomplete. Missing averages stay unknown.' : 'Current-season averages or required projections are incomplete for this comparison.');
         Object.entries(players).forEach(([pid,p]) => {
             const pos=norm(p.position), value=valueOf(pid);
             if (owned.has(pid) || (counts[pid] || 0) >= copies || !read.rows.some(r => r.pos === pos)
@@ -138,31 +144,34 @@
                 if (seen.has(id)) return;
                 seen.add(id);
                 const asset=(key,player) => ({pid:key,name:player.full_name || [player.first_name,player.last_name].filter(Boolean).join(' ') || key,
-                    position:norm(player.position),team:player.team || null,projection:project(key)});
+                    position:norm(player.position),team:player.team || null,projection:project(key),comparisonBasis:args.projectionsByPid?.[key]?.comparisonBasis || 'projected',
+                    averageGames:args.projectionsByPid?.[key]?.averageGames ?? null,averageSeason:args.projectionsByPid?.[key]?.averageSeason ?? null,averageSource:args.projectionsByPid?.[key]?.averageSource ?? null});
                 const incoming=asset(pid,p), outgoing=dropPid ? asset(dropPid,players[dropPid]) : null;
                 const delta=number(fit.weeklyGain), rosDelta=number(fit.rosGain);
-                const weekly={status:delta != null && beforeWeek != null ? 'ready':'unavailable',before:beforeWeek,after:delta != null && beforeWeek != null ? +(beforeWeek+delta).toFixed(2):null,delta};
-                const season={status:rosDelta != null && beforeRos != null ? 'ready':'unavailable',before:beforeRos,after:rosDelta != null && beforeRos != null ? +(beforeRos+rosDelta).toFixed(1):null,delta:rosDelta,basis:'fixed-roster ROS lineup points'};
+                const weekly={status:delta != null && beforeWeek != null ? 'ready':'unavailable',before:beforeWeek,after:delta != null && beforeWeek != null ? +(beforeWeek+delta).toFixed(2):null,delta,basis};
+                const season={status:rosDelta != null && beforeRos != null ? 'ready':'unavailable',before:beforeRos,after:rosDelta != null && beforeRos != null ? +(beforeRos+rosDelta).toFixed(1):null,delta:rosDelta,basis:'fixed-roster ROS lineup points',
+                    reason:basis !== 'projected' ? 'Current-season averages are historical benchmarks, not rest-of-season forecasts. Choose Projected for a season comparison.':null};
                 const cautions=[];
                 if (p.injury_status) cautions.push('Injury: '+p.injury_status);
                 if (number(p.depth_chart_order) > 1) cautions.push('Depth-chart role may limit opportunity.');
-                if (delta < 0) cautions.push('Lowers this week’s best lineup by '+Math.abs(delta).toFixed(1)+' points.');
+                if (delta < 0) cautions.push((basis === 'projected' ? 'Lowers this week’s best lineup by ':'Lowers the lineup benchmark by ')+Math.abs(delta).toFixed(1)+' points.');
+                if (basis !== 'projected') cautions.push('Current-season averages describe past games and do not forecast next week.');
                 if (rosDelta < 0) cautions.push('Lowers projected ROS lineup points by '+Math.abs(rosDelta).toFixed(1)+'.');
                 const budget=number(args.league.settings?.waiver_budget), spent=number(args.roster.settings?.waiver_budget_used);
                 const price={bid:null,remaining:budget != null && spent != null ? Math.max(0,budget-spent):null,minimum:number(args.league.settings?.waiver_budget_min),basis:'Choose your maximum on the claim plan; no winning bid is predicted.'};
                 candidates.push({id,pid,dropPid,anchorPlayerId:dropPid,player:p,drop:dropPid ? players[dropPid]:null,
                     incoming:[incoming],outgoing:outgoing ? [outgoing]:[],weekly,season,price,cautions,requiresLockCheck:true,
-                    reason:delta > 0 ? '+'+delta.toFixed(1)+' projected lineup points this week.' : '+'+rosDelta.toFixed(1)+' projected ROS lineup points.',
-                    handoff:{pid,dropPid,position:pos,leagueId:idOf(args.league),week,source:'roster-waiver-lens',reason:'Compare '+incoming.name+(outgoing ? ' for '+outgoing.name : ' using an open roster spot')+'. '+(delta == null ? 'Weekly gain unavailable.' : 'Week lineup gain '+(delta>0?'+':'')+delta.toFixed(1)+'.')+(rosDelta == null ? ' ROS gain unavailable.' : ' ROS lineup gain '+(rosDelta>0?'+':'')+rosDelta.toFixed(1)+'.')}});
+                    basis,reason:delta > 0 ? '+'+delta.toFixed(1)+(basis === 'average' ? ' current-season average lineup points.':basis === 'idp-average' ? ' mixed-basis lineup points.':' projected lineup points this week.') : '+'+rosDelta.toFixed(1)+' projected ROS lineup points.',
+                    handoff:{pid,dropPid,position:pos,leagueId:idOf(args.league),week,basis,source:'roster-waiver-lens',reason:'Compare '+incoming.name+(outgoing ? ' for '+outgoing.name : ' using an open roster spot')+'. '+(delta == null ? 'Lineup comparison unavailable.' : (basis === 'projected' ? 'Week lineup gain ':'Average-basis lineup change ')+(delta>0?'+':'')+delta.toFixed(1)+'.')+(basis !== 'projected' ? ' Historical averages are not forecasts.':rosDelta == null ? ' ROS gain unavailable.' : ' ROS lineup gain '+(rosDelta>0?'+':'')+rosDelta.toFixed(1)+'.')}});
             });
         });
         return result(args,candidates.length ? 'ready':'empty',candidates.length ? null:'No confirmed upgrade with the available forecasts.',{
             week,candidates:candidates.sort((a,b) => (b.weekly.delta ?? -Infinity)-(a.weekly.delta ?? -Infinity) || a.id.localeCompare(b.id)),
             readiness:{weekly:beforeWeek != null,season:beforeRos != null},before:{weekly:beforeWeek,season:beforeRos},
-            basis:type === 'chopped' ? 'This-week lineup points; survival probability changes are not modeled.' : 'Best legal lineup before and after one alternative move. ROS holds rosters fixed.'});
+            basisDescription:basis !== 'projected' ? App.RosterLensBasis.describe(basis).description : type === 'chopped' ? 'This-week lineup points; survival probability changes are not modeled.' : 'Best legal lineup before and after one alternative move. ROS holds rosters fixed.'});
     }
     async function load(input) {
-        const args={...input,league:input.league || {},priorData:input.priorData || input.priorStatsData,draft:input.draft || input.briefDraftInfo};
+        let args={...input,league:input.league || {},priorData:input.priorData || input.priorStatsData,draft:input.draft || input.briefDraftInfo};
         args.rosters=args.rosters || args.league.rosters;
         args.week=number(args.week) || App.WeeklyProj?.currentWeek?.();
         const blocked=restrictions(args);
@@ -177,7 +186,7 @@
         args.drafts=args.drafts || (current && sameSeason ? state.drafts:[]) || [];
         args.players=args.players || (current && sameSeason ? state.players:null) || {};
         const fetchStats=async season => typeof root.fetchSeasonStats === 'function' ? await root.fetchSeasonStats(String(season)).catch(()=>({})) : {};
-        const providerPromise=args.projectionsByPid ? Promise.resolve(null) : App.WeeklyProj?.ensureWeekProjections?.(args.week);
+        const providerPromise=args.projectionsByPid || basisOf(args) === 'average' ? Promise.resolve(null) : App.WeeklyProj?.ensureWeekProjections?.(args.week);
         const [stats,prior,providerLines]=await Promise.all([
             args.statsData != null ? args.statsData : current && sameSeason && state.statsData ? state.statsData : fetchStats(args.league.season),
             args.priorData != null ? args.priorData : current && sameSeason && state.priorData ? state.priorData : fetchStats(Number(args.league.season)-1),
@@ -186,8 +195,11 @@
         if (account({}) !== initialAccount || scope(args) !== initialScope
             || current && String(root.S?.currentLeagueId || '') !== idOf(args.league)) return result(args,'unavailable','League or account changed. Open the lens again.');
         args.statsData=stats || {}; args.priorData=prior || {};
+        if (basisOf(args) !== 'projected') args=await (App.RosterLensBasis?.prepare?.(args) || args);
+        if (account({}) !== initialAccount || scope(args) !== initialScope
+            || current && String(root.S?.currentLeagueId || '') !== idOf(args.league)) return result(args,'unavailable','League or account changed. Open the lens again.');
         args.projectionsData=args.projectionsData || (current && sameSeason ? state.projectionsData:null);
-        if (!args.projectionsByPid) {
+        if (!args.projectionsByPid && basisOf(args) !== 'average') {
             args.projectionsByPid={};
             Object.entries(args.players).forEach(([pid,p]) => {
                 const raw=providerLines?.[pid], baseline=projectedVolume(raw)

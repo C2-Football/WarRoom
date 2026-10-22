@@ -3457,6 +3457,7 @@
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     statsData={statsData}
+                    statsSeason={timeYear}
                     stats2025Data={stats2025Data}
                     standings={standings}
                     sleeperUserId={sleeperUserId}
@@ -3491,6 +3492,7 @@
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     statsData={statsData}
+                    statsSeason={timeYear}
                     stats2025Data={stats2025Data}
                     sleeperUserId={sleeperUserId}
                     gmStrategy={gmStrategy}

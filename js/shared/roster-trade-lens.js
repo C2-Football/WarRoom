@@ -15,8 +15,9 @@
     const set = x => new Set(x && typeof x !== 'string' && typeof x[Symbol.iterator] === 'function' ? Array.from(x, str) : []);
     const unavailable = reason => ({ status: 'unavailable', reason, before: null, after: null, delta: null });
     const hash = value => { let h = 2166136261; for (const c of value) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0).toString(36); };
-    const position = p => App.normPos ? App.normPos(p?.position) : App.StartSit?.normSlot(p?.position || '');
+    const position = p => App.normPos ? App.normPos(p?.position) : App.RosterLensBasis?.position?.(p?.position) || App.StartSit?.normSlot(p?.position || '');
     const name = p => p?.full_name || [p?.first_name, p?.last_name].filter(Boolean).join(' ') || 'Player';
+    const basisOf = opts => App.RosterLensBasis?.normalize?.(opts.basis) || (['average', 'idp-average'].includes(opts.basis) ? opts.basis : 'projected');
     function skinFor(opts) {
         if (opts.skin || opts.leagueSkin) return opts.skin || opts.leagueSkin;
         return App.LeagueSkin?.resolve?.({ league: opts.league, rosters: opts.rosters || opts.league?.rosters }) || {};
@@ -28,9 +29,9 @@
             (r.locked_players || []).map(str).sort(), (r.protected_players || []).map(str).sort()]).sort((a, b) => a[0].localeCompare(b[0]))));
         return { accountKey: str(opts.accountKey || opts.userId), platform: str(opts.platform || league._platform ||
             (league._mfl ? 'mfl' : league._espn ? 'espn' : league._yahoo ? 'yahoo' : 'sleeper')),
-        leagueId: str(league.league_id || league.id), season: str(league.season), myRosterId: str(opts.roster?.roster_id), revision };
+        leagueId: str(league.league_id || league.id), season: str(league.season), myRosterId: str(opts.roster?.roster_id), basis: basisOf(opts), revision };
     }
-    function scopeFor(context) { return [VERSION, context.accountKey, context.platform, context.leagueId, context.season, context.myRosterId, context.revision].join('|'); }
+    function scopeFor(context) { return [VERSION, context.accountKey, context.platform, context.leagueId, context.season, context.myRosterId, context.basis || 'projected', context.revision].join('|'); }
     function strategyFor(opts, type) {
         const fx = opts.gm || root.WR?.GmMode?.effects?.(opts.league?.league_id || opts.league?.id) || {};
         const raw = fx.strategy || fx;
@@ -123,7 +124,7 @@
     }
     function directionFor(assessment, type, partnerWeekly) {
         if (type === 'redraft') return { label: partnerWeekly.status === 'ready' && partnerWeekly.delta > 0 ? 'Current-season lineup fit' : 'Current-season value swap', source: 'inferred',
-            reason: partnerWeekly.status === 'ready' ? 'Their projected lineup changes by ' + (partnerWeekly.delta > 0 ? '+' : '') + partnerWeekly.delta + ' points.' : 'Their future lineup impact is unavailable.' };
+            reason: partnerWeekly.status === 'ready' ? (partnerWeekly.basis === 'average' ? 'Their average-lineup benchmark changes by ' : partnerWeekly.basis === 'idp-average' ? 'Their mixed-basis lineup changes by ' : 'Their projected lineup changes by ') + (partnerWeekly.delta > 0 ? '+' : '') + partnerWeekly.delta + ' points.' : 'Their lineup comparison is unavailable.' };
         const tier = str(assessment?.tier).toUpperCase();
         if (tier === 'REBUILDING') return { label: 'Rebuilding profile', source: 'inferred', reason: 'Inferred from the current roster assessment; this is not their saved GM plan.' };
         if (tier === 'ELITE' || tier === 'CONTENDER') return { label: 'Competing profile', source: 'inferred', reason: 'Inferred from the current roster assessment; this is not their saved GM plan.' };
@@ -159,7 +160,8 @@
         const context = contextFor(opts), scope = scopeFor(context), skin = skinFor(opts), type = skin.type || 'unknown', strategy = strategyFor(opts, type);
         const currentWeek = num(opts.currentWeek) ?? num(App.WeeklyProj?.currentWeek?.()) ?? num(root.S?.currentWeek);
         const week = num(opts.week) ?? (currentWeek == null ? null : currentWeek + 1);
-        const base = { version: VERSION, scope, context, inputRevision: opts.revision ?? null, strategy: { mode: strategy.mode, savedMode: strategy.savedMode, savedLabel: strategy.savedLabel, label: strategy.label, source: strategy.source, exploreMode: strategy.exploreMode },
+        const basis = basisOf(opts), basisLabel = App.RosterLensBasis?.describe?.(basis)?.label || ({ projected: 'Projected', average: 'Avg points', 'idp-average': 'IDP avg' })[basis];
+        const base = { version: VERSION, scope, context, basis, basisLabel, inputRevision: opts.revision ?? null, strategy: { mode: strategy.mode, savedMode: strategy.savedMode, savedLabel: strategy.savedLabel, label: strategy.label, source: strategy.source, exploreMode: strategy.exploreMode },
             week, timing: week ? 'First full week after a trade · Week ' + week : 'Trade timing unavailable', candidates: [], before: null,
             notice: 'Possible packages, not agreed prices. One preview at a time; live rosters and your saved GM plan stay unchanged.' };
         const no = (status, reason) => ({ ...base, status, reason });
@@ -169,6 +171,7 @@
         if (!context.accountKey || !context.leagueId || !context.season || !context.myRosterId || !Array.isArray(roster.players)) return no('unavailable', 'The active account, league and roster must finish loading.');
         if (!Number.isInteger(week) || currentWeek == null || week <= currentWeek || week > 18) return no('unavailable', 'A full future NFL week is required for a trade preview.');
         if (!league.scoring_settings || !Object.keys(league.scoring_settings).length || Object.values(league.scoring_settings).some(v => num(v) == null)) return no('unavailable', 'Complete league scoring rules are required.');
+        if (basis !== 'projected' && !App.RosterLensBasis) return no('unavailable', 'The current-season average comparison service has not loaded.');
         const si = rules(league);
         if (si.reason) return no('unavailable', si.reason);
         const live = rosters.find(r => str(r.roster_id) === context.myRosterId);
@@ -179,11 +182,13 @@
         const ownership = {};
         rosters.forEach(r => ids(r).forEach(pid => { ownership[pid] = (ownership[pid] || 0) + 1; }));
         if (rosters.some(r => !Array.isArray(r.players)) || new Set(rosters.map(r => str(r.roster_id))).size !== rosters.length || Object.values(ownership).some(count => count !== 1)) return no('unavailable', 'Complete league rosters with unique player ownership are required.');
-        const projections = opts.projectionsByPid || {}, before = projectLineup(roster, projections, players, league);
-        if (before.status !== 'ready') return { ...no('unavailable', before.reason), before };
+        const projections = basis === 'projected' ? opts.projectionsByPid || {} : App.RosterLensBasis.adapt({ ...opts, players }), before = projectLineup(roster, projections, players, league);
+        if (before.status !== 'ready') return { ...no('unavailable', basis === 'projected' ? before.reason : 'Some active players lack verified current-season averages or required projections for this comparison.'), before };
         const values = valueMapFor({ ...opts, skin }, type, players);
         const asset = pid => ({ pid, id: pid, name: name(players[pid]), pos: position(players[pid]), team: players[pid]?.team || null,
-            age: num(players[pid]?.age), value: num(typeof values[pid] === 'object' ? values[pid]?.value : values[pid]), projection: num(projections[pid]?.points?.median) });
+            age: num(players[pid]?.age), value: num(typeof values[pid] === 'object' ? values[pid]?.value : values[pid]), projection: num(projections[pid]?.points?.median),
+            comparisonBasis: projections[pid]?.comparisonBasis || 'projected', averageGames: projections[pid]?.averageGames ?? null,
+            averageSeason: projections[pid]?.averageSeason ?? null, averageSource: projections[pid]?.averageSource ?? null });
         const ownProtected = protectedFor(roster, opts, strategy);
         const owned = ids(roster).map(asset).filter(a => a.value > 0 && !ownProtected.has(a.pid))
             .sort((a, b) => Number(sellPriority(b, strategy)) - Number(sellPriority(a, strategy)) || b.value - a.value).slice(0, 14);
@@ -211,31 +216,35 @@
                 const giveIds = outgoing.map(a => a.pid), changed = move(roster, giveIds, [target.pid]), changedPartner = move(partnerRoster, [target.pid], giveIds);
                 if (active(changed).length > si.capacity || active(changedPartner).length > si.capacity) return;
                 const after = projectLineup(changed, projections, players, league), weekly = weeklyComparison(before, after, week);
+                weekly.basis = basis; weekly.basisLabel = basisLabel;
                 if (weekly.status !== 'ready' || weekly.openSlotsAfter > weekly.openSlotsBefore) return;
                 const ages = outgoing.map(a => a.age), avgAge = ages.every(a => a != null) ? ages.reduce((sum, a) => sum + a, 0) / ages.length : null;
                 const ageDifference = avgAge == null || target.age == null ? null : round(avgAge - target.age);
                 if (strategy.mode === 'rebuild' ? ageDifference == null || ageDifference < 3 : weekly.delta <= 0.1) return;
                 const partnerWeekly = weeklyComparison(partnerBefore, projectLineup(changedPartner, projections, players, league), week);
+                partnerWeekly.basis = basis;
                 if (partnerWeekly.status === 'ready' && partnerWeekly.openSlotsAfter > partnerWeekly.openSlotsBefore) return;
                 const direction = directionFor(assessment, type, partnerWeekly);
                 const timelineFit = { matched: type !== 'redraft' && (strategy.mode === 'rebuild' ? direction.label === 'Competing profile' && ageDifference >= 3
                     : direction.label === 'Rebuilding profile' && ageDifference != null && ageDifference < 0 && weekly.delta > 0), source: 'inferred',
                 reason: strategy.mode === 'rebuild' ? 'Their competing roster profile may value present production while you receive a younger asset.'
                     : 'An older productive target on a rebuilding roster profile may fit your nearer-term window.' };
-                const reason = timelineFit.matched ? timelineFit.reason : strategy.mode === 'rebuild' ? 'A younger asset fits your rebuild; the current lineup cost is shown explicitly.'
+                const reason = basis === 'average' ? 'Compares legal lineups using current-season average points. Historical production is not a forecast.'
+                    : basis === 'idp-average' ? 'Uses current-season averages for IDPs and weekly projections for other players.' : timelineFit.matched ? timelineFit.reason : strategy.mode === 'rebuild' ? 'A younger asset fits your rebuild; the current lineup cost is shown explicitly.'
                     : type === 'redraft' ? 'Improves your next full-week lineup under this league’s scoring.' : 'Adds immediate starting-lineup help while showing the dynasty value you give up.';
                 const caution = [];
-                if (weekly.delta < 0) caution.push('You give up projected production now.');
+                if (weekly.delta < 0) caution.push(basis === 'projected' ? 'You give up projected production now.' : 'This comparison lowers your lineup benchmark.');
                 if (outgoing.length > 1) caution.push('Consolidating two players reduces your depth.');
                 if (give > receive) caution.push('You send more ' + (type === 'redraft' ? 'season value' : 'DHQ value') + ' than you receive.');
                 if (type !== 'redraft' && target.age != null && target.age > (num(App.ageCurveWindows?.[target.pos]?.peak?.[1]) ?? 99)) caution.push('The incoming player is beyond the position’s typical peak-age range.');
                 if (partnerWeekly.status !== 'ready') caution.push('The other team’s lineup impact is incomplete.');
                 const id = [context.myRosterId, str(partnerRoster.roster_id), giveIds.slice().sort().join(','), target.pid].join(':');
                 const c = { id, kind: 'trade', anchorPlayerId: outgoing[0].pid, incoming: [target], outgoing, partner: { rosterId: partnerRoster.roster_id, ownerId: partnerRoster.owner_id,
-                    name: partnerName, direction, scouting: scouting || null }, weekly, partnerWeekly, season: unavailable(type === 'redraft' ? 'Remaining-season evidence has not been loaded.' : 'Multi-year outcomes are not simulated.'),
+                    name: partnerName, direction, scouting: scouting || null }, basis, basisLabel, weekly, partnerWeekly,
+                season: unavailable(basis !== 'projected' ? 'Current-season averages are historical benchmarks, not rest-of-season forecasts. Choose Projected for a season comparison.' : type === 'redraft' ? 'Remaining-season evidence has not been loaded.' : 'Multi-year outcomes are not simulated.'),
                 price: { give, receive, delta: receive - give, unit: type === 'redraft' ? 'season value' : 'DHQ' }, futureFit: { ageDifference, outgoingAverageAge: avgAge, incomingAge: target.age,
                     label: ageDifference == null ? 'Age comparison unavailable' : ageDifference > 0 ? 'Younger roster asset' : ageDifference < 0 ? 'Older roster asset' : 'Similar age', source: 'roster ages; development is not forecast' },
-                reason, timelineFit, cautions: caution, targetPriority: strategy.targetPositions.has(target.pos), sellPriority: outgoing.some(a => sellPriority(a, strategy)) };
+                reason, timelineFit, cautions: caution.concat(basis !== 'projected' ? ['Historical averages do not predict next week or the remaining season.'] : []), targetPriority: strategy.targetPositions.has(target.pos), sellPriority: outgoing.some(a => sellPriority(a, strategy)) };
                 c.builderContext = { kind: 'roster-lens-package', source: 'roster-trade-lens', ...context, currentWeek, week, partnerRosterId: str(partnerRoster.roster_id), givePlayerIds: giveIds, receivePlayerIds: [target.pid] };
                 suggestions.push(c);
             }));
@@ -248,13 +257,14 @@
         opts = opts || {};
         const league = opts.league || {}, rosters = opts.rosters || league.rosters || [], players = opts.players || opts.playersData || {}, skin = skinFor(opts);
         const currentWeek = num(opts.currentWeek) ?? num(App.WeeklyProj?.currentWeek?.()) ?? num(root.S?.currentWeek), week = num(opts.week) ?? (currentWeek == null ? null : currentWeek + 1);
-        const args = { ...opts, league: { ...league, rosters }, rosters, players, skin, currentWeek, week };
+        let args = { ...opts, league: { ...league, rosters }, rosters, players, skin, currentWeek, week };
         if (!args.projectionsByPid) {
             const preflight = build(args);
             if (preflight.status === 'disabled' || (preflight.status === 'unavailable' && !preflight.before)) return preflight;
         }
         // A supplied projection snapshot is isolated; otherwise verify the NFL season before fetching.
-        if (!args.projectionsByPid && App.WeeklyProj?.projectPlayer && str(root.S?.nflState?.season) === str(league.season) && week > currentWeek && week <= 18) {
+        if (basisOf(args) !== 'projected') args = await (App.RosterLensBasis?.prepare?.(args) || args);
+        if (basisOf(args) !== 'average' && !args.projectionsByPid && App.WeeklyProj?.projectPlayer && str(root.S?.nflState?.season) === str(league.season) && week > currentWeek && week <= 18) {
             let provider = {};
             try {
                 const fetcher = opts.fetcher || root.fetch;
@@ -291,6 +301,7 @@
         };
         const invalid = valid();
         if (invalid) return no(invalid);
+        if (basisOf(opts) !== 'projected') return no('Current-season averages are historical benchmarks, not rest-of-season forecasts. Choose Projected for a season comparison.');
         if (skin.type !== 'redraft') return no('Remaining-season trade points are available for in-season redraft only; multi-year outcomes are not simulated.');
         if (str(root.S?.nflState?.season) !== str(league.season) || !(skin.phase === 'in_season' || (!skin.phase && league.status === 'in_season'))) return no('A verified current-season redraft context is required.');
         if (!App.TradeSeasonImpact?.prepare || !App.TradeSeasonImpact?.analyze) return no('The remaining-season projection service has not loaded.');
@@ -312,7 +323,7 @@
     function validateBuilderContext(target, opts) {
         const current = contextFor(opts || {}), bad = reason => ({ ok: false, reason });
         if (target?.kind !== 'roster-lens-package' || !target.accountKey || !current.accountKey) return bad('This trade preview has no active account context.');
-        for (const field of ['accountKey', 'platform', 'leagueId', 'season', 'myRosterId', 'revision']) if (str(target[field]) !== str(current[field])) return bad('The account, league or roster changed. Refresh the trade lens before opening this package.');
+        for (const field of ['accountKey', 'platform', 'leagueId', 'season', 'myRosterId', 'basis', 'revision']) if (str(target[field]) !== str(current[field])) return bad('The account, league, roster or comparison basis changed. Refresh the trade lens before opening this package.');
         const skin = skinFor(opts), league = opts.league || {}, rosters = opts.rosters || league.rosters || [];
         const currentWeek = num(opts.currentWeek) ?? num(App.WeeklyProj?.currentWeek?.()) ?? num(root.S?.currentWeek);
         if (num(target.currentWeek) !== currentWeek || num(target.week) == null || Number(target.week) <= currentWeek) return bad('The NFL week changed. Refresh this trade preview before opening its package.');

@@ -212,6 +212,12 @@ test('Builder receiver replaces complete packages and rejects another account be
     assert.deepEqual(value('setTradeFaab'), { A: 0, B: 0 });
     assert.equal(value('setBuilderPlayerContext'), null, 'a whole-package entry has no fake player-details context');
     assert.equal(value('setPhBuilderOpen'), true);
+    calls.length = 0;
+    state.openPackage({ detail: { ...candidate.builderContext, basis: 'average' } });
+    assert(calls.some(row => row[0] === 'setTradeIds'), 'the receiver preserves an average-basis package instead of validating it as projected');
+    calls.length = 0;
+    state.openPackage({ detail: { ...candidate.builderContext, basis: 'not-a-basis' } });
+    assert.equal(calls.length, 1); assert.equal(calls[0][0], 'setDealHqNotice', 'unknown comparison basis cannot load a package');
 });
 
 test('opposite inferred timelines add a transparent ranking preference without pretending the owner declared a plan', () => {
