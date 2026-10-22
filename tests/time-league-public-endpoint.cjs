@@ -304,6 +304,51 @@ async function loadTs(file) {
     row = beforeBids; userId = 'u1';
     console.log('PASS: actual endpoint two-manager sealed FAAB privacy, concurrent conflict/reload/retry, own-seat permissions, one-time settlement and reconnect');
 
+    // Reconnect with the current version, then replay an old cancellation
+    // intent. Version checks alone cannot protect a newly reused claim ID.
+    const beforeAcquisitions = structuredClone(row);
+    const replacementTarget = E.freeAgents(row.state, cards).find(card => card.position === 'QB');
+    const quarterback = row.state.teams[0].roster.find(entry => entry.position === 'QB');
+    const replacementClaim = { type: 'claim', teamId: 't1', identity: replacementTarget.identity, dropEntryId: quarterback.entryId };
+    success(await act(replacementClaim));
+    const cancelledId = row.state.pendingClaims.at(-1).claimId;
+    success(await act({ type: 'cancel-claim', claimId: cancelledId }));
+    success(await request({ op: 'load' }));
+    success(await act(replacementClaim));
+    const replacementId = row.state.pendingClaims.at(-1).claimId;
+    assert.notEqual(replacementId, cancelledId, 'A replacement claim has a new durable intent ID');
+    const refiled = structuredClone(row);
+    assert.equal((await act({ type: 'cancel-claim', claimId: cancelledId })).status, 400, 'An old cancellation is denied even at the latest row version');
+    assert.deepEqual(row, refiled, 'The new claim and version survive the stale intent');
+    row = structuredClone(beforeAcquisitions);
+
+    // The authoritative response must reject an impossible lineup before
+    // moving either manager's players. Proposal planning remains open: a
+    // manager can still acquire a replacement before the response gate.
+    const host = row.state.teams[0], friend = row.state.teams[1];
+    const required = host.roster.find(entry => entry.position !== 'QB'
+        && row.state.settings.rosterSlots[entry.position] > 0
+        && host.roster.filter(other => other.position === entry.position).length === 1);
+    assert(required, 'The real archive draft has a required-position exchange fixture');
+    const incompatible = friend.roster.find(entry => entry.position !== required.position && entry.position !== 'QB');
+    assert(incompatible, 'The other manager can offer an incompatible replacement');
+    success(await act({ type: 'trade', teamId: 't1', toTeamId: 't2', giveEntryIds: [required.entryId], receiveEntryIds: [incompatible.entryId] }));
+    const impossibleId = row.state.trades.at(-1).tradeId;
+    success(await act({ type: 'process-claims' }));
+    const beforeResponse = structuredClone(row.state.teams);
+    userId = 'u2'; success(await act({ type: 'respond-trade', tradeId: impossibleId, accept: true }));
+    assert.deepEqual(row.state.teams, beforeResponse, 'Impossible acceptance preserves every roster and budget');
+    const declined = row.state.trades.find(trade => trade.tradeId === impossibleId);
+    assert.equal(declined.status, 'withdrawn');
+    assert.match(declined.note, /cannot field a legal roster/);
+    const deniedVersion = row.version;
+    assert.equal((await act({ type: 'respond-trade', tradeId: impossibleId, accept: true })).status, 400);
+    assert.equal(row.version, deniedVersion, 'Repeating the resolved response cannot process it again');
+    const reconnected = success(await request({ op: 'load' })).row.state;
+    assert.equal(reconnected.trades.find(trade => trade.tradeId === impossibleId).status, 'withdrawn');
+    row = beforeAcquisitions; userId = 'u1';
+    console.log('PASS: authoritative claim intent IDs survive reconnect/refile; impossible trade acceptance preserves both rosters and settles once');
+
     const target = E.freeAgents(row.state, cards).at(-1);
     const nowPrepared = await sealed.prepareSealedDraws(row.state, cards, secret);
     assert.deepEqual(Object.keys(nowPrepared.privateDraws), ['waiver']);

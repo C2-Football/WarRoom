@@ -1847,7 +1847,7 @@
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
                         : loadingNotice)
                     : null,
 

@@ -75,9 +75,9 @@
 
     const nextId = (prefix, ids) => `${prefix}${ids.reduce((max, id) => Math.max(max, idNumber(id, prefix)), 0) + 1}`;
 
-    const appendEvents = (activity) => {
+    const appendEvents = (activity, minimumId = 0) => {
         const events = [...activity];
-        let last = events.reduce((max, event) => Math.max(max, idNumber(event.id, "a")), 0);
+        let last = events.reduce((max, event) => Math.max(max, idNumber(event.id, "a")), minimumId);
         return {
             push(week, kind, message, createdAt) {
                 last += 1;
@@ -855,29 +855,44 @@
             .sort((left, right) => right.peak - left.peak || left.identity.localeCompare(right.identity));
     }
 
-    function submitWaiverClaim(state, claim, createdAt) {
-        if (state.phase !== "season" || !state.settings.waiversEnabled || !claim.addIdentity) return state;
+    // Public roster facts only: this validation must be safe on a sealed online
+    // snapshot as well as the authoritative local state. Pool membership is
+    // checked by Actions after its planning/ownership privacy gate.
+    function waiverClaimProblem(state, claim) {
+        if (state.phase !== "season" || !state.settings.waiversEnabled) return "Waiver claims open during the season.";
+        if (!claim.addIdentity) return "Choose a free agent.";
         const team = state.teams.find((item) => item.teamId === claim.teamId);
-        if (!team) return state;
-        if (state.pendingClaims.some((item) => item.teamId === claim.teamId && item.addIdentity === claim.addIdentity)) return state;
+        if (!team) return "Team not found.";
+        if (state.pendingClaims.some((item) => item.teamId === claim.teamId && item.addIdentity === claim.addIdentity)) return "You already have a claim for this player.";
         const dropTarget = claim.dropEntryId ? team.roster.find((entry) => entry.entryId === claim.dropEntryId) : undefined;
-        if (claim.dropEntryId && !dropTarget) return state;
+        if (claim.dropEntryId && !dropTarget) return "The selected drop is no longer on your roster.";
         if (claim.addPosition === "QB") {
             const quarterbacks = team.roster.filter((entry) => entry.position === "QB" && entry.entryId !== claim.dropEntryId).length;
-            if (quarterbacks >= state.settings.maxQuarterbacks) return state;
+            if (quarterbacks >= state.settings.maxQuarterbacks) return "Quarterback limit reached. Select a quarterback to drop.";
         }
         const faab = state.settings.waiverMode === "faab";
-        let bidAmount = 0;
         if (faab) {
-            bidAmount = Math.floor(claim.bidAmount ?? 0);
-            if (!Number.isFinite(bidAmount) || bidAmount < 0) return state;
+            const bidAmount = Math.floor(claim.bidAmount ?? 0);
+            if (!Number.isFinite(bidAmount) || bidAmount < 0) return "Use a nonnegative FAAB bid.";
             // Every live claim from this desk reserves its bid against the same
             // budget, so a second claim can't spend money the first already holds.
             const reserved = state.pendingClaims.filter((item) => item.teamId === claim.teamId).reduce((sum, item) => sum + (item.bidAmount ?? 0), 0);
-            if (bidAmount + reserved > (team.faabRemaining ?? 0)) return state;
+            if (bidAmount + reserved > (team.faabRemaining ?? 0)) return "This bid exceeds your budget after pending bids are reserved.";
         }
+        return null;
+    }
+
+    function submitWaiverClaim(state, claim, createdAt) {
+        if (waiverClaimProblem(state, claim)) return state;
+        const team = state.teams.find((item) => item.teamId === claim.teamId);
+        const faab = state.settings.waiverMode === "faab";
+        const bidAmount = faab ? Math.floor(claim.bidAmount ?? 0) : 0;
+        // Every submission has a durable activity entry, even after cancellation
+        // or settlement removes its pending row. Reuse that existing sequence so
+        // an old cancel intent can never refer to a newly filed claim.
+        const claimId = nextId("w", [...state.pendingClaims.map((item) => item.claimId), ...state.activity.map(event => `w${idNumber(event.id, "a")}`)]);
         const record = {
-            claimId: nextId("w", state.pendingClaims.map((item) => item.claimId)),
+            claimId,
             teamId: claim.teamId,
             addIdentity: claim.addIdentity,
             addName: claim.addName,
@@ -886,7 +901,7 @@
             week: state.currentWeek,
             ...(faab ? { bidAmount } : {}),
         };
-        const events = appendEvents(state.activity);
+        const events = appendEvents(state.activity, idNumber(claimId, "w") - 1);
         events.push(state.currentWeek, "waiver", faab
             ? `Waivers — ${team.name} bids $${bidAmount} for ${claim.addName}`
             : `Waivers — ${team.name} files a claim for ${claim.addName}`, createdAt);
@@ -911,7 +926,7 @@
 
     function processWaivers(state, cards, createdAt) {
         cards = cardsFor(state, cards);
-        if (!state.pendingClaims.length) return state;
+        if (!state.pendingClaims.length) return retireStaleTrades(state, createdAt);
         let hiddenBook = {};
         const faab = state.settings.waiverMode === "faab";
         const priority = computeStandings(state).map((standing) => standing.teamId).reverse();
@@ -938,22 +953,22 @@
             // dies here rather than smuggling an out-of-era player onto a roster.
             const drawnSeason = waiverSeason(state, card, claim.week);
             if (!team || !card || drawnSeason === null) {
-                events.push(week, "waiver", `Waivers W${week} — claim on ${claim.addName} voided`, createdAt);
+                events.push(week, "waiver", `Waivers W${week} — claim on ${claim.addName} voided (player or eligible season unavailable)`, createdAt);
                 continue;
             }
             if (taken.has(claim.addIdentity)) {
-                events.push(week, "waiver", `Waivers W${week} — ${team.name} misses ${card.name}${faab ? " (outbid)" : ""}`, createdAt);
+                events.push(week, "waiver", `Waivers W${week} — ${team.name} misses ${card.name} (already rostered${faab ? " or awarded to an earlier bid" : " or awarded to an earlier claim"})`, createdAt);
                 continue;
             }
             const dropEntry = claim.dropEntryId ? team.roster.find((entry) => entry.entryId === claim.dropEntryId) ?? null : null;
             if (claim.dropEntryId && !dropEntry) {
-                events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided`, createdAt);
+                events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided (selected drop already used or no longer rostered)`, createdAt);
                 continue;
             }
             const afterDrop = dropEntry ? team.roster.filter((entry) => entry.entryId !== dropEntry.entryId) : team.roster;
             const landingSlot = waiverLandingSlot(state, team, card.position, claim.dropEntryId);
             if (!landingSlot) {
-                events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided`, createdAt);
+                events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided (no eligible roster slot after the selected drop)`, createdAt);
                 continue;
             }
             if (card.position === "QB" && afterDrop.filter((entry) => entry.position === "QB").length >= state.settings.maxQuarterbacks) {
@@ -989,7 +1004,78 @@
             if (dropEntry) taken.delete(dropEntry.identity);
             events.push(week, "waiver", `Waivers W${week} — ${team.name} lands ${card.name}${faab ? ` ($${bidAmount})` : ""}${dropEntry ? `, drops ${dropEntry.name}` : ""}`, createdAt);
         }
-        return { ...state, ...hiddenBook, teams, pendingClaims: [], waiverResults: [...(state.waiverResults || []), ...awards], activity: events.list() };
+        return retireStaleTrades({ ...state, ...hiddenBook, teams, pendingClaims: [], waiverResults: [...(state.waiverResults || []), ...awards], activity: events.list() }, createdAt);
+    }
+
+    // Feasibility is independent of a manager's current manual lineup and of
+    // every hidden season/value. All eligible entries may move between active
+    // and reserve seats through the existing lineup controls.
+    // Supported eligibility sets are nested or disjoint, so narrow sets first
+    // find a legal assignment without consulting projections or enumerating
+    // possible lineups.
+    function rosterFeasibility(roster, settings) {
+        const problems = [], slots = [];
+        const reserved = entry => entry.slot === 'IR' || entry.slot === 'TAXI';
+        const remaining = roster.slice().sort((a, b) => Number(reserved(a)) - Number(reserved(b)) || a.entryId.localeCompare(b.entryId));
+        for (const slot of STARTER_SLOT_ORDER.slice().sort((a, b) => SLOT_ELIGIBILITY[a].length - SLOT_ELIGIBILITY[b].length)) {
+            let missing = 0;
+            for (let n = 0; n < (settings.rosterSlots[slot] || 0); n++) {
+                const index = remaining.findIndex(entry => SLOT_ELIGIBILITY[slot].includes(entry.position));
+                if (index < 0) { missing++; continue; }
+                slots.push({ entryId: remaining.splice(index, 1)[0].entryId, slot });
+            }
+            if (missing) problems.push(missing > 1 ? `${slot} needs ${missing} eligible players` : `${slot} needs an eligible player`);
+        }
+        const room = new Map(['BN', 'IR', 'TAXI'].map(slot => [slot, settings.rosterSlots[slot] || 0]));
+        for (const entry of remaining) {
+            const preferences = [...new Set([entry.slot, 'BN', 'IR', 'TAXI'])];
+            const slot = preferences.find(candidate => room.get(candidate) > 0 && SLOT_ELIGIBILITY[candidate].includes(entry.position));
+            if (!slot) { problems.push('Not enough bench or reserve space after filling the starting lineup'); continue; }
+            room.set(slot, room.get(slot) - 1);
+            slots.push({ entryId: entry.entryId, slot });
+        }
+        if (roster.filter(entry => entry.position === 'QB').length > settings.maxQuarterbacks) problems.push('Quarterback limit exceeded');
+        return { legal: problems.length === 0, problems, slots };
+    }
+
+    const tradeOwnershipProblem = (state, offer) => {
+        const from = state.teams.find((item) => item.teamId === offer.fromTeamId);
+        const to = state.teams.find((item) => item.teamId === offer.toTeamId);
+        if (!from || !to) return 'A team in this offer is no longer available.';
+        const owns = (team, ids) => ids.every((id) => team.roster.some((entry) => entry.entryId === id));
+        return owns(from, offer.giveEntryIds) && owns(to, offer.receiveEntryIds) ? null : 'An offered player is no longer on the original roster.';
+    };
+
+    function tradeProblem(state, offer) {
+        if (state.phase !== 'season' || !state.settings.tradesEnabled) return 'Trades open during the season.';
+        const from = state.teams.find((item) => item.teamId === offer.fromTeamId);
+        const to = state.teams.find((item) => item.teamId === offer.toTeamId);
+        if (!from || !to) return 'A team in this offer is no longer available.';
+        if (from.teamId === to.teamId) return 'Choose another team to trade with.';
+        if (!Array.isArray(offer.giveEntryIds) || !Array.isArray(offer.receiveEntryIds)) return 'Choose players on both sides of the trade.';
+        const give = [...new Set(offer.giveEntryIds)], receive = [...new Set(offer.receiveEntryIds)];
+        if (!give.length || give.length !== offer.giveEntryIds.length || receive.length !== offer.receiveEntryIds.length || give.length !== receive.length) return 'Trade the same number of different players on both sides.';
+        const ownershipProblem = tradeOwnershipProblem(state, offer);
+        if (ownershipProblem) return ownershipProblem;
+        // Build only public fields. A helper called while browsing an offer
+        // must not accidentally spread a sealed entry's assigned year.
+        const publicEntry = (entry, incoming = false) => ({ entryId: entry.entryId, identity: entry.identity, position: entry.position, slot: incoming ? 'BN' : entry.slot });
+        const fromRoster = [...from.roster.filter(entry => !give.includes(entry.entryId)).map(entry => publicEntry(entry)), ...to.roster.filter(entry => receive.includes(entry.entryId)).map(entry => publicEntry(entry, true))];
+        const toRoster = [...to.roster.filter(entry => !receive.includes(entry.entryId)).map(entry => publicEntry(entry)), ...from.roster.filter(entry => give.includes(entry.entryId)).map(entry => publicEntry(entry, true))];
+        if ([fromRoster, toRoster].some(roster => roster.filter(entry => entry.position === 'QB').length > state.settings.maxQuarterbacks)) return 'This trade would exceed the quarterback limit.';
+        for (const [team, roster] of [[from, fromRoster], [to, toRoster]]) {
+            const feasibility = rosterFeasibility(roster, state.settings);
+            if (!feasibility.legal) return `${team.name} cannot field a legal roster after this trade: ${feasibility.problems.join('; ')}.`;
+        }
+        return null;
+    }
+
+    function retireStaleTrades(state, createdAt) {
+        const stale = state.trades.filter(trade => trade.status === 'pending' && tradeOwnershipProblem(state, trade));
+        if (!stale.length) return state;
+        const events = appendEvents(state.activity), ids = new Set(stale.map(trade => trade.tradeId));
+        for (const trade of stale) events.push(state.currentWeek, 'trade', `Trade ${trade.tradeId} withdrawn — ${tradeOwnershipProblem(state, trade)}`, createdAt);
+        return { ...state, trades: state.trades.map(trade => ids.has(trade.tradeId) ? { ...trade, status: 'withdrawn', respondedWeek: state.currentWeek, note: `Withdrawn — ${tradeOwnershipProblem(state, trade)}` } : trade), activity: events.list() };
     }
 
     function proposeTrade(state, offer, createdAt) {
@@ -997,11 +1083,11 @@
         const from = state.teams.find((item) => item.teamId === offer.fromTeamId);
         const to = state.teams.find((item) => item.teamId === offer.toTeamId);
         if (!from || !to || from.teamId === to.teamId) return state;
+        if (!Array.isArray(offer.giveEntryIds) || !Array.isArray(offer.receiveEntryIds)) return state;
         const give = [...new Set(offer.giveEntryIds)];
         const receive = [...new Set(offer.receiveEntryIds)];
         if (!give.length || give.length !== offer.giveEntryIds.length || receive.length !== offer.receiveEntryIds.length || give.length !== receive.length) return state;
-        const owns = (team, ids) => ids.every((id) => team.roster.some((entry) => entry.entryId === id));
-        if (!owns(from, give) || !owns(to, receive)) return state;
+        if (tradeOwnershipProblem(state, offer)) return state;
         const trade = {
             tradeId: nextId("tr", state.trades.map((item) => item.tradeId)),
             fromTeamId: from.teamId,
@@ -1027,6 +1113,7 @@
     function respondToTrade(state, tradeId, accept, note, createdAt) {
         const trade = state.trades.find((item) => item.tradeId === tradeId);
         if (!trade || trade.status !== "pending" || trade.deferredUntilWeek > state.currentWeek) return state;
+        if (accept && tradeOwnershipProblem(state, trade)) return retireStaleTrades(state, createdAt);
         const from = state.teams.find((item) => item.teamId === trade.fromTeamId);
         const to = state.teams.find((item) => item.teamId === trade.toTeamId);
         if (!from || !to) return state;
@@ -1055,6 +1142,11 @@
                 activity: events.list(),
             };
         }
+        const problem = tradeProblem(state, trade);
+        if (problem) {
+            events.push(state.currentWeek, 'trade', `Trade ${trade.tradeId} withdrawn — ${problem}`, createdAt);
+            return { ...state, trades: state.trades.map(item => item.tradeId === tradeId ? { ...item, status: 'withdrawn', respondedWeek: state.currentWeek, note: `Withdrawn — ${problem}` } : item), activity: events.list() };
+        }
         const moved = (entry) => ({ ...entry, slot: "BN", acquiredVia: "trade", acquiredWeek: state.currentWeek });
         const fromRoster = [...from.roster.filter((entry) => !trade.giveEntryIds.includes(entry.entryId)), ...receiveEntries.map(moved)];
         const toRoster = [...to.roster.filter((entry) => !trade.receiveEntryIds.includes(entry.entryId)), ...giveEntries.map(moved)];
@@ -1064,7 +1156,7 @@
             `Trade — ${from.name} sends ${giveEntries.map((entry) => entry.name).join(", ")} for ${receiveEntries.map((entry) => entry.name).join(", ")}`,
             createdAt,
         );
-        return {
+        return retireStaleTrades({
             ...state,
             teams: state.teams.map((item) => (
                 item.teamId === from.teamId ? { ...item, roster: fromRoster }
@@ -1073,7 +1165,7 @@
             )),
             trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "accepted", respondedWeek: state.currentWeek, note: nextNote } : item)),
             activity: events.list(),
-        };
+        }, createdAt);
     }
 
     // ----- storage normalization ------------------------------------------------
@@ -1462,8 +1554,8 @@
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems, weekParticipation, lineupReadiness,
-        finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
+        finalizeCurrentWeek, computeStandings, freeAgents, waiverClaimProblem, submitWaiverClaim, cancelWaiverClaim,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, rosterFeasibility, tradeProblem, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

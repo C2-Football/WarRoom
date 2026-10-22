@@ -291,3 +291,33 @@
 }
 .tl-root.tl-play .tl-roster-fill-help { margin:0 0 14px; max-width:75ch; color:var(--text-secondary); font-size:14px; line-height:1.5; }
 .tl-root.tl-play .tl-lineup-guidance > .tl-btn { display:block; margin-top:12px; min-height:44px; }
+
+/* Acquisition decisions keep legality, commitment and saved outcomes together. */
+.tl-root.tl-play .tl-acq-help { margin:8px 0; color:var(--text-secondary); font-size:13px; line-height:1.5; }
+.tl-root.tl-play .tl-acq-notice,.tl-root.tl-play .tl-acq-problem { padding:12px 14px; border:1px solid var(--gold); border-radius:10px; color:var(--white); font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-acq-notice { border-color:var(--mint); background:var(--black); }
+.tl-root.tl-play .tl-acq-notice > strong { display:block; font-size:16px; }
+.tl-root.tl-play .tl-acq-notice p,.tl-root.tl-play .tl-acq-problem p { margin:8px 0; }
+.tl-root.tl-play .tl-acq-notice .tl-btn,.tl-root.tl-play .tl-acq-problem .tl-btn { min-height:44px; margin-top:4px; }
+.tl-root.tl-play .tl-pending-claims:focus { outline:2px solid var(--mint); outline-offset:3px; }
+.tl-root.tl-play .tl-pending-claim-list { margin:12px 0; padding:0; list-style:none; }
+.tl-root.tl-play .tl-pending-claim { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:12px; padding:14px 0; border-top:1px solid var(--charcoal); }
+.tl-root.tl-play .tl-pending-claim > div { min-width:0; }
+.tl-root.tl-play .tl-pending-claim strong,.tl-root.tl-play .tl-pending-claim span,.tl-root.tl-play .tl-pending-claim small { display:block; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-pending-claim strong { margin:4px 0; font-size:14px; }
+.tl-root.tl-play .tl-pending-claim span { color:var(--text-secondary); font-size:13px; line-height:1.5; }
+.tl-root.tl-play .tl-pending-claim small { color:var(--text-muted); font-size:12px; }
+.tl-root.tl-play .tl-pending-claim-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.tl-root.tl-play .tl-pending-claim-actions .tl-btn { min-height:44px; max-width:100%; white-space:normal; }
+.tl-root.tl-play .tl-waiver-receipt > ul { margin:10px 0; padding-left:20px; font-size:14px; line-height:1.5; }
+.tl-root.tl-play .tl-waiver-receipt summary { display:flex; align-items:center; min-height:44px; cursor:pointer; font-size:13px; color:var(--text-secondary); }
+.tl-root.tl-play .tl-waiver-record { max-height:260px; overflow:auto; padding:0 0 0 20px; font-size:13px; line-height:1.5; }
+.tl-root.tl-play .tl-waiver-record li { margin-bottom:8px; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-trade-receipt { margin:12px 0; }
+.tl-root.tl-play .tl-waiver-submit .tl-claim-submit-problem { grid-column:1/-1; margin:0 0 4px; padding:0; border:0; border-radius:0; color:var(--gold); font-size:13px; line-height:1.4; }
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-pending-claim { grid-template-columns:minmax(0,1fr); }
+  .tl-root.tl-play .tl-pending-claim-actions .tl-btn { flex:1; }
+  .tl-root.tl-play .tl-waiver-command .tl-card { min-width:0; }
+  .tl-root.tl-play .tl-waiver-target-signals .tl-signal-label-full { white-space:normal; }
+}

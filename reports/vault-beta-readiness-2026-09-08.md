@@ -395,6 +395,119 @@ included in `npm run test:timeleague`. Remaining priorities are the hosted
 multi-account and physical-device acceptance already listed above, human pacing
 observations, and separately scoped backup/export work.
 
+### Continued slice: acquisition decisions and settlement
+
+Continued from clean checkpoint `b9dbf36` at the user's request. This finite
+slice completes existing waiver/trade transactions and their explanations.
+Baseline reproduction found reused canceled claim IDs, a human trade that
+could strand the final lineup gate, misleading quarterback-cap save errors,
+conflicting archive/Vault points labels and silent trade-response outcomes.
+No new acquisition system, economy, reorder mechanic or historical data.
+
+| Requirement | Status | Completion criteria |
+|---|---|---|
+| Durable transaction identities and stale offers | VERIFIED | 14 integrity cases and actual endpoint: cancel/refile/reload/new-week IDs cannot alias; ownership-invalid pending offers withdraw once; settled history remains intact |
+| Shared public preflight and roster feasibility | VERIFIED | Exact waiver QB/drop/budget reasons; both post-trade rosters can fill configured starter/reserve slots before acceptance; hidden-field traps; independent 2,000-case matching oracle |
+| Choose, commit and see the outcome | VERIFIED | Actual ordered/reserved claims, shared-drop resolution, duplicate actions, stale-tab cancel/reload, one-time charges; immediate roster receipt, recorded outcomes and working lineup actions in both browsers |
+| Honest comparison and disclosure | VERIFIED | Archive pool versus estimated Vault remainder labeled; unknown values remain unknown; reference/league scoring and observed/candidate averages disclosed; private-year comparison oracle and UI fixtures pass |
+| Integrated compatibility and browser acceptance | VERIFIED | 72-command Vault suite, final 12-case UI suite, core97/97, shared-mode7/7, source lint and 160-script build pass; 7 scenarios in Chromium and WebKit, five-size Chromium matrix and WebKit phones |
+
+Priority, FAAB ordering, sealed-year rules and scoring remain established rules.
+The acceptance repair prevents a verified unrecoverable lineup state; it does
+not auto-select human starters or change proposal/negotiation rules. Substantial
+backup, multiplayer replacement and new progression systems stay future work.
+
+Claim IDs still use numeric `wN` order. New submissions retain their sequence in
+the existing durable activity IDs, including a legacy high pending-ID watermark;
+cancellation/settlement cannot recycle the intent. No save field or migration
+was added. Pending offers whose assets move or leave their original roster use
+the existing `withdrawn` status after settlement or another accepted trade.
+Already accepted/rejected history is preserved. A legal human exchange still
+places incoming players on the bench and leaves the lineup decision to its owner.
+IR/TAXI moves remain available; only an otherwise-invalid AI assignment uses a
+shared public slot plan to repair those seats. Normal AI values and difficulty
+are unchanged. Scoring, data, rewards, budgets and priority rules are unchanged.
+
+Known pre-existing defect: a save containing an **already accepted** trade that
+removed the team's only required position can still be stuck at the lineup gate.
+This pass prevents new impossible acceptances and validates old pending offers;
+it does not silently reverse settled trades or reopen acquisition gates. A
+deliberate recovery flow for those older broken saves remains future work.
+
+Focused checks are `tests/time-league-acquisition-integrity.js` (14 cases),
+`tests/time-league-acquisitions-ui.js` (12 cases), and the actual mocked
+authoritative handler in `tests/time-league-public-endpoint.cjs` (latest-version
+stale cancellation, impossible acceptance, recipient authorization, reconnect and
+repeat processing). The two new suites are part of `npm run test:timeleague`.
+The existing full-season checks each completed 92 serialized/reloaded actions
+through a 12-team, 156-pick Roulette championship, including Hidden Years.
+
+Evidence is under `output/playwright/vault-acquisitions/`. Baseline
+`verification-waivers-trade-hidden.json` records 3 actual-control groups,
+35 screenshots and 37 intercepted mutations on exact `b9dbf36`. The independent
+matching oracle and seed/sample bounds are in `independent-review/`; it is
+reproducible with `node output/playwright/vault-acquisitions/independent-review/feasibility-oracle.cjs`.
+Logs: `full-suite.log`, `core.log`, `entry.log`, `lint.log`, `build.log`, and
+`acquisitions-ui-final.log`. After the final dialog/copy changes, the affected
+12-case UI suite, source lint, build and browser controls were checked again.
+These are local code/fixture/browser evidence;
+authenticated hosted rooms, physical devices and deployment remain unverified.
+
+The rendered pass also corrected a native-dialog focus race on **Review pending
+claims** and kept its named legality reason beside the sticky File claim action.
+The own queue does not infer rival activity from a private online snapshot.
+Trade receipts name their saved week and managers, preserve real player names
+from existing draft/result records after a release, and label an unrecorded
+player honestly. A new pending offer cannot appear to inherit an old acceptance.
+Locked or completed stages offer **View lineup** rather than a repair prompt.
+
+The current native-dialog regression also passes: `native-dialog-acceptance.json`
+records two actual-control groups and 18 intercepted mutations, with no page or
+route errors. The old recovery fixture now selects a legal same-position drop
+before advancing the other tab, so it exercises a stale **valid** claim rather
+than the newly disabled quarterback-cap case. Save recovery still closes the
+native dialog, preserves the newer save and returns to Home to review progress.
+
+Final browser evidence:
+
+- `verification-preflight-waivers-shared.json` and
+  `verification-trade-impossible-stale-hidden.json`: seven Chromium scenarios,
+  nine recorded checks, 59 viewport screenshots and 69 intercepted writes;
+  zero page/route errors.
+- `webkit-preflight-waivers-shared.json` and
+  `webkit-trade-impossible-stale-hidden.json`: the same seven scenarios,
+  nine checks, 32 viewport screenshots and 57 intercepted writes; zero unexpected
+  page/route errors. Five explicitly classified blocked-telemetry CORS messages
+  remain in the evidence; they are not counted as clean raw browser output.
+- Chromium sizes: 390×844, 430×932, 1024×1366, 1366×1024 and 1440×900.
+  WebKit uses the two phone sizes. Both cover 125% text, native Escape/focus,
+  reachable 44px primary actions and saved-state reloads. Tablet/desktop receipts
+  were visually inspected. This is browser emulation, not a physical-device test.
+- Hidden Years comparisons hold public candidate estimates, research and
+  comparison basis constant when only private assignments change. Existing public
+  current-week rating/availability clues may legitimately change and are recorded
+  separately; the oracle does not pretend those clues are secret.
+- One WebKit diagnostic hung while closing the recovered extra test tab, after
+  its save assertions passed. The final run retained that disposable tab until
+  successful context/browser cleanup; `cleanupNotes` and the API log record this.
+  No gameplay action was omitted. Exploratory failed harness attempts and scroll
+  diagnostics remain under `attempt-*` / `scroll-diagnostic-*`.
+
+Representative screens in this evidence folder: `after-quarterback-cap-reason-390.png`,
+`after-pending-order-reservation-390.png`, `after-immediate-waiver-roster-390.png`,
+`after-waiver-outbid-receipt-1024.png`, `after-trade-accepted-receipt-1440.png`,
+and `after-hidden-trade-fairness-430.png`. The before captures above are retained.
+
+Run against the same isolated 3038 preview described earlier:
+
+```sh
+node tests/vault-acquisitions-journey.cjs --preflight --waivers --shared
+node tests/vault-acquisitions-journey.cjs --trade --impossible --stale --hidden
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-acquisitions-journey.cjs --webkit --preflight --waivers --shared
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-acquisitions-journey.cjs --webkit --trade --impossible --stale --hidden
+node tests/vault-experience-journey.cjs --acceptance-only
+```
+
 ---
 
 September 8, 2026 · Product, browser, rules, and architecture review

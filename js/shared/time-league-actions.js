@@ -141,18 +141,23 @@
             if (state.weekStage !== 'claims') deny('Waiver planning is not open.');
             const card = E.freeAgents(state, cards).find(c => c.identity === action.identity);
             if (!card) deny('That free agent is no longer available.');
-            next = E.submitWaiverClaim(state, { teamId: own, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: action.dropEntryId || '', bidAmount: action.bidAmount }, stamp);
+            const claim = { teamId: own, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: action.dropEntryId || '', bidAmount: action.bidAmount };
+            const problem = E.waiverClaimProblem(state, claim);
+            if (problem) deny(problem);
+            next = E.submitWaiverClaim(state, claim, stamp);
             break;
         }
         case 'cancel-claim':
             if (!state.pendingClaims.some(c => c.claimId === action.claimId && c.teamId === own)) deny('This claim belongs to another manager.');
             next = E.cancelWaiverClaim(state, action.claimId);
             break;
-        case 'trade':
+        case 'trade': {
             ownTeam();
             if (state.weekStage !== 'claims') deny('Submit trade requests during waiver planning.');
-            next = E.proposeTrade(state, { fromTeamId: own, toTeamId: action.toTeamId, giveEntryIds: action.giveEntryIds, receiveEntryIds: action.receiveEntryIds, note: String(action.note || '').slice(0, 500) }, stamp);
+            const offer = { fromTeamId: own, toTeamId: action.toTeamId, giveEntryIds: action.giveEntryIds, receiveEntryIds: action.receiveEntryIds, note: String(action.note || '').slice(0, 500) };
+            next = E.proposeTrade(state, offer, stamp);
             break;
+        }
         case 'respond-trade':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.tradeId === action.tradeId && t.toTeamId === own && t.status === 'pending')) deny('Only the receiving manager can answer this offer.');
