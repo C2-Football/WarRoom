@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+/* global require, global, WrTimeLeagueHomePanel */
 const assert = require('node:assert/strict');
 global.window = globalThis;
 global.App = {};
@@ -125,5 +126,19 @@ assert(content(tree).includes('Your season is saved.'));
 assert.equal(click(tree, 'My career'), 'career');
 assert.equal(click(tree, 'Review my team'), 'roster');
 assert(content(tree).includes('Switch league'));
+const narrowFinal = finalState(100.04, 100, mine);
+const narrowBefore = JSON.stringify(narrowFinal);
+tree = render(narrowFinal);
+let resultRows = walk(tree).find(node => node.props?.['aria-label'] === 'Week 1 results');
+assert(content(resultRows).includes('100.04') && content(resultRows).includes('100.00'), 'Postgame league finals cannot round a narrow win into an apparent tie');
+tree = render({ ...narrowFinal, weekStage: 'claims' });
+assert(content(tree).includes('0.04-point margin')); assert(!content(tree).includes('0.0-point margin'));
+resultRows = walk(tree).find(node => node.props?.['aria-label'] === 'Week 1 results');
+assert(content(resultRows).includes('100.04') && content(resultRows).includes('100.00'), 'Returning Home keeps the prior saved final precise');
+const winnerRow = walk(resultRows).find(node => node.props?.className === 'winner');
+assert(content(winnerRow).includes('My team') && content(winnerRow).includes('100.04'));
+assert.equal(JSON.stringify(narrowFinal), narrowBefore);
+tree = render({ ...finalState(100.04, 100.04, null), weekStage: 'claims' });
+assert(content(tree).includes('Tie game')); assert(!content(tree).includes('0.00-point margin'), 'An actual tied score stays a tie rather than a misleading zero margin');
 assert.equal(JSON.stringify(season), before, 'Home reads preserve the league');
-console.log('PASS Home journey: legal stage actions, current offers, exact saved results, tied finals, hidden years, playoff observers, and completed-season routes');
+console.log('PASS Home journey: legal stage actions, current offers, exact saved results and closest margins, tied finals, hidden years, playoff observers, completed-season routes and no mutation');

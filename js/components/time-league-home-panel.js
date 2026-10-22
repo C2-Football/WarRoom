@@ -162,7 +162,7 @@
                         weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Player of the week'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`))),
                     h('div', { className: 'tl-update-results', 'aria-label': `Week ${justFinished.week} results` }, justFinished.matchups.map(match =>
                         h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' }, h('small', null, 'FINAL'),
-                            [[match.home, match.homePoints], [match.away, match.awayPoints]].map(([id, points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' }, h('span', null, teamName(id)), h('strong', null, points.toFixed(1)))))))),
+                            [[match.home, match.homePoints], [match.away, match.awayPoints]].map(([id, points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' }, h('span', null, teamName(id)), h('strong', null, points.toFixed(2)))))))),
                 h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Updated standings & team profiles'), h(window.WrTimeLeagueStandingsPanel, { league, embedded: true })),
                 h('section', { className: 'tl-card tl-recap-next' }, h('span', { className: 'tl-eyebrow' }, `UP NEXT · WEEK ${league.currentWeek}`),
                     h('h2', null, nextOpponent ? `${myTeam.name} vs. ${nextOpponent.name}` : playoffObserver ? 'Follow the championship' : 'No matchup scheduled'),
@@ -224,12 +224,12 @@
                     weeklyLeaders && h('div', { className: 'tl-update-highlights' },
                         weeklyLeaders.topTeam && h('div', null, h('small', null, 'High score'), h('strong', null, `${weeklyLeaders.topTeam.total.toFixed(1)} pts`), h('span', null, teamName(weeklyLeaders.topTeam.teamId))),
                         weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${league.settings.hiddenYears && !league.yearsRevealed ? (window.WrTimeLeagueYearLabel?.(league, weeklyLeaders.topPlayer, cards, logIndex, eraFactors, throughWeek) || window.App.TimeLeagueHiddenYears.label(league, weeklyLeaders.topPlayer)) : weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
-                        weeklyLeaders.closest && h('div', null, h('small', null, 'Closest game'), h('strong', null, weeklyLeaders.closest.homePoints === weeklyLeaders.closest.awayPoints ? 'Tie game' : `${Math.abs(weeklyLeaders.closest.homePoints-weeklyLeaders.closest.awayPoints).toFixed(1)}-point margin`), h('span', null, `${teamName(weeklyLeaders.closest.home)} vs. ${teamName(weeklyLeaders.closest.away)}`))),
+                        weeklyLeaders.closest && h('div', null, h('small', null, 'Closest game'), h('strong', null, weeklyLeaders.closest.homePoints === weeklyLeaders.closest.awayPoints ? 'Tie game' : `${(Math.abs(Math.round(weeklyLeaders.closest.homePoints * 100) - Math.round(weeklyLeaders.closest.awayPoints * 100)) / 100).toFixed(2)}-point margin`), h('span', null, `${teamName(weeklyLeaders.closest.home)} vs. ${teamName(weeklyLeaders.closest.away)}`))),
                     lastFinalized ? h('div', { className: 'tl-update-results', 'aria-label': `Week ${lastFinalized.week} results` },
                         lastFinalized.matchups.map(match => h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' },
                             h('small', null, 'FINAL'),
                             [[match.home,match.homePoints],[match.away,match.awayPoints]].map(([id,points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' },
-                                h('span', null, teamName(id)), h('strong', null, points.toFixed(1)))))))
+                                h('span', null, teamName(id)), h('strong', null, points.toFixed(2)))))))
                         : h('p', { className: 'tl-update-empty' }, 'Week 1 results and standout performances will appear here after game day.'),
                     recentActivity.length > 0 && h('details', { className: 'tl-update-activity' }, h('summary', null, 'Recent league activity'),
                         recentActivity.map(event => h('div', { key: event.id }, h('span', null, `W${event.week}`), h('p', null, event.message)))),

@@ -13,9 +13,9 @@ const fixture = (settings = {}, count = 3) => {
             regularSeasonWeeks: 2, playoffTeams: 0, scoring, eraRules: { mode: 'any-era', decades: [] },
             waiversEnabled: true, tradesEnabled: true, waiverMode: 'priority', faabBudget: 10, ...settings },
         seats: Array.from({ length: count }, (_, index) => ({ name: `Team ${index + 1}`, manager: 'human' })) });
-    return { ...initial, phase: 'season', weekStage: 'claims', seasonsRevealed: true,
+    return E.normalizeTimeLeague({ ...initial, phase: 'season', weekStage: 'claims', seasonsRevealed: true,
         teams: initial.teams.map((team, index) => ({ ...team, faabRemaining: 10,
-            roster: [player(index * 3 + 1, 'RB'), player(index * 3 + 2, 'WR'), player(index * 3 + 3, 'WR', 'BN')] })) };
+            roster: [player(index * 3 + 1, 'RB'), player(index * 3 + 2, 'WR'), player(index * 3 + 3, 'WR', 'BN')] })) });
 };
 const card = (number, position = 'WR') => ({ ...player(number, position), seasons: [{ season: 2020, games: 16, points: 100 }], peak: 100 });
 const dataFor = state => ({ cards: new Map([...state.teams.flatMap(team => team.roster).map(entry => ({ ...entry, seasons: [{ season: 2020, games: 16, points: 100 }], peak: 100 })), card(100), card(101), card(102, 'QB'), card(103)].map(row => [row.identity, row])), logIndex: new Map(), eraFactors: new Map() });
@@ -216,7 +216,7 @@ test('AI repairs a reserve-dependent accepted trade without changing human choic
                 delete entry.drawnSeason;
                 Object.defineProperty(entry, 'drawnSeason', { get() { throw Error('AI reserve repair read a hidden year'); } });
             }
-            for (const key of ['privateDraws', 'privateGameDecks', 'privateGameSeed', 'hiddenYearAssignments']) Object.defineProperty(state, key, { get() { throw Error(`AI reserve repair read ${key}`); } });
+            for (const key of ['privateDraws', 'privateGameDecks', 'privateGameSeed', 'hiddenYearAssignments']) Object.defineProperty(state, key, { enumerable: false, get() { throw Error(`AI reserve repair read ${key}`); } });
         }
         const accepted = AI.aiRespondToTrades(state, cards, stamp);
         assert.equal(accepted.trades[0].status, 'accepted', `The ${hiddenYears ? 'hidden' : 'revealed'} AI can accept a legally repairable deal`);

@@ -109,6 +109,39 @@
         : filterSeasonsForEra(cardFor(state, card).seasons, state.settings.eraRules, card.position);
     const hiddenMetadata = (state, entry) => state.settings.hiddenYears ? { editionId: `mystery:${entry.identity}`,
         hiddenDecade: App.TimeLeagueEraRules.decadeOf(entry.drawnSeason) } : {};
+    function rosterMilestones(roster, settings, revealedYears = false) {
+        const decades = new Set(), identities = new Set();
+        let preNinetyRostered = 0;
+        for (const entry of roster) {
+            if (identities.has(entry.identity)) continue;
+            identities.add(entry.identity);
+            const decade = settings.hiddenYears && !revealedYears ? entry.hiddenDecade : App.TimeLeagueEraRules.decadeOf(entry.drawnSeason);
+            if (!App.TimeLeagueEraRules.ERA_DECADES.some(row => row.id === decade)) continue;
+            decades.add(decade);
+            if (parseInt(decade, 10) < 1990) preNinetyRostered++;
+        }
+        return { bestDecadeSpread: decades.size, preNinetyRostered };
+    }
+    function waiverAwardCount(awards, teamId) {
+        return new Set((Array.isArray(awards) ? awards : []).filter(award => award && award.winnerTeamId === teamId && Number.isInteger(award.week) && award.week > 0 && award.week <= 19
+            && typeof award.identity === 'string' && award.identity).map(award => JSON.stringify([award.week, award.identity]))).size;
+    }
+    function rememberRosterMilestones(team, settings, roster = team.roster, cohorts = [], awards = [], revealedYears = false) {
+        // A cohort is one owned roster at one instant. Never combine different
+        // weeks or ownerless production into an imaginary all-at-once roster.
+        const evidence = [team.roster, roster, ...cohorts].map(entries => rosterMilestones(entries, settings, revealedYears));
+        const peak = (key, limit) => Math.max(Number.isInteger(team[key]) && team[key] >= 0 && team[key] <= limit ? team[key] : 0,
+            ...evidence.map(row => row[key]));
+        const bestDecadeSpread = peak('bestDecadeSpread', App.TimeLeagueEraRules.ERA_DECADES.length);
+        const preNinetyRostered = peak('preNinetyRostered', 1000);
+        const waiverCount = entries => new Set(entries.filter(entry => entry.acquiredVia === 'waiver').map(entry => entry.identity)).size;
+        const waiverClaimsLanded = Math.max(Number.isSafeInteger(team.waiverClaimsLanded) && team.waiverClaimsLanded >= 0 ? team.waiverClaimsLanded : 0,
+            waiverCount(team.roster), waiverCount(roster), waiverAwardCount(awards, team.teamId));
+        return { ...team, roster,
+            ...(bestDecadeSpread > 0 || team.bestDecadeSpread === 0 ? { bestDecadeSpread } : {}),
+            ...(preNinetyRostered > 0 || team.preNinetyRostered === 0 ? { preNinetyRostered } : {}),
+            ...(waiverClaimsLanded > 0 || team.waiverClaimsLanded === 0 ? { waiverClaimsLanded } : {}) };
+    }
     const assignedHiddenYear = (state, identity) => {
         if (!state.settings.hiddenYears) return null;
         const saved = state.hiddenYearAssignments?.[identity];
@@ -571,7 +604,7 @@
             phase: complete ? "season" : state.phase,
             draftClock: complete ? { ...state.draftClock, status: "paused", deadlineAt: null, remainingMs: 0 } : restartedClock(state, opts.createdAt),
             seasonsRevealed: complete || state.seasonsRevealed,
-            teams: state.teams.map((item) => (item.teamId === team.teamId ? { ...item, roster: [...item.roster, entry] } : item)),
+            teams: state.teams.map((item) => (item.teamId === team.teamId ? rememberRosterMilestones(item, state.settings, [...item.roster, entry]) : item)),
             draftPicks: [...state.draftPicks, pick],
             activity: events.list(),
         };
@@ -994,9 +1027,9 @@
             if (dropEntry) hiddenBook = lockHiddenYear({ ...state, ...hiddenBook }, dropEntry, cards.get(dropEntry.identity));
             hiddenBook = lockHiddenYear({ ...state, ...hiddenBook }, entry, card);
             entryNumber += 1;
+            const remembered = rememberRosterMilestones(team, state.settings, team.roster, [], state.waiverResults || [], state.yearsRevealed === true);
             teams = teams.map((item) => (item.teamId === team.teamId ? {
-                ...item,
-                roster: [...afterDrop, entry],
+                ...rememberRosterMilestones({ ...remembered, waiverClaimsLanded: (remembered.waiverClaimsLanded || 0) + 1 }, state.settings, [...afterDrop, entry], [], [], state.yearsRevealed === true),
                 ...(faab ? { faabRemaining: (item.faabRemaining ?? 0) - bidAmount } : {}),
             } : item));
             awards.push({ week, identity: card.identity, name: card.name, winnerTeamId: team.teamId, contenderTeamIds: [...new Set(ordered.filter(item => item.addIdentity === card.identity).map(item => item.teamId))] });
@@ -1183,8 +1216,8 @@
         return retireStaleTrades({
             ...state,
             teams: state.teams.map((item) => (
-                item.teamId === from.teamId ? { ...item, roster: fromRoster }
-                    : item.teamId === to.teamId ? { ...item, roster: toRoster }
+                item.teamId === from.teamId ? rememberRosterMilestones(item, state.settings, fromRoster, [], state.waiverResults || [], state.yearsRevealed === true)
+                    : item.teamId === to.teamId ? rememberRosterMilestones(item, state.settings, toRoster, [], state.waiverResults || [], state.yearsRevealed === true)
                         : item
             )),
             trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "accepted", respondedWeek: state.currentWeek, note: nextNote } : item)),
@@ -1289,7 +1322,7 @@
             ...(App.TimeLeagueEraRules.ERA_DECADES.some(row => row.id === value.hiddenDecade) ? { hiddenDecade: value.hiddenDecade } : {}) };
     };
 
-    const readTeam = (value, sealed = false) => {
+    const readTeam = (value, sealed = false, milestones = true) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
         const name = value.manager === 'ai' ? managerIdentity(value, teamId ? Math.max(0, idNumber(teamId, 't') - 1) : 0).name : readString(value.name);
@@ -1302,7 +1335,11 @@
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
         if (hasFaab && faabRemaining === null) return null;
-        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), ...design, roster, queue, ...(Number.isInteger(value.draftBudgetRemaining) && value.draftBudgetRemaining >= 0 ? { draftBudgetRemaining: value.draftBudgetRemaining } : {}), ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
+        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), ...design, roster, queue,
+            ...(milestones && Number.isInteger(value.bestDecadeSpread) && value.bestDecadeSpread >= 0 && value.bestDecadeSpread <= App.TimeLeagueEraRules.ERA_DECADES.length ? { bestDecadeSpread: value.bestDecadeSpread } : {}),
+            ...(milestones && Number.isInteger(value.preNinetyRostered) && value.preNinetyRostered >= 0 && value.preNinetyRostered <= 1000 ? { preNinetyRostered: value.preNinetyRostered } : {}),
+            ...(milestones && Number.isSafeInteger(value.waiverClaimsLanded) && value.waiverClaimsLanded >= 0 ? { waiverClaimsLanded: value.waiverClaimsLanded } : {}),
+            ...(Number.isInteger(value.draftBudgetRemaining) && value.draftBudgetRemaining >= 0 ? { draftBudgetRemaining: value.draftBudgetRemaining } : {}), ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
     };
 
     const readSeat = (value) => {
@@ -1488,7 +1525,7 @@
         const createdAt = readString(raw.createdAt);
         const phase = raw.phase === "draft" || raw.phase === "season" || raw.phase === "complete" ? raw.phase : null;
         const settings = readSettings(raw.settings);
-        const teams = readArray(raw.teams, team => readTeam(team, sealed || hiddenEntries));
+        const teams = readArray(raw.teams, team => readTeam(team, sealed || hiddenEntries, !(publicView && sealed)));
         const draftOrder = readArray(raw.draftOrder, readSeat);
         const draftPicks = readArray(raw.draftPicks, readPick);
         const schedule = readArray(raw.schedule, readScheduleWeek);
@@ -1517,7 +1554,9 @@
             createdAt,
             phase,
             settings,
-            teams,
+            teams: publicView && sealed ? teams : teams.map(team => rememberRosterMilestones(team, settings, team.roster,
+                finalizedWeeks.flatMap(week => week.results.filter(result => result.teamId === team.teamId).map(result => result.starters)), raw.waiverResults || [],
+                raw.yearsRevealed === true)),
             draftOrder,
             draftPicks,
             draftClock: normalizeDraftClock(raw.draftClock, settings),
@@ -1574,7 +1613,7 @@
     }
 
     const api = {
-        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder, cardsFor, assignedHiddenYear,
+        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder, cardsFor, assignedHiddenYear, rosterMilestones, waiverAwardCount,
         AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
