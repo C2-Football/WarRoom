@@ -1072,7 +1072,7 @@
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
         const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
-        const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, slot: null });
+        const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, teamId: null, week: null, slot: null, replacementEntryId: null, requestId: 0 });
         const [storageError, setStorageError] = useState(null);
         const [saveConflict, setSaveConflict] = useState(false);
         const saveRecoveryRef = useRef(null);
@@ -1755,6 +1755,7 @@
             ? activeTeamId
             : (league.teams.find((team) => team.manager === 'human')?.teamId ?? league.teams[0]?.teamId ?? 't1');
         const responseTeam = onlineMeta?.seatTeamId || (league.teams.find(team => team.teamId === activeTeam && team.manager === 'human')?.teamId ?? league.teams.find(team => team.manager === 'human')?.teamId);
+        const currentWaiverBrowse = waiverBrowse.leagueId === league.leagueId && waiverBrowse.teamId === responseTeam && waiverBrowse.week === league.currentWeek ? waiverBrowse : null;
         const phaseTone = league.phase === 'draft' ? 'warn' : league.phase === 'season' ? 'info' : 'gold';
         const cardsReady = cards !== null && cards.size > 0;
         const pendingPlayback = autoPlayWeek && league.finalizedWeeks.some(week => week.week === autoPlayWeek)
@@ -1863,7 +1864,22 @@
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onReopenPlanning: teamId => dispatchGate({ type: 'reopen-planning', teamId }), onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onReopenPlanning: teamId => dispatchGate({ type: 'reopen-planning', teamId }), onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta,
+                            waiverSlot: currentWaiverBrowse?.slot || null,
+                            waiverContext: currentWaiverBrowse && !currentWaiverBrowse.contextCleared ? currentWaiverBrowse : null,
+                            onClearWaiverContext: () => setWaiverBrowse(previous => previous.leagueId === league.leagueId && previous.teamId === responseTeam
+                                && previous.week === league.currentWeek && previous.requestId === waiverBrowse.requestId
+                                ? { ...previous, replacementEntryId: null, contextCleared: true } : previous),
+                            onBrowseWaivers: (slot, replacementEntryId = null) => {
+                                const current = leagueRef.current;
+                                if (!current || current.leagueId !== league.leagueId || current.currentWeek !== league.currentWeek) return;
+                                const owner = current.teams.find(team => team.teamId === responseTeam && team.manager === 'human');
+                                if (!owner) return;
+                                const replacement = owner.roster.find(entry => entry.entryId === replacementEntryId);
+                                setWaiverBrowse(previous => ({ leagueId: current.leagueId, teamId: owner.teamId, week: current.currentWeek, slot,
+                                    replacementEntryId: replacement?.entryId || null, requestId: (previous.requestId || 0) + 1 }));
+                                navigateTab('waivers');
+                            } })
                         : loadingNotice)
                     : null,
 

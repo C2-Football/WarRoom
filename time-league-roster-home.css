@@ -347,3 +347,125 @@
 @media(max-width:767px) {
   .tl-root.tl-play .tl-planning-confirm-actions .tl-btn { flex:1; }
 }
+
+/* The decision stays together: public evidence, selected players and commitment. */
+.tl-root.tl-play .tl-trade-brief { min-width:0; margin:0 0 14px; padding:14px; border:1px solid #617652; border-radius:10px; background:#1c2a1e; }
+.tl-root.tl-play .tl-trade-brief-verdict { display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 12px; min-width:0; }
+.tl-root.tl-play .tl-trade-brief-verdict > strong { color:var(--mint,#8af0cf); font-size:18px; line-height:1.3; }
+.tl-root.tl-play .tl-trade-brief-verdict > span { font-size:14px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-brief-verdict > small { flex-basis:100%; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-brief > small { display:block; margin-top:5px; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-packages { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.tl-root.tl-play .tl-trade-packages .tl-trade-package { display:flex; flex-direction:column; gap:4px; min-width:0; min-height:0; padding:0; border:0; background:none; }
+.tl-root.tl-play .tl-trade-packages .tl-trade-package > header { display:grid; align-content:start; gap:3px; min-width:0; margin-bottom:4px; }
+.tl-root.tl-play .tl-trade-package > header strong { font-size:12px; line-height:1.4; color:var(--gold,#ffe189); }
+.tl-root.tl-play .tl-trade-package > header small { font-size:13px; line-height:1.4; color:var(--text-secondary); overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-trade-package > header > div { display:grid; gap:2px; min-width:0; }
+.tl-root.tl-play .tl-trade-package .tl-trade-package-total > strong { color:var(--mint,#8af0cf); font-size:20px; line-height:1.3; font-variant-numeric:tabular-nums; }
+.tl-root.tl-play .tl-trade-package .tl-trade-package-total > small { font-size:13px; line-height:1.4; letter-spacing:0; }
+.tl-root.tl-play .tl-trade-packages .tl-trade-package > p { margin:0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-packages .tl-trade-package > :is(strong,small) { color:var(--text-secondary); font-size:12px; line-height:1.4; letter-spacing:.03em; }
+.tl-root.tl-play .tl-trade-packages .tl-trade-package > span { padding:4px 0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-package-player { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-width:0; min-height:44px; padding:8px 10px; border:1px solid #526646; border-radius:6px; background:#2a3a26; color:var(--white,#f2ecdf); font:inherit; font-size:14px; line-height:1.4; text-align:left; overflow-wrap:anywhere; cursor:pointer; }
+.tl-root.tl-play .tl-trade-package-player:disabled { opacity:.65; cursor:default; }
+.tl-root.tl-play .tl-trade-package-player > span:first-child { flex:1; min-width:0; }
+.tl-root.tl-play .tl-trade-package-player > :is(small,span:last-child) { flex-shrink:0; }
+.tl-root.tl-play .tl-decision-basis { display:block; margin-top:3px; color:var(--text-secondary); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-trade-brief-consequence { margin:10px 0 0; color:var(--text-secondary); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-trade-comparison-details { margin-top:12px; border-top:1px solid #465640; }
+.tl-root.tl-play .tl-trade-comparison-details > summary { display:flex; align-items:center; min-height:44px; cursor:pointer; color:var(--text-secondary); font-size:14px; line-height:1.4; }
+.tl-root.tl-play .tl-trade-comparison-details p { margin:0 0 12px; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-waiver-context { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin:0 0 12px; padding:10px 12px; border-left:3px solid var(--gold,#ffe189); background:#25311f; }
+.tl-root.tl-play .tl-waiver-context > div { flex:1 1 200px; min-width:0; }
+.tl-root.tl-play .tl-waiver-context :is(strong,h3) { margin:0; font-size:15px; line-height:1.4; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-waiver-context p { margin:4px 0 0; color:var(--text-secondary); font-size:13px; line-height:1.45; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-waiver-context .tl-btn { min-height:44px; max-width:100%; white-space:normal; }
+.tl-root.tl-play .tl-waiver-summary { display:flex; flex-wrap:wrap; align-items:start; gap:10px 20px; margin:0 0 12px; padding:10px 0; border-block:1px solid #43563b; }
+.tl-root.tl-play .tl-waiver-summary-item { flex:1 1 82px; min-width:0; padding:0; border:0; background:none; box-shadow:none; }
+.tl-root.tl-play .tl-waiver-summary-item > :is(span,small) { display:block; color:var(--text-secondary); font-size:12px; line-height:1.4; }
+.tl-root.tl-play .tl-waiver-summary-item > strong { display:block; margin-top:3px; font-size:18px; line-height:1.3; font-variant-numeric:tabular-nums; }
+.tl-root.tl-play .tl-waiver-summary > p { flex-basis:100%; margin:0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+.tl-root.tl-play :is(.tl-trade-package-player,.tl-trade-comparison-details > summary,.tl-waiver-context .tl-btn):focus-visible { outline:2px solid var(--mint,#8af0cf); outline-offset:3px; }
+.tl-root.tl-play .tl-decision-row :is(button,input) { scroll-margin-top:96px; scroll-margin-bottom:calc(180px + env(safe-area-inset-bottom,0px)); }
+.tl-root.tl-play .tl-roster-layout .tl-decision-row > :is(.tl-roster-move,.tl-roster-player-link),
+.tl-root.tl-play .tl-waiver-desk :is(.tl-waiver-filters,.tl-waiver-table,.tl-waiver-market-foot) .tl-btn,
+.tl-root.tl-play .tl-trade-desk :is(.tl-trade-tabs,.tl-trade-submit) .tl-btn { min-height:44px; }
+.tl-root.tl-play .tl-trade-player.tl-decision-row:focus-within { outline:2px solid var(--mint,#8af0cf); outline-offset:-2px; }
+.tl-root.tl-play .tl-trade-player-list { scroll-padding-block:8px; overscroll-behavior-y:contain; }
+@media(min-width:768px) {
+  .tl-root.tl-play .tl-trade-brief { padding:16px; }
+  .tl-root.tl-play .tl-trade-packages { gap:20px; }
+  .tl-root.tl-play .tl-trade-packages .tl-trade-package { align-content:start; }
+  .tl-root.tl-play .tl-trade-packages .tl-trade-package > header { grid-template-columns:minmax(0,1fr) minmax(110px,.7fr); gap:10px; }
+  .tl-root.tl-play .tl-trade-package .tl-trade-package-total { text-align:right; }
+  .tl-root.tl-play .tl-trade-package-player { width:auto; align-self:start; }
+  .tl-root.tl-play .tl-waiver-desk > .tl-waiver-summary { max-width:640px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals { gap:2px 10px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-average { display:contents; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-average > .tl-signal-label-full { grid-column:2; grid-row:1; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-average > strong { grid-column:2; grid-row:2; margin:0; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-average > .tl-player-signal-context { grid-column:2; grid-row:3; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-outlook { grid-column:1; grid-row:1 / 4; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-remaining { grid-column:3; grid-row:1 / 4; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-decision-basis { grid-column:1 / -1; grid-row:4; margin:0; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row [data-signal-kind="estimate"] .tl-decision-basis { grid-row:3; }
+}
+.tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals .is-estimate-context { display:none; }
+@media(min-width:1024px) {
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-roster-signals { display:grid; gap:2px 10px; }
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-player-average { display:contents; }
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-player-average > .tl-signal-label-full { grid-column:1; grid-row:1; }
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-player-average > strong { grid-column:1; grid-row:2; margin:0; }
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-player-outlook { grid-column:2; grid-row:1 / 3; }
+  .tl-root.tl-play .tl-roster-layout .tl-decision-row .tl-decision-basis { grid-column:1 / -1; grid-row:3; font-size:12px; line-height:1.4; margin:0; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-trade-desk .tl-trade-toolbar { padding:0 0 10px; margin-bottom:10px; border:0; border-radius:0; background:none; gap:10px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-toolbar > div { gap:2px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-tabs { gap:5px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-tabs .tl-btn { min-height:44px; padding:8px; font-size:12px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-builder { padding:12px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-controls { gap:8px; margin-bottom:12px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-side { border-width:0; border-top-width:2px; border-radius:0; background:none; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-side-head { padding:9px 0; background:none; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-side-head h3 { margin-top:3px; font-size:16px; line-height:1.35; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-list-label { padding:8px 0; gap:10px; line-height:1.35; letter-spacing:0; }
+  .tl-root.tl-play .tl-trade-player.tl-decision-row { gap:7px; min-height:64px; padding:8px 2px; }
+  .tl-root.tl-play .tl-trade-player.tl-decision-row .tl-trade-player-name { gap:2px; }
+  .tl-root.tl-play .tl-trade-player.tl-decision-row .tl-trade-player-name strong { font-size:16px; line-height:1.3; }
+  .tl-root.tl-play .tl-trade-player.tl-decision-row .tl-trade-player-name small { font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+  .tl-root.tl-play .tl-trade-player.tl-decision-row > .tabular { font-size:16px; font-variant-numeric:tabular-nums; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-submit { gap:8px; }
+  .tl-root.tl-play .tl-trade-desk .tl-trade-submit .tl-btn { min-height:44px; }
+  .tl-root.tl-play .tl-trade-brief { padding:12px; }
+  .tl-root.tl-play .tl-trade-packages { gap:10px; margin-top:10px; }
+  .tl-root.tl-play .tl-trade-package-player { padding:7px 8px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row { min-height:0; gap:2px 6px; padding-block:3px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row > .tl-roster-player-link { min-height:44px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row > .tl-roster-move { min-height:44px; min-width:54px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-roster-signals { display:grid; grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr); gap:2px 4px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-outlook { grid-column:1 / -1; grid-row:1; flex-basis:auto; gap:0 6px; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row :is(.tl-player-average,.tl-player-remaining) { display:contents; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-average > strong { grid-column:1; grid-row:2; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-average > .tl-signal-label-compact { grid-column:2; grid-row:2; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-remaining > strong { grid-column:3; grid-row:2; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-remaining > .tl-signal-label-compact { grid-column:4; grid-row:2; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-decision-basis { grid-column:1 / -1; grid-row:3; }
+  .tl-root.tl-play .tl-decision-row .tl-player-signals .tl-week-stars { flex-basis:auto; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-signals > span { min-width:0; }
+  .tl-root.tl-play .tl-roster-layout .tl-lineup-row.tl-decision-row .tl-player-signals strong { font-size:16px; line-height:1.35; }
+  .tl-root.tl-play .tl-decision-row .tl-decision-basis { flex-basis:100%; font-size:13px!important; line-height:1.35!important; }
+  .tl-root.tl-play .tl-waiver-desk .tl-waiver-heading { padding:0 0 10px; margin-bottom:10px; border:0; border-radius:0; background:none; }
+  .tl-root.tl-play .tl-waiver-market { padding:12px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row > td:nth-child(2) { padding:9px 4px 9px 0; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row > td:last-child { padding-block:9px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals { display:flex; flex-wrap:wrap; gap:2px 12px; max-width:none; margin-top:5px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals > span { display:flex; align-items:baseline; flex-wrap:wrap; min-width:0; gap:0 4px; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-outlook { flex-basis:100%; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals .tl-signal-label-full { display:none; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals .tl-signal-label-compact { display:inline; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals small { font-size:13px!important; line-height:1.4; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals strong { font-size:16px; line-height:1.35; margin:0; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-player-signals .tl-week-stars { font-size:15px; white-space:normal; letter-spacing:0; }
+  .tl-root.tl-play .tl-waiver-table .tl-decision-row .tl-waiver-mobile-points { margin-top:4px; line-height:1.4; }
+}

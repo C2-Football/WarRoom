@@ -638,6 +638,153 @@ prioritized future work listed above.
 
 ---
 
+### Continued slice: mobile decisions and replacement continuity
+
+Continued from clean checkpoint `71c273f`, applying the user's approved lessons
+from the recent Dynasty HQ mobile work. The finite slice places the existing
+trade brief and selected package before long player lists, carries an explicit
+replacement intent from roster browsing into a legal claim, and compacts mobile
+player rows without concealing decision evidence or reducing action targets.
+The existing archive identity, hidden-season rules and four-stage loop remain.
+
+| Requirement | Status | Completion criteria |
+|---|---|---|
+| Reversible baseline | VERIFIED | Exact `71c273f` disposable browser: 12 captures, 35 intercepted requests to mutation endpoints, zero errors; roster/wire row heights and trade brief position measured at 390/430/1440; prior passing checkpoint retained |
+| Trade decision visible before browsing | VERIFIED | Actual multi-player selection/removal, upfront public totals/basis, current roster checks and bench consequence at all five sizes plus short landscape; Send→reload→normal gate→human acceptance→legal saved rosters |
+| Preserve replacement context | VERIFIED | 22 focused UI cases and controller boundaries; actual named handoff, incompatible target, manual/clear/pending precedence, 7 FAAB settlement, scored game/reload and team/week/room navigation; independent mounted-form stale callbacks produce zero writes |
+| Compact usable player rows | VERIFIED | Exact-fixture 390px roster 136.44→117.73px median, 5 full rows vs 4; phone wire 250.73→181.27px, 3 choices vs 2; all five requested sizes plus 667×375 have reachable 44px actions and no horizontal overflow |
+| Integrated acceptance | VERIFIED | 75-command Vault suite, final focused 22-case UI follow-up, core 97/entry 7, source lint and independent stale-form retest pass; Chromium and WebKit connected journeys pass; pinned preview build compiles 160 scripts |
+
+Replacement context is temporary navigation state, separate from saved game
+progress. It does not introduce claim editing/reordering, forecasts, new scoring,
+new data, or any automatic acquisition. All consequential actions still use the
+existing validator and persistence path. Publication remains outside this pass.
+
+#### Behavior and compatibility
+
+The trade builder now leads with its public comparison, current roster checks,
+both selected package totals and names, removable selections, and the existing
+received-player bench consequence. Both player lists remain available below;
+the longer explanation expands separately. This changes presentation, not
+proposal/acceptance rules or the existing comparison calculation. Missing or
+incompatible evidence cannot generate a grade. No NFL projection model or
+acceptance probability is imported from the Dynasty HQ platform.
+
+**Find eligible players** carries the source slot and optional owned player into
+the wire. The next new target can preselect that drop only when the shared
+landing validator permits it. The wire names the replacement and keeps the
+final Add/Drop/Bid confirmation explicit. A manually selected drop/bid or an
+already-filed claim takes precedence. **Clear replacement context** removes an
+untouched automatic suggestion and preserves deliberate edits and the current
+position filter. Clearing returns keyboard focus to free-agent search. Browse,
+clear and comparison controls make no game write.
+
+Room, manager and week boundaries apply to both the source context and its
+filter. A mounted automatic preset expires across those boundaries, even
+without closing the modal; its old or disabled callbacks cannot file it.
+Filing rechecks current free-agent ownership, shared claim validation and
+landing legality. The independent review reproduced a stale-week automatic
+drop before the fix and confirmed zero writes from both old and current
+callbacks afterward. Existing save conflict/quota/retry handling remains in
+use. No save schema, rules/data version, historical asset or settled result
+changed; navigation context is intentionally absent after a full reload.
+
+The compact roster shows decade and candidate count for an unresolved edition;
+the full hidden-year description remains connected to its history control for
+accessible text. An identified year still displays exactly. A waiver row removes
+only a duplicate hidden-year remaining estimate when its displayed value agrees;
+an unused-archive total and a different Vault estimate remain distinct. Actual
+sample/basis/uncertainty information stays available through the existing public
+readers and details. Names and numbers are not made smaller to claim density.
+
+#### Measured layout evidence
+
+`output/playwright/vault-mobile-decisions/baseline-verification.json` pins the
+before sources to `71c273f`. Final captures use the same disposable fixtures,
+fresh viewport mounts and measured sticky-header/footer boundaries. Median row
+heights and completely visible rows in the standardized useful viewport:
+
+| Surface / size | Before → after median | Full rows before → after |
+|---|---|---|
+| Roster 390×844 | 136.44→117.73px | 4→5 |
+| Roster 430×932 | 122.97→117.73px | 5→5 |
+| Roster 1440×900 | 77.30→77.80px | 9→9 |
+| Wire 390×844 / 430×932 | 250.73→181.27px | 2→3 |
+| Wire 1440×900 | 135.69→135.69px | 5→5 |
+
+The phone roster median is about 14% shorter at 390px; wire rows are about 28%
+shorter. Desktop density is essentially unchanged while the scoring basis is
+explicit. This measures layout, not task-completion speed or enjoyment. The
+trade brief's improvement is its placement before both lists; the complete trade
+page is not claimed to be shorter. The first measured pass made roster rows
+slightly taller; repeated copy and duplicate displayed estimates were corrected
+before these final measurements.
+
+#### Verification and inspection
+
+Run the source preview from this isolated worktree with
+`node scripts/serve-static.cjs --port=3037 --compile`, then open
+`http://127.0.0.1:3037/?vault=1`. Local saves stay in that browser and origin.
+
+The repeatable browser harness uses a separate, signed-out fixture origin:
+
+```sh
+node scripts/serve-static.cjs --port=3038 --compile --allowed-hosts=vault-qa.test
+node tests/vault-mobile-decisions-journey.cjs
+node tests/vault-mobile-decisions-journey.cjs --webkit
+```
+
+The harness maps that origin locally, installs disposable fixture saves, and
+intercepts every request to a mutation endpoint. It does not use an existing
+user's progress. Chromium checks all five requested viewport sizes and
+667×375; WebKit checks the two phone sizes. Browser emulation is separate from
+physical-device, real-account, production and concurrent multiplayer evidence.
+Those remain unverified. No deployment was performed.
+
+Evidence is retained under `output/playwright/vault-mobile-decisions/`:
+
+- `baseline-verification.json`: exact before sources and 12 captures.
+- `density-verification.json`: final six-size matrix and 12 captures.
+- `verification.json`: two connected Chromium journeys, 27 captures, no page or
+  route errors; claim settlement, saved game, human trade response and reloads.
+- `trade-verification.json`: focused multi-player trade matrix and seven captures.
+- `clear-focus-probe.json`: actual Space activation returns focus to the fully
+  visible, unobstructed search field; RB filter retained and no pending claim.
+- `webkit-verification.json`: three passing groups, 18 captures and 21 actual
+  taps with mobile/touch emulation at both phone sizes; claim settlement,
+  game/reload, trade acceptance and keyboard clear. No page or route errors;
+  three expected blocked-telemetry CORS messages are retained separately.
+- `final-suite.log`: passing 75-command Vault suite, including full-season and
+  hidden-year 12-team fixtures with 156 picks and 92 saved/reloaded actions each.
+- `final-ui.log`: final 22-case follow-up after the keyboard focus repair.
+- `core.log`, `entry.log`, `final-lint.log`: 97 core checks, seven shared entry
+  contracts and source ESLint.
+- `final-build.log`: `SHARED_SOURCE=/tmp/vault-shared-20261021 npm run build:preview`
+  passed with 160 compiled Babel scripts. The shared input is pinned to
+  `74d6369224db5b814a9f3fdeff8fb7d60735aa81`; all 46 extracted files match its Git
+  objects (`shared-input-verification.json`). Existing large-script Babel notes and
+  the Node local-storage warning remain; neither failed compilation.
+- `verification-summary.json`: final local commit, source SHA-256 hashes,
+  report counts, commands and evidence boundaries.
+
+The first WebKit touch run completed the gameplay assertions but failed its
+strict report on 22 late GET connection resets. Its raw report/log remain as
+`attempt-webkit-route-reset-*`. The harness now records context-closing timing
+without ignoring active-session errors. A fresh complete rerun passed with zero
+route errors and zero cleanup resets; this did not require an application edit.
+
+Representative before/after artifacts are `before-roster-density-390.png`,
+`after-roster-density-390.png`, `before-waivers-density-390.png`,
+`after-waivers-density-390.png`, `after-trade-upfront-packages-390.png` and
+`after-replacement-preselected-drop-390.png`. These are actual browser captures.
+The archive audit still reports 3,586 identities, 22,906 seasons and 272,461
+unique scoring lines, with legacy hashes unchanged. Existing unrelated design
+token failures in `js/free-agency.js` remain outside this slice. No new product
+system or discretionary rules change was added to future work; the existing
+prioritized beta-access and portability work remains applicable.
+
+---
+
 September 8, 2026 · Product, browser, rules, and architecture review
 
 **Recommendation: run a small invited beta with 5–10 trusted testers. Do not launch public, ranked multiplayer yet.** The game has a distinctive premise, a complete season loop, and enough personality to invite repeat play. Keep the current architecture. The next investment should be reliability, clearer decisions, and observing real players—not another large feature expansion.
