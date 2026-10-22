@@ -171,7 +171,7 @@ test('Chopped keeps waiver previews week-only instead of relabeling a survival w
     const h = harness(); h.input.skin = { type: 'chopped', features: { showTrades: false } };
     h.input.league = { ...h.league, settings: { ...h.league.settings, type: 3 } }; h.render();
     await loadWaivers(h);
-    assert(find(h.tree, node => node.type === 'button' && text(node) === 'This week'));
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Acquisition projection horizon'), 'One supported horizon needs no selector');
     assert(!find(h.tree, node => node.type === 'button' && text(node) === 'Season'), 'Chopped does not offer a misleading season scope');
     assert.equal(h.lens.ui.horizon, 'week');
     h.lens.setHorizon('season'); h.render(); await h.flush();
@@ -180,6 +180,51 @@ test('Chopped keeps waiver previews week-only instead of relabeling a survival w
     assert(!text(h.tree).includes('Rest-of-season lineup points'));
     assert(!find(h.tree, node => String(node.props.className || '').includes('wr-lens-other-horizon')), 'No survival-window number appears as an alternate season forecast');
     assert.equal(h.seasonCalls.length, 0);
+});
+
+test('compact preview keeps decision facts, shows one preview cue, and avoids repeated names or generic captions', async () => {
+    const h = harness(); await loadWaivers(h);
+    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
+    const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
+    for (const fact of ['Available Runner', 'Bench Runner', 'RB', 'CHI', 'Proj', '18.0', 'L5 PPG', '11.5', '$7']) assert(text(preview).includes(fact), 'Decision fact remains visible: ' + fact);
+    assert.match(text(impact), /100\.0.*103\.0/); assert.match(text(impact), /\+3\.0lineup pts/);
+    assert.equal((text(h.tree).match(/Preview/g) || []).length, 1, 'One preview cue covers the read-only comparison');
+    for (const caption of ['Compare legal add / drop moves', 'Try on', 'One move at a time', 'gains are not additive', 'Improves the best legal lineup.']) assert(!text(h.tree).includes(caption), 'No redundant caption: ' + caption);
+    assert(!text(preview).includes('Rest of season'), 'A positive alternate horizon does not add another collapsed caption');
+    h.click('Review claim'); preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
+    assert.equal(text(preview).split('Available Runner').length - 1, 1, 'Review does not repeat the incoming identity');
+    assert.equal(text(preview).split('Bench Runner').length - 1, 1, 'Review does not repeat the outgoing identity');
+    assert.match(text(preview), /Rest of season: \+10\.0 lineup pts/);
+    assert(text(preview).includes('Availability requires platform confirmation.'));
+    assert(find(preview, node => node.type === 'input' && node.props['aria-label'] === 'Planned maximum waiver bid'));
+});
+
+test('condensing preserves a negative alternate-horizon tradeoff and actionable primary projection failure', async () => {
+    const h = harness(); await loadWaivers(h, [candidate('add-a', 'Available Runner', 3, -8)]);
+    const preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
+    assert.match(text(preview), /Rest of season: -8\.0 lineup pts/, 'Loss remains visible without opening review');
+    const missing = harness(); await loadWaivers(missing, [candidate('add-a', 'Available Runner', 3, 0, { season: { status: 'unavailable', before: null, after: null, delta: null, reason: 'ROS inputs are missing.' } })]);
+    assert(!text(missing.tree).includes('ROS inputs are missing.'), 'An unused unavailable horizon adds no caption');
+    missing.click('Season'); await missing.flush();
+    assert.match(text(missing.tree), /Comparison unavailable/); assert.match(text(missing.tree), /ROS inputs are missing\./, 'The active horizon keeps its concrete missing-evidence reason');
+});
+
+test('compact dynasty age fit retains real ages, price, inferred partner and expanded evidence boundaries', async () => {
+    const h = harness(); h.input.skin = { type: 'dynasty', features: { showTrades: true } }; h.render();
+    const move = candidate('trade-a', 'Young Runner', -8.5, 0, { price: { delta: -100, unit: 'DHQ' },
+        futureFit: { outgoingAverageAge: 32, incomingAge: 24, ageDifference: 8, label: 'Younger roster asset' },
+        partner: { name: 'Northside', direction: { label: 'Competing profile', source: 'inferred', reason: 'Based on this roster’s production, not a declared GM strategy.' } },
+        reason: 'Receive a younger asset while giving up immediate production.', cautions: ['You give up projected production now.'] });
+    await loadTrades(h, [move]); h.click('Future fit'); await h.flush();
+    const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
+    assert.match(text(impact), /32.*24/); assert.match(text(impact), /8years younger/); assert.equal(h.seasonCalls.length, 0);
+    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'trade-a');
+    assert.match(text(preview), /Northside.*Competing profile \(inferred\)/); assert.match(text(preview), /-100 DHQ/);
+    assert(!text(preview).includes('future performance is not forecast'));
+    h.click('Review trade'); preview = find(h.tree, node => node.props['data-lens-preview'] === 'trade-a');
+    assert(text(preview).includes('future performance is not forecast'));
+    assert(text(preview).includes('You give up projected production now.'));
+    assert(text(preview).includes('not a declared GM strategy'));
 });
 
 test('failed plan write is visible inline and never reported as a saved claim', async () => {

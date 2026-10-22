@@ -1790,7 +1790,7 @@ function MyTeamTab({
       const key = opportunity ? '__acquisition_lens' : getRowGroupKey(r);
       let g = groups[groups.length - 1];
       if (!g || g.key !== key) {
-        g = { key, label: opportunity ? 'Acquisition ideas · previews' : rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
+        g = { key, label: opportunity ? 'Suggestions' : rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
         groups.push(g);
       }
       const isExpanded = expandedPid === r.pid;

@@ -224,7 +224,7 @@
                     : 'An older productive target on a rebuilding roster profile may fit your nearer-term window.' };
                 const reason = timelineFit.matched ? timelineFit.reason : strategy.mode === 'rebuild' ? 'A younger asset fits your rebuild; the current lineup cost is shown explicitly.'
                     : type === 'redraft' ? 'Improves your next full-week lineup under this league’s scoring.' : 'Adds immediate starting-lineup help while showing the dynasty value you give up.';
-                const caution = ['Possible fit only; the other manager has not agreed to this package.'];
+                const caution = [];
                 if (weekly.delta < 0) caution.push('You give up projected production now.');
                 if (outgoing.length > 1) caution.push('Consolidating two players reduces your depth.');
                 if (give > receive) caution.push('You send more ' + (type === 'redraft' ? 'season value' : 'DHQ value') + ' than you receive.');
