@@ -1038,6 +1038,30 @@
         return { legal: problems.length === 0, problems, slots };
     }
 
+    function planningRecovery(state) {
+        const active = state.weekStage === 'claims' && state.planningRecoveryWeek === state.currentWeek;
+        const teams = state.teams.filter(team => team.manager === 'human' && weekParticipation(state, team.teamId).requiresLineup)
+            .flatMap(team => {
+                const feasibility = rosterFeasibility(team.roster, state.settings);
+                return feasibility.legal ? [] : [{ teamId: team.teamId, name: team.name, problems: feasibility.problems }];
+            });
+        let reason = null;
+        if (state.phase !== 'season') reason = 'Planning can reopen only during an active season.';
+        else if (state.finalizedWeeks.some(week => week.week === state.currentWeek)) reason = 'This week has already been scored. Its planning cannot be reopened.';
+        else if (!['lineup', 'ready'].includes(state.weekStage)) reason = active ? 'Planning is already open for roster recovery.' : 'Planning can reopen only before kickoff, from lineup or ready.';
+        else if (!state.settings.waiversEnabled && !state.settings.tradesEnabled) reason = 'Waivers and trades are both disabled in this league.';
+        else if (!teams.length) reason = 'Every required human roster can already field a legal lineup. Use the lineup controls to assign eligible players.';
+        return { teams, available: reason === null, reason, active };
+    }
+
+    function reopenPlanning(state, createdAt) {
+        const recovery = planningRecovery(state);
+        if (!recovery.available) return state;
+        const events = appendEvents(state.activity);
+        events.push(state.currentWeek, 'league', `Planning reopened W${state.currentWeek} — roster recovery for ${recovery.teams.map(team => team.name).join(', ')}. Existing results, trades and waiver awards stand.`, createdAt);
+        return { ...state, planningRecoveryWeek: state.currentWeek, weekStage: 'claims', activity: events.list() };
+    }
+
     const tradeOwnershipProblem = (state, offer) => {
         const from = state.teams.find((item) => item.teamId === offer.fromTeamId);
         const to = state.teams.find((item) => item.teamId === offer.toTeamId);
@@ -1504,6 +1528,7 @@
                 ...(!publicView ? { yearReveals: Array.isArray(raw.yearReveals) ? [...new Set(raw.yearReveals.filter(id => teams.some(t => t.teamId === id && t.manager === 'human')))] : [] } : {}) } : {}),
             currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
             weekStage: ['postgame', 'claims', 'lineup', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
+            ...(Number.isInteger(raw.planningRecoveryWeek) && raw.planningRecoveryWeek >= 1 && raw.planningRecoveryWeek <= 19 ? { planningRecoveryWeek: raw.planningRecoveryWeek } : {}),
             gateStartedAt: typeof raw.gateStartedAt === 'string' && Number.isFinite(Date.parse(raw.gateStartedAt)) ? raw.gateStartedAt : createdAt,
             gateVotes: Array.isArray(raw.gateVotes) ? [...new Set(raw.gateVotes.filter(id => teams.some(t => t.teamId === id && t.manager === 'human')))] : [],
             schedule,
@@ -1555,7 +1580,7 @@
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems, weekParticipation, lineupReadiness,
         finalizeCurrentWeek, computeStandings, freeAgents, waiverClaimProblem, submitWaiverClaim, cancelWaiverClaim,
-        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, rosterFeasibility, tradeProblem, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, rosterFeasibility, planningRecovery, reopenPlanning, tradeProblem, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

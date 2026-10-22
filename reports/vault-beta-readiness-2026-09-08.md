@@ -64,8 +64,9 @@ New recap presentation uses saved totals and starters, never future game draws.
 
 ### Save compatibility and recovery
 
-No save schema, scoring version, historical asset or settled outcome changed.
-New shelf metadata is optional; old indexes still open. Both plain JSON and
+The existing save version, scoring version, historical assets and settled outcomes
+are unchanged. New shelf metadata and the recovery-week field described below
+are optional; old saves and indexes still open. Both plain JSON and
 checksummed compressed saves remain readable. Unknown/unreadable saves are
 kept and receive recovery feedback; they are never reset automatically.
 
@@ -432,7 +433,8 @@ Known pre-existing defect: a save containing an **already accepted** trade that
 removed the team's only required position can still be stuck at the lineup gate.
 This pass prevents new impossible acceptances and validates old pending offers;
 it does not silently reverse settled trades or reopen acquisition gates. A
-deliberate recovery flow for those older broken saves remains future work.
+deliberate recovery flow was still missing at this checkpoint; the continued
+recovery slice below now addresses it through the existing acquisition rules.
 
 Focused checks are `tests/time-league-acquisition-integrity.js` (14 cases),
 `tests/time-league-acquisitions-ui.js` (12 cases), and the actual mocked
@@ -507,6 +509,132 @@ PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw
 PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-acquisitions-journey.cjs --webkit --trade --impossible --stale --hidden
 node tests/vault-experience-journey.cjs --acceptance-only
 ```
+
+---
+
+### Continued slice: recover an unfillable roster
+
+Continued from clean local checkpoint `082a06f`. A historical accepted trade, or
+a current waiver batch that replaces the sole required position, can leave a
+human roster unable to reach kickoff. Reopening lineup assignments cannot acquire
+the missing player. The release adds a deliberate return to the existing planning
+gate for that condition, rather than reversing a settled transaction.
+
+| Requirement | Status | Completion criteria |
+|---|---|---|
+| Detect the actual recovery condition | VERIFIED | Public slot feasibility distinguishes an unfillable required human roster from a movable bench gap; regular byes qualify, playoff observers and scored weeks do not; 11 focused engine/action cases |
+| Authoritative bounded transition | VERIFIED | Actual endpoint commissioner/human-seat checks, unscored lineup/ready gates, stale/repeated actions, reconnect and existing gate clock/vote reset |
+| Preserve progress and fair settlement | VERIFIED | Local/public marker round trips; exact prior results/trades/awards/budgets/editions; no repeated automatic AI acquisition or refresh, normal behavior next week |
+| Explain and complete the repair | VERIFIED | Actual Chrome confirmation/cancel/keyboard/failure/retry, correct enabled acquisition route and local manager, real RB replacement, legal lock, saved Week2 and advance to Week3 |
+| Integrated verification | VERIFIED | 74-command Vault suite, final12-case UI/9-case readiness checks, real mocked endpoint, Chromium five-size matrix, WebKit phones, core97/entry7, ESLint and160-script preview build |
+
+The remedy reuses priority/FAAB and trade rules. It does not guarantee a particular
+free agent, refill funds, roll another edition, or bypass bidding. A legitimate
+multi-claim plan may temporarily lack a position and remains legal. Leagues with
+both acquisitions disabled receive an honest explanation; recovery does not
+silently enable a disabled mechanic. Hosted accounts and physical devices remain
+outside the local evidence boundary.
+
+#### Player journey and compatibility
+
+Home, the roster and week actions distinguish an unfillable roster from an
+eligible player sitting on the bench. **Reopen planning** explains what stays
+final before the commissioner confirms. Local hotseat play selects the affected
+human manager; online rooms retain the viewer's own seat. Waiver-enabled rooms
+open Players; trades-only rooms open the existing trade builder. Failed saves
+keep the prior stage and expose the existing retry/recovery controls.
+
+The reopened window follows the existing priority, bidding, eligibility and
+trade-acceptance rules. Computer managers do not submit a second automatic
+waiver batch or generate extra offers; pending claims and manually negotiated
+offers still resolve normally. Same-week awards are labeled **Week N waiver
+results**, including the recorded recap, because the existing ledger aggregates
+by week. No fictitious batch history is introduced.
+
+`planningRecoveryWeek` is optional in the existing version1 local/public save
+contract. No destructive migration, historical-data correction, scoring change,
+budget reset or replacement edition is involved. Reload and Retry retain the
+same committed window. The marker becomes inactive when the current week
+advances, restoring normal computer acquisitions. Unknown saves still use the
+existing non-destructive recovery path. An older client that rewrites a local
+save does not understand this new marker; use this build when continuing an
+opened recovery window.
+
+#### Verification and remaining limits
+
+The tracked `tests/time-league-planning-recovery.js` covers 11 focused cases:
+legacy accepted-trade recovery, a current legal waiver that removes the sole
+required position, valid multi-claim plans with a temporary gap, authority,
+stage/scored-week guards, regular byes, playoff observers, hidden-data getter
+traps, optional field round trips, pending claims, no repeated automatic
+acquisitions, and real AI trade responses. The 12-case UI suite additionally
+checks confirmation, duplicate taps, failed saves, member/disabled explanations,
+Escape/focus return, mutually exclusive footer disclosures, enabled acquisition
+routes and exact same-week receipts. The final focused UI/readiness checks ran
+after correcting an observed overlap that had covered the roster review action.
+
+The actual mocked public endpoint test exercises version conflicts, unauthorized
+and repeated reopening, reconnect, a real replacement claim, preserved budgets,
+awards/trades and Week1 result, legal lineup lock and a saved Week2 result. This
+is the real endpoint implementation with an isolated backend, not live hosted
+multi-account proof. An independent read-only review also checked direct,
+majority and timed settlement paths; all reuse the recovery marker correctly.
+
+Evidence is under `output/playwright/vault-recovery/`. The baseline reconstructs
+an accepted position-breaking trade with the older `b9dbf36` engine, then loads
+it through current normalization; it does not use user progress. The acceptance
+fixture first spends7 FAAB and scores Week1 normally. Actual browser controls
+then reopen Week2, acquire an RB for7 from the remaining93, lock a legal lineup,
+save Week2, reload, and advance once to Week3. The previous award, result and
+accepted trade remain exact. Separate controls cover trades-only routing,
+both-acquisitions-disabled explanations, movable bench gaps and a genuine local
+quota failure followed by **Retry save**.
+
+Final browser evidence:
+
+- `verification.json`: Chromium PASS,9 journey groups,47 viewport screenshots,
+  43 intercepted backend writes, zero page/route errors. Recovery, its reopened
+  window, repaired lineup and saved result were inspected at390×844,430×932,
+  1024×1366,1366×1024 and1440×900.
+- `webkit-verification.json`: WebKit PASS,9 groups,26 screenshots,37 intercepted
+  writes, zero unexpected page/route errors;390×844/430×932 phones,125% text,
+  reduced motion, keyboard/focus and actual touch-sized controls. Four narrowly
+  classified blocked-telemetry CORS messages are retained separately.
+- `baseline-verification.json`: exact `082a06f` sources reproduced the blocked
+  lineup/ready states with8 baseline captures; provenance is recorded alongside
+  the disposable fixtures. No user's saved season was used.
+- `final-suite.log`: all74 Vault commands passed, including the real endpoint,
+  historical archive and full-season reload fixtures. `final-ui.log` and
+  `final-readiness-ui.log` pass after the final disclosure repair. `core.log`
+  is97/97; `entry.log` is7/7. Source ESLint and `git diff --check` pass.
+- `final-build.log`: clean workflow-pinned shared input,160 Babel scripts
+  compiled successfully. Existing large-source compiler notes and Node
+  localStorage warnings remain; no runtime dependency or asset was added.
+
+Representative actual captures are
+`before-legacy-lineup-blocked-390.png`,
+`after-recovery-lineup-confirmation-390.png`,
+`after-recovery-ready-enlarged-confirm-390.png`,
+`after-recovery-lineup-open-window-1440.png`,
+`after-recovery-repaired-roster-430.png` and
+`after-recovery-week2-saved-result-1440.png` in the evidence directory. These
+are local browser emulation; physical devices and hosted accounts remain
+unverified. `overlay-probe.json` retains the concrete issue found before its
+fix; both final browser summaries verify the corrected controls.
+
+Run the browser acceptance with the isolated preview described above:
+
+```sh
+node tests/vault-planning-recovery-journey.cjs
+PLAYWRIGHT_WEBKIT_PATH=/Users/jacobc/Library/Caches/ms-playwright/webkit-2368/pw_run.sh node tests/vault-planning-recovery-journey.cjs --webkit
+```
+
+Recovery is available only before kickoff when an enabled acquisition system
+can be used. A custom pool without an eligible replacement, an insufficient
+budget or an unwilling trade partner can still prevent repair. Existing rules
+are not silently changed to guarantee a result. Hosted multiplayer acceptance,
+physical-device testing, backup/export and unattended advancement remain the
+prioritized future work listed above.
 
 ---
 

@@ -180,7 +180,7 @@
         const hidden = state.settings.hiddenYears === true && !yearsRevealed;
         const visibility = draftVisibility(state, seatTeamId);
         const result = {
-            ...pick(state, fields('version leagueId name createdAt phase currentWeek weekStage gateStartedAt championTeamId')),
+            ...pick(state, fields('version leagueId name createdAt phase currentWeek weekStage planningRecoveryWeek gateStartedAt championTeamId')),
             publicSnapshotVersion: 1,
             draftVisibility: visibility,
             settings: publicSettings(state, visibility),

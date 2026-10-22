@@ -167,7 +167,7 @@
         case 'refresh-trade-offers':
             if (state.phase !== 'season' || !['claims', 'lineup'].includes(state.weekStage)) deny('Trade suggestions open during weekly planning.');
             if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can refresh trade offers.');
-            next = AI.aiGenerateTrades(state, cards, stamp, { humanOnly: true });
+            next = state.planningRecoveryWeek === state.currentWeek ? state : AI.aiGenerateTrades(state, cards, stamp, { humanOnly: true });
             break;
         case 'ping-ai':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
@@ -184,6 +184,14 @@
             if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Only a finalized lineup gate can be reopened.');
             next = { ...state, weekStage: 'lineup' };
             break;
+        case 'reopen-planning': {
+            commissioner();
+            if (!state.teams.some(team => team.teamId === own && team.manager === 'human')) deny('Only a league manager can reopen planning.');
+            const recovery = E.planningRecovery(state);
+            if (!recovery.available) deny(recovery.reason);
+            next = E.reopenPlanning(state, stamp);
+            break;
+        }
         case 'start-playoffs':
             commissioner();
             next = E.startPlayoffs(state, Number(action.count));
@@ -196,10 +204,13 @@
         case 'process-claims': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'claims') deny('Open waiver planning first.');
-            // Each AI files against the same pre-resolution pool as human managers.
-            const staged = AI.aiSubmitWaiverClaims(state, cards, stamp);
+            // Ordinary planning gives each AI the same pre-resolution pool.
+            // A repair round preserves that week's automated decisions; only
+            // actually pending claims and manually negotiated offers settle.
+            const recovery = state.planningRecoveryWeek === state.currentWeek;
+            const staged = recovery ? state : AI.aiSubmitWaiverClaims(state, cards, stamp);
             next = E.processWaivers(staged, cards, stamp);
-            next = AI.aiRespondToTrades({ ...AI.aiGenerateTrades(next, cards, stamp), weekStage: 'lineup' }, cards, stamp);
+            next = AI.aiRespondToTrades({ ...(recovery ? next : AI.aiGenerateTrades(next, cards, stamp)), weekStage: 'lineup' }, cards, stamp);
             break;
         }
         case 'finalize-rosters': {

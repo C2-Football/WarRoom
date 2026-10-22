@@ -252,22 +252,60 @@
     const slotName = slot => ({ BN: 'Bench', SUPER_FLEX: 'Super flex', FLEX: 'Flex', DEF: 'D/ST' }[slot] || slot);
 
     function WaiverBatchReceipt({ league, team, onNavigate, compact = false }) {
-        const week = ['claims', 'postgame'].includes(league.weekStage) ? league.currentWeek - 1 : league.currentWeek;
+        const currentRecovery = league.planningRecoveryWeek === league.currentWeek;
+        const week = currentRecovery ? league.currentWeek : ['claims', 'postgame'].includes(league.weekStage) ? league.currentWeek - 1 : league.currentWeek;
+        const recoveryWeek = league.planningRecoveryWeek === week;
+        const label = recoveryWeek ? `Week ${week} waiver results` : 'Latest waiver batch';
         const awards = (league.waiverResults || []).filter(row => row.week === week);
         const ownAwards = awards.filter(row => row.winnerTeamId === team.teamId);
         const contested = awards.filter(row => row.winnerTeamId !== team.teamId && row.contenderTeamIds.includes(team.teamId));
         const record = (league.activity || []).filter(event => event.kind === 'waiver' && event.week === week);
         if (week < 1 || (!awards.length && !record.length)) return null;
-        return h('section', { className: `tl-card tl-waiver-receipt${compact ? ' is-compact' : ''}`, 'aria-label': 'Latest waiver batch' },
-            h('div', { className: 'tl-card-title' }, h('span', null, 'Latest waiver batch'), h('small', null, `W${week}`)),
-            ownAwards.length ? h('p', { className: 'tl-acq-help' }, `Added ${ownAwards.map(row => row.name).join(', ')}.`) : h('p', { className: 'tl-acq-help' }, 'No additions recorded for your team in this batch.'),
+        return h('section', { className: `tl-card tl-waiver-receipt${compact ? ' is-compact' : ''}`, 'aria-label': label },
+            h('div', { className: 'tl-card-title' }, h('span', null, label), h('small', null, `W${week}`)),
+            ownAwards.length ? h('p', { className: 'tl-acq-help' }, `Added ${ownAwards.map(row => row.name).join(', ')}.`) : h('p', { className: 'tl-acq-help' }, recoveryWeek ? 'No additions recorded for your team this week.' : 'No additions recorded for your team in this batch.'),
             contested.map(row => h('p', { key: row.identity, className: 'tl-acq-help' }, `${row.name} went to ${league.teams.find(item => item.teamId === row.winnerTeamId)?.name || 'another manager'}.`)),
             !compact && record.length > 0 && h('details', null, h('summary', null, 'Recorded league waiver activity'),
                 h('ul', { className: 'tl-waiver-record', tabIndex: 0, 'aria-label': 'Recorded waiver activity' }, record.map(event => h('li', { key: event.id }, event.message)))),
             onNavigate && h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate(compact ? 'waivers' : 'roster') }, compact ? 'View waiver activity' : 'View lineup'));
     }
 
-    function RosterSection({ league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats, onNavigate }) {
+    function RosterPlanningRecovery({ league, team, onlineMeta, onReopenPlanning }) {
+        const [working, setWorking] = useState(false);
+        const [notice, setNotice] = useState('');
+        const inFlight = React.useRef(false);
+        const recovery = Engine.planningRecovery(league);
+        const need = recovery.teams.find(row => row.teamId === team.teamId);
+        if (!need || !['lineup', 'ready'].includes(league.weekStage) || league.phase !== 'season') return null;
+        const host = !onlineMeta || onlineMeta.role === 'commissioner';
+        const close = event => { const details = event.currentTarget.closest('details'); details.open = false; details.querySelector('summary')?.focus(); };
+        const reopen = async () => {
+            if (inFlight.current || !host || !recovery.available || !onReopenPlanning) return;
+            inFlight.current = true; setWorking(true); setNotice('');
+            try {
+                const saved = await onReopenPlanning(team.teamId);
+                if (saved === false) setNotice('Planning was not reopened. Resolve the save or review the current room, then try again.');
+            } catch (_error) { setNotice('Planning could not be reopened. Review the current room and try again.'); }
+            finally { inFlight.current = false; setWorking(false); }
+        };
+        return h('section', { className: 'tl-card tl-roster-recovery', 'aria-label': 'Roster recovery required', tabIndex: -1 },
+            h('h3', null, 'Roster changes needed'),
+            h('p', null, `${team.name} cannot fill every required slot with this roster. Moving the current players cannot solve these needs:`),
+            h('ul', null, need.problems.map(problem => h('li', { key: problem }, problem))),
+            !recovery.available ? h('p', { className: 'tl-acq-help' }, recovery.reason)
+                : !host ? h('p', { className: 'tl-acq-help' }, `Ask your commissioner to reopen planning for Week ${league.currentWeek}. Only the commissioner can open this recovery window.`)
+                    : onReopenPlanning && h('details', { className: 'tl-roster-recovery-confirm', onKeyDown: event => { if (event.key === 'Escape' && event.currentTarget.open && !working) { event.preventDefault(); event.stopPropagation(); close(event); } } },
+                        h('summary', null, 'Reopen planning'),
+                        h('div', { className: 'tl-planning-confirm-body' },
+                            h('p', null, `Reopen Week ${league.currentWeek} for human managers to ${league.settings.waiversEnabled ? 'file new waiver claims' : 'propose compatible trades'}. Existing waiver awards, settled trades, spent FAAB and completed games stay saved.`),
+                            h('p', null, 'This returns the league to planning. Computer managers will not file another automatic waiver batch; existing trade offers can still receive answers.'),
+                            h('div', { className: 'tl-planning-confirm-actions' },
+                                h('button', { type: 'button', className: 'tl-btn', disabled: working, onClick: close }, 'Keep current stage'),
+                                h('button', { type: 'button', className: 'tl-btn primary', disabled: working, onClick: reopen }, working ? 'Reopening…' : 'Confirm reopen planning')))),
+            notice && h('p', { className: 'tl-acq-notice', role: 'status', 'aria-atomic': true }, notice));
+    }
+
+    function RosterSection({ league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats, onNavigate, onlineMeta, onReopenPlanning }) {
         const [selectedId,setSelectedId]=useState(null);
         const [draggedId, setDraggedId] = useState(null);
         const [moveNotice, setMoveNotice] = useState('');
@@ -283,6 +321,7 @@
         const revealed = league.seasonsRevealed && !concealed;
         const editable = team.manager === 'human' && league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
         const participation = Engine.weekParticipation(league, team.teamId);
+        const recoveryNeed = Engine.planningRecovery(league).teams.find(row => row.teamId === team.teamId);
         const emptyStarterSlots = currentTeam => STARTER_SLOTS.reduce((total, slot) => total + Math.max(0,
             (league.settings.rosterSlots[slot] || 0) - currentTeam.roster.filter(entry => entry.slot === slot).length), 0);
         const emptyCount = emptyStarterSlots(team);
@@ -298,6 +337,7 @@
         const fillHelpId = `vault-fill-help-${league.leagueId}-${team.teamId}`;
         const fillHelp = league.phase === 'complete' ? 'This season is complete. Your saved lineup can be reviewed here.'
             : participation.kind === 'observer' ? 'Your team is not in this playoff round. Its lineup does not block kickoff; you can review your roster here.'
+            : recoveryNeed && ['lineup', 'ready'].includes(league.weekStage) && !fillPlan ? `${!editable ? 'Lineups are locked. This roster needs changes before kickoff.' : emptyCount ? `No eligible bench player can fill ${emptyCount === 1 ? 'the empty starting slot' : `these ${emptyCount} empty starting slots`}.` : 'This roster needs changes before kickoff.'} Review the roster recovery notice above; moving the current players cannot fill every required slot.`
             : !editable ? 'Lineups are locked. Empty slots can be filled during the next planning gate.'
             : !emptyCount ? 'Every starting slot is occupied. Use Move to compare and swap players.'
                 : !fillPlan ? `No eligible bench player can fill ${emptyCount === 1 ? 'the empty starting slot' : `these ${emptyCount} empty starting slots`}. Select + Add player in an empty slot to review your roster options.`
@@ -484,10 +524,12 @@
                         emptyTargets.length > 0 && h('div', { className: 'tl-roster-empty-targets' }, h('h3', null, 'Move into an open slot'), emptyTargets.map(slot => h('button', {
                             type: 'button', key: slot, className: 'tl-btn', disabled: moving, onClick: () => moveEntry(movingEntry.entryId, slot),
                         }, `${slotName(slot)}${Season.isStarterSlot(movingEntry.slot) && slot === 'BN' ? ` · leaves ${slotName(movingEntry.slot)} open` : ''}`))),
-                        onBrowseWaivers && league.settings.waiversEnabled && (moveChoice.slot || (movingEntry && Season.isStarterSlot(movingEntry.slot))) && h('button', { type: 'button', className: 'tl-btn tl-roster-find-player', disabled: moving, onClick: () => { setMoveChoice(null); onBrowseWaivers(moveChoice.slot || movingEntry.slot); } }, `Find eligible ${slotName(moveChoice.slot || movingEntry.slot)} free agents →`)),
+                        recoveryNeed && league.weekStage !== 'claims' ? h('p', { className: 'tl-hint' }, 'Acquisitions are closed. Close these choices and review the roster recovery notice to reopen planning before finding a replacement.')
+                            : onBrowseWaivers && league.settings.waiversEnabled && (moveChoice.slot || (movingEntry && Season.isStarterSlot(movingEntry.slot))) && h('button', { type: 'button', className: 'tl-btn tl-roster-find-player', disabled: moving, onClick: () => { setMoveChoice(null); onBrowseWaivers(moveChoice.slot || movingEntry.slot); } }, `Find eligible ${slotName(moveChoice.slot || movingEntry.slot)} free agents →`)),
                 moveNotice && h('p', { className: 'tl-hint', role: 'status' }, moveNotice)));
         return h('div', { className: 'tl-roster-layout'+(selected?' has-selection':'') },
             h('div', { className: 'tl-roster-main' },
+                h(RosterPlanningRecovery, { league, team, onlineMeta, onReopenPlanning }),
                 league.weekStage === 'lineup' && h(WaiverBatchReceipt, { league, team, onNavigate, compact: true }),
                 h('div', { className: 'tl-roster-toolbar' },
                     h('div', null, h('h2', null, 'My Roster'), h('p', null, `${team.name} · Week ${league.currentWeek} · ${team.roster.length}/${capacity} players · ${weeksRemaining} weeks left`)),
@@ -1036,24 +1078,30 @@
             }));
     }
 
-    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors, onBrowseWaivers, waiverSlot, throughWeek, onStats, onNavigate }) {
+    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors, onBrowseWaivers, waiverSlot, throughWeek, onStats, onNavigate, onReopenPlanning }) {
         const archiveCards = cards;
         cards = Engine.cardsFor(league, cards);
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const humanTeams = league.teams.filter(item => item.manager === 'human');
         const requestedTeam = league.teams.find(item => item.teamId === (onlineMeta?.seatTeamId || activeTeamId));
         const team = onlineMeta ? requestedTeam : requestedTeam?.manager === 'human' ? requestedTeam : humanTeams[0];
+        const recovery = Engine.planningRecovery(league);
         const apply = (next, action) => {
             if (next === league || !team || team.manager !== 'human' || (onlineMeta && team.teamId !== onlineMeta.seatTeamId)) return false;
             return onUpdate(next, action);
         };
         return h('div', { className: 'tl-team-workspace' },
+            recovery.active && ['roster', 'waivers', 'trades'].includes(section) && h('section', { className: 'tl-card tl-planning-recovery-window', 'aria-label': 'Reopened planning window' },
+                h('h3', null, `Planning reopened · Week ${league.currentWeek}`),
+                h('p', null, 'Extra planning for human managers. Earlier waiver awards, settled trades and spent FAAB stay final. Computer managers will not file another automatic waiver batch; existing trade offers can still receive answers.'),
+                onNavigate && (league.settings.waiversEnabled && section !== 'waivers' ? h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('waivers') }, 'Open free agents')
+                    : !league.settings.waiversEnabled && league.settings.tradesEnabled && section !== 'trades' ? h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('trades') }, 'Open trades') : null)),
             !onlineMeta && humanTeams.length > 1 && h('label', { className: 'tl-hotseat-manager' }, 'Managing',
                 h('select', { className: 'tl-select', value: team?.teamId || '', 'aria-label': 'Hotseat manager', onChange: event => onSelectTeam(event.target.value) },
                     humanTeams.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
             !team
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Join a manager seat to open your roster.'))
-                : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats, onNavigate })
+                : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, archiveCards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats, onNavigate, onlineMeta, onReopenPlanning })
                     : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors, throughWeek, onNavigate })
                         : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply, logIndex, eraFactors, throughWeek, onNavigate })
                             : h(AchievementsSection, { key: team.teamId, league, team }));

@@ -349,6 +349,68 @@ async function loadTs(file) {
     row = beforeAcquisitions; userId = 'u1';
     console.log('PASS: authoritative claim intent IDs survive reconnect/refile; impossible trade acceptance preserves both rosters and settles once');
 
+    // A legal waiver can leave a required position unfillable. Reach that
+    // state through the real endpoint, then recover without resetting history
+    // or granting the computer desks another automatic bidding round.
+    const beforeRecovery = structuredClone(row), previousLogs = data.logIndex;
+    data.logIndex = S.buildGameLogIndex(S.parseGameLogCsv(fs.readFileSync('data/time-league/nflverse-game-logs.csv', 'utf8')).logs);
+    let historical = row.state;
+    for (const team of historical.teams) historical = E.autoFillLineup(historical, team.teamId, cards);
+    historical = E.finalizeCurrentWeek(historical, data.logIndex, new Map(), stamp);
+    assert.equal(historical.finalizedWeeks.length, 1);
+    row.state = E.normalizeTimeLeague({ ...historical, weekStage: 'claims',
+        settings: { ...historical.settings, waiverMode: 'faab' },
+        teams: historical.teams.map(team => ({ ...team, faabRemaining: 37,
+            roster: team.teamId === 't1' ? team.roster.filter(entry => entry.slot !== 'BN') : team.roster })) });
+    row.current_week = row.state.currentWeek;
+    const kickerToDrop = row.state.teams[0].roster.find(entry => entry.position === 'K');
+    // A low-ranked legal target keeps this fixture about roster recovery,
+    // rather than the independent AI bidding/value policy.
+    const extraRunner = E.freeAgents(row.state, cards).filter(card => card.position === 'RB').at(-1);
+    success(await act({ type: 'claim', teamId: 't1', identity: extraRunner.identity, dropEntryId: kickerToDrop.entryId, bidAmount: 5 }));
+    success(await act({ type: 'process-claims' }));
+    assert(row.state.waiverResults.some(award => award.identity === extraRunner.identity && award.winnerTeamId === 't1'), 'The known uncontested claim landed');
+    assert(E.planningRecovery(row.state).available, 'The settled human roster genuinely cannot fill K');
+    assert.equal(row.state.teams[0].faabRemaining, 32);
+    const settled = structuredClone(row.state);
+    userId = 'u2'; assert.equal((await act({ type: 'reopen-planning' })).status, 400, 'An ordinary member cannot reopen the league');
+    userId = 'u1'; const recoveryVersion = row.version;
+    success(await act({ type: 'reopen-planning' }));
+    assert.equal(row.state.weekStage, 'claims');
+    assert.equal(row.state.planningRecoveryWeek, settled.currentWeek);
+    for (const key of ['currentWeek', 'finalizedWeeks', 'trades', 'waiverResults', 'teams']) assert.deepEqual(row.state[key], settled[key], `Recovery preserves ${key}`);
+    assert.equal((await act({ type: 'reopen-planning' }, { version: recoveryVersion })).status, 409, 'The old version cannot replay the transition');
+    const reopened = structuredClone(row);
+    assert.equal((await act({ type: 'reopen-planning' })).status, 400, 'The latest version also rejects an already-open transition');
+    assert.deepEqual(row, reopened);
+    for (const user of ['u1', 'u2']) {
+        userId = user; const loaded = success(await request({ op: 'load' })).row.state;
+        assert.equal(E.normalizePublicTimeLeague(loaded).planningRecoveryWeek, settled.currentWeek, 'Every seated manager can resume the explicit public recovery window');
+        assert(!Object.hasOwn(loaded, 'seed') && !Object.hasOwn(loaded, 'privateDraws'));
+    }
+    userId = 'u1';
+    const replacementKicker = E.freeAgents(row.state, cards).find(card => card.position === 'K');
+    const runnerToDrop = row.state.teams[0].roster.find(entry => entry.identity === extraRunner.identity);
+    const aiBeforeRepair = structuredClone(row.state.teams.filter(team => team.manager === 'ai'));
+    success(await act({ type: 'claim', teamId: 't1', identity: replacementKicker.identity, dropEntryId: runnerToDrop.entryId, bidAmount: 3 }));
+    const beforeRepairBatchVersion = row.version;
+    success(await act({ type: 'process-claims' }));
+    assert.equal(row.state.teams[0].faabRemaining, 29, 'Only the new winning claim is charged');
+    assert.deepEqual(row.state.teams.filter(team => team.manager === 'ai'), aiBeforeRepair, 'Recovery never resubmits an automatic AI acquisition batch');
+    assert.deepEqual(row.state.finalizedWeeks, settled.finalizedWeeks);
+    assert.deepEqual(row.state.trades, settled.trades);
+    assert.deepEqual(row.state.waiverResults.slice(0, settled.waiverResults.length), settled.waiverResults);
+    assert.equal((await act({ type: 'process-claims' }, { version: beforeRepairBatchVersion })).status, 409);
+    success(await act({ type: 'auto-lineup', teamId: 't1' }));
+    assert(E.lineupReadiness(row.state).ready);
+    success(await act({ type: 'finalize-rosters' }));
+    success(await act({ type: 'week' }));
+    assert.equal(row.state.finalizedWeeks.length, 2);
+    assert.deepEqual(row.state.finalizedWeeks[0], settled.finalizedWeeks[0]);
+    assert.equal((await act({ type: 'reopen-planning' })).status, 400, 'A saved result cannot be reopened or rerolled');
+    row = beforeRecovery; data.logIndex = previousLogs; userId = 'u1';
+    console.log('PASS: actual endpoint recovery permissions, CAS/reload, historical result and budget preservation, one-time repair settlement and next game');
+
     const target = E.freeAgents(row.state, cards).at(-1);
     const nowPrepared = await sealed.prepareSealedDraws(row.state, cards, secret);
     assert.deepEqual(Object.keys(nowPrepared.privateDraws), ['waiver']);

@@ -321,3 +321,29 @@
   .tl-root.tl-play .tl-waiver-command .tl-card { min-width:0; }
   .tl-root.tl-play .tl-waiver-target-signals .tl-signal-label-full { white-space:normal; }
 }
+
+/* Recovery opens a real acquisition window only when assignments cannot repair a roster. */
+.tl-root.tl-play .tl-roster-recovery,.tl-root.tl-play .tl-planning-recovery-window { margin:0 0 16px; border-color:var(--gold); }
+.tl-root.tl-play .tl-roster-recovery:focus { outline:2px solid var(--gold); outline-offset:3px; }
+.tl-root.tl-play .tl-roster-recovery h3,.tl-root.tl-play .tl-planning-recovery-window h3 { margin:0 0 10px; font-size:19px; line-height:1.3; }
+.tl-root.tl-play .tl-roster-recovery p,.tl-root.tl-play .tl-roster-recovery li,.tl-root.tl-play .tl-planning-recovery-window p { font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.tl-root.tl-play .tl-roster-recovery > p,.tl-root.tl-play .tl-planning-recovery-window p { color:var(--text-secondary); margin:8px 0 12px; }
+.tl-root.tl-play .tl-roster-recovery ul { margin:8px 0 12px; padding-left:20px; }
+.tl-root.tl-play .tl-roster-recovery-confirm > summary { display:flex; align-items:center; min-height:44px; cursor:pointer; color:var(--gold); font-size:14px; font-weight:700; }
+.tl-root.tl-play .tl-planning-confirm-body { padding:12px; border:1px solid var(--charcoal); border-radius:10px; }
+.tl-root.tl-play .tl-planning-confirm-body p { margin:0 0 12px; }
+.tl-root.tl-play .tl-planning-confirm-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.tl-root.tl-play .tl-planning-confirm-actions .tl-btn { min-height:44px; white-space:normal; }
+.tl-root.tl-play .tl-gate-planning-recovery { min-width:0; }
+.tl-root.tl-play .tl-gate-planning-recovery > summary { display:flex; align-items:center; justify-content:center; min-height:44px; cursor:pointer; list-style:none; }
+.tl-root.tl-play .tl-gate-planning-recovery > summary::-webkit-details-marker { display:none; }
+.tl-root.tl-play .tl-planning-confirm-panel { position:absolute; bottom:calc(100% + 8px); left:20px; right:20px; max-width:580px; max-height:min(60dvh,520px); overflow:auto; overscroll-behavior:contain; padding:16px; border:1px solid var(--gold); border-radius:12px; background:var(--black); box-shadow:0 12px 40px #0008; color:var(--white); font-size:14px; line-height:1.5; }
+.tl-root.tl-play .tl-planning-confirm-panel > strong { font-size:17px; }
+.tl-root.tl-play .tl-planning-confirm-panel p { margin:10px 0 14px; color:var(--text-secondary); overflow-wrap:anywhere; }
+@media(max-width:900px) {
+  .tl-root.tl-play .tl-week-action-buttons > .tl-gate-planning-recovery { flex:1; }
+  .tl-root.tl-play .tl-planning-confirm-panel { left:12px; right:12px; }
+}
+@media(max-width:767px) {
+  .tl-root.tl-play .tl-planning-confirm-actions .tl-btn { flex:1; }
+}

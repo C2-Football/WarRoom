@@ -79,6 +79,11 @@
         const opponent = opponentId ? teamOf(opponentId) : null;
         const opponentStanding = opponent ? standingOf(opponent.teamId) : null;
         const lineupProblems = Engine.lineupProblems(league, myTeam.teamId);
+        const recovery = Engine.planningRecovery(league);
+        const needsRosterChanges = recovery.teams.some(team => team.teamId === myTeam.teamId);
+        const recoveryDetail = recovery.available
+            ? 'This roster cannot fill every required slot. Review its roster recovery notice for planning options before kickoff.'
+            : `This roster cannot fill every required slot. ${recovery.reason}`;
         const pendingWaivers = league.pendingClaims.filter((claim) => claim.teamId === myTeam.teamId).length;
         const openTrades = league.trades.filter((trade) => trade.status === 'pending' && trade.toTeamId === myTeam.teamId && !(trade.deferredUntilWeek > league.currentWeek)).length;
         const lastFinalized = league.finalizedWeeks[league.finalizedWeeks.length - 1] ?? null;
@@ -113,9 +118,11 @@
                     : league.settings.tradesEnabled
                         ? { tab: 'trades', label: 'Review trades →', detail: openTrades ? `${openTrades} trade offer${openTrades === 1 ? ' is' : 's are'} waiting. Review your trades before final lineup decisions.` : 'Explore a trade or keep your team. Continue to final lineup decisions when you are ready.' }
                         : { tab: 'roster', label: 'Review lineup →', detail: 'Your roster is ready to review. Continue to the lineup stage with the week actions below.' }
+                : needsRosterChanges && ['lineup', 'ready'].includes(stage)
+                    ? { tab: 'roster', label: 'Review roster needs →', detail: recoveryDetail }
                 : stage === 'lineup'
                     ? { tab: 'roster', label: ready ? 'Review lineup →' : `Fix lineup (${lineupProblems.length}) →`, detail: ready ? 'Your lineup is legal. Make any final changes, then use Lock lineup when you are ready.' : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before you can lock the lineup.` }
-                    : { tab: ready ? 'gameday' : 'roster', label: ready ? 'Go to game day →' : 'Review lineup issue →', detail: ready ? 'Lineup locked. Review the matchup, then start game day with the week actions below.' : 'The locked lineup needs attention. Open Week options to reopen lineups before making changes.' };
+                    : { tab: ready ? 'gameday' : 'roster', label: ready ? 'Go to game day →' : 'Review lineup issue →', detail: ready ? 'Lineup locked. Review the matchup, then start game day with the week actions below.' : 'The locked lineup needs attention. Lineups must reopen before you can make changes.' };
         const showWaiverDecision = !watchingPlayoffs && league.settings.waiversEnabled && stage === 'claims';
         const showTradeDecision = !watchingPlayoffs && league.settings.tradesEnabled && (stage === 'claims' || (stage === 'lineup' && openTrades > 0));
         const playoffCount = Engine.playoffCount(league);

@@ -62,6 +62,16 @@ assert.equal(click(section(tree, 'tl-home-hero-actions'), 'Go to game day'), 'ga
 assert(!section(tree, 'tl-home-action-grid'));
 const empty = { ...season, weekStage: 'lineup', teams: season.teams.map(team => team.teamId === mine ? { ...team, roster: [] } : team) };
 tree = render(empty);
+assert.equal(click(section(tree, 'tl-home-hero-actions'), 'Review roster needs'), 'roster');
+assert(content(section(tree, 'tl-home-hero-copy')).includes('cannot fill every required slot'));
+tree = render({ ...empty, weekStage: 'ready' });
+assert.equal(click(section(tree, 'tl-home-hero-actions'), 'Review roster needs'), 'roster');
+assert(content(section(tree, 'tl-home-hero-copy')).includes('roster recovery notice'));
+assert(!content(section(tree, 'tl-home-hero-copy')).includes('reopen lineups'), 'Assignment changes cannot repair an impossible roster');
+tree = render({ ...empty, settings: { ...empty.settings, waiversEnabled: false, tradesEnabled: false } });
+assert(content(section(tree, 'tl-home-hero-copy')).includes('both disabled'));
+const movable = { ...empty, teams: season.teams.map(team => team.teamId === mine ? { ...team, roster: team.roster.map(entry => ({ ...entry, slot: 'BN' })) } : team) };
+tree = render(movable);
 assert.equal(click(section(tree, 'tl-home-hero-actions'), 'Fix lineup (1)'), 'roster');
 assert(content(section(tree, 'tl-home-hero-copy')).includes('1 lineup decision'));
 

@@ -40,6 +40,9 @@
         home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', stats: '▥', trades: '⇄',
         achievements: '♛', messages: '✉', career: '★', community: '◎', standings: '≡', activity: '◷',
     };
+    const gateWorkspace = league => league.weekStage === 'claims'
+        ? league.settings.waiversEnabled ? 'waivers' : league.settings.tradesEnabled ? 'trades' : 'roster'
+        : ({ lineup: 'roster', ready: 'gameday', postgame: 'gameday' })[league.weekStage] || 'home';
 
     const PERSONA_IDS = Engine.AI_PERSONA_IDS;
     // Helmet defaults are deterministic per name (see time-league-helmet.js) so
@@ -1390,7 +1393,8 @@
         const tradeRefreshKey = useRef(null);
         useEffect(() => {
             if (!league || !cards?.size || saving || storageError || (onlineMeta && authRequired) || !league.seasonsRevealed
-                || league.phase !== 'season' || !league.settings.tradesEnabled || !['claims', 'lineup'].includes(league.weekStage)) return;
+                || league.phase !== 'season' || !league.settings.tradesEnabled || !['claims', 'lineup'].includes(league.weekStage)
+                || league.planningRecoveryWeek === league.currentWeek) return;
             const current = leagueRef.current;
             if (!current || pendingLocalSave.current || writeBusy.current) return;
             const key = `${onlineMeta?.rowId || current.leagueId}:${current.currentWeek}:${current.weekStage}`;
@@ -1404,7 +1408,7 @@
                 const next = window.App.TimeLeagueAI.aiGenerateTrades(current, cards, new Date().toISOString(), { humanOnly: true });
                 if (next !== current) handleUpdate(next);
             }
-        }, [league?.leagueId, league?.currentWeek, league?.weekStage, league?.seasonsRevealed, onlineMeta?.rowId, cards, saving, storageError, handleUpdate, authRequired]);
+        }, [league?.leagueId, league?.currentWeek, league?.weekStage, league?.seasonsRevealed, league?.planningRecoveryWeek, onlineMeta?.rowId, cards, saving, storageError, handleUpdate, authRequired]);
 
         const loadLatestLocalSave = useCallback(() => {
             const stored = readLeague(leagueRef.current?.leagueId, localSnapshot);
@@ -1440,9 +1444,16 @@
             }
             const previousStage = leagueRef.current?.weekStage;
             const saved = await handleUpdate(pending);
-            if (saved && leagueRef.current?.weekStage !== previousStage) navigateTab(({claims:'waivers', lineup:'roster', ready:'gameday', postgame:'gameday'})[leagueRef.current.weekStage] || 'home');
+            if (saved && leagueRef.current?.weekStage !== previousStage) {
+                if (!onlineRef.current && Engine.planningRecovery(pending).active) {
+                    const affected = Engine.planningRecovery(pending).teams;
+                    const selected = affected.find(team => team.teamId === activeTeamId) || affected[0];
+                    if (selected) setActiveTeamId(selected.teamId);
+                }
+                navigateTab(gateWorkspace(leagueRef.current));
+            }
             return saved;
-        }, [handleUpdate, navigateTab, saveConflict, loadLatestLocalSave]);
+        }, [activeTeamId, handleUpdate, navigateTab, saveConflict, loadLatestLocalSave]);
 
         const keepPreviousSave = useCallback(() => {
             if (saveConflict) return loadLatestLocalSave();
@@ -1479,8 +1490,13 @@
                 const saved = await handleUpdate(next, action);
                 if (saved) {
                     const result = saved && typeof saved === 'object' ? saved : next;
+                    if (action.type === 'reopen-planning' && !onlineRef.current) {
+                        const affected = Engine.planningRecovery(current).teams;
+                        const selected = affected.find(team => team.teamId === action.teamId) || affected.find(team => team.teamId === own) || affected[0];
+                        if (selected) setActiveTeamId(selected.teamId);
+                    }
                     if (result.weekStage !== current.weekStage) {
-                        navigateTab(({claims:'waivers', lineup:'roster', ready:'gameday', postgame:'gameday'})[result.weekStage] || 'home');
+                        navigateTab(gateWorkspace(result));
                     }
                 }
                 return saved;
@@ -1847,7 +1863,7 @@
                 activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onNavigate: navigateTab, onReopenPlanning: teamId => dispatchGate({ type: 'reopen-planning', teamId }), onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: (next, action) => handleUpdate(next, action, { base: league }), onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
                         : loadingNotice)
                     : null,
 

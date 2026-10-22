@@ -160,8 +160,15 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     tree = render();
     assert.equal(choices(tree).length, 0);
     assert(text(tree).includes('No eligible players on your roster'));
+    assert(text(tree).includes('Acquisitions are closed'), 'Closed planning points to recovery instead of an unavailable claim');
+    assert.equal(byClass(tree, 'tl-roster-find-player').length, 0);
+    button(tree, 'Close lineup choices').props.onClick();
+    league = { ...league, weekStage: 'claims' };
+    button(render(), 'Fill open D/ST slot').props.onClick();
+    tree = render();
     byClass(tree, 'tl-roster-find-player')[0].props.onClick();
     assert.equal(browsedSlot, 'DEF');
+    league = { ...league, weekStage: 'lineup' };
 
     // The same sheet supports keyboard focus and restores scrolling after dismissal.
     let focusName = '';
