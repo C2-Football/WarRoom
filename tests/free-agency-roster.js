@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const src=fs.readFileSync('js/free-agency.js','utf8');
+const src=fs.readFileSync('js/shared/waiver-roster-read.js','utf8');
 const window={App:{NFLByes:{weekForPlayer:p=>p.bye}},_playerTags:{}};
 const ctx=vm.createContext({window});
-vm.runInContext(src.slice(src.indexOf('    function buildFaRosterRead('),src.indexOf('    window.App.buildFaRosterRead =')),ctx);
+vm.runInContext(src,ctx);
+ctx.buildFaRosterRead=window.App.buildFaRosterRead;
 const players={q1:{position:'QB',full_name:'Mahomes',team:'KC',depth_chart_order:1},q2:{position:'QB',full_name:'Stafford',team:'LA',depth_chart_order:1},backupUpgrade:{position:'QB',full_name:'Better backup',team:'XX',depth_chart_order:1},starterUpgrade:{position:'QB',full_name:'Better starter',team:'YY',depth_chart_order:1}};
 const values={q1:5000,q2:3000,backupUpgrade:4000,starterUpgrade:6000};
 const projection={q1:22,q2:18,backupUpgrade:20,starterUpgrade:25};

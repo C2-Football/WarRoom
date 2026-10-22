@@ -6,6 +6,7 @@ const source = fs.readFileSync('js/free-agency.js', 'utf8');
 const scores = { mahomes: 5000, stafford: 3000, mendoza: 10000, starter: 6000, unknown: 9000 };
 const window = { App: { LI: { playerScores: scores }, PlayerValue: { getValue: pid => scores[pid] || 0 } }, WR: {}, S: {} };
 const c = vm.createContext({ window, localStorage: { getItem: () => null }, console });
+vm.runInContext(fs.readFileSync('js/shared/waiver-roster-read.js','utf8'), c);
 vm.runInContext(source.slice(0, source.indexOf('    // ── UDFA craze')), c);
 const players = {
   mahomes: { full_name: 'Patrick Mahomes', position: 'QB', team: 'KC', depth_chart_order: 1 },

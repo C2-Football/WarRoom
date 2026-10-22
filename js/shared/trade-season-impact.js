@@ -268,6 +268,24 @@
                 pointsDelta: b.points == null || a.points == null ? null : round(a.points - b.points), beforeStarters: b.starters, afterStarters: a.starters,
                 unfilledBefore: b.unfilled, unfilledAfter: a.unfilled, missingPlayerIds: [...new Set([...b.missing, ...a.missing, ...(ob?.missing || []), ...(oa?.missing || [])])] };
         });
+        // Roster previews need deterministic legal-lineup points, not a season
+        // Monte Carlo run. Both modes share the ownership/capacity checks and
+        // the exact same before/after lineups above. The default Builder path
+        // below is unchanged, including all wins and qualification estimates.
+        if (opts.pointsOnly === true) {
+            const complete = weekly.every(w => finite(w.beforePoints) && finite(w.afterPoints));
+            const beforePoints = complete ? round(weekly.reduce((sum, w) => sum + w.beforePoints, 0)) : null;
+            const afterPoints = complete ? round(weekly.reduce((sum, w) => sum + w.afterPoints, 0)) : null;
+            const warnings = [];
+            if (!complete) warnings.push('Some remaining weeks have incomplete lineup projections; missing production is not counted as zero.');
+            if (weekly.some(w => w.unfilledAfter > 0)) warnings.push('The projected roster leaves starting slots empty in some weeks; no free-agent replacement is assumed.');
+            if ([...give, ...receive].some(pid => ctx.playersData[pid]?.injury_status)) warnings.push('An injured traded player is projected with today’s status held fixed; return timing can change the result.');
+            return { version: VERSION, status: complete ? (warnings.length ? 'limited' : 'ready') : 'unavailable',
+                reason: complete ? null : warnings[0], pointsOnly: true, effectiveWeek: ctx.fromWeek, remainingWeeks: tradeWeeks.length,
+                before: beforePoints, after: afterPoints, delta: complete ? round(afterPoints - beforePoints) : null, unit: 'ROS lineup points',
+                coverage: { total: tradeWeeks.length, projected: weekly.filter(w => finite(w.beforePoints) && finite(w.afterPoints)).length },
+                assumptions: ctx.assumptions.filter(line => /^(Trade begins|Each future week|Current rosters|Published weekly)/.test(line)), warnings, weeks: weekly };
+        }
         const bp = powerRank(before, tradeWeeks, ids, myId), ap = powerRank(after, tradeWeeks, ids, myId);
         const power = { before: bp?.rank ?? null, after: ap?.rank ?? null, total: ids.length, beforePoints: bp?.points ?? null, afterPoints: ap?.points ?? null,
             delta: bp && ap ? bp.rank - ap.rank : null };

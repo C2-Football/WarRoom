@@ -3432,6 +3432,34 @@
         useEffect(() => {
             const open = event => {
                 const target = event?.detail || window._wrTradeBuilderTarget;
+                if (target?.kind === 'roster-lens-package') {
+                    // A lens package replaces BOTH sides atomically. Recheck the
+                    // current identity and live ownership; never trust a queued
+                    // preview after an account/league/roster switch.
+                    const accountId = (window.App?.OD || window.OD)?.getCurrentUserId?.();
+                    const accountKey = window.WR?.WaiverPlans?.account?.()
+                        || (accountId ? 'account:' + accountId : sleeperUserId ? 'viewer:' + String(sleeperUserId) : '');
+                    const check = window.App?.RosterTradeLens?.validateBuilderContext?.(target, {
+                        league: currentLeague, roster: myRoster, rosters: allRosters,
+                        userId: sleeperUserId, accountKey, skin: resolvedLeagueSkin, players: playersData,
+                    });
+                    window._wrTradeBuilderTarget = null;
+                    if (!check?.ok) {
+                        setDealHqNotice(check?.reason || 'Refresh your roster lens before loading this trade package.');
+                        return;
+                    }
+                    setTradeOwner({ A: check.myOwnerId, B: check.partnerOwnerId });
+                    setTradeIds({ A: check.givePlayerIds, B: check.receivePlayerIds });
+                    setTradePickIds({ A: [], B: [] });
+                    setTradeFaab({ A: 0, B: 0 });
+                    setSearchText({ A: '', B: '' });
+                    setPhBuilderSide('A');
+                    setBuilderPlayerContext(null);
+                    setDealHqNotice('Roster lens package loaded. Review both sides before acting.');
+                    revealTradeBuilder();
+                    setPhBuilderOpen(true);
+                    return;
+                }
                 if (!target?.pid) return;
                 const roster = allRosters.find(r => [...(r.players || []), ...(r.reserve || []), ...(r.taxi || [])].some(id => String(id) === String(target.pid)));
                 if (!roster) { window._wrTradeBuilderTarget = null; setDealHqNotice('This player is not on a roster in this league.'); return; }
@@ -3447,7 +3475,7 @@
             window.addEventListener('wr:open-trade-builder', open);
             open({ detail: window._wrTradeBuilderTarget });
             return () => window.removeEventListener('wr:open-trade-builder', open);
-        }, [allRosters, myRoster?.roster_id, tradeOwner]);
+        }, [allRosters, myRoster?.roster_id, tradeOwner, sleeperUserId, leagueId, currentLeague.season, resolvedLeagueSkin]);
 
         useEffect(() => {
             const openOwner = event => {

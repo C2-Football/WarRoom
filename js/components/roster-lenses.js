@@ -1,0 +1,308 @@
+// Acquisition previews on the existing roster. Turning a lens off never changes
+// roster ownership, lineup selections, list filters, sorting or the saved GM plan.
+(function (root) {
+    'use strict';
+    const WR = root.WR = root.WR || {};
+    const text = value => String(value == null ? '' : value);
+    const finite = value => typeof value === 'number' && Number.isFinite(value);
+    const number = value => finite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : '—';
+    const signed = value => finite(value) ? (value > 0 ? '+' : '') + number(value) : '—';
+    const compactNumber = value => finite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—';
+    const pidOf = asset => text(asset?.pid || asset?.id);
+    const nameOf = asset => asset?.name || asset?.player?.full_name || 'Player';
+    const metricOf = (candidate, horizon) => candidate?.[horizon === 'season' ? 'season' : 'weekly'];
+    const futureView = lens => lens.mode === 'trades' && lens.input.skin?.type !== 'redraft' && lens.ui.horizon === 'season';
+    const deltaOf = (candidate, horizon) => {
+        const metric = metricOf(candidate, horizon);
+        return finite(metric?.delta) ? metric.delta : finite(metric?.gain) ? metric.gain : null;
+    };
+    function account(input) {
+        return WR.WaiverPlans?.account?.() || ((root.App?.OD || root.OD)?.getCurrentUserId?.()
+            ? 'account:' + (root.App?.OD || root.OD).getCurrentUserId() : input.userId ? 'viewer:' + text(input.userId) : '');
+    }
+    function identity(input) {
+        const league = input.league || {};
+        return JSON.stringify([account(input), league._platform || root.S?.platform || 'sleeper',
+            text(league.league_id || league.id), text(league.season), text(input.roster?.roster_id)]);
+    }
+    function signature(input) {
+        return JSON.stringify({
+            week: root.App?.WeeklyProj?.currentWeek?.() || root.S?.nflState?.week || null,
+            revision: input.revision || 0,
+            rosters: (input.league?.rosters || []).map(r => [text(r.roster_id), text(r.owner_id), r.players, r.reserve, r.taxi, r.keepers, r.locked_players, r.settings]),
+            roster: [input.roster?.players, input.roster?.reserve, input.roster?.taxi, input.roster?.keepers, input.roster?.locked_players],
+            scoring: input.league?.scoring_settings, settings: input.league?.settings, slots: input.league?.roster_positions,
+            gm: { mode: input.gm?.mode, saved: input.gm?.hasStrategy, untouchable: [...(input.gm?.untouchable || [])].map(text).sort(),
+                targets: [...(input.gm?.targetPositions || [])].map(text).sort(), sell: [...(input.gm?.sellPositions || [])].map(text).sort(), rules: input.gm?.sellRules },
+        });
+    }
+    const initial = scope => ({ scope, mode: 'off', horizon: 'week', selected: null, exploreMode: null, review: false, bid: '', notice: '', error: false });
+    function ranked(candidates, horizon) {
+        return (candidates || []).slice().sort((a, b) => {
+            const av = deltaOf(a, horizon), bv = deltaOf(b, horizon);
+            return (bv == null ? -Infinity : bv) - (av == null ? -Infinity : av);
+        });
+    }
+    function budget(input) {
+        const configured = input.league?.settings?.waiver_budget, spent = input.roster?.settings?.waiver_budget_used;
+        const known = value => value != null && text(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+        return known(configured) && known(spent) ? Math.max(0, Number(configured) - Number(spent)) : null;
+    }
+    const usesBids = input => input.league?.settings?.waiver_budget != null && Number(input.league.settings.waiver_budget) > 0;
+    function recentForm(input, pid) {
+        const WP = root.App?.WeeklyProj, league = input.league || {};
+        const expected = WP?.weeklyPointsScope?.(league.league_id || league.id, league.season, league.scoring_settings);
+        return expected && root.S?.weeklyPlayerPointsScope === expected ? WP.formStats?.(pid, 5)?.rollingPPG : null;
+    }
+    function useLens(input) {
+        const scope = identity(input), dataSignature = signature(input);
+        const [state, setState] = React.useState(() => initial(scope));
+        const [load, setLoad] = React.useState({ key: '', value: null });
+        const [seasonLoad, setSeasonLoad] = React.useState({ key: '', value: null });
+        const [tick, refresh] = React.useState(0);
+        const [retry, setRetry] = React.useState(0);
+        const sequence = React.useRef(0);
+        const seasonSequence = React.useRef(0);
+        const seasonCache = React.useRef(new Map());
+        const references = React.useRef({ values: null, revision: 0 });
+        const values = [input.players, input.statsData, input.priorData, input.league?.rosters];
+        if (!references.current.values || values.some((value, index) => value !== references.current.values[index])) {
+            references.current = { values, revision: references.current.revision + 1 };
+        }
+        // Scope is checked during render too, so old recommendations never flash
+        // for a newly selected account or league before its reset effect runs.
+        const scopedUi = state.scope === scope ? state : initial(scope);
+        const ui = input.skin?.type === 'chopped' ? { ...scopedUi, horizon: 'week' } : scopedUi;
+        const allowed = !!input.isPro && !!input.roster && !!account(input);
+        const canTrade = input.skin?.features?.showTrades !== false && input.skin?.type !== 'chopped' && Number(input.league?.settings?.disable_trades || 0) !== 1;
+        const mode = allowed && (ui.mode !== 'trades' || canTrade) ? ui.mode : 'off';
+        const key = JSON.stringify([scope, dataSignature, references.current.revision, tick, retry, mode, ui.exploreMode]);
+        const live = React.useRef(null);
+        live.current = { key, scope, input, ui, mode };
+        const result = load.key === key ? load.value : null;
+        const options = mode === 'trades' && ui.horizon === 'week' ? (result?.candidates || []) : ranked(result?.candidates, ui.horizon);
+        const baseSelected = ui.selected === '' ? null : options.find(candidate => candidate.id === ui.selected) || (ui.selected == null ? options[0] : null);
+        const seasonKey = JSON.stringify([key, baseSelected?.id]);
+        const lazySeason = seasonLoad.key === seasonKey ? seasonLoad.value?.season : null;
+        const seasonNeeded = mode === 'trades' && input.skin?.type === 'redraft' && ui.horizon === 'season' && !!baseSelected;
+        const selected = baseSelected && seasonNeeded ? { ...baseSelected, season: lazySeason || { status: 'loading', reason: 'Comparing the remaining season…' } } : baseSelected;
+        const update = patch => setState(previous => ({ ...(previous.scope === scope ? previous : initial(scope)), ...patch }));
+        function isCurrent(candidate) {
+            const current = live.current;
+            const activeLeagueId = root.S?.currentLeagueId;
+            return current?.key === key && current.scope === identity(current.input) && signature(current.input) === dataSignature && current.mode === mode && mode !== 'off'
+                && (!activeLeagueId || text(activeLeagueId) === text(input.league?.league_id || input.league?.id))
+                && !!result && load.key === key && result.candidates?.some(item => item.id === candidate?.id);
+        }
+        React.useEffect(() => {
+            const changed = () => refresh(value => value + 1);
+            const events = ['wr:gm-mode-changed', 'wr:player-tags-changed', 'wr:projections-loaded', 'wr:ros-market-loaded', 'wr:roster-data-updated', 'wr:auth-changed'];
+            events.forEach(event => root.addEventListener(event, changed));
+            return () => events.forEach(event => root.removeEventListener(event, changed));
+        }, []);
+        React.useEffect(() => {
+            if (state.scope !== scope) setState(initial(scope));
+        }, [scope]);
+        React.useEffect(() => {
+            const request = ++sequence.current;
+            let cancelled = false;
+            if (mode === 'off') { setLoad({ key, value: null }); return () => { cancelled = true; }; }
+            const service = root.App?.[mode === 'waivers' ? 'RosterWaiverLens' : 'RosterTradeLens'];
+            setLoad({ key, value: { status: 'loading', candidates: [] } });
+            const opts = { league: input.league, roster: input.roster, rosters: input.league?.rosters, players: input.players,
+                statsData: input.statsData, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
+                projectionsData: text(root.S?.currentLeagueId) === text(input.league?.league_id || input.league?.id) ? root.S?.projectionsData : undefined,
+                accountKey: account(input), skin: input.skin, gm: input.gm, exploreMode: ui.exploreMode,
+                horizon: 'week', revision: dataSignature };
+            Promise.resolve().then(() => {
+                if (!service?.load) throw new Error('The acquisition comparison has not loaded. Try again.');
+                return service.load(opts);
+            }).then(value => {
+                if (cancelled || request !== sequence.current || live.current?.key !== key || identity(input) !== scope) return;
+                const next = value && Array.isArray(value.candidates) ? value : { status: 'unavailable', reason: 'No verified comparison was returned.', candidates: [] };
+                setLoad({ key, value: next });
+                setState(previous => {
+                    if (previous.scope !== scope || previous.mode !== mode || previous.exploreMode !== ui.exploreMode || previous.selected != null) return previous;
+                    const first = (mode === 'trades' && previous.horizon === 'week' ? next.candidates : ranked(next.candidates, previous.horizon))[0];
+                    const saved = first && mode === 'waivers' ? WR.WaiverPlans?.get?.(input.league, first.pid || pidOf(first.incoming?.[0])) : null;
+                    return first ? { ...previous, selected: first.id, bid: previous.bid !== '' ? previous.bid : saved?.bid == null ? '' : text(saved.bid) } : previous;
+                });
+            }).catch(error => {
+                if (!cancelled && request === sequence.current && live.current?.key === key && identity(input) === scope)
+                    setLoad({ key, value: { status: 'unavailable', reason: error?.message || 'The comparison could not be loaded.', candidates: [] } });
+            });
+            return () => { cancelled = true; };
+        }, [key]);
+        React.useEffect(() => {
+            const request = ++seasonSequence.current;
+            let cancelled = false;
+            if (!seasonNeeded || !result || result.status === 'loading') return () => { cancelled = true; };
+            const cached = seasonCache.current.get(seasonKey);
+            if (cached) { setSeasonLoad({ key: seasonKey, value: cached }); return () => { cancelled = true; }; }
+            setSeasonLoad({ key: seasonKey, value: { season: { status: 'loading', reason: 'Comparing the remaining season…' } } });
+            const service = root.App?.RosterTradeLens;
+            const opts = { league: input.league, roster: input.roster, rosters: input.league?.rosters, players: input.players,
+                statsData: input.statsData, priorData: input.priorData, priorStatsData: input.priorData, userId: input.userId,
+                accountKey: account(input), gm: input.gm, skin: input.skin, exploreMode: ui.exploreMode,
+                revision: dataSignature,
+                projectionsData: text(root.S?.currentLeagueId) === text(input.league?.league_id || input.league?.id) ? root.S?.projectionsData : undefined,
+                result, candidateId: baseSelected.id };
+            Promise.resolve().then(() => service?.loadSeason ? service.loadSeason(opts) : { season: { status: 'unavailable', reason: 'Remaining-season analysis has not loaded.' } }).then(value => {
+                if (cancelled || request !== seasonSequence.current || live.current?.key !== key || identity(input) !== scope) return;
+                seasonCache.current.set(seasonKey, value);
+                if (seasonCache.current.size > 8) seasonCache.current.delete(seasonCache.current.keys().next().value);
+                setSeasonLoad({ key: seasonKey, value });
+            }).catch(() => {
+                if (!cancelled && request === seasonSequence.current && live.current?.key === key)
+                    setSeasonLoad({ key: seasonKey, value: { season: { status: 'unavailable', reason: 'The season comparison could not be loaded. Open Trade Builder for a full review.' } } });
+            });
+            return () => { cancelled = true; };
+        }, [seasonNeeded, seasonKey, result]);
+        const setMode = next => {
+            if (!['off', 'waivers', 'trades'].includes(next) || next === 'trades' && !canTrade || !allowed) return;
+            update({ mode: next, horizon: 'week', selected: null, review: false, bid: '', notice: '', error: false, exploreMode: null });
+        };
+        const choose = candidate => {
+            if (!isCurrent(candidate)) return;
+            const saved = mode === 'waivers' ? WR.WaiverPlans?.get?.(input.league, candidate.pid || pidOf(candidate.incoming?.[0])) : null;
+            update({ selected: candidate.id, review: false, bid: saved?.bid == null ? '' : text(saved.bid), notice: '', error: false });
+        };
+        const clear = () => update({ selected: '', review: false, bid: '', notice: '', error: false });
+        const openReview = candidate => {
+            if (!isCurrent(candidate)) return;
+            update({ selected: candidate.id, review: !ui.review || selected?.id !== candidate.id, notice: '', error: false });
+        };
+        const savePlan = candidate => {
+            if (!isCurrent(candidate) || mode !== 'waivers') return;
+            const bid = !usesBids(input) || ui.bid === '' ? null : Number(ui.bid), left = budget(input);
+            if (bid != null && (!Number.isInteger(bid) || bid < 0 || left != null && bid > left)) {
+                update({ notice: left == null ? 'Use a whole-dollar maximum of zero or more.' : 'Use a whole-dollar maximum from $0 to $' + left + '.', error: true });
+                return;
+            }
+            const incoming = candidate.incoming?.[0];
+            const saved = WR.WaiverPlans?.save?.(input.league, { pid: candidate.pid || pidOf(incoming), dropPid: candidate.dropPid,
+                bid, position: incoming?.position || incoming?.pos || candidate.player?.position || '', source: 'roster-waiver-lens',
+                reason: candidate.reason || 'Roster lens: compare a legal add/drop against this roster.' });
+            update({ notice: saved ? 'Private claim plan saved. No claim has been submitted.' : 'The plan could not be saved. Try again in Waivers.', error: !saved });
+        };
+        const openModule = candidate => {
+            if (!isCurrent(candidate)) return;
+            if (mode === 'waivers') {
+                const context = { ...candidate.handoff, pid: candidate.pid || pidOf(candidate.incoming?.[0]), dropPid: candidate.dropPid,
+                    leagueId: text(input.league?.league_id || input.league?.id), source: 'roster-waiver-lens' };
+                if (WR.openAcquisition) WR.openAcquisition(context);
+                else { WR.acquisitionContext = context; input.setActiveTab?.('fa'); }
+            } else {
+                const context = root.App?.RosterTradeLens?.toBuilderContext?.(candidate, result) || candidate.builderContext;
+                if (!context) { update({ notice: 'This package cannot be opened. Refresh the trade lens.', error: true }); return; }
+                root._wrTradeBuilderTarget = { ...context, returnTab: 'myteam', ts: Date.now() };
+                input.setActiveTab?.('trades');
+                root.dispatchEvent(new root.CustomEvent('wr:open-trade-builder', { detail: root._wrTradeBuilderTarget }));
+            }
+        };
+        const byAnchor = new Map();
+        options.forEach(candidate => {
+            const anchor = text(candidate.anchorPlayerId || candidate.dropPid || pidOf(candidate.outgoing?.[0]));
+            if (!byAnchor.has(anchor)) byAnchor.set(anchor, []);
+            byAnchor.get(anchor).push(candidate);
+        });
+        return { input, scope, key, ui, mode, enabled: allowed, canTrade, result, options, selected, byAnchor,
+            loading: mode !== 'off' && (!result || result.status === 'loading'), seasonLoading: seasonNeeded && selected?.season?.status === 'loading',
+            setMode, choose, clear, openReview, savePlan, openModule,
+            setHorizon: horizon => update({ horizon: input.skin?.type === 'chopped' ? 'week' : horizon, selected: selected?.id || '', notice: '', error: false }),
+            explore: next => update({ exploreMode: next, selected: null, review: false, notice: '', error: false }),
+            setBid: bid => update({ bid, notice: '', error: false }), retry: () => setRetry(value => value + 1),
+        };
+    }
+    function Gain({ candidate, lens }) {
+        if (futureView(lens)) {
+            const age = candidate.futureFit?.ageDifference;
+            return <strong className="wr-lens-gain wr-lens-age">{finite(age) ? compactNumber(Math.abs(age)) : '—'}<small>{finite(age) ? age > 0 ? 'years younger' : age < 0 ? 'years older' : 'same age' : 'age comparison'}</small></strong>;
+        }
+        const delta = deltaOf(candidate, lens.ui.horizon);
+        return <strong className={'wr-lens-gain' + (delta != null && delta < 0 ? ' is-loss' : '')}>{signed(delta)}<small>{lens.ui.horizon === 'season' ? 'ROS pts' : 'lineup pts'}</small></strong>;
+    }
+    function Impact({ lens }) {
+        const candidate = lens.selected, metric = metricOf(candidate, lens.ui.horizon);
+        if (candidate && futureView(lens)) return <div className="wr-lens-impact" aria-live="polite"><div><span>Longer-term roster fit · preview</span><strong className="wr-lens-future-label">{candidate.futureFit?.label || 'Age comparison unavailable'}</strong><small>{finite(candidate.futureFit?.outgoingAverageAge) && finite(candidate.futureFit?.incomingAge) ? 'Average age ' + number(candidate.futureFit.outgoingAverageAge) + ' → ' + number(candidate.futureFit.incomingAge) : 'Compare age and current value before acting.'}</small></div><Gain candidate={candidate} lens={lens} /></div>;
+        const usable = finite(metric?.before) && finite(metric?.after) && deltaOf(candidate, lens.ui.horizon) != null;
+        const week = lens.result?.timing?.fromWeek || lens.result?.week;
+        return <div className="wr-lens-impact" aria-live="polite">
+            <div><span>{lens.ui.horizon === 'season' ? 'Rest-of-season lineup points' : 'Projected best lineup' + (week ? ' · Week ' + week : '')} · preview</span>
+                {usable ? <strong>{number(metric.before)} <span aria-hidden="true">→</span> {number(metric.after)}</strong> : <strong className="wr-lens-unavailable">{lens.seasonLoading ? 'Comparing the season…' : candidate ? 'Comparison unavailable' : 'Choose a move to compare'}</strong>}
+                {candidate && <small>{candidate.incoming.map(nameOf).join(' + ')}{candidate.outgoing?.length ? ' for ' + candidate.outgoing.map(nameOf).join(' + ') : ' · open roster spot'}</small>}
+            </div>{candidate && <Gain candidate={candidate} lens={lens} />}
+        </div>;
+    }
+    function Controls({ lens, inlinePids, compact = false }) {
+        if (!lens?.enabled) return null;
+        const active = lens.mode !== 'off', result = lens.result, selected = lens.selected;
+        const anchor = text(selected?.anchorPlayerId || selected?.dropPid || pidOf(selected?.outgoing?.[0]));
+        const inline = !!anchor && inlinePids?.has(anchor);
+        const strategy = result?.strategy;
+        const dynasty = ['dynasty', 'keeper', 'empire'].includes(lens.input.skin?.type);
+        return <section className={'wr-roster-lens' + (active ? ' is-on' : '')} data-lens={lens.mode} aria-label="Roster acquisition lenses">
+            <div className="wr-lens-switch" role="group" aria-label="Roster lens">
+                <button type="button" aria-pressed={!active} onClick={() => lens.setMode('off')}>Lens off</button>
+                <button type="button" aria-pressed={lens.mode === 'waivers'} onClick={() => lens.setMode('waivers')}>Waivers</button>
+                <button type="button" aria-pressed={lens.mode === 'trades'} disabled={!lens.canTrade} onClick={() => lens.setMode('trades')}>Trades{!lens.canTrade ? ' off' : ''}</button>
+            </div>
+            {active && <React.Fragment>
+                <div className="wr-lens-context">
+                    {lens.mode === 'trades' && dynasty ? <label className="wr-lens-strategy"><span>{strategy?.source === 'saved' || lens.input.gm?.hasStrategy ? 'Your saved GM plan' : 'GM direction'}: <strong>{strategy?.savedLabel || lens.input.gm?.modeLabel || 'Compete'}</strong></span>
+                        <select aria-label="Explore a trade strategy without saving it" value={lens.ui.exploreMode || ''} onChange={event => lens.explore(event.target.value || null)}><option value="">Follow my plan</option><option value="win_now">Explore win now</option><option value="rebuild">Explore rebuild</option><option value="compete">Explore compete</option></select>
+                    </label> : <span>{lens.input.skin?.type === 'chopped' ? 'Survival starts with this week' : lens.mode === 'waivers' ? 'Compare legal add / drop moves' : 'Win-now trade fits'}</span>}
+                    <div className="wr-lens-horizons" role="group" aria-label="Acquisition projection horizon"><button type="button" aria-pressed={lens.ui.horizon === 'week'} onClick={() => lens.setHorizon('week')}>{lens.mode === 'trades' ? 'Next full week' : 'This week'}</button>{lens.input.skin?.type !== 'chopped' && <button type="button" aria-pressed={lens.ui.horizon === 'season'} onClick={() => lens.setHorizon('season')}>{lens.mode === 'trades' && dynasty ? 'Future fit' : 'Season'}</button>}</div>
+                </div>
+                {lens.ui.exploreMode && <p className="wr-lens-note">Exploring only. Your saved GM strategy is unchanged.</p>}
+                {lens.loading ? <p className="wr-lens-status" role="status">Comparing your roster with available {lens.mode === 'waivers' ? 'waiver moves' : 'trade partners'}…</p> : result?.status === 'unavailable' || result?.status === 'disabled' ? <div className="wr-lens-status" role="status"><p>{result.reason || 'This comparison is not available for the current league.'}</p><button type="button" onClick={lens.retry}>Try again</button></div> : <React.Fragment>
+                    {selected && <Impact lens={lens} />}
+                    {!selected && lens.ui.selected && <p className="wr-lens-note" role="status">The earlier move is no longer available in this roster snapshot. Choose another idea.</p>}
+                    {!lens.options.length ? <p className="wr-lens-status" role="status">{result?.reason || 'No supported upgrades were found. You can still explore the full ' + (lens.mode === 'waivers' ? 'waiver market.' : 'Trade Builder.')}</p> : <React.Fragment>
+                        {(!inline || compact) && selected && <Preview lens={lens} candidate={selected} />}
+                        {!inline && <div className="wr-lens-alternatives" aria-label="Other acquisition ideas">{lens.options.filter(candidate => candidate.id !== selected?.id).slice(0, 4).map(candidate => <button type="button" key={candidate.id} onClick={() => lens.choose(candidate)}><span>Try {candidate.incoming.map(nameOf).join(' + ')}</span><Gain candidate={candidate} lens={lens} /></button>)}</div>}
+                        <p className="wr-lens-note">{inline ? 'One move at a time · preview only' : lens.mode === 'waivers' ? 'Alternative moves; gains are not additive. Availability and locks need platform confirmation.' : 'Possible packages, not agreed prices. Official rosters and lineups stay unchanged.'}</p>
+                    </React.Fragment>}
+                </React.Fragment>}
+            </React.Fragment>}
+        </section>;
+    }
+    function Preview({ lens, candidate }) {
+        const chosen = lens.selected?.id === candidate.id;
+        if (!chosen) return null;
+        const incoming = candidate.incoming || [], outgoing = candidate.outgoing || [];
+        const trade = lens.mode === 'trades', metric = metricOf(candidate, lens.ui.horizon), partner = candidate.partner;
+        const otherDelta = deltaOf(candidate, lens.ui.horizon === 'season' ? 'week' : 'season');
+        const left = budget(lens.input);
+        return <div className="wr-lens-preview" data-lens-preview={candidate.id} aria-label="Acquisition preview">
+            <div className="wr-lens-incoming"><div><span className="wr-lens-eyebrow">Try on · preview</span>{incoming.map(asset => <strong key={pidOf(asset)}>{nameOf(asset)}<small>{[asset.position || asset.pos, asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).join(' · ')}</small><small className="wr-lens-player-stats"><span>{trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b></span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong>)}</div><Gain candidate={candidate} lens={lens} /></div>
+            <p className="wr-lens-price"><span>You {trade ? 'send' : 'drop'}</span> {outgoing.length ? outgoing.map(nameOf).join(' + ') : 'No drop · open roster spot'}</p>
+            {!trade && usesBids(lens.input) && <p className="wr-lens-price"><span>Maximum bid</span> {lens.ui.bid === '' ? 'Not set' : '$' + lens.ui.bid}</p>}
+            {trade && candidate.price && finite(candidate.price.delta) && <p className="wr-lens-price"><span>Value difference</span> {candidate.price.delta > 0 ? '+' : ''}{compactNumber(candidate.price.delta)} {candidate.price.unit || 'value'}</p>}
+            {trade ? candidate.reason && <p className="wr-lens-reason">{candidate.timelineFit?.matched ? candidate.timelineFit.reason : candidate.reason}</p> : lens.input.skin?.type !== 'chopped' && <p className={'wr-lens-other-horizon' + (otherDelta < 0 ? ' is-loss' : '')}>{lens.ui.horizon === 'season' ? 'This week' : 'Rest of season'}: {otherDelta == null ? 'comparison unavailable' : signed(otherDelta) + ' lineup pts'}</p>}
+            {trade && partner && <p className="wr-lens-partner">{partner.name} · {partner.direction?.label || 'Direction unavailable'}{partner.direction?.source === 'inferred' ? ' (inferred)' : ''}</p>}
+            {futureView(lens) ? <p className="wr-lens-note">Age and current value describe fit. Development and future-season outcomes are not forecast.</p> : (!finite(metric?.before) || !finite(metric?.after)) && <p className="wr-lens-note">{metric?.reason || 'A complete projection for this horizon is unavailable.'}</p>}
+            <div className="wr-lens-actions"><button type="button" className="wr-lens-primary" onClick={() => lens.openReview(candidate)} aria-expanded={lens.ui.review}>{trade ? 'Review trade' : 'Review claim'}</button><button type="button" onClick={lens.clear}>Clear preview</button></div>
+            {lens.ui.review && <section className="wr-lens-review" aria-label={trade ? 'Review trade package' : 'Review waiver claim plan'}>
+                <div className="wr-lens-deal"><span>You {trade ? 'get' : 'add'}</span><strong>{incoming.map(nameOf).join(' + ')}</strong><span>You {trade ? 'send' : 'drop'}</span><strong>{outgoing.length ? outgoing.map(nameOf).join(' + ') : 'No drop needed'}</strong></div>
+                {trade && partner?.direction?.reason && <p className="wr-lens-note">{partner.direction.reason}</p>}
+                {candidate.cautions?.length > 0 && <ul>{candidate.cautions.map((caution, index) => <li key={index}>{typeof caution === 'string' ? caution : caution.text || caution.reason || ''}</li>)}</ul>}
+                {!trade && usesBids(lens.input) && <label className="wr-lens-bid">Planned max bid <span>$<input type="number" min="0" max={left == null ? undefined : left} step="1" inputMode="numeric" aria-label="Planned maximum waiver bid" placeholder="Not set" value={lens.ui.bid} onChange={event => lens.setBid(event.target.value)} /></span><small>{left == null ? 'Remaining budget unavailable' : '$' + left + ' remaining'}</small></label>}
+                <div className="wr-lens-actions">{!trade && <button type="button" className="wr-lens-primary" onClick={() => lens.savePlan(candidate)}>Save claim plan</button>}<button type="button" className={trade ? 'wr-lens-primary' : ''} onClick={() => lens.openModule(candidate)}>{trade ? 'Open in Trade Builder' : 'Open in Waivers'}</button></div>
+                {lens.ui.notice && <p className={'wr-lens-feedback' + (lens.ui.error ? ' is-error' : '')} role={lens.ui.error ? 'alert' : 'status'}>{lens.ui.notice}</p>}
+            </section>}
+        </div>;
+    }
+    function Row({ lens, pid }) {
+        if (!lens || lens.mode === 'off' || lens.loading) return null;
+        const candidates = lens.byAnchor.get(text(pid)) || [];
+        const selected = candidates.some(candidate => candidate.id === lens.selected?.id) ? lens.selected : null;
+        const sent = !selected && lens.mode === 'trades' && lens.selected?.outgoing?.some(asset => pidOf(asset) === text(pid));
+        if (!candidates.length) return sent ? <p className="wr-lens-sent">Included in the trade preview for {lens.selected.incoming.map(nameOf).join(' + ')}</p> : null;
+        return <div className="wr-lens-row" data-lens={lens.mode}>
+            {selected && <Preview lens={lens} candidate={selected} />}
+            {candidates.length > 2 ? <label className="wr-lens-more">Other ideas for this spot<select aria-label="Acquisition ideas for this roster spot" value={selected?.id || ''} onChange={event => { const candidate = candidates.find(item => item.id === event.target.value); if (candidate) lens.choose(candidate); }}><option value="" disabled>Choose a move</option>{candidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.incoming.map(nameOf).join(' + ')} · {futureView(lens) ? candidate.futureFit?.label || 'Compare value' : signed(deltaOf(candidate, lens.ui.horizon)) + (lens.ui.horizon === 'season' ? ' ROS pts' : ' lineup pts')}</option>)}</select></label> : candidates.filter(candidate => candidate.id !== selected?.id).map(candidate => <button type="button" className="wr-lens-try" key={candidate.id} onClick={() => lens.choose(candidate)}><span>Try {candidate.incoming.map(nameOf).join(' + ')}</span><Gain candidate={candidate} lens={lens} /><span aria-hidden="true">↓</span></button>)}
+        </div>;
+    }
+    WR.RosterLens = { useLens, Controls, Row, Preview, identity, signature, ranked, metricOf, deltaOf };
+})(window);

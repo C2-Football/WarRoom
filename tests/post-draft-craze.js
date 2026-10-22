@@ -58,6 +58,7 @@ function loadRaw(ctx, rel) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), ctx, { filename: rel });
 }
 function loadJsx(ctx, rel) {
+  if (rel === 'js/free-agency.js') loadRaw(ctx, 'js/shared/waiver-roster-read.js');
   const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
   const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], sourceType: 'script' }).code;
   vm.runInContext(out, ctx, { filename: rel });

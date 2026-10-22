@@ -1,0 +1,117 @@
+/* global module */
+// Canonical legal waiver add/drop comparison, shared by My Roster and Waivers.
+(function (root) {
+    'use strict';
+    // Roster occupancy and waiver fit must use owned players and league slots,
+    // not NFL depth-chart starter counts or generic dynasty quality targets.
+    function buildFaRosterRead(roster, league, players, valueOf, options = {}) {
+        const norm = pos => ({ DST: 'DEF', 'D/ST': 'DEF', DE: 'DL', DT: 'DL', EDGE: 'DL', CB: 'DB', S: 'DB', SS: 'DB', FS: 'DB', OLB: 'LB', ILB: 'LB' }[pos] || pos);
+        const flex = { FLEX: ['RB','WR','TE'], WRRBTE_FLEX: ['RB','WR','TE'], WRRB_FLEX: ['WR','RB'], REC_FLEX: ['WR','TE'], SUPER_FLEX: ['QB','RB','WR','TE'], QB_FLEX: ['QB','RB','WR','TE'], SFLEX: ['QB','RB','WR','TE'], OP: ['QB','RB','WR','TE'], IDP_FLEX: ['DL','LB','DB'] };
+        const type = root.App?.LeagueSkin?.build?.({league})?.type || ({0:'redraft',1:'keeper',2:'dynasty',3:'chopped'})[league?.settings?.type] || 'unknown';
+        const dynasty = type === 'dynasty';
+        const positions = league?.roster_positions || [];
+        const slots = positions.map(norm).filter(x => !['BN','BE','BENCH','IR','TAXI'].includes(x));
+        const capacity = positions.filter(x => !['IR','TAXI'].includes(x)).length;
+        const reserve = new Set([...(roster?.reserve || []), ...(roster?.taxi || [])].map(String));
+        const protectedIds = new Set([...(options.protectedPids || []), ...(roster?.locked_players || []), ...(roster?.keepers || [])].map(String));
+        const week = options.week ?? root.App?.WeeklyProj?.currentWeek?.() ?? root.S?.nflState?.week ?? null;
+        const finite = n => n !== null && n !== undefined && Number.isFinite(Number(n)) ? Number(n) : null;
+        function entry(pid, pos, value) {
+            const p = players?.[pid] || {};
+            const injury = String(p.injury_status || '').toUpperCase();
+            const bye = root.App?.NFLByes?.weekForPlayer?.(p, Number(league?.season));
+            const unavailable = reserve.has(String(pid)) ? 'Reserve / taxi'
+                : !p.team || ['FA','FA*'].includes(p.team) ? 'No NFL team'
+                : ['OUT','IR','PUP','SUS','SUSPENDED','DOUBTFUL','NA','COV'].includes(injury) ? injury
+                : p.active === false || ['Inactive','Retired'].includes(p.status) ? p.status || 'Inactive'
+                : week != null && bye === Number(week) ? 'Bye'
+                : !dynasty && p.position === 'QB' && Number(p.depth_chart_order) > 1 ? 'Backup QB' : null;
+            let projection = null;
+            try { projection = finite(options.project?.(String(pid))); } catch (_) { /* unknown projection */ }
+            let rosPoints = null;
+            try { rosPoints = finite(options.rosProject?.(String(pid))); } catch (_) { /* unknown ROS */ }
+            return { rosPoints, pid: String(pid), pos: norm(pos || p.position || ''), name: p.full_name || p.last_name || String(pid), dhq: finite(value), projection, available: !unavailable, unavailable, injury: injury || null, depth: p.depth_chart_order ?? null, bye: bye ?? null };
+        }
+        const owned = [...new Set((roster?.players || []).map(String))].map(pid => entry(pid, null, valueOf(pid)));
+        const active = owned.filter(p => !reserve.has(p.pid));
+        const known = !!roster && Array.isArray(roster.players) && slots.length > 0 && owned.every(p => p.pos);
+        const eligible = slot => flex[slot] || [slot];
+        // Weighted matching: greedy by value over a transversal matroid. FLEX
+        // reassignment ensures one player occupies only one legal starter slot.
+        function lineup(pool, metric) {
+            const ordered = pool.slice().sort((a,b) => (b[metric] ?? 0) - (a[metric] ?? 0));
+            const assigned = new Map();
+            const place = (i, seen) => {
+                for (let j = 0; j < slots.length; j++) {
+                    if (seen.has(j) || !eligible(slots[j]).includes(ordered[i].pos)) continue;
+                    seen.add(j);
+                    if (!assigned.has(j) || place(assigned.get(j), seen)) { assigned.set(j, i); return true; }
+                }
+                return false;
+            };
+            ordered.forEach((p,i) => { if (metric === 'coverage' || p[metric] != null) place(i,new Set()); });
+            const starters = [...assigned.values()].map(i => ordered[i]);
+            return { count: starters.length, total: starters.reduce((sum,p) => sum + (p[metric] ?? 0),0), pids: starters.map(p => p.pid) };
+        }
+        const usable = active.filter(p => p.available);
+        const coverage = lineup(usable, 'coverage').count;
+        const beforeWeekly = lineup(usable, 'projection');
+        const beforeSeason = lineup(active, 'dhq');
+        const beforeRos = lineup(active, 'rosPoints');
+        beforeWeekly.complete = usable.every(p=>p.projection!=null);
+        beforeSeason.complete = active.every(p=>p.dhq!=null);
+        beforeRos.complete = active.every(p=>p.rosPoints!=null);
+        const rows = [...new Set(slots.flatMap(eligible))].map(pos => {
+            const group = usable.filter(p => p.pos === pos);
+            return { pos, owned: owned.filter(p => p.pos === pos), actual: group.length, required: slots.filter(x => x === pos).length, fillsStarter: known && lineup([...usable,{pos}], 'coverage').count > coverage };
+        });
+        function fit(pos, value, candidate = {}) {
+            const base = { need: null, gain: null, weeklyGain: null, seasonGain: null, dropPid: null, color: 'var(--silver)', score: 0, short: 'Hold', label: 'No measured starting-lineup improvement' };
+            if (!known || !rows.some(r => r.pos === norm(pos))) return { ...base, short: 'Unknown', label: 'Roster fit unavailable' };
+            const add = entry(candidate.pid || '__candidate', pos, value);
+            if (!candidate.pid) return { ...base, short: 'Unknown', label: 'Select a player to compare a legal add/drop' };
+            if (owned.some(p => p.pid === add.pid)) return { ...base, label: 'Already on your roster' };
+            if (!add.available && options.horizon !== 'season') return { ...base, label: add.unavailable + ': no immediate lineup help' };
+            if (active.length > capacity) return { ...base, label: 'Resolve the existing roster overage before planning an add' };
+            const drops = active.length < capacity ? [null] : active.filter(p => !protectedIds.has(p.pid)
+                && root._playerTags?.[p.pid] !== 'untouchable' && !p.injury
+                && p.dhq != null && add.dhq != null && p.dhq <= add.dhq);
+            let best = null;
+            for (const drop of drops) {
+                const after = active.filter(p => p.pid !== drop?.pid).concat(add);
+                const playable = after.filter(p => p.available);
+                const completeWeekly = usable.every(p => p.projection != null) && add.projection != null;
+                const completeSeason = active.every(p => p.dhq != null) && add.dhq != null;
+                const weeklyGain = completeWeekly ? +(lineup(playable,'projection').total - beforeWeekly.total).toFixed(2) : null;
+                const seasonGain = completeSeason ? Math.round(lineup(after,'dhq').total - beforeSeason.total) : null;
+                const rosGain = active.every(p=>p.rosPoints != null) && add.rosPoints != null ? +(lineup(after,'rosPoints').total - beforeRos.total).toFixed(1) : null;
+                if (options.horizon === 'week' && !(weeklyGain > 0)) continue;
+                if (options.horizon === 'season' && !(rosGain > 0)) continue;
+                if (options.horizon === 'both' && !(weeklyGain != null && rosGain != null && weeklyGain >= 0 && rosGain >= 0 && (weeklyGain > 0 || rosGain > 0))) continue;
+                const benchGain = dynasty && completeSeason ? Math.round(after.reduce((n,p)=>n+p.dhq,0)-active.reduce((n,p)=>n+p.dhq,0)) : null;
+                if (!(weeklyGain > 0) && !(seasonGain > 0) && !(benchGain > 0) && !(options.horizon && rosGain > 0)) continue;
+                // Do not fix one slot by opening another, or sell a higher-valued
+                // seasonal asset for a one-week bump without explicit owner choice.
+                if (lineup(playable,'coverage').count < coverage) continue;
+                const next = { rosGain, candidateRosPoints: add.rosPoints, weeklyGain, seasonGain, benchGain, dropPid: drop?.pid || null, dropName: drop?.name || null, candidateProjection: add.projection, dropProjection: drop?.projection ?? null, dropValue: drop?.dhq ?? null, requiresLockCheck: true };
+                if (options.horizon === 'season') {
+                    if (!best || next.rosGain > best.rosGain || next.rosGain === best.rosGain && (next.weeklyGain ?? -Infinity) > (best.weeklyGain ?? -Infinity)) best = next;
+                    continue;
+                }
+                if (!best || (next.weeklyGain ?? 0) > (best.weeklyGain ?? 0) || (next.weeklyGain ?? 0) === (best.weeklyGain ?? 0) && ((next.seasonGain ?? 0) > (best.seasonGain ?? 0) || (next.seasonGain ?? 0) === (best.seasonGain ?? 0) && (next.dropValue ?? 0) < (best.dropValue ?? 0))) best = next;
+            }
+            if (!best) return { ...base, label: drops.length ? base.label : 'No safe drop identified; review roster space or protected players' };
+            const weekly = best.weeklyGain > 0;
+            const gain = weekly ? best.weeklyGain : best.seasonGain > 0 ? best.seasonGain : best.benchGain;
+            const benchOnly = !weekly && !(best.seasonGain > 0);
+            const fills = rows.find(r => r.pos === norm(pos))?.fillsStarter;
+            return { ...base, ...best, gain, metric: weekly ? 'projected points this week' : dynasty ? 'dynasty value' : 'ROS starter value', score: benchOnly ? 1 : fills ? 4 : 3, short: benchOnly ? 'Dynasty stash' : fills ? 'Coverage' : 'Starter upgrade', need: fills ? {pos, urgency:'deficit'} : null, color: 'var(--good)',
+                label: '+' + gain + ' ' + (weekly ? 'projected lineup points this week' : benchOnly ? 'dynasty bench value; no starting-lineup gain' : dynasty ? 'dynasty value in your starting lineup' : 'ROS value in your starting lineup') + (best.dropName ? ' · possible drop: ' + best.dropName : ' · open roster spot') };
+        }
+        return { known, owned, rows, coverage, total: slots.length, fit, week, beforeWeekly, beforeSeason, beforeRos };
+    }
+    root.App = root.App || {};
+    root.App.buildFaRosterRead = buildFaRosterRead;
+    if (typeof module !== 'undefined' && module.exports) module.exports = buildFaRosterRead;
+
+})(typeof window !== 'undefined' ? window : globalThis);

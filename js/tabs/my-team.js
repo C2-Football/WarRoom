@@ -110,6 +110,11 @@ function MyTeamTab({
   // Drives untouchable lock badges, target/sell position accents, and a sell-rule
   // nudge on the roster recommendation. Hook is called once, unconditionally.
   const gm = window.WR.GmMode.useGmEffects(currentLeague);
+  const rosterLens = window.WR?.RosterLens?.useLens?.({
+    league: currentLeague, roster: myRoster, players: playersData, statsData,
+    priorData: stats2025Data, userId: sleeperUserId, gm, skin: resolvedLeagueSkin,
+    revision: timeRecomputeTs, isPro, setActiveTab,
+  }) || null;
   const gmTargetPositions = gm?.targetPositions instanceof Set ? gm.targetPositions : new Set();
   const gmSellPositions = gm?.sellPositions instanceof Set ? gm.sellPositions : new Set();
   const gmUntouchable = gm?.untouchable instanceof Set ? gm.untouchable : new Set();
@@ -1771,13 +1776,21 @@ function MyTeamTab({
   // The compact player button opens the existing dossier and roster actions.
   const _renderPhoneCards = () => {
     const groups = [];
-    filtered.forEach(r => {
+    // Lens ordering is temporary; saved roster filters and sorting stay intact.
+    const lensOrder = new Map();
+    if (rosterLens?.mode !== 'off' && !rosterLens?.loading) (rosterLens?.options || []).forEach(candidate => {
+      const pid = String(candidate.anchorPlayerId || candidate.dropPid || candidate.outgoing?.[0]?.pid || '');
+      if (pid && !lensOrder.has(pid)) lensOrder.set(pid, lensOrder.size);
+    });
+    const displayed = lensOrder.size ? filtered.slice().sort((a, b) => (lensOrder.get(String(a.pid)) ?? Infinity) - (lensOrder.get(String(b.pid)) ?? Infinity)) : filtered;
+    displayed.forEach(r => {
       const query = phoneSearch.trim().toLowerCase();
       if (query && !`${getPlayerName(r.pid)} ${r.pos} ${r.p.team || 'FA'}`.toLowerCase().includes(query)) return;
-      const key = getRowGroupKey(r);
+      const opportunity = lensOrder.has(String(r.pid));
+      const key = opportunity ? '__acquisition_lens' : getRowGroupKey(r);
       let g = groups[groups.length - 1];
       if (!g || g.key !== key) {
-        g = { key, label: rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
+        g = { key, label: opportunity ? 'Acquisition ideas · previews' : rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
         groups.push(g);
       }
       const isExpanded = expandedPid === r.pid;
@@ -1804,6 +1817,7 @@ function MyTeamTab({
             }).map(stat => <span key={stat.key} title={stat.key === 'dhq' ? valueLabel : stat.label}><strong>{stat.value}</strong><small>{stat.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : stat.label}</small></span>)}</span> : <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>}
             <span className="wr-roster-mobile-player-chevron" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
           </button>
+          {rosterLens && <window.WR.RosterLens.Row lens={rosterLens} pid={r.pid} />}
           {isExpanded && <div id={'roster-detail-' + r.pid} className="wr-roster-mobile-detail">
             <div className="mc-player-actions">
               {skinFeatures.showTrades !== false && <button type="button" onClick={() => { window._wrTradeBuilderTarget = { pid: r.pid, returnTab: 'myteam', ts: Date.now() }; setActiveTab?.('trades'); window.dispatchEvent(new CustomEvent('wr:open-trade-builder', { detail: window._wrTradeBuilderTarget })); }}>Build a trade</button>}
@@ -2006,12 +2020,13 @@ function MyTeamTab({
       })();
 
   return (
-    <div className={_phone ? 'wr-roster-mobile' : undefined} style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+    <div className={_phone ? 'wr-roster-mobile' + (rosterLens && rosterLens.mode !== 'off' ? ' wr-roster-lens-active' : '') : undefined} style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       {_phone && <React.Fragment>
         {_phoneHeroEl}
         {_phoneSheetEl}
         {_reviewSheetEl}
       </React.Fragment>}
+      {rosterLens && <window.WR.RosterLens.Controls lens={rosterLens} compact={!_phone || phoneTableOpen} inlinePids={new Set(_phone && !phoneTableOpen ? filtered.filter(r => !phoneSearch.trim() || `${getPlayerName(r.pid)} ${r.pos} ${r.p.team || 'FA'}`.toLowerCase().includes(phoneSearch.trim().toLowerCase())).map(r => String(r.pid)) : [])} />}
       {isChoppedRoster && <section className={_phone ? 'wr-roster-mobile-byes' : undefined} aria-label="Roster bye weeks" style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', color: 'var(--silver)' }}>
         <details>
         <summary style={{ cursor: 'pointer', minHeight: '44px', fontSize: '0.8rem', color: 'var(--gold)' }}>
@@ -2239,7 +2254,7 @@ function MyTeamTab({
       })}
 
       {_phone && <section className="wr-roster-mobile-players" aria-label="Your players">
-        {_phonePillsEl}
+        {rosterLens && rosterLens.mode !== 'off' ? <details className="wr-lens-roster-settings"><summary>Roster filters · {rosterFilter}{phoneSearch.trim() ? ' · “' + phoneSearch.trim() + '”' : ''}</summary>{_phonePillsEl}</details> : _phonePillsEl}
         {phoneTableOpen ? <div className="wr-sticky-table-wrap" style={{ border: 'none' }}>{_renderRosterBoard()}</div> : <React.Fragment>
           {_renderPhoneCards()}
         </React.Fragment>}

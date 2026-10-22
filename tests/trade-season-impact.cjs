@@ -45,6 +45,21 @@ async function analyze(f, patch = {}) {
         givePlayerIds: ['4-0'], receivePlayerIds: ['1-0'], sims: 2000, seed: 17, ...patch }) };
 }
 
+test('points-only preview shares full-analysis legal lineups and skips Monte Carlo outputs', async () => {
+    const f = fixture(), { context, result: full } = await analyze(f);
+    const args = { context, myRosterId: 4, partnerRosterId: 1, givePlayerIds: ['4-0'], receivePlayerIds: ['1-0'], pointsOnly: true };
+    const points = f.api.analyze(args);
+    assert.equal(points.pointsOnly, true);
+    assert.equal(points.before, Math.round(full.weeks.reduce((sum, w) => sum + w.beforePoints, 0) * 10) / 10);
+    assert.equal(points.after, Math.round(full.weeks.reduce((sum, w) => sum + w.afterPoints, 0) * 10) / 10);
+    assert.equal(points.delta, Math.round((points.after - points.before) * 10) / 10);
+    assert.equal(JSON.stringify(points.weeks), JSON.stringify(full.weeks));
+    assert.equal(points.wins, undefined, 'points-only cannot be mistaken for simulated wins');
+    assert.equal(points.playoffs, undefined, 'points-only cannot be mistaken for qualification odds');
+    const ordinary = f.api.analyze({ ...args, pointsOnly: false, sims: 2000, seed: 17 });
+    assert.equal(JSON.stringify(ordinary), JSON.stringify(full), 'default/full analysis remains byte-for-byte equivalent');
+});
+
 test('trade projects legal future lineups, both teams, rank and paired qualification odds without mutating inputs', async () => {
     const f = fixture(), originals = JSON.stringify({ league: f.league, players: f.playersData, stats: f.statsData });
     const { context, result } = await analyze(f);

@@ -67,7 +67,8 @@ ctx.streamCandidates = [{ fa: target, rosGain: 14.5, delta:-1.2, dropPid:'drop',
 ctx.isPro = false; assert.equal(ctx.renderMissionWaiverBoard(), 'Pro required');
 // Coverage summarizes usable owned players; legal FLEX matching, rather than
 // a comparison with dedicated slot counts, determines which rooms need help.
-vm.runInContext(source.slice(source.indexOf('    function buildFaRosterRead('), source.indexOf('    window.App.buildFaRosterRead')), ctx);
+vm.runInContext(fs.readFileSync('js/shared/waiver-roster-read.js','utf8'), ctx);
+ctx.buildFaRosterRead=ctx.window.App.buildFaRosterRead;
 const coverageLeague = {...league, roster_positions:['QB','RB','FLEX'], settings:{type:0}};
 const coveragePlayers = {qb:{full_name:'Ready Quarterback',position:'QB',team:'KC'},rb:{full_name:'Ready Runner',position:'RB',team:'BAL'},out:{full_name:'Injured Runner',position:'RB',team:'DET',injury_status:'OUT'}};
 const coverageRead = ctx.buildFaRosterRead({players:['qb','rb','out']},coverageLeague,coveragePlayers,()=>10,{week:6});
