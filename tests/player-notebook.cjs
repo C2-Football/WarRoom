@@ -185,6 +185,7 @@ context.Tip = () => null;
 league.rosters = rosters;
 league.settings.waiver_budget = 100;
 N.update('fa', { watch: true });
+load('js/shared/waiver-roster-read.js');
 load('js/free-agency.js', true);
 function faRender(initialView) {
     stateCursor = 0; effectCursor = 0;
