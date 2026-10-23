@@ -54,6 +54,29 @@ function browser({ mounted = true, sdkRejects = false, knownContext = true } = {
         assert(b.log.includes('unmount')); assert(!b.element.textContent.includes('confidential'));
         assert(b.log.some(value => Array.isArray(value) && value[0] === 'oauth-signout' && value[1].scope === 'local'));
     }
+    const pushLogout = browser();
+    let pushAuth;
+    pushLogout.context.WR = { DashboardReminders: { disconnectForSignOut: async () => {
+        pushAuth = JSON.parse(pushLogout.local.getItem('fw_session_v1')).user.id;
+        await Promise.resolve();
+        pushLogout.log.push('push-disconnected');
+    } } };
+    await pushLogout.context.App.AccountSession.signOut();
+    assert.equal(pushAuth, 'a', 'Push revocation captures authentication before clearing the account');
+    assert(pushLogout.log.includes('push-disconnected'));
+    assert.equal(pushLogout.local.getItem('fw_session_v1'), null);
+    const pushSwitch = browser({ mounted: false });
+    const clearedPush = [];
+    pushSwitch.context.WR = { DashboardReminders: { clearPushForAccountChange: previous => { clearedPush.push(previous); return Promise.resolve(); } } };
+    pushSwitch.context.App.AccountStorage.prepareSignIn(session('b'), [['fw_session_v1', JSON.stringify(session('b'))]]);
+    assert.deepEqual(clearedPush, ['account:a']);
+    pushSwitch.context.App.AccountStorage.prepareSignIn(session('b'), [['fw_session_v1', JSON.stringify(session('b'))]]);
+    assert.equal(clearedPush.length, 1, 'Same account refresh must retain its push subscription');
+    const pushCrossTab = browser();
+    pushCrossTab.context.WR = { DashboardReminders: { clearPushForAccountChange: previous => { clearedPush.push(previous); return Promise.resolve(); } } };
+    pushCrossTab.local.setItem('fw_session_v1', JSON.stringify(session('b')));
+    pushCrossTab.events.storage({key:'fw_session_v1'});
+    assert.equal(clearedPush.at(-1), 'account:a');
     const changedPassword = browser();
     changedPassword.context.location.pathname = '/dist-preview/index.html';
     await changedPassword.context.App.AccountSession.signOut('login.html?password=changed');

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#08080b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src https://sxshiqyxhhifvtfqawbq.supabase.co; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>Email reminders · Dynasty HQ</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #f5f2ea; background: #08080b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: radial-gradient(ellipse at top, #27231b, transparent 70%); }
+    main { width: min(100%, 440px); border: 1px solid #63522b; border-radius: 18px; padding: clamp(24px, 7vw, 36px); background: #141419; box-shadow: 0 24px 70px #0006; }
+    .brand { margin: 0 0 24px; color: #e4c66c; font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(26px, 7vw, 32px); line-height: 1.15; letter-spacing: -.025em; }
+    p { margin: 0 0 20px; color: #c5c1b8; line-height: 1.6; overflow-wrap: anywhere; }
+    button { width: 100%; min-height: 48px; padding: 13px 16px; border: 0; border-radius: 9px; color: #15120a; background: #e4c66c; font: inherit; font-weight: 750; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    button[hidden] { display: none; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+    #reminder-unsubscribe-status { margin: 16px 0 0; color: #e4c66c; font-size: 14px; }
+    #reminder-unsubscribe-status:empty { display: none; }
+    a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 20px; color: #c5c1b8; font-size: 14px; text-underline-offset: 4px; }
+    noscript p { margin-top: 20px; }
+  </style>
+  <script src="js/shared/reminder-unsubscribe.js" defer></script>
+</head>
+<body>
+  <main aria-labelledby="reminder-unsubscribe-title">
+    <p class="brand">Dynasty HQ</p>
+    <h1 id="reminder-unsubscribe-title">Stop email reminders?</h1>
+    <p id="reminder-unsubscribe-description">This pauses all dashboard reminder emails for this address. You can turn them on again in Dynasty HQ.</p>
+    <button id="reminder-unsubscribe-button" type="button" disabled>Stop email reminders</button>
+    <p id="reminder-unsubscribe-status" role="status" aria-live="polite"></p>
+    <noscript><p>Enable JavaScript to use this link, or manage your reminders in Dynasty HQ.</p></noscript>
+    <a href="index.html" rel="noreferrer">Open Dynasty HQ</a>
+  </main>
+</body>
+</html>

@@ -16,15 +16,17 @@ Implemented in `/Users/jacobc/Projects/warroom-alex-dashboard-20261023`, branch 
 
 ## Reminders and the delivery boundary
 
-Users can save daily/weekly reminder drafts with a time, IANA time zone, view, and email/push choice. These drafts save separately from the dashboard and remain clearly **Delivery not connected** until an authenticated delivery service proves readiness. They are scheduled reminders to review a view, not score/injury condition alerts.
+Users can save daily/weekly reminder drafts with a time, IANA time zone, view, and email/push choice. Drafts save separately from the dashboard. An explicit enable action schedules delivery only after the authenticated service confirms readiness. These are scheduled reminders to review a view, not score/injury condition alerts.
 
-The client integration supports capability checks, explicit enable/update/pause, stale-session and revision checks, exact server acknowledgements, verified email gating, existing push-subscription binding, and reconciliation of remote records after local storage is cleared. Tests mock that service.
+The owner backend now implements account-owned storage, email verification and opt-in, a scheduled delivery worker, retries and receipts, Web Push registration, and unsubscribe/pause handling. The browser provides explicit email setup and push connection, safe account/device binding, and logout cleanup. A static unsubscribe page works on the production host and sends no request until confirmation. The notification worker is included in release asset hashes.
 
-**Actual email/push delivery is not implemented or deployed by this frontend change.** The repository has no reminder scheduler, push registration flow, or reminder email service. Existing Resend password reset is unrelated. The owner account backend needs the implementation described in [dashboard-reminder-service-contract.md](dashboard-reminder-service-contract.md), including authenticated storage, verified opt-in, scheduler, delivery ledger, push registration, and unsubscribe/pause handling. No notifications were sent. No backend migration or deployment was performed.
+The service remains in its owner deployment lane, separate from C2 game functions. Its implementation and authentication contract are documented in [dashboard-reminder-service-contract.md](dashboard-reminder-service-contract.md). Current local test evidence is in [reminder-validation.md](dashboard-builder/reminder-validation.md); hosted revision, scheduler and actual delivery evidence are recorded separately during release. Mocked/local test success alone does not prove real delivery.
 
 Season fantasy-point fields also remain unavailable on this Home integration until the caller supplies a verified matching-season stats snapshot. Team record/points-for data and roster metadata are available independently; the builder never substitutes projections or the time-travel selector's unverified statistics.
 
-## Verification
+## Initial builder verification
+
+This section records the earlier builder-only checks; current reminder validation is linked above.
 
 Passed locally:
 

@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const revision = process.argv[2];
 assert(/^[a-f0-9]{40}$/.test(revision || ''), 'Pass the exact intended full Git revision');
-const entries = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html', 'draft-war-room/index.html'];
+const entries = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html', 'draft-war-room/index.html', 'reminder-unsubscribe.html'];
 const publicPages = ['landing.html', 'login.html', 'onboarding.html', 'reset-password.html', 'ai-settings.html', 'upgrade.html', 'gift.html'];
 const stamp = Date.now();
 const proof = { expectedRevision: revision, startedAt: new Date().toISOString(), environments: [] };

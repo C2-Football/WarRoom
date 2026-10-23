@@ -31,8 +31,11 @@ const { minify } = require('terser');
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'dist-deploy');
 
-// Every HTML entry point that loads @babel/standalone + type="text/babel" scripts.
-const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html', 'draft-war-room/index.html'];
+// Babel entry points and the reminder opt-out page whose script is release-verified.
+const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html', 'draft-war-room/index.html', 'reminder-unsubscribe.html'];
+// Workers are registered on demand, so HTML script discovery cannot find them.
+// Emit them in the overlay and fingerprint the exact bytes Pages will serve.
+const WORKERS = ['dashboard-reminder-sw.js'];
 
 const assetHash = new Map(); // pathname -> content hash of the emitted (minified) output
 let compiledCount = 0;
@@ -198,6 +201,7 @@ async function build() {
   }
 
   const { babelSrcs, allSrcs } = collectSources(htmlByEntry);
+  for (const worker of WORKERS) allSrcs.add(worker);
   for (const src of babelSrcs) await emitModule(src, { jsx: true });
   for (const src of allSrcs) {
     if (!babelSrcs.has(src)) await emitModule(src, { jsx: false });
@@ -214,7 +218,7 @@ async function build() {
   const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   fs.writeFileSync(path.join(OUT_DIR, 'release.json'), JSON.stringify({
     revision, builtAt: new Date().toISOString(), environment: process.env.GITHUB_REPOSITORY || 'local-preview',
-    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat'))),
+    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat') || WORKERS.includes(name) || name === 'js/shared/reminder-unsubscribe.js')),
   }, null, 2) + '\n');
 
   const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;

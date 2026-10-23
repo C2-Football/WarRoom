@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { MessageChannel } = require('node:worker_threads');
 const source = fs.readFileSync(path.join(__dirname, '../js/shared/dashboard-reminders.js'), 'utf8');
 const clean = value => JSON.parse(JSON.stringify(value));
 const token = (id = 'account-one', extra = {}) => 'header.' + Buffer.from(JSON.stringify({ sub: id, exp: Date.now() / 1000 + 3600,
@@ -13,21 +14,79 @@ const draft = { id: 'rem_one', viewId: 'alex_view_1', title: 'Check my roster', 
     schedule: { frequency: 'weekly', day: 2, time: '09:00', timeZone: 'America/Chicago' } };
 const remote = (value = draft, extra = {}) => ({ ...clean(value), state: 'enabled', revision: 1, nextRunAt: '2026-11-01T15:00:00Z', ...extra });
 const envelope = extra => ({ version: 1, accountId: 'account-one', leagueId: 'league-one',
-    channels: { email: { available: true, recipientVerified: true }, push: { available: false } }, reminders: [], ...extra });
+    channels: { email: { available: true, recipientVerified: true, optedIn: true }, push: { available: false } }, reminders: [], ...extra });
 let checks = 0;
 async function check(name, fn) { await fn(); checks++; console.log('PASS ' + name); }
+function assertChannelPayload(body) {
+    const fields = { 'email-start': ['action'], 'email-confirm': ['action', 'code'], 'email-disable': ['action'],
+        'push-subscribe': ['action', 'subscription', 'deviceKey', 'appUrl'], 'push-unsubscribe': ['action', 'deviceKey'] };
+    if (fields[body.action]) assert.deepEqual(Object.keys(body).sort(), fields[body.action].sort(), 'channel payload matches the strict backend contract');
+}
 function setup() {
     const storage = new Map(), requests = [];
     const sessionToken = token();
     const root = { localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
-        atob: value => Buffer.from(value, 'base64').toString('binary'), AbortController, TextEncoder, setTimeout, clearTimeout,
+        atob: value => Buffer.from(value, 'base64').toString('binary'), AbortController, TextEncoder, MessageChannel, setTimeout, clearTimeout,
+        isSecureContext: true, location: { href: 'https://dhqfootball.com/index.html' },
         crypto: crypto.webcrypto, OD: { getSessionToken: () => sessionToken, CONFIG: { supabaseUrl: 'https://project.invalid', supabaseAnon: 'public' } } };
     let response = envelope();
-    root.fetch = async (url, options) => { requests.push({ url, ...options }); return { ok: true, status: 200, json: async () => response }; };
+    root.fetch = async (url, options) => { if (options.method === 'POST') assertChannelPayload(JSON.parse(options.body)); requests.push({ url, ...options }); return { ok: true, status: 200, json: async () => response }; };
     vm.runInNewContext(source, { window: root, console, URL, Intl });
     return { root, storage, requests, api: root.WR.DashboardReminders, respond: value => { response = value; } };
 }
 async function service(fixture) { return fixture.api.checkService({ scope, leagueId: 'league-one' }); }
+
+
+function pushFixture() {
+    const fixture = setup();
+    const ecdh = crypto.createECDH('prime256v1'); ecdh.generateKeys();
+    const vapidPublicKey = ecdh.getPublicKey().toString('base64url');
+    const state = { prompts: 0, subscribed: 0, unsubscribed: 0, registrations: 0, binding: null, remoteKey: null, events: [] };
+    const endpoint = 'https://fcm.googleapis.com/fcm/send/test-device';
+    const deviceKey = crypto.createHash('sha256').update(endpoint).digest('hex');
+    const subscription = { endpoint, toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: vapidPublicKey, auth: Buffer.alloc(16, 1).toString('base64url') } }),
+        unsubscribe: async () => { state.unsubscribed++; state.events.push('unsubscribe'); state.current = null; return true; } };
+    const worker = { scriptURL: 'https://dhqfootball.com/dashboard-reminder-sw.js', postMessage: (message, ports) => {
+        let response = { ok: true };
+        if (message.type === 'dhq-reminder-bind') { state.binding = { accountId: message.accountId, deviceKey: message.deviceKey }; response.binding = state.binding; }
+        if (message.type === 'dhq-reminder-binding') response.binding = state.binding;
+        if (message.type === 'dhq-reminder-clear') {
+            const previous = state.binding, cleared = previous?.accountId === message.accountId;
+            if (cleared) state.binding = null;
+            response = { ok: true, cleared, previous: cleared ? previous : null, binding: state.binding };
+        }
+        ports[0].postMessage(response);
+    } };
+    const registration = { active: worker, pushManager: { getSubscription: async () => state.current || null,
+        subscribe: async options => { state.options = options; state.subscribed++; state.current = subscription; state.events.push('subscribe'); return subscription; } } };
+    fixture.root.PushManager = function () {};
+    fixture.root.Notification = { permission: 'default', requestPermission: () => { state.prompts++; state.events.push('permission'); fixture.root.Notification.permission = 'granted'; return Promise.resolve('granted'); } };
+    fixture.root.navigator = { serviceWorker: { getRegistration: async () => registration, register: async (url, options) => { state.registrations++; state.registrationOptions = { url, options }; return registration; } } };
+    fixture.root.fetch = async (url, options) => {
+        fixture.requests.push({ url, ...options });
+        if (options.method === 'GET') return { ok: true, status: 200, json: async () => envelope({ channels: { email: { available: true, recipientVerified: false, optedIn: false }, push: { available: true, vapidPublicKey, subscriptionReady: !!state.remoteKey, deviceKey: state.remoteKey } } }) };
+        const body = JSON.parse(options.body); assertChannelPayload(body); state.events.push(body.action);
+        if (body.action === 'push-subscribe') state.remoteKey = body.deviceKey;
+        if (body.action === 'push-unsubscribe') state.remoteKey = null;
+        return { ok: true, status: 200, json: async () => envelope({ leagueId: new URL(url).searchParams.get('leagueId'), action: body.action, ok: true, deviceKey: body.deviceKey }) };
+    };
+    return { ...fixture, state, registration, subscription, deviceKey, vapidPublicKey };
+}
+
+function workerFixture() {
+    const listeners = {}, shown = [], opened = [], records = new Map(), notices = [];
+    const db = { objectStoreNames: { contains: () => true }, close() {}, transaction() {
+        const tx = { objectStore: () => ({ get(key) { const read = {}; queueMicrotask(() => { read.result = records.get(key); read.onsuccess(); queueMicrotask(() => tx.oncomplete()); }); return read; }, put(value,key) { records.set(key,value); }, delete(key) { records.delete(key); } }) }; return tx;
+    } };
+    const self = { addEventListener: (name, handler) => { listeners[name] = handler; }, skipWaiting() {}, registration: { scope: 'https://dhqfootball.com/',
+        getNotifications: async () => notices, showNotification: async (title,options) => { shown.push({title,options}); } },
+        clients: { claim: async () => {}, matchAll: async () => [], openWindow: async url => { opened.push(url); } } };
+    const indexedDB = { open() { const request={ result:db }; queueMicrotask(()=>request.onsuccess()); return request; } };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../dashboard-reminder-sw.js'),'utf8'), { self, indexedDB, URL });
+    async function dispatch(name,event) { let operation; listeners[name]({...event,waitUntil:promise=>{operation=promise;}}); await operation; }
+    async function message(data,origin='https://dhqfootball.com/index.html') { let result; await dispatch('message',{data,source:{url:origin},ports:[{postMessage:value=>{result=value;}}]}); return result; }
+    return { listeners,shown,opened,records,notices,self,dispatch,message };
+}
 
 async function main() {
     await check('daily and weekly schedules retain explicit timezone and reject invalid values', () => {
@@ -153,7 +212,7 @@ async function main() {
         const fixture = setup(); const endpoint = 'https://push.invalid/private-subscription';
         const deviceKey = crypto.createHash('sha256').update(endpoint).digest('hex');
         fixture.root.Notification = { permission: 'granted' };
-        fixture.root.navigator = { serviceWorker: { getRegistration: async () => ({ pushManager: { getSubscription: async () => ({ endpoint }) } }) } };
+        fixture.root.navigator = { serviceWorker: { getRegistration: async () => ({ active: { scriptURL: 'https://dhqfootball.com/dashboard-reminder-sw.js', postMessage: (_, ports) => ports[0].postMessage({ ok: true, binding: { accountId: 'account-one', deviceKey } }) }, pushManager: { getSubscription: async () => ({ endpoint }) } }) } };
         fixture.respond(envelope({ channels: { push: { available: true, subscriptionReady: true, deviceKey } } }));
         const result = await service(fixture);
         assert.equal(result.channels.push.ready, true);
@@ -178,6 +237,127 @@ async function main() {
         const result = { status: 'ready', reminders: [remote()], channels: { email: { ready: true } } };
         assert.deepEqual(clean(api.mergeReminders([current], result)), [current]);
         assert.equal(api.statusLabel(current, result), 'Earlier schedule is active');
+    });
+    await check('email opt-in requires explicit verified acknowledgement and never submits a recipient', async () => {
+        const fixture=setup(); fixture.respond(envelope({channels:{email:{available:true,recipientVerified:false,optedIn:false,maskedEmail:'j***@example.com',verificationPending:false},push:{available:false}}}));
+        const fresh=await service(fixture);
+        fixture.respond(envelope({action:'email-start',ok:true}));
+        await fixture.api.channelAction({scope,leagueId:'league-one',service:fresh,action:'email-start'});
+        const body=JSON.parse(fixture.requests.at(-1).body);
+        assert.equal(body.action,'email-start'); assert.equal(body.email,undefined); assert.equal(body.recipient,undefined);
+        await assert.rejects(fixture.api.channelAction({scope,leagueId:'league-one',service:fresh,action:'email-start'}),/Check delivery status/);
+        fixture.respond(envelope({channels:{email:{available:true,verificationPending:true},push:{available:false}}}));
+        const pending=await service(fixture);
+        await assert.rejects(fixture.api.channelAction({scope,leagueId:'league-one',service:pending,action:'email-confirm',code:'12a456'}),/six-digit/);
+        fixture.respond(envelope({action:'email-confirm',ok:true}));
+        await fixture.api.channelAction({scope,leagueId:'league-one',service:pending,action:'email-confirm',code:'123456'});
+        assert.equal(JSON.parse(fixture.requests.at(-1).body).code,'123456');
+        assert.equal(fixture.storage.size,0,'confirmation code is never persisted');
+    });
+    await check('verified email without reminder opt-in stays unavailable and disabling needs acknowledgement', async () => {
+        const fixture=setup(); fixture.respond(envelope({channels:{email:{available:true,recipientVerified:true,optedIn:false},push:{available:false}}}));
+        const fresh=await service(fixture); assert.equal(fresh.channels.email.ready,false);
+        fixture.respond(envelope({action:'email-disable',ok:true}));
+        await fixture.api.channelAction({scope,leagueId:'league-one',service:fresh,action:'email-disable'});
+        const unconfirmed=await service(setup());
+        const other=setup();
+        await assert.rejects(other.api.channelAction({scope,leagueId:'league-one',service:unconfirmed,action:'email-disable'}),/Check delivery status/);
+    });
+    await check('push support distinguishes insecure, blocked and iOS installation requirements', () => {
+        const fixture=pushFixture(); assert.equal(fixture.api.pushSupport().supported,true);
+        fixture.root.isSecureContext=false; assert.match(fixture.api.pushSupport().reason,/secure connection/);
+        fixture.root.isSecureContext=true; fixture.root.navigator.userAgent='iPhone';
+        assert.match(fixture.api.pushSupport().reason,/Home Screen/);
+        fixture.root.navigator.standalone=true; assert.equal(fixture.api.pushSupport().supported,true);
+        fixture.root.Notification.permission='denied'; assert.match(fixture.api.pushSupport().reason,/browser settings/);
+        assert.equal(fixture.state.prompts,0);
+    });
+    await check('connect push requests permission in the click then registers and binds authenticated device', async () => {
+        const fixture=pushFixture(), fresh=await service(fixture);
+        const operation=fixture.api.connectPush({scope,leagueId:'league-one',service:fresh});
+        assert.equal(fixture.state.prompts,1,'requestPermission is called synchronously before returning');
+        await operation;
+        assert.equal(fixture.state.subscribed,1); assert.equal(fixture.state.options.userVisibleOnly,true); assert.equal(fixture.state.options.applicationServerKey.length,65);
+        assert.equal(fixture.state.registrationOptions.url,'https://dhqfootball.com/dashboard-reminder-sw.js');
+        assert.equal(fixture.state.registrationOptions.options.updateViaCache,'none');
+        assert.deepEqual(clean(fixture.state.binding),{accountId:'account-one',deviceKey:fixture.deviceKey});
+        const body=JSON.parse(fixture.requests.find(request=>request.method==='POST').body);
+        assert.equal(body.appUrl,'https://dhqfootball.com/index.html'); assert.equal(body.deviceKey,fixture.deviceKey);
+        assert.equal(fixture.storage.size,0,'no endpoint or credentials in localStorage');
+    });
+    await check('push readiness requires matching worker identity and can be repaired by explicit reconnect', async () => {
+        const fixture=pushFixture(); await fixture.api.connectPush({scope,leagueId:'league-one',service:await service(fixture)});
+        fixture.state.binding=null;
+        const disconnected=await service(fixture); assert.equal(disconnected.channels.push.ready,false); assert.equal(disconnected.channels.push.subscriptionReady,false);
+        await fixture.api.connectPush({scope,leagueId:'league-one',service:disconnected});
+        assert.equal(fixture.state.subscribed,1,'existing subscription is reused'); assert.equal((await service(fixture)).channels.push.ready,true);
+        fixture.state.binding={accountId:'account-two',deviceKey:fixture.deviceKey};
+        assert.equal((await service(fixture)).channels.push.ready,false);
+    });
+    await check('declined or invalid push setup never subscribes or sends a registration', async () => {
+        const fixture=pushFixture(), fresh=await service(fixture);
+        fixture.root.Notification.requestPermission=()=>Promise.resolve('denied');
+        await assert.rejects(fixture.api.connectPush({scope,leagueId:'league-one',service:fresh}),/not connected/);
+        assert.equal(fixture.state.subscribed,0); assert.equal(fixture.requests.filter(request=>request.method==='POST').length,0);
+        const invalid=pushFixture(); const invalidService=await service(invalid); invalidService.channels.push.vapidPublicKey='bad';
+        await invalid.api.connectPush({scope,leagueId:'league-one',service:invalidService});
+        assert.equal(invalid.state.subscribed,1,'client-mutated key does not replace authenticated proof');
+    });
+    await check('account change after permission discards push connection before registration', async () => {
+        const fixture=pushFixture(), fresh=await service(fixture);
+        fixture.root.Notification.requestPermission=()=>{fixture.root.OD.getSessionToken=()=>token('account-two');return Promise.resolve('granted');};
+        await assert.rejects(fixture.api.connectPush({scope,leagueId:'league-one',service:fresh}),/account changed/);
+        assert.equal(fixture.state.registrations,0); assert.equal(fixture.state.subscribed,0);
+    });
+    await check('failed registration acknowledgement rolls back a newly-created browser subscription', async () => {
+        const fixture=pushFixture(), original=fixture.root.fetch;
+        fixture.root.fetch=async(url,options)=>options.method==='POST'?{ok:true,status:200,json:async()=>envelope({action:'push-subscribe',ok:true,deviceKey:'wrong'})}:original(url,options);
+        const fresh=await service(fixture);
+        await assert.rejects(fixture.api.connectPush({scope,leagueId:'league-one',service:fresh}),/did not confirm/);
+        assert.equal(fixture.state.unsubscribed,1); assert.equal(fixture.state.binding,null);
+    });
+    await check('disconnect revokes service binding before local unsubscribe and clears old notices', async () => {
+        const fixture=pushFixture(); await fixture.api.connectPush({scope,leagueId:'league-one',service:await service(fixture)});
+        await fixture.api.disconnectPush({scope,leagueId:'league-one',service:await service(fixture)});
+        assert.equal(fixture.state.binding,null); assert.equal(fixture.state.unsubscribed,1);
+        assert(fixture.state.events.indexOf('push-unsubscribe')<fixture.state.events.indexOf('unsubscribe'));
+    });
+    await check('signout captures account before teardown and always clears local push on revoke failure', async () => {
+        const fixture=pushFixture(); await fixture.api.connectPush({scope,leagueId:'league-one',service:await service(fixture)});
+        fixture.root.fetch=async(url,options)=>{fixture.requests.push({url,...options});throw new TypeError('Offline');};
+        const operation=fixture.api.disconnectForSignOut();
+        fixture.root.OD.getSessionToken=()=>null;
+        await operation;
+        assert.equal(fixture.state.binding,null); assert.equal(fixture.state.unsubscribed,1);
+        assert.equal(new URL(fixture.requests.at(-1).url).searchParams.get('leagueId'),'device');
+    });
+    await check('account-change cleanup cannot unsubscribe a newer account binding', async () => {
+        const fixture=pushFixture(); await fixture.api.connectPush({scope,leagueId:'league-one',service:await service(fixture)});
+        fixture.state.binding={accountId:'account-two',deviceKey:fixture.deviceKey};
+        assert.equal(await fixture.api.clearPushForAccountChange('account:account-one'),false);
+        assert.equal(fixture.state.unsubscribed,0); assert.equal(fixture.state.binding.accountId,'account-two');
+    });
+    await check('worker stores identity only, rejects foreign binding and has no fetch cache handler', async () => {
+        const fixture=workerFixture(), deviceKey='a'.repeat(64);
+        const rejected=await fixture.message({type:'dhq-reminder-bind',accountId:'account-one',deviceKey},'https://evil.invalid/');
+        assert.equal(rejected,undefined); assert.equal(fixture.records.size,0);
+        const bound=await fixture.message({type:'dhq-reminder-bind',accountId:'account-one',deviceKey});
+        assert.deepEqual(clean(bound.binding),{accountId:'account-one',deviceKey}); assert.equal(fixture.listeners.fetch,undefined);
+        assert.equal((await fixture.message({type:'dhq-reminder-clear',accountId:'account-two'})).cleared,false);
+    });
+    await check('worker push and click protect signed-out or mismatched account content and URLs', async () => {
+        const fixture=workerFixture(), deviceKey='a'.repeat(64), privatePayload={version:1,accountId:'account-one',title:'Private roster plan',body:'Review roster',url:'https://dhqfootball.com/index.html#league=one&tab=dashboard',tag:'rem_one'};
+        await fixture.dispatch('push',{data:{json:()=>privatePayload}});
+        assert.equal(fixture.shown[0].title,'Dynasty HQ reminder'); assert.doesNotMatch(fixture.shown[0].options.data.url,/league=/);
+        await fixture.message({type:'dhq-reminder-bind',accountId:'account-one',deviceKey});
+        await fixture.dispatch('push',{data:{json:()=>privatePayload}}); assert.equal(fixture.shown[1].title,privatePayload.title);
+        assert.equal(fixture.shown[1].options.tag,'rem_one'); assert.equal(fixture.shown[1].options.renotify,false);
+        await fixture.dispatch('push',{data:{json:()=>({...privatePayload,url:'https://evil.invalid/phish'})}});
+        assert.equal(fixture.shown[2].options.data.url,'https://dhqfootball.com/index.html');
+        let closed=0; fixture.notices.push({close:()=>closed++});
+        await fixture.message({type:'dhq-reminder-clear',accountId:'account-one'}); assert.equal(closed,1);
+        await fixture.dispatch('notificationclick',{notification:{data:fixture.shown[1].options.data,close:()=>{}}});
+        assert.equal(fixture.opened[0],'https://dhqfootball.com/index.html','old private deep link is discarded after logout');
     });
     await check('component syntax is valid and touch controls and timezone fields are present', () => {
         const babel = require('@babel/standalone');

@@ -1,5 +1,5 @@
 /* global module, globalThis */
-/* Reminder drafts are local. Only a fresh authenticated service response can enable delivery. */
+/* Reminder drafts are local; authenticated service acknowledgements own actual delivery. */
 (function (root, factory) {
     'use strict';
     const api = factory(root);
@@ -118,14 +118,61 @@
         return { status: 'unavailable', reason, channels: { email: { ready: false }, push: { ready: false } }, reminders: [] };
     }
 
+    function pushSupport() {
+        const agent = root.navigator || {};
+        const ios = /iPad|iPhone|iPod/.test(agent.userAgent || '') || (agent.platform === 'MacIntel' && agent.maxTouchPoints > 1);
+        const installed = agent.standalone === true || root.matchMedia?.('(display-mode: standalone)')?.matches;
+        if (ios && !installed) return { supported: false, reason: 'For push on iPhone or iPad, add Dynasty HQ to your Home Screen, then open it there.' };
+        if (root.isSecureContext !== true) return { supported: false, reason: 'Open Dynasty HQ over a secure connection to connect push.' };
+        if (!agent.serviceWorker || !root.PushManager || !root.Notification) return { supported: false, reason: 'Push is not supported in this browser. You can use email reminders.' };
+        if (root.Notification.permission === 'denied') return { supported: false, reason: 'Push is blocked in your browser settings. Allow notifications for Dynasty HQ, then try again.' };
+        return { supported: true, reason: '' };
+    }
+
+    function workerLocation() {
+        const base = root.document?.baseURI || root.location?.href;
+        if (!base) fail('Open Dynasty HQ before connecting push.');
+        return new URL('dashboard-reminder-sw.js', base);
+    }
+
+    async function currentSubscription() {
+        if (!root.navigator?.serviceWorker?.getRegistration) return null;
+        const registration = await root.navigator.serviceWorker.getRegistration();
+        if (!registration) return null;
+        // Never inspect or replace an unrelated worker's subscription.
+        const script = registration.active?.scriptURL || registration.waiting?.scriptURL || registration.installing?.scriptURL;
+        if (script && new URL(script).pathname !== workerLocation().pathname) return null;
+        return registration.pushManager?.getSubscription?.() || null;
+    }
+
+    async function subscriptionKey(subscription) {
+        if (!subscription?.endpoint || !root.crypto?.subtle) return null;
+        const digest = await root.crypto.subtle.digest('SHA-256', new root.TextEncoder().encode(subscription.endpoint));
+        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function workerMessage(type, payload = {}) {
+        const registration = await root.navigator?.serviceWorker?.getRegistration?.();
+        const worker = registration?.active;
+        if (!worker || !root.MessageChannel) return null;
+        const expected = workerLocation();
+        if (worker.scriptURL && new URL(worker.scriptURL).pathname !== expected.pathname) return null;
+        return new Promise((resolve, reject) => {
+            const channel = new root.MessageChannel();
+            const close = () => { channel.port1.close(); channel.port2.close(); };
+            const timer = root.setTimeout(() => { close(); reject(new Error('Push setup did not confirm this device. Try again.')); }, 1500);
+            channel.port1.onmessage = event => {
+                root.clearTimeout(timer); close();
+                event.data?.ok === true ? resolve(event.data) : reject(new Error('Push setup could not save this device. Try again.'));
+            };
+            worker.postMessage({ type, ...payload }, [channel.port2]);
+        });
+    }
+
     async function pushDeviceKey() {
         if (root.Notification?.permission !== 'granted' || !root.navigator?.serviceWorker?.getRegistration || !root.crypto?.subtle) return null;
         try {
-            const registration = await root.navigator.serviceWorker.getRegistration();
-            const subscription = await registration?.pushManager?.getSubscription();
-            if (!subscription?.endpoint) return null;
-            const digest = await root.crypto.subtle.digest('SHA-256', new root.TextEncoder().encode(subscription.endpoint));
-            return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+            return await subscriptionKey(await currentSubscription());
         } catch (_) { return null; }
     }
 
@@ -152,6 +199,9 @@
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) fail('Sign in again to check reminder delivery.');
                 if (response.status === 409) fail('This reminder changed on another device. Check delivery status before trying again.');
+                if (response.status === 429) fail('Please wait before trying again. Too many reminder requests were made.');
+                if (response.status === 400 && body?.action === 'email-confirm') fail('That code is invalid or expired. Check the code or request a new one.');
+                if (response.status === 400 && body?.action === 'push-subscribe') fail('This push subscription could not be connected. Try connecting this device again.');
                 fail(method === 'GET' ? 'Delivery not connected. Your reminder draft can still be saved.' : 'The service did not confirm this change. Check delivery status before trying again.');
             }
             if (value?.version !== 1 || value?.accountId !== auth.accountId || value?.leagueId !== leagueId) fail('Reminder delivery returned an incomplete response. Check delivery status again.');
@@ -179,18 +229,31 @@
         if (!matchesScope(auth, scope, id)) return unavailable('Sign in to connect delivery. Drafts stay in this browser for this account and league.');
         try {
             const deviceKey = await pushDeviceKey();
+            let deviceBinding = null;
+            if (deviceKey) { try { deviceBinding = (await workerMessage('dhq-reminder-binding'))?.binding; } catch (_) { /* explicit Connect push can repair this device */ } }
             if (credentials()?.token !== auth.token) return unavailable('Your account changed. Reopen the dashboard builder.');
             const value = await request(auth, id, 'GET', null, signal, deviceKey);
             if (!plain(value.channels) || !Array.isArray(value.reminders) || value.reminders.length > MAX_REMINDERS) fail('Reminder delivery returned an incomplete response.');
             const reminders = value.reminders.map(serverReminder);
             if (new Set(reminders.map(item => item.id)).size !== reminders.length) fail('Reminder delivery returned duplicate records.');
             const push = value.channels.push;
-            // Push is usable only with an existing server-confirmed subscription on this device.
-            // This client does not prompt for permission or retain a push endpoint locally.
-            const pushReady = push?.available === true && push?.subscriptionReady === true && !!deviceKey && push?.deviceKey === deviceKey;
+            // Checking delivery never prompts for permission. Push readiness requires
+            // this browser's subscription and the authenticated server binding.
+            const subscriptionReady = push?.subscriptionReady === true && !!deviceKey && push?.deviceKey === deviceKey && deviceBinding?.accountId === auth.accountId && deviceBinding?.deviceKey === deviceKey;
+            const pushReady = push?.available === true && subscriptionReady;
             const service = { status: 'ready', reason: '', reminders, channels: {
-                email: { ready: value.channels.email?.available === true && value.channels.email?.recipientVerified === true },
-                push: { ready: !!pushReady },
+                email: {
+                    ready: value.channels.email?.available === true && value.channels.email?.recipientVerified === true && value.channels.email?.optedIn === true,
+                    available: value.channels.email?.available === true,
+                    recipientVerified: value.channels.email?.recipientVerified === true,
+                    optedIn: value.channels.email?.optedIn === true,
+                    maskedEmail: typeof value.channels.email?.maskedEmail === 'string' ? value.channels.email.maskedEmail.slice(0, 200) : '',
+                    verificationPending: value.channels.email?.verificationPending === true,
+                },
+                push: { ready: !!pushReady, available: push?.available === true,
+                    vapidPublicKey: typeof push?.vapidPublicKey === 'string' && /^[A-Za-z0-9_-]{87}$/.test(push.vapidPublicKey) ? push.vapidPublicKey : null,
+                    subscriptionReady: !!subscriptionReady,
+                },
             } };
             proofs.set(service, { auth, scope, leagueId: id, checkedAt: Date.now(), deviceKey: pushReady ? deviceKey : null,
                 channels: clone(service.channels), reminders: clone(reminders) });
@@ -198,6 +261,148 @@
         } catch (error) {
             return unavailable(error?.message || 'Delivery could not be checked. Your reminder draft can still be saved.');
         }
+    }
+
+    function requireProof({ scope, leagueId, service }) {
+        const proof = proofs.get(service);
+        const auth = credentials();
+        if (!proof || proof.auth.token !== auth?.token || proof.scope !== scope || proof.leagueId !== String(leagueId) || Date.now() - proof.checkedAt > 60000) fail('Check delivery status before connecting or changing reminders.');
+        return proof;
+    }
+
+    async function channelAction(options = {}) {
+        const { action, code, subscription, deviceKey, signal } = options;
+        const proof = requireProof(options);
+        if (!['email-start', 'email-confirm', 'email-disable', 'push-subscribe', 'push-unsubscribe'].includes(action)) fail('Choose a supported delivery action.');
+        if (['email-start', 'email-confirm'].includes(action) && !proof.channels.email.available) fail('Email delivery is unavailable right now. Try again later.');
+        if (action === 'email-confirm' && (typeof code !== 'string' || !/^\d{6}$/.test(code))) fail('Enter the six-digit code from your email.');
+        if (action === 'push-subscribe' && (!proof.channels.push.available || !plain(subscription) || typeof subscription.endpoint !== 'string' || !plain(subscription.keys) || typeof subscription.keys.p256dh !== 'string' || typeof subscription.keys.auth !== 'string')) fail('Push could not connect to this device. Try again.');
+        if (action.startsWith('push-') && (typeof deviceKey !== 'string' || !/^[a-f0-9]{64}$/.test(deviceKey))) fail('Connect this device before changing push delivery.');
+        proofs.delete(options.service);
+        const response = await request(proof.auth, proof.leagueId, 'POST', { action,
+            ...(action === 'email-confirm' ? { code } : {}),
+            ...(action === 'push-subscribe' ? { subscription, deviceKey, appUrl: new URL('index.html', workerLocation()).href } : {}),
+            ...(action === 'push-unsubscribe' ? { deviceKey } : {}),
+        }, signal);
+        if (response.action !== action || response.ok !== true || (action.startsWith('push-') && response.deviceKey !== deviceKey)) fail('The service did not confirm this delivery change. Check delivery status before trying again.');
+        return response;
+    }
+
+    function vapidBytes(value) {
+        if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{87}$/.test(value)) fail('Push setup is unavailable right now. Check delivery status again.');
+        const raw = root.atob((value + '=').replace(/-/g, '+').replace(/_/g, '/'));
+        const bytes = Uint8Array.from(raw, char => char.charCodeAt(0));
+        if (bytes.length !== 65 || bytes[0] !== 4) fail('Push setup is unavailable right now. Check delivery status again.');
+        return bytes;
+    }
+
+    async function registerWorker() {
+        const url = workerLocation();
+        const existing = await root.navigator.serviceWorker.getRegistration();
+        const script = existing?.active?.scriptURL || existing?.waiting?.scriptURL || existing?.installing?.scriptURL;
+        if (script && new URL(script).href !== url.href) fail('Push setup needs a page refresh before continuing.');
+        const registration = await root.navigator.serviceWorker.register(url.href, { scope: new URL('./', url).pathname, updateViaCache: 'none' });
+        if (registration.active) return registration;
+        const worker = registration.installing || registration.waiting;
+        if (!worker) fail('Push could not start on this device. Try again.');
+        await new Promise((resolve, reject) => {
+            const timer = root.setTimeout(() => { worker.removeEventListener('statechange', changed); reject(new Error('Push setup is taking longer than expected. Try again.')); }, 12000);
+            function changed() {
+                if (worker.state === 'activated' || worker.state === 'redundant') {
+                    root.clearTimeout(timer); worker.removeEventListener('statechange', changed);
+                    worker.state === 'activated' ? resolve() : reject(new Error('Push could not start on this device. Try again.'));
+                }
+            }
+            worker.addEventListener('statechange', changed); changed();
+        });
+        return registration;
+    }
+
+    // Call directly from a trusted click. requestPermission runs before any await.
+    function connectPush(options = {}) {
+        const proof = requireProof(options);
+        const support = pushSupport();
+        if (!support.supported) return Promise.reject(new Error(support.reason));
+        if (!proof.channels.push.available) return Promise.reject(new Error('Push delivery is unavailable right now. Try again later.'));
+        const applicationServerKey = vapidBytes(proof.channels.push.vapidPublicKey);
+        const permission = root.Notification.permission === 'granted' ? Promise.resolve('granted') : root.Notification.requestPermission();
+        return (async () => {
+            if (await permission !== 'granted') fail('Push was not connected. You can still use email reminders.');
+            if (credentials()?.token !== proof.auth.token) fail('Your account changed. Open the dashboard builder again.');
+            const registration = await registerWorker();
+            let subscription = await registration.pushManager.getSubscription();
+            let created = false;
+            if (!subscription) { subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey }); created = true; }
+            try {
+                const deviceKey = await subscriptionKey(subscription);
+                // Permission prompts can take longer than the short proof window;
+                // recheck without prompting again before committing the subscription.
+                const fresh = await checkService({ scope: options.scope, leagueId: options.leagueId, signal: options.signal });
+                const response = await channelAction({ ...options, service: fresh, action: 'push-subscribe', subscription: subscription.toJSON(), deviceKey });
+                if (credentials()?.token !== proof.auth.token) fail('Your account changed. Open the dashboard builder again.');
+                const bound = await workerMessage('dhq-reminder-bind', { accountId: proof.auth.accountId, deviceKey });
+                if (!bound?.binding || bound.binding.accountId !== proof.auth.accountId || bound.binding.deviceKey !== deviceKey) fail('Push setup did not confirm this device. Try again.');
+                return response;
+            } catch (error) {
+                if (created) { try { await subscription.unsubscribe(); } catch (_) { /* server reconciliation remains available */ } }
+                throw error;
+            }
+        })();
+    }
+
+    async function disconnectPush(options = {}) {
+        const subscription = await currentSubscription();
+        const deviceKey = await subscriptionKey(subscription);
+        if (!deviceKey) fail('No push subscription is connected on this device.');
+        const response = await channelAction({ ...options, action: 'push-unsubscribe', deviceKey });
+        const auth = credentials();
+        if (auth) await workerMessage('dhq-reminder-clear', { accountId: auth.accountId });
+        if (subscription) await subscription.unsubscribe();
+        return response;
+    }
+
+    async function clearDeviceForAccount(accountId) {
+        if (!accountId) return false;
+        try {
+            const result = await workerMessage('dhq-reminder-clear', { accountId });
+            if (!result?.cleared || !result?.previous?.deviceKey) return false;
+            const subscription = await currentSubscription();
+            if (!subscription || await subscriptionKey(subscription) !== result.previous.deviceKey) return true;
+            const current = await workerMessage('dhq-reminder-binding');
+            // A newly signed-in account may have connected while cleanup was
+            // waiting. Never unsubscribe that account's device binding.
+            if (current?.binding && current.binding.accountId !== accountId) return false;
+            await subscription.unsubscribe();
+            return true;
+        } catch (_) { return false; }
+    }
+
+    function clearPushForAccountChange(previousIdentity) {
+        const accountId = typeof previousIdentity === 'string' && previousIdentity.startsWith('account:') ? previousIdentity.slice(8) : '';
+        return clearDeviceForAccount(accountId);
+    }
+
+    function disconnectForSignOut() {
+        // Capture before account teardown clears or blocks the session.
+        const auth = credentials();
+        if (!auth) return Promise.resolve(false);
+        return (async () => {
+            const controller = new root.AbortController();
+            const timer = root.setTimeout(() => controller.abort(), 1000);
+            try {
+                const binding = await workerMessage('dhq-reminder-binding');
+                if (binding?.binding?.accountId === auth.accountId) {
+                    await request(auth, 'device', 'POST', { action: 'push-unsubscribe', deviceKey: binding.binding.deviceKey }, controller.signal);
+                }
+            } catch (_) { /* local invalidation still stops this browser endpoint */ }
+            finally { root.clearTimeout(timer); await clearDeviceForAccount(auth.accountId); }
+            return true;
+        })();
+    }
+
+    async function stopLocalPush() {
+        const auth = credentials();
+        return auth ? clearDeviceForAccount(auth.accountId) : false;
     }
 
     async function configure({ scope, leagueId, draft, service, action = 'enable', viewSaved = false, signal } = {}) {
@@ -241,5 +446,5 @@
         return Array.from(result.values());
     }
 
-    return { validateSchedule, validateDraft, timezone, read, saveDraft, removeDraft, newId, checkService, configure, statusLabel, scheduleLabel, mergeReminders };
+    return { validateSchedule, validateDraft, timezone, pushSupport, channelAction, connectPush, disconnectPush, stopLocalPush, disconnectForSignOut, clearPushForAccountChange, read, saveDraft, removeDraft, newId, checkService, configure, statusLabel, scheduleLabel, mergeReminders };
 });

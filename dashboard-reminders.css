@@ -24,3 +24,13 @@
 .dashboard-reminders-toggle:focus-visible,.dashboard-reminders-form input:focus-visible,.dashboard-reminders-form select:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:3px; }
 @media(max-width:767px) { .dashboard-reminders { margin:16px; } }
 @media(max-width:359px) { .dashboard-reminders-fields { grid-template-columns:minmax(0,1fr); } .dashboard-reminders-actions>.alex-builder-button { flex:1 1 auto; } .dashboard-reminders-service .alex-builder-button { width:100%; } }
+
+.dashboard-reminders-channels { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; margin-bottom:18px; }
+.dashboard-reminders-channel { padding:14px; border:1px solid var(--border,rgba(189,184,173,.22)); border-radius:8px; min-width:0; }
+.dashboard-reminders-channel h4 { margin:0 0 10px; font-size:.9rem; }
+.dashboard-reminders-channel .alex-builder-button { width:100%; margin-bottom:8px; }
+.dashboard-reminders-connected { color:var(--good,#5eead4); font-size:.8rem; margin:0 0 10px; }
+.dashboard-reminders-verify { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.dashboard-reminders-verify label { font-size:.75rem; font-weight:600; }
+.dashboard-reminders-verify input { width:100%; min-width:0; min-height:44px; padding:10px; border:1px solid var(--border,rgba(189,184,173,.28)); border-radius:8px; background:var(--black,#101216); color:var(--white,#f5f2ea); font:400 18px/1.4 var(--font-body,'DM Sans',sans-serif); letter-spacing:.15em; }
+.dashboard-reminders-verify input:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:3px; }

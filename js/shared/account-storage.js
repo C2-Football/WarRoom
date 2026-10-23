@@ -138,7 +138,10 @@
             throw error;
         }
         root.localStorage.removeItem(PENDING_TRANSITION);
-        if (changing) clearSecrets();
+        if (changing) {
+            safe(() => root.WR?.DashboardReminders?.clearPushForAccountChange?.(before))?.catch?.(() => {});
+            clearSecrets();
+        }
         safe(() => root.sessionStorage.setItem(CREDENTIAL_OWNER, after));
         return after;
     }
@@ -156,6 +159,7 @@
         if (blocked) return false;
         if (!watching || identity() === initialOwner) return true;
         blocked = true;
+        safe(() => root.WR?.DashboardReminders?.clearPushForAccountChange?.(initialOwner))?.catch?.(() => {});
         clearSecrets();
         hideAccount();
         root.location.reload();
@@ -166,8 +170,16 @@
         const od = App.OD || root.OD, client = safe(() => od?.getClient?.());
         let archived = false;
         try { archiveContext(); archived = true; } catch { /* Keep active profile pointers if backup storage is full. */ }
+        // Capture the old account before clearing auth. Device teardown is bounded
+        // so a network failure never traps a user in a signed-in session.
+        const pushCleanup = safe(() => root.WR?.DashboardReminders?.disconnectForSignOut?.());
         blocked = true;
         hideAccount();
+        let pushTimer;
+        try {
+            if (pushCleanup) await Promise.race([Promise.resolve(pushCleanup).catch(() => {}),
+                new Promise(resolve => { pushTimer = root.setTimeout(resolve, 2000); })]);
+        } finally { if (pushTimer) root.clearTimeout(pushTimer); }
         clearSecrets();
         clearContext(archived);
         safe(() => root.sessionStorage.removeItem(CREDENTIAL_OWNER));
