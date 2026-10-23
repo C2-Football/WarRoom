@@ -196,14 +196,26 @@ test('Chopped keeps waiver previews week-only instead of relabeling a survival w
 });
 
 test('compact preview keeps decision facts, shows one preview cue, and avoids repeated names or generic captions', async () => {
-    const h = harness(); await openWaivers(h);
+    const h = harness({ integrated: true }); await openWaivers(h);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
+    const controls = find(h.tree, node => node.props['aria-label'] === 'Roster acquisition lenses');
+    assert(preview.props.className.split(/\s+/).includes('is-inline'), 'The owned roster source uses the compact inline preview');
+    assert(find(preview, node => node === impact), 'The lineup comparison belongs inside the opened player card');
+    assert.equal(all(h.tree, node => node.props.className === 'wr-lens-impact').length, 1, 'The comparison is shown once');
+    assert(!find(controls, node => node.props.className === 'wr-lens-impact'), 'Opening a player adds no comparison block above the roster');
+    assert.equal(all(preview, node => String(node.props.className || '').split(/\s+/).includes('wr-lens-gain')).length, 1, 'The compact preview does not repeat its gain beside the incoming identity');
     for (const fact of ['Available Runner', 'Bench Runner', 'RB', 'CHI', 'Proj', '18.0', 'L5 PPG', '11.5', '$7']) assert(text(preview).includes(fact), 'Decision fact remains visible: ' + fact);
+    for (const label of ['Open player details for Bench Runner', 'Compare Available Runner with Bench Runner']) {
+        const action = find(preview, node => node.props['aria-label'] === label);
+        assert.equal(action?.type, 'button'); assert.equal(action.props.type, 'button', 'Player details and comparison remain separate native actions');
+    }
     assert.match(text(impact), /100\.0.*103\.0/); assert.match(text(impact), /\+3\.0lineup pts/);
     assert.equal((text(h.tree).match(/Preview/g) || []).length, 1, 'One preview cue covers the read-only comparison');
     for (const caption of ['Compare legal add / drop moves', 'Try on', 'One move at a time', 'gains are not additive', 'Improves the best legal lineup.']) assert(!text(h.tree).includes(caption), 'No redundant caption: ' + caption);
     assert(!text(preview).includes('Rest of season'), 'A positive alternate horizon does not add another collapsed caption');
+    assert(!text(preview).includes('Availability requires platform confirmation.'));
+    assert(!find(preview, node => node.props['aria-label'] === 'Planned maximum waiver bid'), 'Bid editing stays behind Review');
     h.click('Review claim'); preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     assert.equal(text(preview).split('Available Runner').length - 1, 1, 'Review does not repeat the incoming identity');
     assert.equal(text(preview).split('Bench Runner').length - 1, 1, 'Review does not repeat the outgoing identity');
@@ -546,6 +558,62 @@ const rosterPlayer = (h, pid) => find(h.tree, node => node.props['data-wr-roster
 const rosterTrigger = (h, pid) => find(rosterPlayer(h, pid), node => node.props.className === 'wr-roster-mobile-player-trigger');
 const previewNodes = h => all(h.tree, node => !!node.props['data-lens-preview']);
 const activeSources = h => all(h.tree, node => !!node.props['data-wr-lens-source']);
+
+for (const mode of ['waivers', 'trades']) test(mode + ' opening, alternatives, switching and closing keep controls and player order stable', async () => {
+    const h = harness({ integrated: true, metrics: true });
+    const moves = [...(mode === 'waivers' ? waiverCandidates() : tradeCandidates()), secondSourceMove()];
+    await (mode === 'waivers' ? loadWaivers(h, moves) : loadTrades(h, moves));
+    const controls = () => find(h.tree, node => node.props['aria-label'] === 'Roster acquisition lenses');
+    const playerOrder = () => all(h.tree, node => !!node.props['data-wr-roster-pid']).map(node => node.props['data-wr-roster-pid']);
+    const controlShape = () => all(controls(), node => node.type !== 'fragment').map(node => [node.type,
+        node.props.className || '', node.props['aria-label'] || '', node.props.value ?? '', node.props['aria-pressed'] ?? '', node.props.role || '']);
+    const beforeOrder = playerOrder(), beforeShape = controlShape(), beforeText = text(controls());
+    const assertStable = () => {
+        assert.deepEqual(playerOrder(), beforeOrder, 'Choosing a move never reorders the owned roster rows');
+        assert.deepEqual(controlShape(), beforeShape, 'Choosing a move inserts no new controls above the roster');
+        assert.equal(text(controls()), beforeText, 'The top controls keep the same visible text');
+        assert(!find(controls(), node => node.props.className === 'wr-lens-impact'));
+        assert(!find(controls(), node => !!node.props['data-lens-preview']), 'A visible source owns its preview rather than adding it above the list');
+    };
+    h.click('Preview move for Bench Runner'); assertStable();
+    const preview = previewNodes(h)[0];
+    assert.equal(previewNodes(h).length, 1); assert(find(rosterPlayer(h, 'bench'), node => node === preview));
+    assert(find(preview, node => node.props.className === 'wr-lens-impact'), 'The selected card retains its comparison evidence');
+    if (mode === 'waivers') h.change('Acquisition ideas for Bench Runner', moves[1].id);
+    else {
+        const alternate = find(h.tree, node => node.type === 'button' && node.props['data-lens-peek'] === moves[1].id);
+        assert(alternate); alternate.props.onClick(); h.render();
+    }
+    assert.equal(h.lens.selected.id, moves[1].id); assertStable();
+    h.click('Preview move for Starter Receiver'); assert.equal(h.lens.selected.id, 'new-receiver'); assertStable();
+    h.click('Close'); assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assertStable();
+    h.click('Preview move for Bench Runner'); h.click('Collapse move for Bench Runner');
+    assert.equal(h.lens.selected, null); assertStable();
+    assert.equal(h.writes.length, 0); assert.equal(h.comparisons.length, 0); assert.equal(h.events.length, 0);
+});
+
+test('metric sorting labels follow gain-only suggestions and return above the ordinary roster when the lens closes', async () => {
+    const h = harness({ integrated: true, metrics: true });
+    const playerList = () => find(h.tree, node => node.props['aria-label'] === 'Roster players');
+    const sortHeaders = () => all(playerList(), node => String(node.props.className || '').split(/\s+/).includes('wr-roster-sort-header'));
+    const groups = () => all(playerList(), node => node.props.className === 'wr-roster-mobile-player-group');
+    const normalHeaderFirst = () => {
+        assert.equal(sortHeaders().length, 1);
+        assert(walk(playerList()).indexOf(sortHeaders()[0]) < walk(playerList()).indexOf(groups()[0]), 'Without suggestions the stat header labels the whole roster');
+    };
+    normalHeaderFirst();
+    const originalLabels = all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text);
+    await loadWaivers(h, [...waiverCandidates(), secondSourceMove()]);
+    const suggestionGroup = groups().find(group => all(group, node => !!node.props['data-wr-lens-state']).length > 0);
+    const normalGroup = groups().find(group => !all(group, node => !!node.props['data-wr-lens-state']).length);
+    assert(suggestionGroup); assert(normalGroup); assert.equal(sortHeaders().length, 1);
+    const flat = walk(playerList());
+    assert(flat.indexOf(suggestionGroup) < flat.indexOf(sortHeaders()[0]), 'Gain-only suggestions have no misleading metric header above them');
+    assert(flat.indexOf(sortHeaders()[0]) < flat.indexOf(normalGroup), 'The stat header remains directly before players that show stats');
+    assert.deepEqual(all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text), originalLabels, 'Moving the header preserves the current league metric labels');
+    assert.equal(all(sortHeaders()[0], node => node.type === 'button').length, 5, 'Player and all four stat sort actions remain available');
+    h.click('Lens off'); normalHeaderFirst();
+});
 
 test('yellow player bars replace stats with the gain while open and neutral players retain their four stat columns', async () => {
     const h = harness({ integrated: true, metrics: true }), moves = [...waiverCandidates(), secondSourceMove()];

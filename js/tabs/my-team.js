@@ -119,6 +119,36 @@ function MyTeamTab({
   React.useEffect(() => {
     if (rosterLens && rosterLens.mode !== 'off') setExpandedPid(null);
   }, [rosterLens?.selected?.id, rosterLens?.mode, rosterLens?.ui?.basis]);
+  const phoneRosterListRef = React.useRef(null);
+  const phoneLensPositionRef = React.useRef(null);
+  const keepPhoneLensPosition = (candidate, selectedId, change) => {
+    phoneLensPositionRef.current = null;
+    const pid = String(candidate?.anchorPlayerId || candidate?.dropPid || candidate?.outgoing?.[0]?.pid || '');
+    const row = Array.from(phoneRosterListRef.current?.querySelectorAll('[data-wr-roster-pid]') || [])
+      .find(element => element.getAttribute('data-wr-roster-pid') === pid);
+    if (row) {
+      let scroller = row.parentElement;
+      while (scroller && scroller !== document.scrollingElement) {
+        if (scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(window.getComputedStyle(scroller).overflowY)) break;
+        scroller = scroller.parentElement;
+      }
+      phoneLensPositionRef.current = { row, selectedId, scope: rosterLens.scope, top: row.getBoundingClientRect().top, scroller: scroller || document.scrollingElement };
+    }
+    change();
+  };
+  React.useLayoutEffect(() => {
+    const anchor = phoneLensPositionRef.current;
+    phoneLensPositionRef.current = null;
+    if (!anchor?.row.isConnected || !anchor.scroller || anchor.scope !== rosterLens?.scope || anchor.selectedId !== (rosterLens?.selected?.id || null)) return;
+    // A preceding preview can collapse when this source opens. Keep the tapped
+    // header at the same viewport position before the browser paints that change.
+    const delta = anchor.row.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(delta) > 0.5) anchor.scroller.scrollBy({ top: delta, behavior: 'instant' });
+  });
+  const phoneRosterLens = rosterLens && { ...rosterLens,
+    choose: candidate => keepPhoneLensPosition(candidate, candidate.id, () => rosterLens.choose(candidate)),
+    clear: () => keepPhoneLensPosition(rosterLens.selected, null, rosterLens.clear),
+  };
   const gmTargetPositions = gm?.targetPositions instanceof Set ? gm.targetPositions : new Set();
   const gmSellPositions = gm?.sellPositions instanceof Set ? gm.sellPositions : new Set();
   const gmUntouchable = gm?.untouchable instanceof Set ? gm.untouchable : new Set();
@@ -1818,8 +1848,8 @@ function MyTeamTab({
           <button type="button" className="wr-roster-mobile-player-trigger" data-wr-lens-gain={lensCandidate ? '1' : undefined} aria-describedby={lensCandidate ? 'roster-lens-gain-' + r.pid : undefined} aria-label={opportunity ? (isLensSource ? 'Collapse move for ' : 'Preview move for ') + getPlayerName(r.pid) : undefined} aria-expanded={opportunity ? isLensSource : isExpanded} aria-controls={opportunity ? isLensSource ? 'roster-lens-' + r.pid : undefined : isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => {
             if (opportunity) {
               setExpandedPid(null);
-              if (isLensSource) rosterLens.clear();
-              else rosterLens.choose(rosterLens.byAnchor.get(String(r.pid))[0]);
+              if (isLensSource) phoneRosterLens.clear();
+              else phoneRosterLens.choose(rosterLens.byAnchor.get(String(r.pid))[0]);
             } else setExpandedPid(prev => prev === r.pid ? null : r.pid);
           }} title={opportunity ? isLensSource ? 'Collapse move' : 'Preview move' : 'Open roster player detail'}>
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
@@ -1837,7 +1867,7 @@ function MyTeamTab({
             }).map(stat => <span key={stat.key} title={stat.key === 'dhq' ? valueLabel : stat.label}><strong>{stat.value}</strong><small>{stat.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : stat.label}</small></span>)}</span> : <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>)}
             <span className="wr-roster-mobile-player-chevron" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
           </button>
-          {rosterLens && <window.WR.RosterLens.Row lens={rosterLens} pid={r.pid} onOpenPlayer={pid => setExpandedPid(prev => prev === pid ? null : pid)} inlineSummary />}
+          {phoneRosterLens && <window.WR.RosterLens.Row lens={phoneRosterLens} pid={r.pid} onOpenPlayer={pid => setExpandedPid(prev => prev === pid ? null : pid)} inlineSummary />}
           {isExpanded && <div id={'roster-detail-' + r.pid} className="wr-roster-mobile-detail">
             <div className="mc-player-actions">
               {skinFeatures.showTrades !== false && <button type="button" onClick={() => { window._wrTradeBuilderTarget = { pid: r.pid, returnTab: 'myteam', ts: Date.now() }; setActiveTab?.('trades'); window.dispatchEvent(new CustomEvent('wr:open-trade-builder', { detail: window._wrTradeBuilderTarget })); }}>Build a trade</button>}
@@ -1854,17 +1884,21 @@ function MyTeamTab({
         <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); }} style={{ ...controlBtn(false), display: 'block', minHeight: '44px', marginTop: '8px' }}>Show all players</button>
       </div>;
     }
-    return <div className="wr-roster-mobile-player-list" aria-label="Roster players">
-      {metricPreference && window.WR?.PlayerMetrics?.SortHeader && <window.WR.PlayerMetrics.SortHeader groupMetrics
+    const sortHeader = metricPreference && window.WR?.PlayerMetrics?.SortHeader && <window.WR.PlayerMetrics.SortHeader groupMetrics
         className="wr-roster-sort-header"
         columns={window.WR.PlayerMetrics.slots(metricPreference.selected, {}).map(slot => ({ key: _phoneMetricSortKeys[slot.key], label: slot.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : slot.label, title: _phoneMetricSortLabels[_phoneMetricSortKeys[slot.key]] }))}
         sort={{ key: rosterSort.key, dir: _phoneSortDescending ? -1 : 1 }} onSort={sortByColumn}
         style={{ gridTemplateColumns: `minmax(95px,1fr) repeat(${metricPreference.selected.length},minmax(0,${1.35 / metricPreference.selected.length}fr))` }}
-      />}
-      {groups.map(g => <div key={g.key} className="wr-roster-mobile-player-group">
+      />;
+    const normalGroup = groups.find(group => group.key !== '__acquisition_lens');
+    return <div ref={phoneRosterListRef} className="wr-roster-mobile-player-list" aria-label="Roster players">
+      {!lensOrder.size && sortHeader}
+      {groups.map(g => <React.Fragment key={g.key}>
+        {lensOrder.size > 0 && g === normalGroup && sortHeader}
+        <div className="wr-roster-mobile-player-group">
         {g.label && <div className="wr-roster-mobile-group-heading"><strong>{g.label}</strong><span>{g.rows.length}</span></div>}
         <div className="wr-roster-mobile-player-rows">{g.rows}</div>
-      </div>)}
+      </div></React.Fragment>)}
     </div>;
   };
 

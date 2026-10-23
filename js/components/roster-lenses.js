@@ -273,7 +273,7 @@
                     </div>
                 </div>
                 {lens.loading ? <p className="wr-lens-status" role="status">Finding {lens.mode === 'waivers' ? 'waiver moves' : 'trade fits'}…</p> : result?.status === 'unavailable' || result?.status === 'disabled' ? <div className="wr-lens-status" role="status"><p>{result.reason || 'This comparison is not available for the current league.'}</p><button type="button" onClick={lens.retry}>Try again</button></div> : <React.Fragment>
-                    {selected && <Impact lens={lens} />}
+                    {selected && (!inline || compact) && <Impact lens={lens} />}
                     {!selected && lens.ui.selected && <p className="wr-lens-note" role="status">Move no longer available. Choose another.</p>}
                     {!lens.options.length ? <p className="wr-lens-status" role="status">{result?.reason || 'No upgrades found.'}</p> : <React.Fragment>
                         {(!inline || compact) && selected && <Preview lens={lens} candidate={selected} />}
@@ -286,24 +286,25 @@
             </React.Fragment>}
         </section>;
     }
-    function Preview({ lens, candidate, onOpenPlayer }) {
+    function Preview({ lens, candidate, onOpenPlayer, inlineSource = false }) {
         const chosen = lens.selected?.id === candidate.id;
         if (!chosen) return null;
         const incoming = candidate.incoming || [], outgoing = candidate.outgoing || [];
         const trade = lens.mode === 'trades', metric = metricOf(candidate, lens.ui.horizon), partner = candidate.partner;
         const otherDelta = deltaOf(candidate, lens.ui.horizon === 'season' ? 'week' : 'season');
         const left = budget(lens.input);
-        return <div className="wr-lens-preview" data-lens-preview={candidate.id} data-lens-state="active" aria-label="Acquisition preview">
+        return <div className={'wr-lens-preview' + (inlineSource ? ' is-inline' : '')} data-lens-preview={candidate.id} data-lens-state="active" aria-label="Acquisition preview">
             <div className="wr-lens-source" aria-label={trade ? 'Your players in this trade' : 'Your player in this waiver move'}>
                 <span>{outgoing.length ? trade ? 'You send' : 'You drop' : 'Open roster spot'}</span>
                 {outgoing.length > 0 && <strong>{outgoing.map((asset, index) => <React.Fragment key={pidOf(asset)}>{index > 0 ? ' + ' : ''}{onOpenPlayer ? <button type="button" className="wr-lens-owned-target" aria-label={'Open player details for ' + nameOf(asset)} onClick={event => { event?.stopPropagation(); onOpenPlayer(pidOf(asset)); }}>{nameOf(asset)}</button> : nameOf(asset)}{lens.ui.basis !== 'projected' && <small> · {asset.comparisonBasis === 'average' ? 'Avg' : 'Proj'} {number(asset.projection)}</small>}</React.Fragment>)}</strong>}
             </div>
             <div className="wr-lens-target-label">{trade ? 'You get' : 'You add'}</div>
-            <div className="wr-lens-incoming"><div>{incoming.map(asset => <button type="button" className="wr-lens-player-target" key={pidOf(asset)} aria-label={trade ? 'Open trade calculator for ' + nameOf(asset) : 'Compare ' + nameOf(asset) + (outgoing[0] ? ' with ' + nameOf(outgoing[0]) : '')} onClick={event => { event?.stopPropagation(); lens.openIncoming(candidate, asset); }}><strong>{nameOf(asset)}<span className="wr-lens-player-chevron" aria-hidden="true">›</span><small><span className="wr-lens-position" style={{ '--wr-position-color': root.App?.positionColor?.(asset.position || asset.pos) || root.App?.POS_COLORS?.[asset.position || asset.pos] }}>{asset.position || asset.pos}</span>{[asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).map(detail => ' · ' + detail)}</small><small className="wr-lens-player-stats"><span title={asset.comparisonBasis === 'average' ? [asset.averageSeason || lens.input.league?.season, 'season average', finite(asset.averageGames) ? asset.averageGames + ' games' : ''].filter(Boolean).join(' · ') : undefined}>{asset.comparisonBasis === 'average' ? 'Avg' : trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b>{asset.comparisonBasis === 'average' && finite(asset.averageGames) && <small>{compactNumber(asset.averageGames)} games</small>}</span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong></button>)}</div><Gain candidate={candidate} lens={lens} /></div>
+            <div className="wr-lens-incoming"><div>{incoming.map(asset => <button type="button" className="wr-lens-player-target" key={pidOf(asset)} aria-label={trade ? 'Open trade calculator for ' + nameOf(asset) : 'Compare ' + nameOf(asset) + (outgoing[0] ? ' with ' + nameOf(outgoing[0]) : '')} onClick={event => { event?.stopPropagation(); lens.openIncoming(candidate, asset); }}><strong>{nameOf(asset)}<span className="wr-lens-player-chevron" aria-hidden="true">›</span><small><span className="wr-lens-position" style={{ '--wr-position-color': root.App?.positionColor?.(asset.position || asset.pos) || root.App?.POS_COLORS?.[asset.position || asset.pos] }}>{asset.position || asset.pos}</span>{[asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).map(detail => ' · ' + detail)}</small><small className="wr-lens-player-stats"><span title={asset.comparisonBasis === 'average' ? [asset.averageSeason || lens.input.league?.season, 'season average', finite(asset.averageGames) ? asset.averageGames + ' games' : ''].filter(Boolean).join(' · ') : undefined}>{asset.comparisonBasis === 'average' ? 'Avg' : trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b>{asset.comparisonBasis === 'average' && finite(asset.averageGames) && <small>{compactNumber(asset.averageGames)} games</small>}</span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong></button>)}</div>{!inlineSource && <Gain candidate={candidate} lens={lens} />}</div>
             <div className="wr-lens-costs">
                 {!trade && usesBids(lens.input) && lens.ui.bid !== '' && <p className="wr-lens-price"><span>Max bid</span> ${lens.ui.bid}</p>}
                 {trade && candidate.price && finite(candidate.price.delta) && <p className="wr-lens-price"><span>Value change</span> {candidate.price.delta > 0 ? '+' : ''}{compactNumber(candidate.price.delta)} {candidate.price.unit || 'value'}</p>}
             </div>
+            {inlineSource && <Impact lens={lens} />}
             {!trade && lens.input.skin?.type !== 'chopped' && otherDelta < 0 && <p className="wr-lens-other-horizon is-loss">{lens.ui.horizon === 'season' ? 'This week' : 'Rest of season'}: {signed(otherDelta)} lineup pts</p>}
             {trade && partner && <p className="wr-lens-partner">{partner.name} · {partner.direction?.label || 'Direction unavailable'}{partner.direction?.source === 'inferred' ? ' (inferred)' : ''}</p>}
             {!futureView(lens) && (!finite(metric?.before) || !finite(metric?.after)) && <p className="wr-lens-note">{metric?.reason || 'Projection unavailable.'}</p>}
@@ -332,7 +333,7 @@
             || candidates.flatMap(candidate => candidate.outgoing || []).find(asset => pidOf(asset) === text(pid))?.name || 'your player';
         return <div id={'roster-lens-' + pid} className="wr-lens-row" data-lens={lens.mode} data-lens-state={selected ? 'active' : 'available'}>
             {!selected ? <button type="button" className="wr-lens-peek" data-lens-peek={candidates[0].id} aria-label={'Preview move for ' + ownedName} aria-expanded={false} onClick={() => lens.choose(candidates[0])}><span>Potential gain</span><Gain candidate={candidates[0]} lens={lens} /><span aria-hidden="true">›</span></button> : <React.Fragment>
-                <Preview lens={lens} candidate={selected} onOpenPlayer={onOpenPlayer} />
+                <Preview lens={lens} candidate={selected} onOpenPlayer={onOpenPlayer} inlineSource />
                 {candidates.length > 2 ? <label className="wr-lens-more">Other ideas for {ownedName}<select aria-label={'Acquisition ideas for ' + ownedName} value={selected.id} onChange={event => { const candidate = candidates.find(item => item.id === event.target.value); if (candidate) lens.choose(candidate); }}><option value="" disabled>Choose a move</option>{candidates.map((candidate, index) => <option key={candidate.id} value={candidate.id}>{candidate.id === selected.id ? candidate.incoming.map(nameOf).join(' + ') : 'Move ' + (index + 1)} · {futureView(lens) ? candidate.futureFit?.label || 'Compare value' : signed(deltaOf(candidate, lens.ui.horizon)) + (lens.ui.horizon === 'season' ? ' ROS pts' : ' lineup pts')}</option>)}</select></label> : candidates.filter(candidate => candidate.id !== selected.id).map(candidate => <button type="button" className="wr-lens-try" key={candidate.id} data-lens-peek={candidate.id} onClick={() => lens.choose(candidate)}><span>Other move</span><Gain candidate={candidate} lens={lens} /><span aria-hidden="true">↓</span></button>)}
             </React.Fragment>}
         </div>;
