@@ -279,7 +279,7 @@
     // Tier split (Phase 2, owner ruling): grade/label/diff/side totals + raw roster-impact
     // values stay free; acceptance %, psych taxes, posture/DNA/behavior chips are Pro
     // (wrIsPro() only — never canAccess).
-    function TcSeasonImpact({ controller, deal, detailed = false, embedded = false, children, renderLayout }) {
+    function TcSeasonImpact({ controller, deal, detailed = false, embedded = false, compact = false, children, renderLayout }) {
         const anchor = React.useRef(null);
         const [visible, setVisible] = React.useState(detailed);
         const [result, setResult] = React.useState(null);
@@ -324,21 +324,24 @@
             const pid = typeof player === 'object' ? player.pid || player.playerId || player.id : player;
             return controller.playerName?.(pid) || String(pid || 'Open slot');
         });
-        const content = <section ref={anchor} className={'tc-season-impact is-' + tone + (embedded ? ' is-embedded' : '')} aria-label="Season impact estimate">
+        const DetailContainer = compact ? 'details' : 'div';
+        const DetailSection = compact ? 'section' : 'details';
+        const content = <section ref={anchor} className={'tc-season-impact is-' + tone + (embedded ? ' is-embedded' : '') + (compact ? ' is-compact' : '')} aria-label="Season impact estimate">
             <header><h4>{headline}</h4><span>Model estimate</span></header>
             {effectiveWeek && <p className="tc-season-timing">Starts Week {effectiveWeek} · this week's roster unchanged</p>}
             {ready ? <>
                 <div className="tc-season-metrics">
-                    {metric('Projected power rank', data.powerRank?.before != null ? '#' + data.powerRank.before : '—', data.powerRank?.after != null ? '#' + data.powerRank.after : '—', 'of ' + (data.powerRank?.total || '—') + ' teams')}
+                    {metric(compact ? 'Power rank' : 'Projected power rank', data.powerRank?.before != null ? '#' + data.powerRank.before : '—', data.powerRank?.after != null ? '#' + data.powerRank.after : '—', 'of ' + (data.powerRank?.total || '—') + ' teams')}
                     {metric(data.wins?.decisionsPerWeek === 2 ? 'Standings wins' : 'Remaining wins', num(data.wins?.beforeRemaining), num(data.wins?.afterRemaining), signed(data.wins?.delta, ' expected wins'))}
-                    {metric('Playoff chance', data.playoffs?.available ? pct(data.playoffs.beforePct) : '—', data.playoffs?.available ? pct(data.playoffs.afterPct) : '—', data.playoffs?.available ? signed(displayedPctDelta(data.playoffs.beforePct, data.playoffs.afterPct), ' percentage points', 0) : 'Unavailable')}
+                    {metric('Playoff chance', data.playoffs?.available ? pct(data.playoffs.beforePct) : '—', data.playoffs?.available ? pct(data.playoffs.afterPct) : '—', data.playoffs?.available ? signed(displayedPctDelta(data.playoffs.beforePct, data.playoffs.afterPct), compact ? ' pp' : ' percentage points', 0) : 'Unavailable')}
                 </div>
-                <p className="tc-season-lineup">Projected lineup: {num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)} pts/week {data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? '(' + signed(data.powerRank.afterPoints - data.powerRank.beforePoints) + ')' : ''}</p>
+                <p className="tc-season-lineup">{compact ? <><span>Projected lineup</span><strong>{num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)}</strong><span>pts/week</span>{data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? <b>{signed(data.powerRank.afterPoints - data.powerRank.beforePoints)}</b> : null}</> : <>Projected lineup: {num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)} pts/week {data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? '(' + signed(data.powerRank.afterPoints - data.powerRank.beforePoints) + ')' : ''}</>}</p>
                 {data.wins?.decisionsPerWeek === 2 && <p className="tc-season-coverage">Standings wins include your matchup and an extra league-median result each week.</p>}
                 <p className="tc-season-coverage">{data.status === 'limited' ? 'Partial evidence · ' : ''}{data.coverage?.projected ?? 0}/{data.coverage?.total ?? data.remainingWeeks ?? 0} remaining matchups projected{data.playoffs?.available && data.playoffs.simCount ? ' · ' + data.playoffs.simCount.toLocaleString() + ' season simulations' : ''}</p>
                 {!data.playoffs?.available && data.playoffs?.reason && <p className="tc-season-warning">Playoff odds unavailable: {data.playoffs.reason}</p>}
                 {children}
-                {detailed && <div className="tc-season-detail">
+                {detailed && <DetailContainer className="tc-season-detail">
+                    {compact && <summary>Remaining games &amp; model details</summary>}
                     {controller.refresh && <button type="button" className="tc-dhq-detail-toggle" onClick={controller.refresh}>Refresh season estimate</button>}
                     {data.wins?.beforeFinal != null && data.wins?.afterFinal != null && <p>Expected final {data.wins.decisionsPerWeek === 2 ? 'standings wins' : 'wins'}: {num(data.wins.beforeFinal, 2)} → {num(data.wins.afterFinal, 2)}</p>}
                     {data.playoffs?.available && <p>{data.playoffs.byeBeforePct != null && data.playoffs.byeAfterPct != null ? 'First-round bye chance: ' + pct(data.playoffs.byeBeforePct) + ' → ' + pct(data.playoffs.byeAfterPct) : 'First-round byes: none in this bracket.'}</p>}
@@ -346,13 +349,13 @@
                     <div className="tc-season-weeks-wrap"><table className="tc-season-weeks"><caption>Remaining games</caption><thead><tr><th scope="col">Game</th><th scope="col">Your points</th><th scope="col">Win chance</th></tr></thead><tbody>
                         {(data.weeks || []).map(row => <tr key={row.week}><th scope="row"><b>Week {row.week}</b><span>{row.opponentName || 'Opponent unavailable'}</span>{row.opponentBeforePoints != null && <small>Opponent {num(row.opponentBeforePoints)}{row.opponentAfterPoints !== row.opponentBeforePoints ? ' → ' + num(row.opponentAfterPoints) : ''} pts</small>}</th><td>{num(row.beforePoints)}<span>→ {num(row.afterPoints)}</span><small>{signed(row.pointsDelta, ' pts')}</small></td><td>{pct(row.beforeWinPct)}<span>→ {pct(row.afterWinPct)}</span><small>{signed(displayedPctDelta(row.beforeWinPct, row.afterWinPct), ' pp', 0)}</small></td></tr>)}
                     </tbody></table></div>
-                    {(data.weeks || []).some(row => row.beforeStarters?.length || row.afterStarters?.length) && <details className="tc-season-lineup-details"><summary>Which starters change?</summary>{(data.weeks || []).map(row => {
+                    {(data.weeks || []).some(row => row.beforeStarters?.length || row.afterStarters?.length) && <DetailSection className="tc-season-lineup-details">{compact ? <h5>Starter changes</h5> : <summary>Which starters change?</summary>}{(data.weeks || []).map(row => {
                         const before = playerNames(row.beforeStarters), after = playerNames(row.afterStarters);
                         const sent = before.filter(name => !after.includes(name)), received = after.filter(name => !before.includes(name));
                         return sent.length || received.length || row.unfilledAfter ? <p key={row.week}><b>Week {row.week}:</b> {sent.length ? sent.join(', ') : 'No starters out'} → {received.length ? received.join(', ') : 'No starters in'}{row.unfilledAfter ? ' · ' + row.unfilledAfter + ' open lineup slot(s)' : ''}</p> : null;
-                    })}</details>}
-                    <details className="tc-season-assumptions"><summary>Assumptions and limits</summary><p>Both teams change in the model from Week {effectiveWeek}. This week's roster stays unchanged. A change under 0.15 expected wins is shown as no clear gain. Estimates describe this model’s projection, not a measured prediction-accuracy claim.</p>{(data.assumptions || []).map((line, idx) => <p key={idx}>{line}</p>)}</details>
-                </div>}
+                    })}</DetailSection>}
+                    <DetailSection className="tc-season-assumptions">{compact ? <h5>Assumptions and limits</h5> : <summary>Assumptions and limits</summary>}<p>Both teams change in the model from Week {effectiveWeek}. This week's roster stays unchanged. A change under 0.15 expected wins is shown as no clear gain. Estimates describe this model’s projection, not a measured prediction-accuracy claim.</p>{(data.assumptions || []).map((line, idx) => <p key={idx}>{line}</p>)}</DetailSection>
+                </DetailContainer>}
                 {(data.warnings || []).map((line, idx) => <p className="tc-season-warning" key={idx}>{line}</p>)}
                 {!detailed && <p className="tc-season-more">Open Why for each remaining matchup and the assumptions.</p>}
             </> : <><p className="tc-season-status" role="status">{message || 'Season impact unavailable with the current league data.'}</p>{children}</>}
@@ -387,28 +390,33 @@
         </section>;
         // One result drives both positions, keeping edits and late responses in sync.
         return verdict.hasTrade && verdict.seasonImpactController?.enabled
-            ? <TcSeasonImpact controller={verdict.seasonImpactController} deal={verdict.seasonImpactDeal} detailed embedded renderLayout={season => render(season, season.content)} />
+            ? <TcSeasonImpact controller={verdict.seasonImpactController} deal={verdict.seasonImpactDeal} detailed embedded compact renderLayout={season => render(season, season.content)} />
             : render();
     }
 
     function TcVerdictPanel({ verdictColor, diffDisplay, grade, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax, gmFloor, gmModeLabel, gmViability, gmWarnings, seasonImpactController, seasonImpactDeal, secondOpinion, mobileDetails = false, seasonImpactContent }) {
         const _pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
         const seasonal = !!seasonImpactController?.enabled;
-        const OwnerReadout = seasonal ? 'details' : React.Fragment;
-        const ownerReadoutProps = seasonal ? { className: 'tc-season-owner-details' } : {};
+        const ownerFold = seasonal || mobileDetails;
+        const OwnerReadout = ownerFold ? 'details' : React.Fragment;
+        const ownerReadoutProps = ownerFold ? { className: 'tc-season-owner-details' } : {};
+        const knownValue = value => value != null && String(value).trim() !== '' && Number.isFinite(Number(value));
+        const valueChange = (value, suffix = '') => knownValue(value) ? (Number(value) > 0 ? '+' : '') + Math.round(Number(value)).toLocaleString() + suffix : '—';
+        const nonzero = value => knownValue(value) && Number(value) !== 0;
+        const changeColor = value => !knownValue(value) || Number(value) === 0 ? 'var(--cx-ink,var(--white))' : Number(value) > 0 ? 'var(--good)' : 'var(--bad)';
         // Post-review: the 8-factor psych-tax table + approach line live behind a
         // collapsed-by-default 'Why? ▾' toggle (owner-approved wireframe) so the rail
         // Verdict card stays short enough to keep the DNA-mini card above the fold.
         const [whyOpen, setWhyOpen] = React.useState(false);
         return (
-            <div className={'tc-ta-verdict tc-ta-sticky-summary' + (seasonal ? ' tc-unified-analysis' : '')} id="wr-export-trade">
-                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis', mobileDetails ? { prependSelector: '.mc-trade-builder-summary' } : undefined)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
-                {seasonal && (seasonImpactContent || <TcSeasonImpact controller={seasonImpactController} deal={seasonImpactDeal} detailed embedded>
-                    <div className="tc-season-deal-summary" aria-label="Deal value and owner acceptance">
+            <div className={'tc-ta-verdict' + (mobileDetails ? ' mc-trade-analysis-card' : ' tc-ta-sticky-summary') + (seasonal ? ' tc-unified-analysis' : '')} id="wr-export-trade">
+                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}><span>{mobileDetails ? 'Trade analysis' : 'TRADE ANALYSIS'}</span><button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis', mobileDetails ? { prependSelector: '.mc-trade-builder-summary', expandDetails: true } : undefined)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
+                {seasonal && (seasonImpactContent || <TcSeasonImpact controller={seasonImpactController} deal={seasonImpactDeal} detailed embedded compact={mobileDetails}>
+                    {!mobileDetails && <div className="tc-season-deal-summary" aria-label="Deal value and owner acceptance">
                         <div><span>Deal value</span><strong style={{ color: verdictColor }}>{grade?.grade || '--'} value grade · {diffDisplay}</strong><small>You send {totalA.toLocaleString()} / receive {totalB.toLocaleString()} season value</small>{faabDelta !== 0 && <small>FAAB {faabDelta > 0 ? '+' : ''}${faabDelta}</small>}</div>
                         <div><span>Owner acceptance</span>{_pro ? <><strong style={{ color: likelihoodColor }}>{likelihood}% estimate</strong><small>Based on deal price, roster fit and owner history.</small></> : <><strong>Pro</strong><small>Owner acceptance and negotiation reads.</small></>}</div>
                         <p>Deal value measures the price. The season verdict measures the projected effect on your games.</p>
-                    </div>
+                    </div>}
                 </TcSeasonImpact>)}
                 {!seasonal && <>
                 {!mobileDetails && <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
@@ -417,7 +425,11 @@
                     <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.05rem', fontWeight:600, color: verdictColor }}>{diffDisplay}</span>
                     <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
                 </div>}
-                <div className="tc-ta-impact-grid">
+                {mobileDetails ? <dl className="tc-trade-value-rows">
+                    <div><dt>Player value</dt><dd><strong style={{ color: changeColor(starterValueDelta) }}>{valueChange(starterValueDelta, ' DHQ')}</strong><small>{rosterImpactLabel || 'Impact unavailable'}</small></dd></div>
+                    {(nonzero(pickCapitalDelta) || nonzero(pickQuantityDelta)) && <div><dt>Pick capital</dt><dd><strong style={{ color: changeColor(pickCapitalDelta) }}>{valueChange(pickCapitalDelta, ' DHQ')}</strong><small>{valueChange(pickQuantityDelta, ' picks')}</small></dd></div>}
+                    {nonzero(faabDelta) && <div><dt>FAAB</dt><dd><strong style={{ color: changeColor(faabDelta) }}>{Number(faabDelta) > 0 ? '+' : '−'}${Math.abs(Number(faabDelta)).toLocaleString()}</strong><small>{valueChange(Number(faabDelta) * Number(FAAB_RATE), ' DHQ value')}</small></dd></div>}
+                </dl> : <div className="tc-ta-impact-grid">
                     <div>
                         <span>Roster Impact</span>
                         <strong>{rosterImpactLabel}</strong>
@@ -446,10 +458,10 @@
                             <em>psych-modeled odds</em>
                         </div>
                     ))}
-                </div>
+                </div>}
                 </>}
                 <OwnerReadout {...ownerReadoutProps}>
-                {seasonal && <summary>Owner fit and negotiation details</summary>}
+                {ownerFold && <summary>{mobileDetails ? 'Owner fit & acceptance' : 'Owner fit and negotiation details'}</summary>}
                 {_pro && otherOwnerId && (
                     <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
                         <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Their posture:</span>
@@ -462,10 +474,10 @@
                     React.createElement(window.WrGatedMoreRow, { title: 'Acceptance odds & trade psychology', sub: 'Accept %, the 8-factor psych-tax breakdown, and posture, DNA, and behavior reads are Pro.', feature: 'trade-psychology' })
                 )}
                 {_pro && <div>
-                    <button type="button" className="tc-dhq-detail-toggle" onClick={() => setWhyOpen(v => !v)}>
+                    {!mobileDetails && <button type="button" className="tc-dhq-detail-toggle" onClick={() => setWhyOpen(v => !v)}>
                         {whyOpen ? 'Hide why ▴' : seasonal ? 'Acceptance factors ▾' : 'Why? ▾'}
-                    </button>
-                    {whyOpen && <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                    </button>}
+                    {(mobileDetails || whyOpen) && <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
                     <div>
                     <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.35rem' }}>Psychological Tax Breakdown {React.createElement(Tip, null, 'Each owner\'s DNA type creates percentage-point acceptance modifiers beyond pure value. Taxes reduce likelihood, bonuses increase it. Factors: endowment effect, panic premium, status tax, loss aversion, rebuilding discount, need fulfillment, window alignment, and posture.')}</div>
                     <div className="tc-tax-table">
@@ -530,7 +542,7 @@
                 </OwnerReadout>
                 {/* GM Strategy warnings are the user's OWN strategy reads (untouchables, target/sell) — free at every tier. */}
                 {gmWarnings && gmWarnings.length > 0 && (
-                    <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+                    <div className="tc-trade-gm-warnings" style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
                         {gmWarnings.map((w, i) => (
                             <div key={i} style={{ fontSize:'0.7rem', color:'var(--loss-red)', display:'flex', alignItems:'center', gap:'0.35rem' }}>
                                 <span style={{ opacity:0.9 }}>⚠</span>{w.text}
@@ -538,7 +550,7 @@
                         ))}
                     </div>
                 )}
-                {secondOpinion && <div className="tc-trade-second-opinion">{secondOpinion}</div>}
+                {secondOpinion && (mobileDetails ? <details className="tc-trade-second-opinion"><summary>Alex’s take</summary>{secondOpinion}</details> : <div className="tc-trade-second-opinion">{secondOpinion}</div>)}
             </div>
         );
     }

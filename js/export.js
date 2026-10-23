@@ -15,12 +15,18 @@
           return html2canvas(el, {
             backgroundColor: '#0a0a0a', scale: 2, useCORS: true, logging: false,
             onclone: function (clonedDocument) {
-              if (!options?.prependSelector || !el.id) return;
+              if (!el.id || (!options?.prependSelector && !options?.expandDetails)) return;
               var target = clonedDocument.getElementById(el.id);
-              var summary = clonedDocument.querySelector(options.prependSelector);
+              if (!target) return;
+              var summary = options.prependSelector ? clonedDocument.querySelector(options.prependSelector) : null;
               // Include a summary moved elsewhere in the UI without the asset pickers
               // or any temporary changes to the visible React tree.
-              if (target && summary) target.insertBefore(summary.cloneNode(true), target.firstChild);
+              if (summary) target.insertBefore(summary.cloneNode(true), target.firstChild);
+              // Compact analysis keeps its evidence closed on screen; the shared
+              // snapshot includes that evidence without opening the live controls.
+              if (options.expandDetails === true) {
+                target.querySelectorAll('details').forEach(function (detail) { detail.open = true; });
+              }
             }
           });
         })

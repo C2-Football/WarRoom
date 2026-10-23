@@ -230,6 +230,56 @@
  .wr-mission-v8 .mc-owner-profile :is(.tc-owner-trade-row,.tc-owner-trade-spot) { border-color:rgba(183,206,255,.18); background:rgba(13,24,43,.18); }
  .wr-mission-v8 .mc-owner-profile :is(.tc-owner-signal-grid strong,.tc-owner-trade-row>strong) { font-family:var(--font-body,"DM Sans",sans-serif); font-variant-numeric:tabular-nums; }
  .wr-mission-v8 .mc-owner-profile :is(.tc-dhq-dossier-block p,.tc-dhq-dossier-block li,.tc-owner-panel-head em,.tc-owner-trade-row p,.tc-owner-trade-row em,.tc-owner-signal-grid em) { opacity:1; }
+ /* The verdict scrolls with the Builder; its forecast and owner evidence open inline. */
+ .mc-trade-impact { display:flex; flex-direction:column; gap:8px; min-width:0; }
+ .wr-mission-v8 .mc-trades .mc-trade-analysis-card { position:static!important; top:auto; z-index:auto; min-width:0; margin:0; padding:0 10px!important; gap:0; border:1px solid var(--gx-edge); border-radius:12px; background:rgba(15,27,46,.45); box-shadow:none; font-family:var(--font-body); }
+ .mc-trade-analysis-card>.tc-section-hdr { min-height:48px; margin:0; gap:8px; color:var(--cx-ink); font:600 14px/1.4 var(--font-body); letter-spacing:0; text-transform:none; }
+ .mc-trade-analysis-card>.tc-section-hdr>button { min-width:68px; padding:6px 9px!important; font:500 12px/1.3 var(--font-body)!important; }
+ .tc-trade-value-rows { margin:0; }
+ .tc-trade-value-rows>div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); align-items:center; gap:8px; min-height:44px; padding:5px 0; border-top:1px solid rgba(183,206,255,.15); }
+ .tc-trade-value-rows dt { color:var(--cx-muted); font:400 12px/1.4 var(--font-body); }
+ .tc-trade-value-rows dd { min-width:0; margin:0; text-align:right; }
+ .tc-trade-value-rows strong { display:block; font:600 14px/1.4 var(--font-body); font-variant-numeric:tabular-nums; }
+ .tc-trade-value-rows small { display:block; color:var(--cx-muted); font:400 11px/1.35 var(--font-body); overflow-wrap:anywhere; }
+ .wr-mission-v8 .mc-trades .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion) { margin:0; padding:0; border:0; border-top:1px solid rgba(183,206,255,.17); border-radius:0; background:none!important; box-shadow:none!important; }
+ .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion)>summary { display:flex; align-items:center; justify-content:space-between; gap:8px; box-sizing:border-box; min-height:44px; padding:10px 0; list-style:none; color:var(--cx-accent); font:500 12px/1.4 var(--font-body); cursor:pointer; }
+ .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion)>summary::-webkit-details-marker { display:none; }
+ .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion)>summary::after { content:'+'; flex-shrink:0; font-size:18px; font-weight:400; }
+ .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion)[open]>summary::after { content:'−'; }
+ .mc-trade-analysis-card :is(.tc-season-owner-details,.tc-season-detail,.tc-trade-second-opinion)>summary:focus-visible { outline:2px solid var(--cx-accent); outline-offset:-2px; }
+ .mc-trade-analysis-card .tc-season-impact.is-compact { padding:0; font-size:12px; }
+ .tc-season-impact.is-compact>header { gap:8px; margin:2px 0 0; }
+ .tc-season-impact.is-compact h4 { font-size:15px; line-height:1.35; }
+ .tc-season-impact.is-compact>header>span { font-size:10px; }
+ .tc-season-impact.is-compact .tc-season-timing { margin:4px 0 0; font-size:11px; }
+ .tc-season-impact.is-compact .tc-season-metrics { gap:6px; margin-top:8px; }
+ .tc-season-impact.is-compact .tc-season-metric { padding:7px 5px; background:rgba(183,206,255,.045); }
+ .tc-season-impact.is-compact .tc-season-metric>span { min-height:28px; font-size:11px; line-height:1.3; }
+ .tc-season-impact.is-compact .tc-season-metric strong { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:baseline; gap:2px; margin:3px 0; font-size:15px; line-height:1.4; }
+ .tc-season-impact.is-compact .tc-season-metric strong>span { white-space:nowrap; }
+ .tc-season-impact.is-compact .tc-season-metric strong>span:last-child { text-align:right; }
+ .tc-season-impact.is-compact .tc-season-metric strong i { font-size:11px; }
+ .tc-season-impact.is-compact .tc-season-metric>small { font-size:10px; line-height:1.35; }
+ .tc-season-impact.is-compact .tc-season-lineup { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 5px; margin:8px 0 0; padding:7px 0; border-top:1px solid rgba(183,206,255,.14); font-size:11px; }
+ .tc-season-impact.is-compact .tc-season-lineup>strong { margin-left:auto; color:var(--cx-ink); font-size:13px; font-weight:600; }
+ .tc-season-impact.is-compact .tc-season-lineup>b { color:var(--cx-accent); font-size:12px; font-weight:600; }
+ .tc-season-impact.is-compact .tc-season-coverage { margin:3px 0 8px; font-size:11px; line-height:1.4; }
+ .tc-season-impact.is-compact .tc-season-warning { margin:6px 0 8px; padding:7px 8px; font-size:12px; line-height:1.4; }
+ .tc-season-impact.is-compact .tc-season-status { margin:5px 0 10px; font-size:12px; }
+ .tc-season-impact.is-compact .tc-season-detail>p { margin:7px 0; font-size:12px; }
+ .tc-season-impact.is-compact .tc-season-detail>.tc-dhq-detail-toggle { min-height:44px; padding:7px 0; font-size:12px; }
+ .tc-season-impact.is-compact :is(.tc-season-lineup-details,.tc-season-assumptions) { margin:8px 0; padding:8px 0 0; font-size:12px; line-height:1.5; }
+ .tc-season-impact.is-compact h5 { margin:0 0 6px; color:var(--cx-ink); font:600 12px/1.4 var(--font-body); }
+ .mc-trade-analysis-card .tc-season-owner-details[open] { padding-bottom:10px; }
+ .mc-trade-analysis-card .tc-season-owner-details>div { margin:0 0 8px; }
+ .mc-trade-analysis-card .tc-tax-table-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; padding:7px 8px; }
+ .mc-trade-analysis-card .tc-tax-name { min-width:0; width:auto; font-size:12px; }
+ .mc-trade-analysis-card .tc-tax-desc { min-width:0; grid-column:1; grid-row:2; font-size:11px; line-height:1.4; }
+ .mc-trade-analysis-card .tc-tax-val { grid-column:2; grid-row:1/3; align-self:center; font-size:12px; }
+ .mc-trade-analysis-card .tc-trade-gm-warnings { margin:0 0 8px!important; padding:7px 8px; border-left:2px solid var(--bad); background:rgba(231,76,60,.055); }
+ .mc-trade-analysis-card .tc-trade-gm-warnings>div { font-size:12px!important; line-height:1.4; }
+ .mc-trade-analysis-card .tc-trade-second-opinion[open] { padding-bottom:10px; }
+ .mc-trade-impact>.tc-phone-open-builder { min-height:44px; margin:0; font:600 12px/1.4 var(--font-body); }
  .mc-trade-scan-action { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; }
  .mc-trade-scan-action>button { min-height:44px!important; font-family:var(--font-body)!important; letter-spacing:0!important; text-transform:none!important; font-size:12px!important; }
  .mc-trade-scan-action>span { color:var(--cx-muted,var(--silver)); font:400 11px/1.4 var(--font-body); }

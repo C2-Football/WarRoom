@@ -60,6 +60,15 @@ console.log('PASS mobile trade builder: simultaneous sides, independent roster f
 // Each component instance has independent hooks so summary/detail composition
 // cannot accidentally borrow state when loading resolves or a deal changes.
 const copy=n=>(n==null||typeof n==='boolean'?'':typeof n!=='object'?String(n):(Array.isArray(n)?n:n.children||[]).map(copy).join(' ')).replace(/\s+/g,' ');
+// Native mobile disclosures keep detail in the DOM without making the default
+// reading path as tall as the fully expanded report.
+const visibleCopy=node=>{
+    if(node==null||typeof node==='boolean')return '';
+    if(typeof node!=='object')return String(node);
+    if(Array.isArray(node))return node.map(visibleCopy).join(' ').replace(/\s+/g,' ');
+    if(node.type==='details'&&!node.props.open)return visibleCopy((node.children||[]).flat(Infinity).find(child=>child?.type==='summary'));
+    return(node.children||[]).map(visibleCopy).join(' ').replace(/\s+/g,' ');
+};
 const turn=()=>new Promise(resolve=>setTimeout(resolve,12));
 function analysisHarness({pro=true}={}){
     const instances=new Map();let current,effects=[],visited;
@@ -132,6 +141,34 @@ function assertBuilderOrder(rendered){
     ui=analysisHarness();rendered=ui.render({...baseVerdict,seasonImpactController:{enabled:false}});summary=assertBuilderOrder(rendered);
     assert.match(copy(summary),/B/);assert.match(copy(summary),/67\s*%/);assert(!/Helps your season|Costs projected wins|expected wins|Playoff chance/.test(copy(summary)),'Dynasty or disabled season model does not invent a projected season gain');ui.dispose();
     ui=analysisHarness();rendered=ui.render({...baseVerdict,hasTrade:false,seasonImpactController:{enabled:false}});assert(!byClass(rendered,'mc-trade-builder-summary'),'Empty builder does not show a fabricated verdict');assert(byClass(rendered,'mc-trade-builder-sides'),'Empty builder keeps both asset pickers');ui.dispose();
+
+    // The mobile dynasty analysis stays compact while preserving the complete
+    // negotiation read and the user's own strategy warnings at both tiers.
+    const factorNames=['Endowment effect','Panic premium','Status tax','Loss aversion','Rebuilding discount','Need fulfillment','Window alignment','Posture'];
+    const richVerdict={...baseVerdict,seasonImpactController:{enabled:false},otherOwnerId:'partner',theirPosture:{color:'#eeaa66',label:'Active Buyer'},otherDnaKey:'FLEECER',otherDna:{label:'The Fleecer',color:'#ff9988',strategy:'Lead with visible surplus.'},psychTaxes:factorNames.map((name,index)=>({name,desc:'Factor description '+index,impact:index%2?-2:3,type:index%2?'TAX':'BONUS'})),grudgeTax:{total:-5,entries:[{}]},manualBehaviorFit:{acceptanceDelta:3,framing:'Recorded trade behavior.'},manualBehaviorProfile:{inferences:['frequent-counteroffers']},gmFloor:60,gmModeLabel:'Contend',gmViability:'Playable',gmWarnings:[{text:'Untouchable in deal: Outgoing starter'}]};
+    for(const pro of [false,true]){
+        ui=analysisHarness({pro});rendered=ui.render(richVerdict);assertBuilderOrder(rendered);
+        const analysis=byClass(rendered,'mc-trade-analysis-card'),values=byClass(rendered,'tc-trade-value-rows');
+        assert(analysis,'The phone uses the compact analysis presentation');
+        assert(!(analysis.props.className||'').includes('tc-ta-sticky-summary'),'The lower mobile report does not inherit the sticky desktop summary');
+        assert(values);assert.match(visibleCopy(values),/Player value/);assert.match(visibleCopy(values),/100/);
+        assert(!/Pick capital|FAAB/.test(visibleCopy(values)),'Zero pick and FAAB changes do not add empty rows');
+        assert.match(visibleCopy(analysis),/Untouchable in deal: Outgoing starter/,'The user’s strategy warning stays visible outside closed detail, including Free');
+        const ownerDetails=byClass(rendered,'tc-season-owner-details');assert.equal(ownerDetails.type,'details');assert(!ownerDetails.props.open,'Owner fit starts collapsed');
+        assert.match(visibleCopy(ownerDetails),/Owner fit.*acceptance/i);
+        assert(!/Endowment effect|Factor description|Likelihood of Acceptance/.test(visibleCopy(ownerDetails)),'The collapsed owner summary does not repeat the long acceptance report');
+        assert.equal(copy(ownerDetails).includes('Endowment effect'),pro,'Psychology detail remains behind Pro');
+        assert.equal(copy(ownerDetails).includes('The Fleecer'),pro,'The inferred owner read remains behind Pro');
+        if(pro){for(const name of factorNames)assert(copy(ownerDetails).includes(name),'Expanded disclosure retains '+name);assert.match(copy(ownerDetails),/Grudge Tax/);assert.match(copy(ownerDetails),/Observed Behavior/);}
+        assert.equal(/67\s*%/.test(copy(rendered)),pro,'No acceptance value leaks into the free phone analysis');
+        assert(!walk(ownerDetails).some(item=>item.type==='button'&&/Why\?/.test(copy(item))),'Mobile negotiation needs only one native disclosure');
+        const opinion=byClass(rendered,'tc-trade-second-opinion');assert.equal(opinion.type,'details');assert(!opinion.props.open,'Alex opinion starts collapsed');assert.match(copy(opinion),/Alex second opinion fixture/);assert(!visibleCopy(opinion).includes('Alex second opinion fixture'));
+        ui.dispose();
+    }
+    ui=analysisHarness();rendered=ui.render({...richVerdict,starterValueDelta:0,pickCapitalDelta:-50,pickQuantityDelta:-1,faabDelta:-10});
+    const changedValues=byClass(rendered,'tc-trade-value-rows');assert.match(copy(changedValues),/Player value.*0/);assert.match(copy(changedValues),/Pick capital.*-50/);
+    const faabRow=walk(changedValues).find(item=>item.type==='div'&&(item.children||[]).flat(Infinity).some(child=>child?.type==='dt'&&copy(child)==='FAAB'));
+    assert.match(copy(walk(faabRow).find(item=>item.type==='strong')),/[−-]\s*\$\s*10/,'The cash amount keeps its negative sign');assert.match(copy(faabRow),/-10 DHQ value/,'The separate DHQ equivalent uses the active FAAB rate');ui.dispose();
 
     let resolveOld;analyzes=0;ui=analysisHarness();const delayed=readyController(deal=>{analyzes++;return deal.partnerRosterId===2?new Promise(resolve=>{resolveOld=resolve;}):{...seasonResult,wins:{...seasonResult.wins,delta:deal.receivePlayerIds.includes('replacement') ? .7 : -.4}};});
     verdict={...baseVerdict,seasonImpactController:delayed};ui.render(verdict);await turn();

@@ -50,6 +50,13 @@ assert(verdictComponent);
 const verdictCompiled = Babel.transform(source.slice(verdictComponent.start, verdictComponent.end), { presets: ['react'] }).code;
 const walk = node => node == null || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.children)];
 const copy = node => (node == null || typeof node === 'boolean' ? '' : typeof node !== 'object' ? String(node) : (Array.isArray(node) ? node : node.children || []).map(copy).join(' ')).replace(/\s+/g, ' ');
+const visibleCopy = node => {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node !== 'object') return String(node);
+  if (Array.isArray(node)) return node.map(visibleCopy).join(' ').replace(/\s+/g,' ');
+  if (node.type === 'details' && !node.props.open) return visibleCopy((node.children || []).flat(Infinity).find(child => child?.type === 'summary'));
+  return (node.children || []).map(visibleCopy).join(' ').replace(/\s+/g,' ');
+};
 const turn = () => new Promise(resolve => setTimeout(resolve, 8));
 
 function harness(options = {}) {
@@ -135,6 +142,28 @@ const controller = data => ({ enabled: true, key: '2026-league-a', status: 'read
   props = { ...props, controller: { ...controller({ ...result, wins: { delta: -0.4 } }), key: '2026-league-b' } };
   ui.render(props); await turn(); assert.match(copy(ui.render(props)), /Costs projected wins/);
   finishOld(result); await turn(); assert.match(copy(ui.render(props)), /Costs projected wins/, 'Late previous league results cannot overwrite the active estimate'); ui.dispose();
+
+  // Phone-only detail uses one fold. Timing, signed outlook, incomplete
+  // evidence and unknown values remain readable before it is expanded.
+  for (const compactResult of [result,
+    {...result,wins:{...result.wins,delta:-.4}},
+    {...result,wins:{beforeRemaining:0,afterRemaining:0,delta:0},playoffs:{available:true,beforePct:0,afterPct:0}},
+    {...result,status:'limited',wins:{delta:null},playoffs:{available:false,reason:'The remaining schedule is incomplete.'},warnings:['Some games lack projections.']},
+  ]) {
+    ui=harness();props={controller:controller(compactResult),deal,detailed:true,compact:true};ui.render(props);await turn();tree=ui.render(props);
+    assert(tree.props.className.includes('is-compact'));
+    const fold=walk(tree).find(node=>node.props.className==='tc-season-detail');assert.equal(fold.type,'details');assert(!fold.props.open,'Phone model detail starts closed');
+    assert.match(visibleCopy(fold),/Remaining games.*model details/i);
+    assert(!visibleCopy(tree).includes('Future rival'),'Remaining-game rows wait inside the phone disclosure');
+    assert(copy(fold).includes('Future rival'));assert(copy(fold).includes('Outgoing starter'));assert(copy(fold).includes('Current injury status held fixed.'));
+    assert(!walk(fold).some(node=>node!==fold&&node.type==='details'),'Starter changes and assumptions do not require nested phone folds');
+    assert.match(visibleCopy(tree),/Starts Week 7/);assert.match(visibleCopy(tree),/roster unchanged/);
+    if(compactResult.status==='limited'){assert.match(visibleCopy(tree),/Partial evidence/);assert.match(visibleCopy(tree),/Some games lack projections/);assert.match(visibleCopy(tree),/Playoff odds unavailable/);}
+    else if(compactResult.wins.delta===0){assert.match(visibleCopy(tree),/No clear gain/);assert.match(visibleCopy(tree),/0\.0 expected wins/);assert.match(visibleCopy(tree),/0%/);}
+    else assert.match(visibleCopy(tree),compactResult.wins.delta<0?/Costs projected wins/:/Helps your season/);
+    ui.dispose();
+  }
+  ui=harness();tree=ui.render({controller:{enabled:true,key:'missing-mobile',status:'unavailable',reason:'Season data unavailable.'},deal,detailed:true,compact:true});assert.match(visibleCopy(tree),/Season data unavailable/);assert(!walk(tree).some(node=>node.type==='table'));assert(!visibleCopy(tree).includes('0%'));ui.dispose();
 
   const verdictProps = {
     totalA: 1000, totalB: 1100, diffDisplay: '+100', grade: { grade: 'B', label: 'Fair' },
