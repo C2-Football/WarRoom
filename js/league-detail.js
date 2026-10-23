@@ -301,13 +301,36 @@
         return groups.filter(group => group.views.length > 0);
     }
     function DesktopCommandNav({ activeTab, workspaceOptions, onSelectTab }) {
+        const W = window.WR.LeagueWorkspaces;
+        const active = W.resolve(activeTab, workspaceOptions);
+        const navigation = W.navigation(workspaceOptions);
+        const definitions = [
+            { label: 'Your team', ids: ['lenses', 'home', 'team'] },
+            { label: 'Market & draft', ids: ['market', 'draft'] },
+            { label: 'League & research', ids: ['league', 'research'] },
+            { label: 'Tools', ids: ['settings', 'help'] },
+        ];
+        const grouped = new Set(definitions.flatMap(group => group.ids));
+        const groups = definitions.map(group => ({ label: group.label, items: group.ids.map(id => navigation.find(item => item.workspace === id)).filter(Boolean) }));
+        groups[groups.length - 1].items.push(...navigation.filter(item => !grouped.has(item.workspace)));
         return <nav className="wr-desktop-command" aria-label="Your command center">
             <h2 className="wr-desktop-command-title">Command center</h2>
-            {buildLeagueCommandGroups(workspaceOptions).map(group => <section key={group.label} className="wr-desktop-command-group" aria-label={group.label}>
+            {groups.filter(group => group.items.length).map(group => <section key={group.label} className="wr-desktop-command-group" aria-label={group.label}>
                 <h3>{group.label}</h3>
-                <div className="wr-desktop-command-grid">{group.views.map(view => <button key={view.tab} type="button"
-                    className="wr-desktop-command-view" aria-current={view.tab === activeTab ? 'page' : undefined}
-                    onClick={() => onSelectTab(view.tab)}>{view.label}</button>)}</div>
+                {group.items.map(item => {
+                    const selected = active.workspace === item.workspace;
+                    const secondary = selected ? W.views(item.workspace, workspaceOptions).filter(view => view.tab !== item.tab) : [];
+                    return <div key={item.workspace} className="wr-desktop-command-item" data-active={selected ? 'true' : undefined}>
+                        <button type="button" className="wr-desktop-command-workspace"
+                            aria-current={active.tab === item.tab ? 'page' : undefined}
+                            onClick={() => onSelectTab(item.tab)}>{item.label}</button>
+                        {secondary.length > 0 && <div className="wr-desktop-command-subviews" role="group" aria-label={item.label + ' views'}>
+                            {secondary.map(view => <button key={view.tab} type="button" className="wr-desktop-command-view"
+                                aria-current={active.tab === view.tab ? 'page' : undefined}
+                                onClick={() => onSelectTab(view.tab)}>{view.label}</button>)}
+                        </div>}
+                    </div>;
+                })}
             </section>)}
         </nav>;
     }
@@ -2719,7 +2742,7 @@
         }
 
         const desktopCommandExpanded = alexVp.isDesktop && !sidebarCollapsed;
-        const sidebarWidth = sidebarCollapsed ? 72 : alexVp.isDesktop ? 232 : 176;
+        const sidebarWidth = sidebarCollapsed ? 72 : alexVp.isDesktop ? 184 : 176;
         // Icon paths live at module scope (NAV_ICON_PATHS, above PhoneDock)
         // so the sidebar and the phone dock strip draw the same glyphs.
         const iconPaths = NAV_ICON_PATHS;

@@ -86,14 +86,18 @@
     .wr-sidebar-search { padding-bottom:8px !important; }
     .wr-sidebar-search input { min-height:36px; }
     .wr-desktop-command { padding:2px 10px 8px; }
-    .wr-desktop-command-title { margin:0 4px 10px; color:var(--silver); font:600 11px/1.4 var(--font-body); letter-spacing:.08em; text-transform:uppercase; }
-    .wr-desktop-command-group { margin:0 0 8px; }
-    .wr-desktop-command-group h3 { margin:0 4px 5px; color:var(--silver); font:600 11px/1.4 var(--font-body); letter-spacing:.04em; }
-    .wr-desktop-command-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
-    .wr-desktop-command-view { min-width:0; min-height:34px; padding:5px 8px; text-align:left; overflow-wrap:anywhere; color:var(--silver); background:var(--ov-2,rgba(255,255,255,.025)); border:1px solid var(--ov-4,rgba(255,255,255,.06)); border-radius:var(--card-radius-sm,8px); cursor:pointer; font:500 12px/1.25 var(--font-body); }
-    .wr-desktop-command-view:hover { color:var(--white); border-color:var(--acc-line2,rgba(212,175,55,.3)); background:var(--acc-fill1,rgba(212,175,55,.05)); }
-    .wr-desktop-command-view[aria-current="page"] { color:var(--gold); border-color:var(--gold); background:var(--acc-fill2,rgba(212,175,55,.1)); font-weight:700; }
-    .wr-desktop-command-view:focus-visible,.wr-sidebar-search input:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+    .wr-desktop-command-title { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    .wr-desktop-command-group { margin:0 0 12px; }
+    .wr-desktop-command-group h3 { margin:0 8px 4px; color:var(--text-muted,var(--silver)); font:600 10px/1.4 var(--font-body); letter-spacing:.05em; text-transform:uppercase; }
+    .wr-desktop-command-workspace,.wr-desktop-command-view { display:block; width:100%; min-width:0; min-height:28px; padding:5px 8px; text-align:left; overflow-wrap:anywhere; color:var(--silver); background:transparent; border:0; border-radius:var(--card-radius-xs,5px); cursor:pointer; font:500 12px/1.4 var(--font-body); }
+    .wr-desktop-command-workspace:hover,.wr-desktop-command-view:hover { color:var(--white); background:var(--ov-3,rgba(255,255,255,.04)); }
+    .wr-desktop-command-workspace[aria-current="page"],.wr-desktop-command-view[aria-current="page"] { color:var(--gold); background:var(--acc-fill1,rgba(212,175,55,.05)); font-weight:700; }
+    :where(.wr-desktop-command-item[data-active="true"]) > .wr-desktop-command-workspace { color:var(--white); font-weight:600; }
+    .wr-desktop-command-subviews { margin:1px 0 4px 12px; padding-left:6px; border-left:1px solid var(--ov-6,rgba(255,255,255,.1)); }
+    .wr-desktop-command-view { min-height:26px; padding:4px 7px; font-size:11px; }
+    .wr-desktop-command-workspace:focus-visible,.wr-desktop-command-view:focus-visible,.wr-sidebar-search input:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+    .wr-mission-control .wr-sidebar-toggle { border:0; background:transparent; justify-content:flex-start; padding-left:8px; }
+    .wr-mission-control .wr-sidebar-toggle span { font-size:10px !important; letter-spacing:.03em !important; }
     .wr-mission-control .wr-sidebar-status { display:flex; gap:6px; justify-content:center; align-items:center; padding:4px 12px; font-size:11px !important; opacity:1 !important; }
     .wr-mission-control .wr-sidebar-status > div { margin:0 !important; }
     .wr-mission-control .wr-sidebar-refresh { padding:8px 12px !important; min-height:36px; font-size:12px !important; }
@@ -116,5 +120,5 @@
 }
 /* Keep generous targets on touchscreen laptops and tablets in desktop layout. */
 @media (min-width:1024px) and (pointer:coarse) {
-    .wr-desktop-command-view,.wr-mission-control .wr-sidebar-refresh,.wr-mission-control .wr-sidebar-toggle,.wr-mission-control .wr-workspace-shortcuts button,.wr-mission-control .wr-workspace-views button,.wr-mission-control .wr-time-years :is(button,select) { min-height:44px; }
+    .wr-desktop-command-workspace,.wr-desktop-command-view,.wr-mission-control .wr-sidebar-refresh,.wr-mission-control .wr-sidebar-toggle,.wr-mission-control .wr-workspace-shortcuts button,.wr-mission-control .wr-workspace-views button,.wr-mission-control .wr-time-years :is(button,select) { min-height:44px; }
 }
