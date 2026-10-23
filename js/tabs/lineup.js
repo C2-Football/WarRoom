@@ -319,6 +319,8 @@ function MyLineupTab({
     const [openSlot, setOpenSlot] = React.useState(null);  // slot idx whose picker is expanded
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
     const [phoneView, setPhoneView] = React.useState(initialView === 'matchup' ? 'matchup' : 'week');
+    const [phoneSortChoice, setPhoneSortChoice] = React.useState({ scope: '', key: null, dir: -1 });
+    const [pickerSortChoice, setPickerSortChoice] = React.useState({ scope: '', key: null, dir: -1 });
     const [appliedMoves, setAppliedMoves] = React.useState(null); // phone: swap list shown after Apply Optimal ({sl,cur,opt,gain}[])
     const [explainPid, setExplainPid] = React.useState(null);     // "why this number" ledger target (Pro; tap a projection)
     // Game Day view (owner ruling 2026-07-30: Season Odds belongs here, not in
@@ -1453,17 +1455,48 @@ function MyLineupTab({
 
 
 
-        const playerMetricSlots = pid => {
+        const playerMetricValues = pid => {
+            if (!pid) return {};
             const projection = projOf(pid), player = playersData?.[pid];
-            return metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {
+            return {
                 proj: projection?.available !== false ? projection?.points?.[objective] : null,
                 ppg: WP?.formStats?.(pid, 5)?.rollingPPG,
                 dhq: window.App?.PlayerValue?.getValue?.(pid) ?? window.App?.LI?.playerScores?.[pid],
                 age: player?.age, season: WP?.formStats?.(pid, 'season')?.rollingPPG,
                 bye: window.App?.NFLByes?.weekForPlayer?.(player, window.App?.NFLByes?.seasonFor?.(currentLeague)),
                 matchup: pro ? projection?.matchupGrade : null,
-            }) : [{ label: 'PROJ', value: projection?.available !== false && Number.isFinite(projection?.points?.[objective]) ? projection.points[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(formOf(pid)?.rollingPPG) ? formOf(pid).rollingPPG.toFixed(1) : '—' }];
+            };
         };
+        const playerMetricSlots = pid => {
+            const projection = projOf(pid);
+            return metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, playerMetricValues(pid))
+                : [{ label: 'PROJ', value: projection?.available !== false && Number.isFinite(projection?.points?.[objective]) ? projection.points[objective].toFixed(1) : '—' }, { label: formWinLabel + ' PPG', value: Number.isFinite(formOf(pid)?.rollingPPG) ? formOf(pid).rollingPPG.toFixed(1) : '—' }];
+        };
+        const metricKeys = metricPreference?.selected || ['proj', 'ppg'];
+        const metricsApi = window.WR?.PlayerMetrics;
+        const sortColumns = metricKeys.map(key => {
+            const definition = metricsApi?.definitions?.find(item => item.key === key);
+            return { key, label: definition?.label || key.toUpperCase(), title: definition?.name || key };
+        });
+        const scopedSort = choice => choice.scope === leagueScope && (choice.key === 'name' || metricKeys.includes(choice.key)) ? choice : { key: null, dir: -1 };
+        const phoneSort = scopedSort(phoneSortChoice), pickerSort = scopedSort(pickerSortChoice);
+        const changePlayerSort = (key, picker = false) => {
+            const update = picker ? setPickerSortChoice : setPhoneSortChoice;
+            update(previous => ({ scope: leagueScope, key,
+                dir: previous.scope === leagueScope && previous.key === key ? previous.dir * -1 : metricsApi?.defaultDirection?.(key) ?? (['name', 'age', 'bye'].includes(key) ? 1 : -1) }));
+        };
+        const comparePlayerIds = (a, b, sort) => {
+            const value = pid => !pid ? null : sort.key === 'name' ? pmeta(pid).name : metricPreference ? playerMetricValues(pid)[sort.key]
+                : sort.key === 'proj' ? playerMetricValues(pid).proj : formOf(pid)?.rollingPPG;
+            return metricsApi?.compareValues?.(value(a), value(b), sort.dir, { text: sort.key === 'name', type: sort.key === 'matchup' ? 'grade' : undefined }) || 0;
+        };
+        // Sorting reorders copied display records only; every action retains its
+        // original slot index and the saved/submitted assignments stay intact.
+        const sortedDispSlots = phoneSort.key ? [...dispSlots].sort((a, b) => comparePlayerIds(workingAssign[a.idx], workingAssign[b.idx], phoneSort)) : dispSlots;
+        const SortHeader = metricsApi?.SortHeader;
+        const sortHeader = picker => SortHeader ? <SortHeader groupMetrics columns={sortColumns} sort={picker ? pickerSort : phoneSort}
+            onSort={key => changePlayerSort(key, picker)} className={picker ? 'gd-picker-sort-heading' : 'gd-player-sort-heading'}
+            style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + metricKeys.length + ',minmax(33px,.44fr))' }} /> : null;
 
         // Phone rows keep the projection and selected-window PPG visible together.
         // A tap opens eligible replacements and deeper matchup/form context.
@@ -1500,7 +1533,8 @@ function MyLineupTab({
         // Hi/Lo columns stay in the picker).
         const openSl = openSlot != null ? startingSlots.find(sl => sl.idx === openSlot) : null;
         const openPid = openSl ? (workingAssign[openSl.idx] || null) : null;
-        const openElig = openSl ? eligibleFor(openSl) : [];
+        const eligiblePlayers = openSl ? eligibleFor(openSl) : [];
+        const openElig = pickerSort.key ? [...eligiblePlayers].sort((a, b) => comparePlayerIds(a, b, pickerSort)) : eligiblePlayers;
         const openFs = openPid ? formOf(openPid) : null;
         const pickRow = (epid) => {
             const isCur = String(openPid) === String(epid);
@@ -1549,7 +1583,7 @@ function MyLineupTab({
                     <div className="gd-list-heading mc-lineup-heading"><h2>Starting lineup</h2><span className="mc-lineup-total">{workingTotal.toFixed(1)} {formWinLabel} PPG{missingPlanForm ? ' · partial' : ''}</span></div>
                     {pro && canOptimize && !isOptimal ? <button type="button" className="gd-secondary" onClick={applyOptimalWithSummary}>Use optimal in my plan</button> : null}
                     {trackingLineup ? mobileScoreboard : null}
-                    <div className="gd-player-list">{dispSlots.map(slotRow)}</div>
+                    <div className="gd-player-list">{sortHeader(false)}{sortedDispSlots.map(slotRow)}</div>
                     <details className="mc-lineup-rules"><summary>How lineup suggestions work</summary><p className="gd-muted">{formHelp}</p></details>
                     {trackingLineup ? mobileScoreHelp : null}
                     {dirty || isMfl ? <button type="button" className="gd-secondary" onClick={() => setApplyOpen(true)}>Review planned changes</button> : null}
@@ -1580,6 +1614,7 @@ function MyLineupTab({
                                 </div>
                             ) : null}
                             <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.05em', color: SILVER, textTransform: 'uppercase' }}>Eligible for {openSl.slotName.replace('_', ' ')} — tap to start</div>
+                            {sortHeader(true)}
                             {openElig.map(pickRow)}
                             {!openElig.length ? <div style={{ color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>No eligible bench players.</div> : null}
                             {openPid ? (

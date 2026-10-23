@@ -835,9 +835,10 @@
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
         const [faSort, setFaSort] = useState({ key: 'dhq', dir: -1 });
         useEffect(() => {
-            const supported = ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'];
+            const supported = ['proj', 'ppg', 'dhq', 'age', 'season', 'bye', 'matchup'];
             if (_faPhone && metricPreference && faSort.key !== 'name' && (!supported.includes(faSort.key) || !metricPreference.selected.includes(faSort.key))) {
-                setFaSort({ key: metricPreference.selected.includes('dhq') ? 'dhq' : metricPreference.selected.find(key => supported.includes(key)) || 'name', dir: -1 });
+                const key = metricPreference.selected.includes('dhq') ? 'dhq' : metricPreference.selected.find(key => supported.includes(key)) || 'name';
+                setFaSort({ key, dir: defaultFaSortDirection(key) });
             }
         }, [_faPhone, metricPreference?.selected.join('|'), faSort.key]);
         const [faSelectedPid, setFaSelectedPid] = useState(null);
@@ -950,9 +951,15 @@
             const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
             return { proj: number(row.proj), ppg: number(recent?.value), dhq: number(row.dhq), age: number(row.p.age),
                 season: source.prior ? null : number(window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, row.pos)),
-                bye: number(window.App?.NFLByes?.weekForPlayer?.(row.p, Number(marketSeason))) };
+                bye: number(window.App?.NFLByes?.weekForPlayer?.(row.p, Number(marketSeason))),
+                matchup: isPro && marketIsCurrent ? row.matchup || null : null };
         }
-        const compareMarketNumber = (a, b, dir) => a == null && b == null ? 0 : a == null ? 1 : b == null ? -1 : dir * (a - b);
+        const compareMarketNumber = (a, b, dir) => window.WR?.PlayerMetrics?.compareValues
+            ? window.WR.PlayerMetrics.compareValues(a, b, dir)
+            : a == null && b == null ? 0 : a == null ? 1 : b == null ? -1 : dir * (a - b);
+        const compareMarketText = (a, b, dir) => window.WR?.PlayerMetrics?.compareValues
+            ? window.WR.PlayerMetrics.compareValues(a, b, dir, { type: 'text' })
+            : !a && !b ? 0 : !a ? 1 : !b ? -1 : dir * String(a).localeCompare(String(b));
 
         useEffect(() => { try { window.App?.WrStorage?.set?.('wr_fa_cols', visibleFaCols); } catch {} }, [visibleFaCols]);
         // Resurrect-proofing: saved views / older persisted prefs can still
@@ -1045,15 +1052,16 @@
                     && (!leaguePosSet || leaguePosSet.has(normPos(p.position) || p.position)))
                 .map(([pid, p]) => {
                     const dhq = waiverValue(pid,currentLeague,resolvedLeagueSkin);
-                    let proj = null;
+                    let proj = null, matchup = null;
                     const WP = window.App && window.App.WeeklyProj;
                     if (marketIsCurrent && WP?.projectPlayer) {
                         try {
                             const pr = WP.projectPlayer(pid, { playersData, statsData, priorData: prevStatsData, scoring: currentLeague?.scoring_settings || {}, week: marketWeek });
                             if (pr?.available && typeof pr.points?.median === 'number' && Number.isFinite(pr.points.median)) proj = pr.points.median;
+                            if (pr?.available) matchup = pr.matchupGrade || null;
                         } catch (e) { /* Missing forecast stays unavailable. */ }
                     }
-                    return { pid, p, dhq, proj, pos: normPos(p.position) || p.position };
+                    return { pid, p, dhq, proj, matchup, pos: normPos(p.position) || p.position };
                 })
                 .sort((a, b) => b.dhq - a.dhq);
         }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet, marketIsCurrent, marketWeek, marketDataVersion]);
@@ -1162,7 +1170,8 @@
         React.useEffect(() => { setFaPhoneLimit(25); }, [faFilter, faSearch, faSort, rookieOnly, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, currentLeague?.league_id, currentLeague?.id]);
 
         function faSortIndicator(key) { return faSort.key === key ? (faSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''; }
-        function handleFaSort(key) { setFaSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: -1 }); }
+        function defaultFaSortDirection(key) { return window.WR?.PlayerMetrics?.defaultDirection?.(key) ?? (['name', 'age', 'bye'].includes(key) ? 1 : -1); }
+        function handleFaSort(key) { setFaSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: defaultFaSortDirection(key) }); }
 
         // Sort filtered results
         const sortedPlayers = useMemo(() => {
@@ -1189,29 +1198,33 @@
                 if (_faPhone && metricPreference && ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'].includes(k)) {
                     return compareMarketNumber(mobileMarketValues(a)[k], mobileMarketValues(b)[k], dir);
                 }
+                if (_faPhone && metricPreference && k === 'matchup') {
+                    return window.WR?.PlayerMetrics?.compareValues?.(mobileMarketValues(a).matchup, mobileMarketValues(b).matchup, dir, { type: 'grade' }) || 0;
+                }
                 if (k === 'name') {
                     const na = (a.p.full_name || ((a.p.first_name || '') + ' ' + (a.p.last_name || '')).trim()).toLowerCase();
                     const nb = (b.p.full_name || ((b.p.first_name || '') + ' ' + (b.p.last_name || '')).trim()).toLowerCase();
-                    return dir * na.localeCompare(nb);
+                    return compareMarketText(na, nb, dir);
                 }
-                if (k === 'pos') return dir * ((normPos(a.p.position) || '').localeCompare(normPos(b.p.position) || ''));
-                if (k === 'age') return dir * ((a.p.age || 0) - (b.p.age || 0));
-                if (k === 'dhq') return dir * (a.dhq - b.dhq);
+                if (k === 'pos') return compareMarketText(normPos(a.p.position), normPos(b.p.position), dir);
+                if (k === 'age') return compareMarketNumber(a.p.age, b.p.age, dir);
+                if (k === 'dhq') return compareMarketNumber(a.dhq, b.dhq, dir);
                 if (k === 'proj') return compareMarketNumber(a.proj, b.proj, dir);
                 if (k === 'ppg') return compareMarketNumber(marketPpgRead(a.pid, a.pos).value, marketPpgRead(b.pid, b.pos).value, dir);
-                if (k === 'team') return dir * ((a.p.team || '').localeCompare(b.p.team || ''));
+                if (k === 'team') return compareMarketText(a.p.team, b.p.team, dir);
                 if (k === 'trend') {
-                    const ta = window.App?.LI?.playerTrends?.[a.pid] || 0;
-                    const tb = window.App?.LI?.playerTrends?.[b.pid] || 0;
-                    return dir * (ta - tb);
+                    return compareMarketNumber(window.App?.LI?.playerTrends?.[a.pid], window.App?.LI?.playerTrends?.[b.pid], dir);
                 }
                 if (k === 'peak') {
-                    const pa2 = window.App?.LI?.playerPeaks?.[a.pid] || 0;
-                    const pb2 = window.App?.LI?.playerPeaks?.[b.pid] || 0;
-                    return dir * (pa2 - pb2);
+                    return compareMarketNumber(window.App?.LI?.playerPeaks?.[a.pid], window.App?.LI?.playerPeaks?.[b.pid], dir);
                 }
-                if (k === 'exp') return dir * ((a.p.years_exp || 0) - (b.p.years_exp || 0));
-                if (k === 'injury') return dir * ((a.p.injury_status || '').localeCompare(b.p.injury_status || ''));
+                if (k === 'exp') return compareMarketNumber(a.p.years_exp, b.p.years_exp, dir);
+                if (k === 'college') return compareMarketText(a.p.college, b.p.college, dir);
+                if (k === 'height' || k === 'weight') {
+                    const raw = value => value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+                    return compareMarketNumber(raw(a.p[k]), raw(b.p[k]), dir);
+                }
+                if (k === 'injury') return compareMarketText(a.p.injury_status, b.p.injury_status, dir);
                 if (k === 'sig1' || k === 'sig2') {
                     if (!faSigStats[0]) return b.dhq - a.dhq;
                     const idx = k === 'sig1' ? 0 : 1;
@@ -1221,7 +1234,7 @@
                 }
                 if (k === 'rkSlot' || k === 'rkRank' || k === 'rkTier' || k === 'rkTeam') {
                     const ra = prospectFor(a.p); const rb = prospectFor(b.p);
-                    if (k === 'rkTeam') return dir * ((ra?.nflTeam || faDraftCap(a.pid)?.team || '').localeCompare(rb?.nflTeam || faDraftCap(b.pid)?.team || ''));
+                    if (k === 'rkTeam') return compareMarketText(ra?.nflTeam || faDraftCap(a.pid)?.team, rb?.nflTeam || faDraftCap(b.pid)?.team, dir);
                     if (k === 'rkSlot') {
                         // Earlier capital sorts first (unified ordinal ≈ overall pick);
                         // UDFA last; players with no data after that.
@@ -1229,17 +1242,17 @@
                             if (r && Number(r.draftRound) > 0) return (Number(r.draftRound) - 1) * 32 + (Number(r.draftPick) || 32);
                             const d = faDraftCap(pid);
                             if (d) return d.round > 0 ? (d.overall || (d.round - 1) * 32 + 32) : 9000;
-                            return r ? 9000 : 1e9;
+                            return r ? 9000 : null;
                         };
-                        return dir * (slot(ra, a.pid) - slot(rb, b.pid));
+                        return compareMarketNumber(slot(ra, a.pid), slot(rb, b.pid), dir);
                     }
                     // rkRank / rkTier — lower consensus rank is better; non-rookies last.
-                    const rank = r => (r && (r.consensusRank ?? r.rank) != null) ? Number(r.consensusRank ?? r.rank) : 1e9;
-                    return dir * (rank(ra) - rank(rb));
+                    const rank = r => (r && (r.consensusRank ?? r.rank) != null) ? Number(r.consensusRank ?? r.rank) : null;
+                    return compareMarketNumber(rank(ra), rank(rb), dir);
                 }
                 return 0;
             }).slice(0, _faPhone ? undefined : 50);
-        }, [_faPhone, availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor, prevStatsData, ppgWindow, marketDataVersion]);
+        }, [_faPhone, availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor, prevStatsData, ppgWindow, marketDataVersion, isPro]);
 
         const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' };
 
@@ -1915,7 +1928,7 @@
             // desktop toolbar, which stays untouched for tablet/desktop.
             const _faTogglePanel = key => setFaPanel(current => current === key ? null : key);
             const _faSortOptions = [{ key: 'name', label: 'Player name', short: 'Player' }, ...(metricPreference
-                ? window.WR.PlayerMetrics.definitions.filter(metric => metricPreference.selected.includes(metric.key) && ['proj', 'ppg', 'dhq', 'age', 'season', 'bye'].includes(metric.key)).map(metric => ({ key: metric.key, label: metric.name, short: metric.label }))
+                ? window.WR.PlayerMetrics.definitions.filter(metric => metricPreference.selected.includes(metric.key) && ['proj', 'ppg', 'dhq', 'age', 'season', 'bye', 'matchup'].includes(metric.key)).map(metric => ({ key: metric.key, label: metric.name, short: metric.label }))
                 : Object.values(faColumns).filter(column => column.sortKey).map(column => ({ key: column.sortKey, label: column.label, short: column.shortLabel })))];
             const _sortCol = _faSortOptions.find(option => option.key === faSort.key);
             const _faSheetSelect = active => ({ width: '100%', minWidth: 0, minHeight: '44px', padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid var(--gx-edge,rgba(183,206,255,.2))', borderRadius: 'var(--card-radius-sm, 8px)' });
@@ -1937,7 +1950,7 @@
                 </>);
             } else if (faPanel === 'sort') {
                 _faPanelEl = _faPanelWrap(<>
-                    <label className="mc-market-sort-field">Sort by<select aria-label="Sort available players by" value={_sortCol ? faSort.key : 'dhq'} onChange={e => { const key = e.target.value; setFaSort(previous => ({ key, dir: previous.key === key ? previous.dir : key === 'name' ? 1 : -1 })); }} style={_faSheetSelect(true)}>{_faSortOptions.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
+                    <label className="mc-market-sort-field">Sort by<select aria-label="Sort available players by" value={_sortCol ? faSort.key : 'dhq'} onChange={e => { const key = e.target.value; setFaSort(previous => ({ key, dir: previous.key === key ? previous.dir : defaultFaSortDirection(key) })); }} style={_faSheetSelect(true)}>{_faSortOptions.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
                     <button type="button" aria-label="Reverse player sort order" onClick={() => setFaSort(previous => ({ ...previous, dir: previous.dir * -1 }))} style={_faChipBtn(true)}>{faSort.key === 'name' ? faSort.dir === -1 ? 'Z to A ↓' : 'A to Z ↑' : faSort.dir === -1 ? 'High to low ↓' : 'Low to high ↑'}</button>
                     {!metricPreference && <><span className="mc-market-panel-label">PPG window</span><div className="mc-market-position-filters">{[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'Last 5' }, { k: 'l3', l: 'Last 3' }].map(option => <button type="button" key={option.k} aria-pressed={ppgWindow === option.k} onClick={() => setPpgWindow(option.k)} style={_faChipBtn(ppgWindow === option.k)}>{option.l}</button>)}</div></>}
                     {window.WR?.SavedViews?.SavedViewBar && <button type="button" onClick={() => setFaPanel('view')} style={_faChipBtn(false)}>Saved filters &amp; sort →</button>}
@@ -2059,6 +2072,15 @@
                 if (!metricPreference || !window.WR?.PlayerMetrics?.slots) return _faSlotKeys.map(k => ({ key: k, ..._faSlotFor(k, x) }));
                 return window.WR.PlayerMetrics.slots(metricPreference.selected, mobileMarketValues(x));
             };
+            const _faHeaderColumns = (metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {}) : _faSlotKeys.map(key => ({ key, label: faColumns[key]?.shortLabel || key }))).map(slot => ({
+                key: metricPreference ? slot.key : faColumns[slot.key]?.sortKey || slot.key,
+                label: slot.label,
+                title: metricPreference ? window.WR.PlayerMetrics.definitions.find(metric => metric.key === slot.key)?.name || slot.label : faColumns[slot.key]?.label || slot.label,
+                sortable: metricPreference ? true : !!faColumns[slot.key]?.sortKey,
+            }));
+            const _faMarketHeader = window.WR?.PlayerMetrics?.SortHeader
+                ? <window.WR.PlayerMetrics.SortHeader className="mc-market-heading" columns={_faHeaderColumns} sort={faSort} onSort={handleFaSort} nameLabel="Player" style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + _faHeaderColumns.length + ',minmax(33px,.44fr))' }} />
+                : <div className="mc-market-heading" style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + _faHeaderColumns.length + ',minmax(33px,.44fr))' }}><span>PLAYER</span>{_faHeaderColumns.map(column => <span key={column.key}>{column.label}</span>)}</div>;
             const _faMktRows = _faPhoneMkt.map(x => <button key={x.pid} type="button" className="mc-market-row" onClick={() => openFaPlayer(x.pid)} aria-label={playerName(x.p, x.pid) + ': player details'} style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + _faMetricSlots(x).length + ',minmax(33px,.44fr))' }}><span className="mc-market-name"><strong>{playerName(x.p, x.pid)}</strong><small>{x.pos} · {x.p.team || 'FA'}{x.p.injury_status ? ' · ' + x.p.injury_status : ''}</small></span>{_faMetricSlots(x).map(slot => <span key={slot.key} className="mc-market-stat"><b>{slot.value}</b></span>)}</button>);
             const _faMktRowNodes = _faMktRows.length ? _faMktRows : [
                 <div key="fa-mkt-empty" style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No available players match this view.</div>
@@ -2097,7 +2119,7 @@
                                 {renderMissionWaiverBoard()}{renderCrazePanel()}
                                 <div className="mc-market-summary"><strong>Available players <span>{sortedPlayers.length}</span></strong>{hasFAAB && <span>{_faBalance == null ? 'Budget unknown' : '$' + _faBalance + ' left'}</span>}</div>
                                 {_faToolsEl}{_faPanelEl}
-                                <div className="mc-market-table" aria-label="Available player comparison"><div className="mc-market-heading" style={{ gridTemplateColumns: 'minmax(105px,1fr) repeat(' + (metricPreference?.selected.length || _faSlotKeys.length) + ',minmax(33px,.44fr))' }}><span>PLAYER</span>{(metricPreference ? window.WR.PlayerMetrics.slots(metricPreference.selected, {}) : _faSlotKeys.map(key => ({key,label:faColumns[key]?.shortLabel || key}))).map(slot => <span key={slot.key}>{slot.label}</span>)}</div>{_faMktRowNodes}</div>
+                                <div className="mc-market-table" aria-label="Available player comparison">{_faMarketHeader}{_faMktRowNodes}</div>
                                 {faPhoneLimit < sortedPlayers.length && <button type="button" className="fa-mobile-more" onClick={() => setFaPhoneLimit(n => n + 25)}>Show {Math.min(25, sortedPlayers.length - faPhoneLimit)} more players</button>}
                             </>}
                         </div>
@@ -2316,10 +2338,11 @@
                         {/* Header */}
                         <div className="fa-mkt-head" style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '8px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
                             <span className="fa-market-avatar"></span>
-                            <button type="button" className="fa-market-name fa-market-sort" style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</button>
+                            {window.WR?.PlayerMetrics?.SortButton ? <window.WR.PlayerMetrics.SortButton columnKey="name" label="Player" title="Player name" sort={faSort} onSort={handleFaSort} className="fa-market-name fa-market-sort" style={faHeaderStyle} /> : <button type="button" className="fa-market-name fa-market-sort" style={faHeaderStyle} aria-pressed={faSort.key === 'name'} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</button>}
                             {shownFaCols.map(k => {
                                 const col = faColumns[k]; if (!col) return null;
                                 const clickable = !!col.sortKey;
+                                if (window.WR?.PlayerMetrics?.SortButton) return <window.WR.PlayerMetrics.SortButton key={k} columnKey={col.sortKey || k} label={col.shortLabel} title={col.label} sort={faSort} onSort={handleFaSort} className={`fa-market-sort fa-market-col-${k}`} style={{ ...faHeaderStyle, cursor: clickable ? 'pointer' : 'default' }} disabled={!clickable} />;
                                 return <button type="button" className={`fa-market-sort fa-market-col-${k}`} key={k} style={{ ...faHeaderStyle, cursor: clickable ? 'pointer' : 'default' }} title={col.label} disabled={!clickable}
                                     onClick={() => clickable && handleFaSort(col.sortKey)}>
                                     {col.shortLabel}{clickable ? faSortIndicator(col.sortKey) : ''}

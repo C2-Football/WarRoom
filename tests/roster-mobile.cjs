@@ -230,7 +230,7 @@ root.WR.PlayerMetrics = { ...sharedMetrics, useMetrics: () => ({ selected: metri
 const l5Points = { starter: 12, bench: 0, ir: -2.5, taxi: null };
 const projectionPoints = { starter: 15, bench: 0, ir: -3, taxi: null };
 root.App.WeeklyProj = {
-  optimalForRoster: () => ({ objective: 'ceiling', optimal: { starters: [] }, projections: Object.fromEntries(Object.keys(playersData).map(pid => [pid, { available: projectionPoints[pid] != null, points: { median: projectionPoints[pid], ceiling: -100 * projectionPoints[pid] } }])) }),
+  optimalForRoster: () => ({ objective: 'ceiling', optimal: { starters: [] }, projections: Object.fromEntries(Object.keys(playersData).map(pid => [pid, { available: projectionPoints[pid] != null, matchupGrade: { starter:'B', bench:'A', ir:'F', taxi:null }[pid], points: { median: projectionPoints[pid], ceiling: -100 * projectionPoints[pid] } }])) }),
   formStats: (pid, window) => window === 5 && Number.isFinite(l5Points[pid]) ? { rollingPPG: l5Points[pid] } : null,
 };
 root.App.computeRollingPPG = () => 999;
@@ -283,8 +283,8 @@ assert.deepEqual(sortOptions().at(-1), { key: 'ppg', label: 'Table PPG (saved so
 metricSelection = ['season', 'bye', 'matchup']; props.rosterSort = { key: 'name', dir: 1 }; render();
 assert.deepEqual(sortOptions(), [
   { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' },
-  { key: 'seasonppg', label: 'Season PPG' }, { key: 'bye', label: 'Bye week' },
-], 'Selection changes refresh the menu and omit matchup grades because no grade comparator is supported');
+  { key: 'seasonppg', label: 'Season PPG' }, { key: 'bye', label: 'Bye week' }, { key:'listmatchup', label:'Matchup grade' },
+], 'Selection changes refresh the menu and include every displayed metric');
 chooseSort('seasonppg');
 assert.deepEqual(rowPids(), ['bench', 'ir', 'starter', 'taxi'], 'Season sort uses the displayed season PPG with valid zero and negative values');
 assert.equal(metricText('bench', 'season'), '3.0SZN PPG');
@@ -297,6 +297,18 @@ assert.deepEqual(rowPids(), ['taxi', 'bench', 'starter', 'ir'], 'Bye sort follow
 assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('Low to high'));
 find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
 assert.deepEqual(rowPids(), ['starter', 'bench', 'taxi', 'ir']);
+const rosterSortHeader = () => find(tree, n => n.type === sharedMetrics.SortHeader);
+assert.deepEqual(Array.from(rosterSortHeader().props.columns, column => column.key), ['seasonppg','bye','listmatchup'], 'The shared header uses the same metric keys as the visible player rows');
+rosterSortHeader().props.onSort('listmatchup'); render();
+assert.deepEqual(rowPids(), ['bench','starter','ir','taxi'], 'A matchup header tap sorts by actual grade strength, with unknown last');
+assert.equal(rosterSortHeader().props.sort.dir, -1, 'The active header normalizes the roster’s descending-first internal direction');
+rosterSortHeader().props.onSort('listmatchup'); render();
+assert.deepEqual(rowPids(), ['ir','starter','bench','taxi'], 'A second tap reverses the actual grade order and retains unknown last');
+assert.equal(rosterSortHeader().props.sort.dir, 1);
+assert.equal(props.expandedPid, null, 'Sorting never opens a player dossier');
+root.wrIsPro = () => false; render();
+assert.equal(metricText('bench','matchup'), '—MATCH', 'Header sorting cannot reveal a Pro-only matchup grade');
+root.wrIsPro = () => true;
 props.leagueSkin.type = 'dynasty'; metricSelection = ['proj', 'ppg', 'dhq', 'age']; props.rosterSort = { key: 'name', dir: 1 }; render();
 assert(sortOptions().some(option => option.key === 'dhq' && option.label === 'Player value'), 'Dynasty sorts use the same value unit as the list');
 chooseSort('l5ppg');

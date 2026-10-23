@@ -65,6 +65,53 @@
             return { key, label: def.label, value, tone: value === '—' ? 'mute' : undefined };
         });
     }
+    function numericValue(value) {
+        if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+    function gradeValue(value) {
+        const number = numericValue(value);
+        if (number !== null) return number;
+        const grades = ['F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+'];
+        const index = typeof value === 'string' ? grades.indexOf(value.trim().toUpperCase().replace(/−/g, '-')) : -1;
+        return index < 0 ? null : index;
+    }
+    function compareValues(a, b, dir = -1, options = {}) {
+        const type = options.type || (options.text ? 'text' : 'number');
+        const textValue = value => typeof value === 'string' && value.trim() && !['—', '--', '-'].includes(value.trim()) ? value.trim() : null;
+        const reader = type === 'text' ? textValue : type === 'grade' ? gradeValue : numericValue;
+        const av = reader(a), bv = reader(b);
+        if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+        const difference = type === 'text' ? av.localeCompare(bv, undefined, { sensitivity: 'base', numeric: true }) : av - bv;
+        return difference * (dir === 1 ? 1 : -1);
+    }
+    function defaultDirection(key) {
+        return ['name', 'age', 'bye', 'team', 'pos', 'owner'].includes(key) ? 1 : -1;
+    }
+    function nextSort(sort, key) {
+        return { key, dir: sort?.key === key ? (sort.dir === 1 ? -1 : 1) : defaultDirection(key) };
+    }
+    function SortButton({ columnKey, label, title, sort, onSort, className = '', style, disabled = false }) {
+        const h = root.React.createElement;
+        const active = sort?.key === columnKey;
+        const direction = sort?.dir === 1 ? 'ascending' : 'descending';
+        const definition = definitions.find(item => item.key === columnKey);
+        const name = title || definition?.name || label || columnKey;
+        if (disabled || typeof onSort !== 'function') return h('span', { className: 'mc-sort-static ' + className, style, title: name }, label);
+        return h('button', { type: 'button', className: 'mc-sort-button' + (active ? ' is-active' : '') + (className ? ' ' + className : ''), style,
+            title: name, 'aria-pressed': active, 'aria-label': 'Sort by ' + name + (active ? '; currently ' + direction + ', activate to reverse' : ''),
+            onClick: event => { event.stopPropagation(); onSort(columnKey); } },
+            h('span', { className: 'mc-sort-label' }, label),
+            h('span', { className: 'mc-sort-arrow', 'aria-hidden': 'true' }, active ? sort.dir === 1 ? '↑' : '↓' : '↕'));
+    }
+    function SortHeader({ columns = [], sort, onSort, className = '', style, nameKey = 'name', nameLabel = 'Player', groupMetrics = false }) {
+        const h = root.React.createElement;
+        const metrics = columns.map(column => h(SortButton, { key: column.key, columnKey: column.key, label: column.label, title: column.title, sort, onSort, disabled: column.sortable === false }));
+        return h('div', { className: 'mc-player-sort-header' + (className ? ' ' + className : ''), style: { '--mc-sort-columns': columns.length, ...style } },
+            h(SortButton, { columnKey: nameKey, label: nameLabel, title: nameLabel, sort, onSort, className: 'mc-sort-player' }),
+            groupMetrics ? h('div', { className: 'mc-sort-metrics' }, metrics) : metrics);
+    }
     function move(selected, key, to) {
         const next = normalize(selected), from = next.indexOf(key);
         if (from < 0 || !Number.isInteger(to) || to < 0 || to >= next.length) return next;
@@ -252,7 +299,7 @@
                 ? h(root.WR.FilterSheet, { open, onClose: close, title: 'Player columns', sections: [{ node: content }], footer })
                 : open && h('section', { className: 'mc-metric-popover', role: 'dialog', 'aria-label': 'Player columns' }, content, footer));
     }
-    const api = { definitions, defaults, normalize, scope, read, write, useMetrics, slots, move, toggle, Picker };
+    const api = { definitions, defaults, normalize, scope, read, write, useMetrics, slots, numericValue, gradeValue, compareValues, defaultDirection, nextSort, SortButton, SortHeader, move, toggle, Picker };
     root.WR = root.WR || {};
     root.WR.PlayerMetrics = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

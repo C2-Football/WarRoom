@@ -6,9 +6,10 @@ const vm = require('node:vm');
 const Babel = require('@babel/standalone');
 const source = fs.readFileSync('js/free-agency.js', 'utf8');
 const ast = Babel.packages.parser.parse(source, { plugins: ['jsx'] });
-let sortNormalizationEffect;
+let sortNormalizationEffect, paginationResetEffect;
 Babel.packages.traverse.default(ast, { CallExpression(p) {
     if (p.node.callee.name === 'useEffect' && source.slice(p.node.start, p.node.end).includes('metricPreference.selected.find')) sortNormalizationEffect = source.slice(p.node.start, p.node.end);
+    if (source.slice(p.node.start, p.node.end).startsWith('React.useEffect') && source.slice(p.node.start, p.node.end).includes('setFaPhoneLimit(25)')) paginationResetEffect = source.slice(p.node.start, p.node.end);
 } });
 assert.ok(sortNormalizationEffect, 'Missing production visible-column sort normalization');
 function declaration(name, kind = 'FunctionDeclaration') {
@@ -36,16 +37,16 @@ function fixture(overrides = {}) {
         useMemo: fn => fn(), useEffect: (effect, deps) => { captured.push({ kind: 'effect', deps }); effect(); }, _faPhone: true,
         currentLeague: { league_id: 'league-a', season: 2026, scoring_settings: { rec: 1, rec_yd: .1 } },
         acquisitionLeagueId: 'league-a', marketSeason: '2026', marketWeek: 3, marketIsCurrent: true,
-        faPanel: null, faSearch: '', faFilter: '', rookieOnly: false, rookieTeamFilter: '', rookieCollegeFilter: '', rookieSlotFilter: '',
+        faPhoneLimit: 75, faPanel: null, faSearch: '', faFilter: '', rookieOnly: false, rookieTeamFilter: '', rookieCollegeFilter: '', rookieSlotFilter: '',
         ppgWindow: 'season', faSort: { key: 'dhq', dir: -1 }, faActivePresetKey: 'custom', faColPreset: 'custom', showFaColPicker: false,
         visibleFaCols: ['pos','dhq','ppg'], shownFaCols: ['pos','dhq','ppg'],
         statsData: { a: { gp: 2, rec: 4 }, b: { gp: 2, rec: 20 }, z: { gp: 2, rec: 0 }, n: { gp: 2, rec: 0, rec_yd: -60 } },
         prevStatsData: { missing: { gp: 2, rec: 200 } }, priorStatsSeason: 2025,
         availablePlayers: [
-            { pid: 'a', pos: 'WR', p: { full_name: 'Alpha', position: 'WR', team: 'SEA', age: 29 }, proj: 2, dhq: 10 },
-            { pid: 'b', pos: 'RB', p: { full_name: 'Beta', position: 'RB', team: 'BUF', age: 24 }, proj: 20, dhq: 20 },
-            { pid: 'z', pos: 'WR', p: { full_name: 'Zero', position: 'WR', team: 'LV', age: 27 }, proj: 0, dhq: 0 },
-            { pid: 'n', pos: 'TE', p: { full_name: 'Negative', position: 'TE', team: 'KC', age: 31 }, proj: -1, dhq: -2 },
+            { pid: 'a', pos: 'WR', p: { full_name: 'Alpha', position: 'WR', team: 'SEA', age: 29 }, proj: 2, dhq: 10, matchup: 'A-' },
+            { pid: 'b', pos: 'RB', p: { full_name: 'Beta', position: 'RB', team: 'BUF', age: 24 }, proj: 20, dhq: 20, matchup: 'B+' },
+            { pid: 'z', pos: 'WR', p: { full_name: 'Zero', position: 'WR', team: 'LV', age: 27 }, proj: 0, dhq: 0, matchup: 'F' },
+            { pid: 'n', pos: 'TE', p: { full_name: 'Negative', position: 'TE', team: 'KC', age: 31 }, proj: -1, dhq: -2, matchup: 'A+' },
             { pid: 'missing', pos: 'QB', p: { full_name: 'Missing', position: 'QB', team: 'NYJ' }, proj: null, dhq: null },
         ],
         leaguePositions: ['QB','RB','WR','TE','FLEX'], streamPosSet: new Set(), rookieFilterOptions: { teams: ['SEA'], colleges: ['Example'] },
@@ -53,6 +54,7 @@ function fixture(overrides = {}) {
         rookieTeamOf: row => row.p.team, rookieCollegeOf: row => row.p.college || '', rookieSlotMatch: () => true, prospectFor: () => null,
         statsSeason: 2026, marketDataVersion: 0, isPro: true, valueShortLabel: 'VALUE', valueLabel: 'Player value', myRoster: {},
         faSigStats: [], faColumns: {}, metricPreference: { key: 'account-a:league-a', selected: ['proj','ppg','dhq','age'], persistent: true }, ...overrides });
+    ctx.window.React = ctx.React; ctx.React.useEffect = ctx.useEffect;
     ctx.window.S = { weeklyPlayerPointsLeagueId: 'league-a' };
     ctx.window.App.posLabel = value => value === 'FLEX' ? 'RB / WR / TE' : value;
     ctx.window.App.posMatchesFilter = (position, filter) => filter === 'FLEX' ? ['RB','WR','TE'].includes(position) : position === filter;
@@ -66,13 +68,14 @@ function fixture(overrides = {}) {
     ctx.window.WR.FilterPill = props => h('button', { type: 'button', onClick: props.onClick }, props.label, props.value);
     ctx.window.WR.SavedViews = { SavedViewBar: props => { captured.push({ kind: 'saved', props }); return h('saved-view-bar', props); } };
     ctx.metricPreference && (ctx.metricPreference.setSelected = value => { mutations.push('sharedColumns'); ctx.metricPreference.selected = plain(value); });
-    const setters = { FaPanel: 'faPanel', FaSearch: 'faSearch', FaFilter: 'faFilter', RookieOnly: 'rookieOnly', RookieTeamFilter: 'rookieTeamFilter', RookieCollegeFilter: 'rookieCollegeFilter', RookieSlotFilter: 'rookieSlotFilter', FaSort: 'faSort', PpgWindow: 'ppgWindow', VisibleFaCols: 'visibleFaCols', FaColPreset: 'faColPreset', ShowFaColPicker: 'showFaColPicker' };
+    const setters = { FaPanel: 'faPanel', FaSearch: 'faSearch', FaFilter: 'faFilter', RookieOnly: 'rookieOnly', RookieTeamFilter: 'rookieTeamFilter', RookieCollegeFilter: 'rookieCollegeFilter', RookieSlotFilter: 'rookieSlotFilter', FaSort: 'faSort', PpgWindow: 'ppgWindow', VisibleFaCols: 'visibleFaCols', FaColPreset: 'faColPreset', ShowFaColPicker: 'showFaColPicker', FaPhoneLimit: 'faPhoneLimit' };
     for (const [suffix, key] of Object.entries(setters)) ctx['set' + suffix] = next => { mutations.push(key); ctx[key] = typeof next === 'function' ? next(ctx[key]) : next; };
     vm.runInContext(source.slice(source.indexOf('    const FA_COLUMNS ='), source.indexOf('    const ROOKIE_DRAFT_LOCK_STATUSES')), ctx);
     vm.runInContext('function faTierCols(cols) { return cols; }', ctx);
     // These are actual production readers, not a parallel copy of their math.
-    for (const name of ['marketStatSource','marketPpgRead','mobileMarketValues']) vm.runInContext(declaration(name), ctx);
+    for (const name of ['marketStatSource','marketPpgRead','mobileMarketValues','defaultFaSortDirection','handleFaSort']) vm.runInContext(declaration(name), ctx);
     vm.runInContext(declaration('compareMarketNumber', 'VariableDeclarator'), ctx);
+    vm.runInContext(declaration('compareMarketText', 'VariableDeclarator'), ctx);
     vm.runInContext('faColumns = { ...FA_COLUMNS };', ctx);
     const sortSource = declaration('sortedPlayers', 'VariableDeclarator');
     const controlsStart = source.indexOf('            const _faTogglePanel');
@@ -80,10 +83,13 @@ function fixture(overrides = {}) {
     assert.ok(controlsStart >= 0 && controlsEnd > controlsStart, 'Production controls boundary');
     vm.runInContext(Babel.transform('function renderControls() {\n' + source.slice(controlsStart, controlsEnd) + '\nreturn { panel: _faPanelEl, tools: _faToolsEl, toggle: _faTogglePanel };\n}', { presets: ['react'] }).code, ctx);
     vm.runInContext(declaration('_faMetricSlots', 'VariableDeclarator'), ctx);
+    vm.runInContext(Babel.transform('function renderHeader(){'+declaration('_faHeaderColumns','VariableDeclarator')+declaration('_faMarketHeader','VariableDeclarator')+';return _faMarketHeader;}',{presets:['react']}).code,ctx);
     return { ctx, mutations, captured,
         sort(key, dir = -1) { ctx.faSort = { key, dir }; return vm.runInContext('(function(){' + sortSource + ';return sortedPlayers.map(row => row.pid);})()', ctx); },
         values(pid) { return ctx.mobileMarketValues(ctx.availablePlayers.find(row => row.pid === pid)); },
         slots(pid) { ctx.testRow = ctx.availablePlayers.find(row => row.pid === pid); return vm.runInContext('_faMetricSlots(testRow)', ctx); },
+        header: () => ctx.renderHeader(),
+        resetPagination() { assert(paginationResetEffect); vm.runInContext(paginationResetEffect,ctx); },
         normalizeSort() { vm.runInContext(sortNormalizationEffect, ctx); },
         panel(name) { ctx.faPanel = name; return ctx.renderControls().panel; },
         renderControls: () => ctx.renderControls(),
@@ -94,10 +100,10 @@ function fixture(overrides = {}) {
 // must follow its visible shared metric, regardless of the legacy PPG setting.
 {
     const f = fixture();
-    assert.deepEqual(plain(f.values('a')), { proj: 2, ppg: 10, dhq: 10, age: 29, season: 2, bye: 9 });
-    assert.deepEqual(plain(f.values('z')), { proj: 0, ppg: 0, dhq: 0, age: 27, season: 0, bye: 6 });
-    assert.deepEqual(plain(f.values('n')), { proj: -1, ppg: -3, dhq: -2, age: 31, season: -3, bye: 14 });
-    assert.deepEqual(plain(f.values('missing')), { proj: null, ppg: null, dhq: null, age: null, season: null, bye: null }, 'Prior-year stats never masquerade as current season PPG');
+    assert.deepEqual(plain(f.values('a')), { proj: 2, ppg: 10, dhq: 10, age: 29, season: 2, bye: 9, matchup: 'A-' });
+    assert.deepEqual(plain(f.values('z')), { proj: 0, ppg: 0, dhq: 0, age: 27, season: 0, bye: 6, matchup: 'F' });
+    assert.deepEqual(plain(f.values('n')), { proj: -1, ppg: -3, dhq: -2, age: 31, season: -3, bye: 14, matchup: 'A+' });
+    assert.deepEqual(plain(f.values('missing')), { proj: null, ppg: null, dhq: null, age: null, season: null, bye: null, matchup: null }, 'Prior-year stats never masquerade as current season PPG');
     assert.deepEqual(plain(f.slots('a')).map(({ key, label, value }) => ({ key, label, value })), [
         { key: 'proj', label: 'PROJ', value: '2.0' }, { key: 'ppg', label: 'L5 PPG', value: '10.0' },
         { key: 'dhq', label: 'VALUE', value: '10' }, { key: 'age', label: 'AGE', value: '29' },
@@ -111,6 +117,7 @@ function fixture(overrides = {}) {
         age: [['n','a','z','b','missing'], ['b','z','a','n','missing']],
         season: [['b','a','z','n','missing'], ['n','z','a','b','missing']],
         bye: [['n','a','z','b','missing'], ['b','z','a','n','missing']],
+        matchup: [['n','a','b','z','missing'], ['z','b','a','n','missing']],
     };
     for (const [key, [descending, ascending]] of Object.entries(orders)) {
         assert.deepEqual(plain(f.sort(key, -1)), descending, key + ' descending keeps unknown last');
@@ -122,6 +129,38 @@ function fixture(overrides = {}) {
     }
     f.ctx._faPhone = false; f.ctx.ppgWindow = 'season';
     assert.deepEqual(plain(f.sort('ppg')), ['missing','b','a','z','n'], 'Desktop retains its seasonal/prior-year reader');
+}
+// Tap the real shared column header into the production sort handler. Sorting
+// preserves filtering, flips only that column, and resets the paginated slice.
+{
+    const f=fixture({faSearch:'a',faFilter:'FLEX',rookieOnly:false});
+    const tap=label=>{const header=f.header(),control=walk(header).find(node=>node.type==='button'&&text(node).startsWith(label));assert(control,'Tappable '+label+' header');control.props.onClick({stopPropagation(){}});};
+    assert.equal(walk(f.header()).filter(node=>node.type==='button').length,5,'Name and each displayed metric are tappable');
+    tap('PROJ');assert.deepEqual(plain(f.ctx.faSort),{key:'proj',dir:-1});assert.deepEqual(plain(f.sort('proj',f.ctx.faSort.dir)),['b','a','n']);
+    tap('PROJ');assert.deepEqual(plain(f.ctx.faSort),{key:'proj',dir:1});assert.deepEqual(plain(f.sort('proj',f.ctx.faSort.dir)),['n','a','b']);
+    assert.deepEqual([f.ctx.faSearch,f.ctx.faFilter,f.ctx.rookieOnly],['a','FLEX',false],'Column sorting retains the current filters');
+    tap('Player');assert.deepEqual(plain(f.ctx.faSort),{key:'name',dir:1});tap('Player');assert.deepEqual(plain(f.ctx.faSort),{key:'name',dir:-1});
+    tap('AGE');assert.deepEqual(plain(f.ctx.faSort),{key:'age',dir:1},'A newly selected age header starts youngest first');
+    f.ctx.faPhoneLimit=75;f.resetPagination();assert.equal(f.ctx.faPhoneLimit,25);assert(f.captured.at(-1).deps.includes(f.ctx.faSort),'The production pagination reset reacts to the same sort state');
+    f.ctx.metricPreference.setSelected(['bye','season','matchup']);tap('BYE');assert.deepEqual(plain(f.ctx.faSort),{key:'bye',dir:1});
+    tap('MATCH');assert.deepEqual(plain(f.ctx.faSort),{key:'matchup',dir:-1},'A new matchup sort starts with the strongest grade');
+    f.ctx.isPro=false;assert.equal(f.values('a').matchup,null);assert(f.slots('a').find(slot=>slot.key==='matchup').value==='—','The free row never reveals a matchup grade through sorting');
+    assert.deepEqual(plain(f.sort('matchup',-1)),['a','b','n'],'A gated grade cannot reorder filtered free rows');
+}
+// Display formatting must never become the sort input. Unknown names and
+// numeric data stay last in either direction, including legacy desktop reads.
+{
+    const f=fixture();f.ctx.availablePlayers[0].dhq=1200;f.ctx.availablePlayers[1].dhq=950;
+    assert.equal(f.slots('a').find(slot=>slot.key==='dhq').value,'1,200');
+    assert.deepEqual(plain(f.sort('dhq',-1)),['a','b','z','n','missing'],'The raw 1200 value sorts above 950 despite comma formatting');
+    f.ctx.availablePlayers[4].p.full_name='';assert.deepEqual(plain(f.sort('name',1)),['a','b','n','z','missing']);assert.deepEqual(plain(f.sort('name',-1)),['z','n','b','a','missing']);
+    f.ctx._faPhone=false;
+    assert.deepEqual(plain(f.sort('age',1)),['b','z','a','n','missing']);assert.deepEqual(plain(f.sort('age',-1)),['n','a','z','b','missing']);
+    Object.assign(f.ctx.availablePlayers[0].p,{height:'73',weight:'250',college:'Alpha'});Object.assign(f.ctx.availablePlayers[1].p,{height:'70',weight:'99',college:'Beta'});
+    for(const key of ['height','weight']){assert.deepEqual(plain(f.sort(key,1)),['b','a','z','n','missing']);assert.deepEqual(plain(f.sort(key,-1)),['a','b','z','n','missing']);}
+    assert.deepEqual(plain(f.sort('college',1)),['a','b','z','n','missing']);assert.deepEqual(plain(f.sort('college',-1)),['b','a','z','n','missing']);
+    const legacy=fixture({metricPreference:null});legacy.ctx._faSlotKeys=['dhq','faab','age'];
+    const legacyHeading=legacy.header();assert.equal(walk(legacyHeading).filter(node=>node.type==='button').length,3,'A suggested bid range remains a static legacy label rather than an ineffective sort button');
 }
 // History from another league or an old season must not supply a plausible L5.
 {

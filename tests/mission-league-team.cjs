@@ -20,8 +20,9 @@ let props = { team: { displayName:'Target Owner', roster: { roster_id: 2, owner_
 function render() { const tree = context.LeagueTeamMissionSummary(props); if (effect) { const fn = effect; effect = null; cleanup = fn(); } return tree; }
 // Team rows use the same prior-season projection baseline and season-keyed NFL schedule as Roster/Game Day.
 let projectedContext, byeContext;
-root.WR = { PlayerMetrics: { slots: (selected, values) => values } };
-root.App.WeeklyProj = { currentWeek: () => 1, projectPlayer: (pid, options) => { projectedContext = { pid, options }; return { available: true, points: { median: options.priorData[pid] ? 14.6 : 0 } }; }, formStats: () => ({ rollingPPG: 0 }) };
+vm.runInContext(fs.readFileSync('js/shared/player-metrics.js','utf8'),context);
+root.WR.PlayerMetrics = { ...root.WR.PlayerMetrics, slots: (selected, values) => values };
+root.App.WeeklyProj = { currentWeek: () => 1, projectPlayer: (pid, options) => { projectedContext = { pid, options }; return { available: true, matchupGrade:'A', points: { median: options.priorData[pid] ? 14.6 : 0 } }; }, formStats: () => ({ rollingPPG: 0 }) };
 root.App.NFLByes = { seasonFor: league => Number(league.season), weekForPlayer: (player, season) => { byeContext = { player, season }; return season === 2026 ? 9 : 6; } };
 const metricPlayer = { pid: 'p1', p: { team: 'GB', age: 25, bye_week: 6 }, dhq: 4000, ppg: 12.3 };
 const metricOptions = { preference: { selected: ['proj', 'ppg', 'bye'] }, currentLeague: props.league, playersData: { p1: metricPlayer.p }, statsData: {}, stats2025Data: props.priorData };
@@ -35,6 +36,24 @@ metrics = context.leagueTeamPlayerMetrics(metricPlayer, { ...metricOptions, curr
 assert.equal(metrics.bye, 6, 'Historical team rows use that season schedule');
 root.App.NFLByes.weekForPlayer = () => null;
 assert.equal(context.leagueTeamPlayerMetrics(metricPlayer, metricOptions).bye, null, 'Unavailable schedule does not fall back to stale player metadata');
+assert.equal(context.leagueTeamPlayerMetricValues(metricPlayer, metricOptions).matchup, null, 'Free team profiles cannot expose matchup grades through sorting');
+assert.equal(context.leagueTeamPlayerMetricValues(metricPlayer, { ...metricOptions, isPro:true }).matchup, 'A');
+const comparisonPlayers = ['positive','zero','negative','missing'].map(pid => ({ pid, p:{ full_name:pid }, pos:'WR', acq:{ method:'FA', date:'' } }));
+const comparisonValues = new Map([
+  ['positive',{ proj:10, ppg:12, dhq:1000, age:30, bye:10, matchup:'A+' }],
+  ['zero',{ proj:0, ppg:0, dhq:999, age:21, bye:5, matchup:'C' }],
+  ['negative',{ proj:-2.5, ppg:-1, dhq:0, age:25, bye:1, matchup:'F' }],
+  ['missing',{ proj:null, ppg:null, dhq:null, age:null, bye:null, matchup:null }],
+]);
+const sortedIds = (key,dir) => Array.from(context.leagueTeamSortPlayers(comparisonPlayers,{ key,dir },comparisonValues), player => player.pid);
+assert.deepEqual(sortedIds('proj',-1),['positive','zero','negative','missing']);
+assert.deepEqual(sortedIds('proj',1),['negative','zero','positive','missing'],'Unknown forecasts remain last when a team-profile header reverses');
+assert.deepEqual(sortedIds('dhq',-1),['positive','zero','negative','missing'],'Value sorting uses raw numbers rather than formatted 1,000/999 strings');
+assert.deepEqual(sortedIds('age',1),['zero','negative','positive','missing']);
+assert.deepEqual(sortedIds('bye',1),['negative','zero','positive','missing']);
+assert.deepEqual(sortedIds('matchup',-1),['positive','zero','negative','missing']);
+assert.deepEqual(sortedIds('matchup',1),['negative','zero','positive','missing']);
+assert.deepEqual(comparisonPlayers.map(player => player.pid),['positive','zero','negative','missing'],'Sorting is display-only and leaves the provider roster order intact');
 (async () => {
   let tree = render(); assert(text(tree).includes('0–1–1'), 'Zero wins and ties are preserved'); assert(text(tree).includes('Roster health0'), 'Zero health is not replaced by a default');
   assert.equal(forecasts[0].stats2025Data, props.priorData, 'Real projection receives prior season data');

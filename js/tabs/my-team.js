@@ -273,14 +273,19 @@ function MyTeamTab({
         if (gd !== 0) return gd;
       }
       if (key === 'dhq') {
-        if (!showRosterRosPoints) return (b.dhq - a.dhq) * dir;
-        const av = rosterRosPoints(a.pid), bv = rosterRosPoints(b.pid);
+        const av = showRosterRosPoints ? rosterRosPoints(a.pid) : Number.isFinite(a.dhq) ? a.dhq : null;
+        const bv = showRosterRosPoints ? rosterRosPoints(b.pid) : Number.isFinite(b.dhq) ? b.dhq : null;
         if (av == null) return bv == null ? 0 : 1;
         if (bv == null) return -1;
         return (bv - av) * dir;
       }
-      if (key === 'age') return ((a.age||99) - (b.age||99)) * dir;
-      if (key === 'listproj' || key === 'l5ppg' || key === 'seasonppg' || key === 'bye') {
+      if (key === 'age') {
+        const av = Number.isFinite(a.age) ? a.age : null, bv = Number.isFinite(b.age) ? b.age : null;
+        if (av == null) return bv == null ? 0 : 1;
+        if (bv == null) return -1;
+        return (av - bv) * dir;
+      }
+      if (key === 'listproj' || key === 'l5ppg' || key === 'seasonppg' || key === 'bye' || key === 'listmatchup') {
         // These list-only keys read the exact metrics shown on the phone.
         // Unavailable observations stay last in either direction; zero and
         // negative PPG never inherit an unrelated season or table window.
@@ -288,6 +293,7 @@ function MyTeamTab({
           ? (projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null)
           : key === 'bye'
           ? window.App?.NFLByes?.weekForPlayer?.(r.p, byeSeason)
+          : key === 'listmatchup' ? (isPro ? window.WR?.PlayerMetrics?.gradeValue?.(projFor(r.pid)?.matchupGrade) : null)
           : key === 'seasonppg' ? (r.curGP > 0 ? r.curPPG : null)
           : window.App?.WeeklyProj?.formStats?.(r.pid, 5)?.rollingPPG;
         const av = value(a), bv = value(b);
@@ -858,7 +864,7 @@ function MyTeamTab({
   // sorting high-to-low — DHQ read "^" with your best player on top.
   // Keep in sync with the comparator in the rows memo above.
   const DESC_FIRST_SORTS = new Set([
-    'dhq', 'ppg', 'l5ppg', 'seasonppg', 'listproj', 'proj', 'hi', 'lo', 'prev', 'trend', 'gp', 'durability',
+    'dhq', 'ppg', 'l5ppg', 'seasonppg', 'listproj', 'listmatchup', 'proj', 'hi', 'lo', 'prev', 'trend', 'gp', 'durability',
     'peak', 'action', 'yrsExp', 'starterSzn', 'height', 'weight', 'sos',
   ]);
   const sortGlyph = React.useCallback((key) => {
@@ -1511,9 +1517,9 @@ function MyTeamTab({
   // preferences. Offer sorts from the currently visible surface only.
   const _phoneMetricSortLabels = {
     listproj: 'Projection', l5ppg: 'Last 5 PPG', dhq: showRosterRosPoints ? 'ROS points' : 'Player value',
-    age: 'Age', seasonppg: 'Season PPG', bye: 'Bye week',
+    age: 'Age', seasonppg: 'Season PPG', bye: 'Bye week', listmatchup: 'Matchup grade',
   };
-  const _phoneMetricSortKeys = { proj: 'listproj', ppg: 'l5ppg', dhq: 'dhq', age: 'age', season: 'seasonppg', bye: 'bye' };
+  const _phoneMetricSortKeys = { proj: 'listproj', ppg: 'l5ppg', dhq: 'dhq', age: 'age', season: 'seasonppg', bye: 'bye', matchup: 'listmatchup' };
   const _usesMetricSorts = !!metricPreference && !phoneTableOpen;
   const _phoneSortOptions = [
     { key: 'name', label: 'Player' },
@@ -1836,6 +1842,12 @@ function MyTeamTab({
       </div>;
     }
     return <div className="wr-roster-mobile-player-list" aria-label="Roster players">
+      {metricPreference && window.WR?.PlayerMetrics?.SortHeader && <window.WR.PlayerMetrics.SortHeader groupMetrics
+        className="wr-roster-sort-header"
+        columns={window.WR.PlayerMetrics.slots(metricPreference.selected, {}).map(slot => ({ key: _phoneMetricSortKeys[slot.key], label: slot.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : slot.label, title: _phoneMetricSortLabels[_phoneMetricSortKeys[slot.key]] }))}
+        sort={{ key: rosterSort.key, dir: _phoneSortDescending ? -1 : 1 }} onSort={sortByColumn}
+        style={{ gridTemplateColumns: `minmax(95px,1fr) repeat(${metricPreference.selected.length},minmax(0,${1.35 / metricPreference.selected.length}fr))` }}
+      />}
       {groups.map(g => <div key={g.key} className="wr-roster-mobile-player-group">
         {g.label && <div className="wr-roster-mobile-group-heading"><strong>{g.label}</strong><span>{g.rows.length}</span></div>}
         <div className="wr-roster-mobile-player-rows">{g.rows}</div>
@@ -1861,11 +1873,11 @@ function MyTeamTab({
         <div ref={boardScrollRef} style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
           <div style={{ minWidth: tableMinWidth + 'px' }}>
             {/* Header row */}
-            <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
-              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
+            <div style={{ display: 'flex', height: _isPhone ? '44px' : '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
+              <button type="button" aria-label="Sort by player name" aria-pressed={rosterSort.key === 'name'} title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', border:0, fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
                 onClick={() => sortByColumn('name')}>
                 Player{sortGlyph('name')}
-              </div>
+              </button>
               <div style={{ flex: 1, display: 'flex' }}>
                 {rosterTableCols.map(colKey => {
                   const col = ROSTER_COLUMNS[colKey];
@@ -1873,10 +1885,10 @@ function MyTeamTab({
                   const isSorted = rosterSort.key === colKey;
                   const isGroupStart = visibleColGroupStarts.has(colKey);
                   return (
-                    <div key={colKey} title={col.label} onClick={() => sortByColumn(colKey)}
-                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
+                    <button type="button" key={colKey} aria-label={'Sort by ' + col.label} aria-pressed={isSorted} title={col.label} onClick={() => sortByColumn(colKey)}
+                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border:0, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
                       <span>{col.shortLabel || col.label}{sortGlyph(colKey)}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

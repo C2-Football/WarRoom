@@ -741,21 +741,38 @@ const ALL_PLAYERS_COLUMNS = [
 // report-grade columns and users can toggle the extras (YOE, Peak bar) from the picker.
 const ALL_PLAYERS_DEFAULT_VISIBLE = ['name', 'pos', 'nflTeam', 'age', 'dhq', 'ppg', 'peakYrs', 'tier', 'owner', 'acq'];
 
-function leagueTeamPlayerMetrics(player, { preference, currentLeague, playersData, statsData, stats2025Data }) {
-  let projection = null;
+function leagueTeamPlayerMetricValues(player, { currentLeague, playersData, statsData, stats2025Data, isPro = false }) {
+  let projection = null, matchup = null;
   const App = window.App;
   if (App?.WeeklyProj?.projectPlayer) {
     try {
       const result = App.WeeklyProj.projectPlayer(player.pid, { playersData, statsData, priorData: stats2025Data || {}, scoring: currentLeague?.scoring_settings || {}, week: App.WeeklyProj.currentWeek?.() || window.S?.currentWeek || 1 });
       if (result?.available !== false && Number.isFinite(result?.points?.median)) projection = result.points.median;
+      if (isPro && result?.available !== false) matchup = result?.matchupGrade ?? null;
     } catch (_) { /* unavailable projection stays empty */ }
   }
-  return window.WR.PlayerMetrics.slots(preference.selected, {
+  return {
     proj: projection,
     ppg: App?.WeeklyProj?.formStats?.(player.pid, 5)?.rollingPPG ?? App?.computeRollingPPG?.(player.pid, 5),
     bye: App?.NFLByes?.weekForPlayer?.(player.p, App?.NFLByes?.seasonFor?.(currentLeague)),
-    dhq: player.dhq, age: player.p.age, season: statsData?.[player.pid]?.gp > 0 ? player.ppg : null,
-  });
+    dhq: player.dhq, age: player.p.age, season: statsData?.[player.pid]?.gp > 0 ? player.ppg : null, matchup,
+  };
+}
+
+function leagueTeamPlayerMetrics(player, options) {
+  return window.WR.PlayerMetrics.slots(options.preference.selected, options.values || leagueTeamPlayerMetricValues(player, options));
+}
+
+function leagueTeamSortPlayers(players, sort, metricValues) {
+  const compare = window.WR?.PlayerMetrics?.compareValues;
+  if (!compare) return players.slice().sort((a, b) => (b.dhq ?? -Infinity) - (a.dhq ?? -Infinity));
+  const value = player => sort.key === 'name' ? player.p.full_name || `${player.p.first_name || ''} ${player.p.last_name || ''}`.trim()
+    : sort.key === 'pos' ? leagueMapPosLabel(player.pos)
+    : sort.key === 'acquired' ? player.acq?.method
+    : sort.key === 'tableppg' ? player.ppg
+    : metricValues.get(player.pid)?.[sort.key];
+  const type = sort.key === 'matchup' ? 'grade' : ['name', 'pos', 'acquired'].includes(sort.key) ? 'text' : 'number';
+  return players.slice().sort((a, b) => compare(value(a), value(b), sort.dir, { type }) || String(a.pid).localeCompare(String(b.pid)));
 }
 
 // Team context uses the same saved/observed scouting read as Trade Center.
@@ -869,6 +886,7 @@ function LeagueMapTab({
   const _lmVp = window.WR.useViewport();
   const _phone = !!_lmVp.isPhone && !!(window.WR && window.WR.AssetRow && window.WR.CardList);
   const teamMetricPreference = window.WR?.PlayerMetrics?.useMetrics(sleeperUserId, currentLeague?.league_id || currentLeague?.id);
+  const [teamRosterSortState, setTeamRosterSortState] = React.useState(null);
   // Shared filter control — ReportSubView binds its own; this is the copy for
   // the asset ledgers (Draft Picks year/owner filters).
   const WrSelect = window.WR && window.WR.Select;
@@ -2392,21 +2410,29 @@ function LeagueMapTab({
   function renderTeamRoster(team) {
     const roster = team.roster;
     if (!roster) return null;
-    const players = (roster.players || []).map(pid => {
+    const playerRows = (roster.players || []).map(pid => {
       const p = playersData[pid];
       if (!p) return null;
       const pos = normPos(p.position) || p.position;
-      const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0));
+      const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] ?? null));
       const acq = getAcquisitionInfo(pid, roster.roster_id);
       const st = statsData[pid] || {};
-      const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
+      const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : null;
       const posColors = window.App.POS_COLORS;
       const isStarter = (roster.starters || []).includes(pid);
       return { pid, p, pos, dhq, acq, ppg, isStarter, posCol: posColors[pos] || 'var(--silver)' };
-    }).filter(Boolean).sort((a,b) => b.dhq - a.dhq);
+    }).filter(Boolean);
 
     const assessment = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(roster.roster_id) : null;
-    const metricSlots = player => leagueTeamPlayerMetrics(player, { preference: teamMetricPreference, currentLeague, playersData, statsData, stats2025Data });
+    const metricValues = new Map(playerRows.map(player => [player.pid, _phone && teamMetricPreference ? leagueTeamPlayerMetricValues(player, { currentLeague, playersData, statsData, stats2025Data, isPro }) : { dhq: player.dhq, age: player.p.age }]));
+    const teamSortScope = JSON.stringify([(window.App?.OD || window.OD)?.getCurrentUserId?.() || sleeperUserId || 'local', String(currentLeague?.league_id || currentLeague?.id || ''), String(currentLeague?.season || ''), String(roster.roster_id)]);
+    const teamSortKeys = ['name', ...(_phone && teamMetricPreference ? teamMetricPreference.selected : ['pos', 'age', 'dhq', 'tableppg', 'acquired'])];
+    const defaultSortKey = teamSortKeys.includes('dhq') ? 'dhq' : teamSortKeys.find(key => key !== 'name') || 'name';
+    const teamSortDirection = key => ['name', 'pos', 'age', 'bye', 'acquired'].includes(key) ? 1 : -1;
+    const teamRosterSort = teamRosterSortState?.scope === teamSortScope && teamSortKeys.includes(teamRosterSortState.sort.key) ? teamRosterSortState.sort : { key: defaultSortKey, dir: teamSortDirection(defaultSortKey) };
+    const sortTeamRoster = key => setTeamRosterSortState(previous => ({ scope: teamSortScope, sort: previous?.scope === teamSortScope && previous.sort.key === key ? { key, dir: previous.sort.dir * -1 } : { key, dir: teamRosterSort.key === key ? teamRosterSort.dir * -1 : teamSortDirection(key) } }));
+    const players = leagueTeamSortPlayers(playerRows, teamRosterSort, metricValues);
+    const metricSlots = player => leagueTeamPlayerMetrics(player, { preference: teamMetricPreference, values: metricValues.get(player.pid) });
     return (
       <div id="wr-export-team-roster" className={_phone ? 'la-mobile mc-team-profile' : undefined} style={{ padding: '16px' }}>
         <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); if (!embedSubView) setActiveTab?.('central'); }} style={{ background: 'none', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem', marginBottom: '12px' }}>Back to League</button>
@@ -2563,7 +2589,7 @@ function LeagueMapTab({
 
         {_phone && leagueViewMode === 'roster' && teamMetricPreference && <div>
           {React.createElement(window.WR.PlayerMetrics.Picker, { preference: teamMetricPreference })}
-          <div className="mc-team-assets"><div className="mc-team-asset-row mc-table-head" style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} aria-hidden="true"><span>Player</span>{window.WR.PlayerMetrics.slots(teamMetricPreference.selected, {}).map(slot => <span key={slot.key}>{slot.label}</span>)}</div>{players.map(player => <button type="button" className="mc-team-asset-row" key={player.pid} style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} onClick={() => openLeagueMapPlayerCard(player.pid, { context: 'league_team', rosterId: roster.roster_id })}><span><strong>{player.p.full_name || `${player.p.first_name || ''} ${player.p.last_name || ''}`.trim()}</strong><small>{leagueMapPosLabel(player.pos)} · {player.p.team || 'FA'}{player.isStarter ? ' · Starter' : ''}</small></span>{metricSlots(player).map(slot => <span key={slot.key} title={slot.label}>{slot.value}</span>)}</button>)}</div>
+          <div className="mc-team-assets">{window.WR.PlayerMetrics.SortHeader && <window.WR.PlayerMetrics.SortHeader className="mc-team-asset-row mc-table-head" style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} columns={window.WR.PlayerMetrics.slots(teamMetricPreference.selected, {}).map(slot => ({ key: slot.key, label: slot.label, title: window.WR.PlayerMetrics.definitions.find(definition => definition.key === slot.key)?.name || slot.label }))} sort={teamRosterSort} onSort={sortTeamRoster} />}{players.map(player => <button type="button" className="mc-team-asset-row" key={player.pid} style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${teamMetricPreference.selected.length}, minmax(32px,42px))` }} onClick={() => openLeagueMapPlayerCard(player.pid, { context: 'league_team', rosterId: roster.roster_id })}><span><strong>{player.p.full_name || `${player.p.first_name || ''} ${player.p.last_name || ''}`.trim()}</strong><small>{leagueMapPosLabel(player.pos)} · {player.p.team || 'FA'}{player.isStarter ? ' · Starter' : ''}</small></span>{metricSlots(player).map(slot => <span key={slot.key} title={slot.label}>{slot.value}</span>)}</button>)}</div>
           <details className="la-disclosure"><summary>Acquisition history</summary><div className="la-disclosure-body">{players.map(player => <div className="mc-team-scout" key={player.pid}><strong>{player.p.full_name || player.p.last_name}</strong><div>{player.acq.method}{player.acq.cost ? ' · ' + player.acq.cost : ''}{player.acq.date ? ' · ' + player.acq.date : ''}</div></div>)}</div></details>
         </div>}
         {leagueViewMode === 'roster' && (!_phone || !teamMetricPreference) && (
@@ -2574,7 +2600,7 @@ function LeagueMapTab({
         <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', overflowX: _phone ? 'auto' : 'hidden' }}>
         <div style={{ minWidth: _phone ? '540px' : undefined }}>
           <div style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
-            <span></span><span></span><span>Player</span><span>Pos</span><span>Age</span><span>DHQ</span><span>PPG</span><span>Acquired</span><span>Date</span>
+            <span></span><span></span>{[{ key:'name', label:'Player', title:'Player name' }, { key:'pos', label:'Pos', title:'Position' }, { key:'age', label:'Age' }, { key:'dhq', label:'DHQ', title:'Player value' }, { key:'tableppg', label:'PPG', title:'Season points per game' }, { key:'acquired', label:'Acquired' }].map(column => window.WR?.PlayerMetrics?.SortButton ? <window.WR.PlayerMetrics.SortButton key={column.key} columnKey={column.key} label={column.label} title={column.title || column.label} sort={teamRosterSort} onSort={sortTeamRoster} /> : <span key={column.key}>{column.label}</span>)}<span title="Acquisition date or season/draft slot">Date</span>
           </div>
           <div style={{ maxHeight: '600px', overflow: 'auto' }}>
             {players.map(r => (
@@ -2590,9 +2616,9 @@ function LeagueMapTab({
                   <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.65 }}>{r.p.team || 'FA'}</div>
                 </div>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: r.posCol }}>{leagueMapPosLabel(r.pos)}</span>
-                <span style={{ color: 'var(--silver)' }}>{r.p.age || '\u2014'}</span>
-                <span style={{ fontWeight: 700, fontFamily: 'var(--font-body)', color: r.dhq >= 7000 ? 'var(--good)' : r.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : r.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
-                <span style={{ color: 'var(--silver)' }}>{r.ppg || '\u2014'}</span>
+                <span style={{ color: 'var(--silver)' }}>{r.p.age ?? '\u2014'}</span>
+                <span style={{ fontWeight: 700, fontFamily: 'var(--font-body)', color: r.dhq >= 7000 ? 'var(--good)' : r.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : r.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{Number.isFinite(r.dhq) ? r.dhq.toLocaleString() : '\u2014'}</span>
+                <span style={{ color: 'var(--silver)' }}>{r.ppg ?? '\u2014'}</span>
                 <span title={r.acq.method + (r.acq.cost ? ' · ' + r.acq.cost : '')} style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? 'var(--gold)' : r.acq.method === 'Traded' ? 'var(--warn)' : r.acq.method === 'Waiver' ? 'var(--good)' : r.acq.method === 'FA' ? 'var(--k-1abc9c, #1abc9c)' : 'var(--silver)', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.acq.method}{r.acq.cost ? ' · ' + r.acq.cost : ''}</span>
                 <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.65, display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.acq.date}</span>
               </div>

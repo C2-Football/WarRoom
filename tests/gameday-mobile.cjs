@@ -7,7 +7,7 @@ const source = babel.transform(fs.readFileSync('js/tabs/lineup.js', 'utf8'), { p
 
 // Render the real mobile branch with state/effects, so navigation and lock
 // behavior are checked alongside score provenance and absent projections.
-async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, withBasis = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, forecastsByWeek = {}, scoreRowsByWeek = {}, scoreStatus = 'ready', scoreError = null } = {}) {
+async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterView = false, noProjection = false, supported = true, stale = false, withMatchup = false, withBasis = false, withMetrics = false, pro = true, storage = new Map(), seasonData = null, initialView = 'week', forecasts = {}, forecastsByWeek = {}, scoreRowsByWeek = {}, scoreStatus = 'ready', scoreError = null } = {}) {
     const state = [], deps = [], pending = [];
     const events = {};
     const loadedForm = {};
@@ -77,6 +77,10 @@ async function fixture({ upcoming = false, matchupId = 7, width = 390, rosterVie
     ctx.window.App.LineupForecastSnapshots = { read: (league, week) => forecastsForWeek(week), capture: options => { forecastCaptures.push(options.week); return forecastsForWeek(options.week); } };
     delete ctx.window.App.StartSit;
     vm.runInContext(fs.readFileSync('js/shared/startsit-engine.js', 'utf8'), ctx);
+    if (withMetrics) {
+        ctx.window.React = React;
+        vm.runInContext(fs.readFileSync('js/shared/player-metrics.js', 'utf8'), ctx);
+    }
     if (withMatchup) {
         vm.runInContext(fs.readFileSync('js/shared/matchup.js', 'utf8'), ctx);
         ctx.window.App.Matchup.resolveOpponentRosterId = async ({ week }) => { opponentWeeks.push(week); return 2; };
@@ -494,6 +498,35 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
     const coverageText = textOf(coverage.out);
     assert.match(coverageText, /Wk 4.*Wk 8.*Wk 12/, 'all coverage weeks appear directly in chronological order');
     assert.doesNotMatch(coverageText, /Later coverage weeks|weeks to review/);
+
+    // Tap sorting changes the visible player order, never the legal slot
+    // assignments or saved plan. The eligible-player sheet sorts independently.
+    const sortable = await fixture({ upcoming: true, withMetrics: true });
+    const headerFor = (out, name) => select(out, node => String(node.props.className || '').split(' ').includes(name));
+    const headerButton = (header, label) => select(header, node => node.type === 'button' && textOf(node).trim().startsWith(label));
+    const visiblePlayers = out => all(select(out, node => node.props.className === 'gd-player-list')).filter(node => node.type === 'button' && String(node.props.className || '').split(' ').includes('gd-plan-player'));
+    const playerNames = out => visiblePlayers(out).map(node => textOf(select(node, child => child.props.className === 'gd-player-main').children[0]));
+    const beforeSortRoster = JSON.stringify(sortable.props.myRoster), beforeSortPlan = JSON.stringify([...sortable.storage]);
+    assert.deepEqual(playerNames(sortable.out), ['Zero Starter', 'Negative Starter', 'Missing Starter'], 'untouched Game Day keeps the familiar slot order');
+    headerButton(headerFor(sortable.out, 'gd-player-sort-heading'), 'PROJ').props.onClick({ stopPropagation() {} }); await sortable.render();
+    assert.deepEqual(playerNames(sortable.out), ['Zero Starter', 'Negative Starter', 'Missing Starter'], 'descending projections retain real zero above negative and unknown');
+    headerButton(headerFor(sortable.out, 'gd-player-sort-heading'), 'PROJ').props.onClick({ stopPropagation() {} }); await sortable.render();
+    assert.deepEqual(playerNames(sortable.out), ['Negative Starter', 'Zero Starter', 'Missing Starter'], 'a second tap reverses numeric order while unknown stays last');
+    headerButton(headerFor(sortable.out, 'gd-player-sort-heading'), 'Player').props.onClick({ stopPropagation() {} }); await sortable.render();
+    assert.deepEqual(playerNames(sortable.out), ['Missing Starter', 'Negative Starter', 'Zero Starter'], 'name sorting is alphabetical');
+    assert.equal(JSON.stringify(sortable.props.myRoster), beforeSortRoster);
+    assert.equal(JSON.stringify([...sortable.storage]), beforeSortPlan, 'header taps never write the local lineup plan');
+    visiblePlayers(sortable.out).find(node => textOf(node).includes('Zero Starter')).props.onClick(); await sortable.render();
+    const sheet = () => select(sortable.out, node => node.props.className === 'gd-mobile-sheet');
+    headerButton(headerFor(sheet(), 'gd-picker-sort-heading'), 'PROJ').props.onClick({ stopPropagation() {} }); await sortable.render();
+    const eligibleNames = all(sheet()).filter(node => node.type === 'button' && String(node.props.className || '').split(' ').includes('gd-plan-player')).map(node => textOf(select(node, child => child.props.className === 'gd-player-main').children[0]));
+    assert.deepEqual(eligibleNames, ['Bench Option', 'Zero Starter'], 'eligible players sort by the projection shown in the picker');
+    assert.deepEqual(playerNames(sortable.out), ['Missing Starter', 'Negative Starter', 'Zero Starter'], 'picker sort does not replace the main list sort');
+    assert.equal(JSON.stringify([...sortable.storage]), beforeSortPlan, 'picker header taps are also display-only');
+    select(sheet(), node => node.type === 'button' && textOf(node).includes('Bench Option')).props.onClick(); await sortable.render();
+    const plannedQuarterback = visiblePlayers(sortable.out).find(node => textOf(node).includes('Bench Option'));
+    assert.match(textOf(plannedQuarterback), /QB.*Bench Option/, 'an action from a sorted row retains its original QB slot instead of its display index');
+    assert.match(textOf(visiblePlayers(sortable.out).find(node => textOf(node).includes('Missing Starter'))), /WR.*Missing Starter/, 'the unrelated starting slot remains intact');
 
     console.log('PASS roster and Game Day: live locks, saved plans, submitted actual/projection review, archived read-only matchup weeks, score-source and stale-grade boundaries, PPG and responsive routes');
 })().catch(error => { console.error(error); process.exitCode = 1; });
