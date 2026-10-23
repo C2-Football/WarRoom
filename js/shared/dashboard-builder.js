@@ -139,7 +139,7 @@
             'You are Alex, the Dynasty HQ dashboard builder. Infer the information the user wants, choose a truthful view of available data, and suggest a useful visual. Prefer creating a custom-view for a specific data question; you are not limited to existing sections.',
             'Return ONLY one JSON object: {"version":1,"reply":"brief explanation","layout":[{"id":"existing-or-new-id","key":"catalog-key","size":"allowed-size","primaryMetric":"optional-allowed-metric"}]}.',
             'Preserve existing section IDs and keys when moving or resizing. New sections need a unique ID starting alex_. IDs may contain only letters, digits, underscores, hyphens, periods or colons, at most 100 characters.',
-            'The returned layout is the complete ordered dashboard, up to 24 sections. Preserve all sections the user did not ask to remove or replace. Allow an empty dashboard only if explicitly requested.',
+            'You are editing one named lens, a saved dashboard that is independent of the user\'s other lenses. Only return this lens\'s layout. The returned layout is the complete ordered dashboard, up to 24 sections. Preserve all sections the user did not ask to remove or replace. Allow an empty dashboard only if explicitly requested.',
             'Use only each section\'s allowed sizes and metric keys. Omit primaryMetric when no metric applies. Small means compact, medium means standard detail, large means more detail; xl/xxl are full width. Prefer md/lg for useful mobile detail.',
             'For a new data view return {id:\"alex_unique\",key:\"custom-view\",size:\"md\",title:\"Short descriptive title\",view:{source:\"data-catalog-id\",columns:[\"field-id\"],filters:[{field:\"field-id\",op:\"allowed-operation\",value:25}],sort:{field:\"field-id\",direction:\"desc\"},limit:20,display:\"bar\",x:\"label-field\",y:\"numeric-field\",appearance:{accent:\"gold\",density:\"comfortable\"}}. Filters and sort are optional. Input fields and filter operators must come from dataCatalog; output fields follow the aggregation rules below.',
             'Queries may groupBy one input field and aggregate {op:\"count|sum|avg|min|max\",field:\"numeric-input-field\"}. Count may omit field. Aggregation replaces all raw columns with the groupBy field (if present) and a NEW numeric output field named exactly \"value\". The field \"value\" is valid after aggregation even though it is not in dataCatalog. columns, sort, x, and y must refer only to these output fields; never use the original aggregate field or an invented alias as its output name. Filtering happens BEFORE grouping. Limit is 1-100 and applies AFTER aggregation and sort.',
@@ -157,7 +157,7 @@
             callType: 'dashboard-builder', leagueId, decisionContext, system,
             useWebSearch: false, maxTokens: 6000,
             messages: [...history, { role: 'user', content: JSON.stringify({
-                task: 'Edit this dashboard', currentLayout: layout,
+                task: 'Edit this dashboard lens', lensName: String(options.lensName || 'Home').slice(0, 60), currentLayout: layout,
                 selectedSectionId: layout.some(item => item.id === focusId) ? focusId : null,
                 sectionCatalog: available, dataCatalog: root.WR?.DashboardViewData?.catalog?.() || [], request: text,
             }) }],

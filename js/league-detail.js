@@ -1048,12 +1048,6 @@
             { id: 'dw_calendar', key: 'league-calendar', size: 'md' },
             { id: 'dw_team', key: 'roster-pulse', size: 'md', primaryMetric: 'health-score' },
         ];
-        // Seasonal formats keep a curated layout and their mock-draft entry point.
-        const REDRAFT_FIXED_WIDGETS = [
-            ...DEFAULT_WIDGETS,
-            { id: 'rfw5', key: 'lineup-check', size: 'md' },
-            { id: 'rfw7', key: 'analyst-mock', size: 'sm' },
-        ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
             if (!stored || !Array.isArray(stored)) return DEFAULT_WIDGETS;
@@ -1116,6 +1110,7 @@
                 catch (error) { window.wrLog?.('dashboard.saved-layout', error); }
             }
             const saved = LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope));
+            if (!Array.isArray(saved) || !saved.length) return [];
             const migrated = LeagueStorage.get(leagueWidgetLayout.marker(widgetScope), false);
             if (migrated && Array.isArray(saved) && !saved.length) return [];
             const stored = window.WR.LeagueWorkspaces.upgradeStarter(migrateKpisToWidgets(saved), DEFAULT_WIDGETS, leagueWidgetLayout.defaults());
@@ -1128,34 +1123,8 @@
             setSelectedWidgets(loadWidgetLayout());
             setWidgetLayoutScope(widgetAccountScope);
         }, [widgetAccountScope, widgetLayoutScope]);
-        useEffect(() => {
-            if (widgetLayoutScope !== widgetAccountScope) return;
-            // Builder saves are account-scoped and authoritative. Do not copy
-            // a new account's dashboard into the old shared league preference.
-            if (window.WR.DashboardBuilder.readSaved(widgetAccountScope)) return;
-            const key = LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope);
-            LeagueStorage.set(key, selectedWidgets);
-            // Mark only after the new layout was saved. Removing a card later
-            // remains a user choice, including across reloads and league switches.
-            if (JSON.stringify(LeagueStorage.get(key)) === JSON.stringify(selectedWidgets)) {
-                LeagueStorage.set(leagueWidgetLayout.marker(widgetScope), true);
-            }
-        }, [selectedWidgets, widgetScope, widgetAccountScope, widgetLayoutScope]);
-        // Redraft + Chopped Home is fixed (owner ask) — force the curated
-        // layout the moment the league's format resolves to either, overwriting
-        // any saved custom layout (every affected user resets to the same fixed
-        // set; dashboard.js hides the customize UI so it can't drift again).
-        // leagueSkin isn't synchronously known on first mount, so this can't
-        // live in the useState initializer above — it corrects itself once
-        // leagueSkin.type resolves.
-        useEffect(() => {
-            if (leagueSkin?.type !== 'redraft' && leagueSkin?.type !== 'chopped') return;
-            setSelectedWidgets(prev =>
-                (prev.length === REDRAFT_FIXED_WIDGETS.length && prev.every((w, i) => w.key === REDRAFT_FIXED_WIDGETS[i].key))
-                    ? prev
-                    : REDRAFT_FIXED_WIDGETS
-            );
-        }, [leagueSkin?.type, widgetScope]);
+        // Legacy layouts are read only for the one-time lens migration.
+        // Lens changes are account-scoped and never rewrite shared preferences.
 
         // Home summarizes the owner's decisions; League contains the full competition view.
         // Old tab identifiers are resolved without losing their selected report.
@@ -2670,10 +2639,8 @@
         // this render, so the two surfaces can never drift.
         const navItems = buildLeagueNavItems(workspaceOptions);
 
-        // One builder for the widget grid so the standalone Home tab (dynasty /
-        // keeper) and the merged Command Center's KPIs tab (redraft / chopped)
-        // can never drift apart — the only difference is which widget list they
-        // are handed.
+        // The lens workspace is the Home destination for every league format
+        // and viewport. Existing layouts are passed only as migration input.
         const dashboardEl = (widgets) => (
             <DashboardPanel key={widgetAccountScope}
                 selectedWidgets={widgetLayoutScope === widgetAccountScope ? widgets : loadWidgetLayout()}
@@ -2710,7 +2677,6 @@
             setLeagueViewMode('roster');
             setActiveTab('league-team');
         };
-        const showLeagueOverview = alexPhone && isCurrentYear && leagueSkin?.phase === 'in_season';
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
         const leagueSkinClassName = leagueSkin?.theme?.className || (leagueSkin?.type ? 'wr-league-skin-' + leagueSkin.type : 'wr-league-skin-default');
 
@@ -3615,7 +3581,7 @@
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
                     homeMerged: false, onOpenTeam: openLeagueTeam,
-                }) : viewTab === 'wire' ? <section className="mc-wire-destination"><h2>The Wire</h2><p>Your league’s stories, records, rivalries and weekly editions.</p><button type="button" className="gd-primary" onClick={() => window.dispatchEvent(new CustomEvent('wr:wire-open'))}>Open The Wire</button></section> : showLeagueOverview ? <div className="mc-overview"><LeagueCentralTabLazy currentLeague={currentLeague} leagueSkin={leagueSkin} myRoster={myRoster} playersData={playersData} standings={standings} transactions={transactions} sleeperUserId={sleeperUserId} getOwnerName={getOwnerName} getPlayerName={getPlayerName} timeAgo={timeAgo} setActiveTab={setActiveTab} onOpenTeam={openLeagueTeam} overview={true} /></div> : dashboardEl(selectedWidgets)}
+                }) : viewTab === 'wire' ? <section className="mc-wire-destination"><h2>The Wire</h2><p>Your league’s stories, records, rivalries and weekly editions.</p><button type="button" className="gd-primary" onClick={() => window.dispatchEvent(new CustomEvent('wr:wire-open'))}>Open The Wire</button></section> : dashboardEl(selectedWidgets)}
                 </div>
                 </div>{/* end marginLeft wrapper */}
 

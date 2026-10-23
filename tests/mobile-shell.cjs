@@ -33,7 +33,7 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
 
 const closed = fixture();
 const dock = closed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip'));
-assert.deepEqual(dock.map(closed.text), ['Overview', 'Roster', 'League', 'Game Day']);
+assert.deepEqual(dock.map(closed.text), ['Lenses', 'Roster', 'League', 'Game Day']);
 assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'Roster');
 closed.events['wr:phone-menu']();
 assert.deepEqual(closed.updates, [false, true]);

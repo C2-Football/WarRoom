@@ -212,13 +212,14 @@ async function build() {
   const duatFiles = directory => fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })
     .flatMap(entry => entry.isDirectory() ? duatFiles(directory + '/' + entry.name) : entry.isFile() ? [directory + '/' + entry.name] : []);
   const duatStyles = fs.readdirSync(ROOT).filter(name => /^duat(?:-[a-z-]+)?\.css$/.test(name));
-  for (const name of [...duatStyles, ...duatFiles('images/duat'), 'data/duat/lore-catalog.json']) {
+  const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css'];
+  for (const name of [...duatStyles, ...dashboardStyles, ...duatFiles('images/duat'), 'data/duat/lore-catalog.json']) {
     assetHash.set(name, contentHash(fs.readFileSync(path.join(ROOT, name))));
   }
   const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   fs.writeFileSync(path.join(OUT_DIR, 'release.json'), JSON.stringify({
     revision, builtAt: new Date().toISOString(), environment: process.env.GITHUB_REPOSITORY || 'local-preview',
-    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat') || WORKERS.includes(name) || name === 'js/shared/reminder-unsubscribe.js')),
+    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat') || name.includes('dashboard-') || WORKERS.includes(name) || name === 'js/shared/reminder-unsubscribe.js')),
   }, null, 2) + '\n');
 
   const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;

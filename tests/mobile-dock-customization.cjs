@@ -17,14 +17,14 @@ const check=label=>nodes(out).find(n=>n.type==='label'&&text(n)===label).childre
 const chips=()=>nodes(out).filter(n=>n.props.className?.includes('wr-dock-chip'));
 render();events['wr:phone-menu']();render();button('Customize bottom menu').props.onClick();render();
 assert.equal(check('Waivers').props.disabled,true,'four is the limit');
-check('Overview').props.onChange();render();check('Waivers').props.onChange();render();
+check('Lenses').props.onChange();render();check('Waivers').props.onChange();render();
 assert.equal(chips().length,4,'four chosen destinations');
 button('Game Day').props.onClick();assert.equal(selected,'lineup');render();
 state=[];render();assert(chips().some(n=>text(n)==='Game Day'),'selection survives remount');
 events['wr:phone-menu']();render();button('Customize bottom menu').props.onClick();render();
 nodes(out).find(n=>n.props['aria-label']==='Move lineup left').props.onClick();render();
 assert.deepEqual(chips().map(text),['Roster','Game Day','League','Waivers']);
-props.workspaceOptions.accountId='b';render();assert.deepEqual(chips().map(text),['Overview','Roster','League','Game Day'],'account isolation');
+props.workspaceOptions.accountId='b';render();assert.deepEqual(chips().map(text),['Lenses','Roster','League','Game Day'],'account isolation');
 assert.deepEqual(W.dockSelection(['trades','lineup','lineup','unknown'],{showTrades:false,showGameDay:true}),['lineup']);
 assert.deepEqual(W.dockSelection([],{}),[],'Top-left menu remains usable with zero selected');
 assert.deepEqual(W.dockSelection(['fa','draft','central','stats','compare'],{}),['fa','draft','central','stats']);

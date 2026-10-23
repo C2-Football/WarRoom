@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
-// js/tabs/dashboard.js — DashboardPanel: personalized Home
-// Build with Alex composes existing sections and flexible data views.
+// js/tabs/dashboard.js — Lens workspace and live dashboard canvas
+// Build with Alex owns lens editing; legacy sections remain renderable.
 // Star-to-dashboard from any card across the app.
 // ══════════════════════════════════════════════════════════════════
 
@@ -316,109 +316,67 @@ const LEGACY_MODULE_MAP = {
     };
 })();
 
-// ── Phone widget-reorder sheet ──────────────────────────────────────
-// A dedicated "move them around" window (owner ask 2026-07-09): drag any
-// widget by its grip to reslot it. Operates on the whole selectedWidgets
-// array (sm tiles + stack, in layout order) and commits via onReorder on
-// each drop. Pointer-based so it works on iOS touch; the grip owns
-// touch-action:none so a drag reorders instead of scrolling the sheet.
-function WrDashReorder({ widgets, modules, onReorder, onClose }) {
-    const Sheet = window.WR && window.WR.Sheet;
-    const [order, setOrder] = React.useState(() => (widgets || []).slice());
-    const orderRef = React.useRef(order);
-    orderRef.current = order;
-    const listRef = React.useRef(null);
-    const dragRef = React.useRef(null); // the widget object currently dragged
-    const [dragKey, setDragKey] = React.useState(null);
-
-    if (!Sheet) return null;
-
-    const labelFor = (w) => (modules[w.key] && modules[w.key].label) || w.key || 'Widget';
-    const iconFor = (w) => (modules[w.key] && modules[w.key].icon) || '▦';
-    const keyFor = (w, i) => (w.id || w.key || 'w') + '::' + i;
-
-    function onMove(e) {
-        const dragged = dragRef.current;
-        if (!dragged || !listRef.current) return;
-        e.preventDefault();
-        const cur = orderRef.current;
-        const from = cur.indexOf(dragged);
-        if (from < 0) return;
-        const rows = Array.prototype.slice.call(listRef.current.querySelectorAll('[data-ro-row]'));
-        let target = rows.length - 1;
-        for (let k = 0; k < rows.length; k++) {
-            const r = rows[k].getBoundingClientRect();
-            if (e.clientY < r.top + r.height / 2) { target = k; break; }
+// Lenses own persistence and editing; the canvas only renders their contents.
+function legacyDashboardLensLayout(layout, catalog) {
+    const builder = window.WR.DashboardBuilder;
+    const available = new Map(catalog.map(item => [item.key, item]));
+    const source = Array.isArray(layout) ? layout : [];
+    const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_.:-]{1,100}$/.test(value);
+    const originalIds = new Set(source.filter(item => validId(item?.id)).map(item => item.id));
+    const imported = [], ids = new Set();
+    for (const [index, item] of source.entries()) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const key = available.has(item.key) ? item.key : LEGACY_MODULE_MAP[item.key];
+        const definition = available.get(key);
+        // Old preferences can contain retired modules or detail levels. Import
+        // the supported content without rewriting that recoverable archive.
+        if (!definition || imported.length >= builder.MAX_SECTIONS) continue;
+        let id = validId(item.id) ? item.id : null;
+        if (!id || ids.has(id)) {
+            const base = 'legacy_lens_' + index;
+            id = base;
+            let suffix = 1;
+            while (ids.has(id) || originalIds.has(id)) id = base + '_' + suffix++;
         }
-        if (target !== from) {
-            const next = cur.slice();
-            next.splice(from, 1);
-            next.splice(target, 0, dragged);
-            orderRef.current = next;
-            setOrder(next);
+        const size = definition.sizes.includes(item.size) ? item.size
+            : definition.sizes.includes('md') ? 'md' : definition.sizes[0];
+        const candidate = { id, key, size };
+        if (key === 'custom-view') {
+            candidate.title = item.title;
+            candidate.view = item.view;
+        } else if (item.primaryMetric != null || key !== item.key) {
+            const metric = definition.metrics.find(value => value.key === item.primaryMetric) || definition.metrics[0];
+            if (metric) candidate.primaryMetric = metric.key;
         }
+        try {
+            const normalized = builder.validateLayout([candidate], catalog)[0];
+            imported.push(normalized); ids.add(normalized.id);
+        } catch (_) { /* A malformed legacy item must not block every lens. */ }
     }
-    function endDrag() {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', endDrag);
-        window.removeEventListener('pointercancel', endDrag);
-        if (dragRef.current) {
-            dragRef.current = null;
-            setDragKey(null);
-            onReorder(orderRef.current.slice());
-        }
-    }
-    function startDrag(e, w) {
-        e.preventDefault();
-        dragRef.current = w;
-        setDragKey(keyFor(w, orderRef.current.indexOf(w)));
-        window.addEventListener('pointermove', onMove, { passive: false });
-        window.addEventListener('pointerup', endDrag);
-        window.addEventListener('pointercancel', endDrag);
-    }
-
-    return React.createElement(Sheet, { open: true, onClose: onClose, title: 'Reorder widgets' },
-        React.createElement('div', { style: { padding: '2px 12px 8px' } },
-            React.createElement('div', { style: { fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: 'var(--text-muted)', padding: '2px 4px 10px', lineHeight: 1.4 } }, 'Drag a widget by its handle to move it. Changes save as you go.'),
-            React.createElement('div', { ref: listRef, style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-                order.map((w, i) => {
-                    const k = keyFor(w, i);
-                    const isDrag = dragKey === k;
-                    return React.createElement('div', {
-                        key: k, 'data-ro-row': '',
-                        style: {
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '10px', minHeight: '52px',
-                            background: isDrag ? 'var(--surface-3, #27262E)' : 'var(--black, #121217)',
-                            border: '1px solid ' + (isDrag ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.07)'),
-                            borderRadius: 'var(--card-radius, 10px)',
-                            boxShadow: isDrag ? '0 8px 22px rgba(0,0,0,0.5)' : 'none',
-                            opacity: (dragRef.current && !isDrag) ? 0.7 : 1,
-                            touchAction: 'pan-y',
-                            transition: isDrag ? 'none' : 'background 0.12s, border-color 0.12s',
-                        },
-                    },
-                        React.createElement('span', {
-                            'aria-label': 'Drag to reorder', role: 'button',
-                            onPointerDown: (e) => startDrag(e, w),
-                            style: { flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '40px', minHeight: '44px', marginLeft: '-4px', color: 'var(--text-muted)', cursor: 'grab', touchAction: 'none', fontSize: '1.15rem' },
-                        }, '⠿'),
-                        React.createElement('span', { 'aria-hidden': 'true', style: { flex: 'none', fontSize: '1.05rem', width: '22px', textAlign: 'center' } }, iconFor(w)),
-                        React.createElement('span', { style: { flex: '1 1 auto', minWidth: 0, fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: 'var(--white, #F5F2EA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, labelFor(w)),
-                        w.size ? React.createElement('span', { style: { flex: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' } }, w.size) : null
-                    );
-                })
-            )
-        )
-    );
+    return imported;
 }
 
 function DashboardPanel(props) {
+    if (props.readOnly) return <DashboardCanvas {...props} />;
+    const builder = window.WR.DashboardBuilder;
+    const scope = builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(props.currentLeague), props.sleeperUserId);
+    const catalog = builder.catalog(WIDGET_MODULES);
+    const legacyLayout = legacyDashboardLensLayout(props.selectedWidgets, catalog);
+    return <window.WR.DashboardLenses key={scope} scope={scope} legacyLayout={legacyLayout}
+        catalog={catalog} league={props.currentLeague}
+        assertCurrentScope={() => {
+            if (builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(props.currentLeague), props.sleeperUserId) !== scope) {
+                throw new Error('Your account changed. Reload your lenses before saving.');
+            }
+        }}
+        renderCanvas={layout => <DashboardCanvas {...props} selectedWidgets={layout} />}
+        renderPreview={layout => <DashboardCanvas {...props} selectedWidgets={layout} readOnly={true} setActiveTab={() => {}} />} />;
+}
+
+function DashboardCanvas(props) {
     const {
         selectedWidgets,
-        setSelectedWidgets: persistSelectedWidgets,
         computeKpiValue,
-        KPI_OPTIONS,
         rankedTeams,
         sleeperUserId,
         setActiveTab,
@@ -440,81 +398,6 @@ function DashboardPanel(props) {
     } = props;
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
-    // Redraft + Chopped Home is fixed (owner ask) — league-detail.js force-
-    // resets selectedWidgets to REDRAFT_FIXED_WIDGETS (same list for both
-    // formats — no chopped-specific widget) whenever this is true; every
-    // customize affordance below (builder, drag, gear, remove, ▲▼) is
-    // gated off it so the layout can't drift back open. Chopped's survival
-    // read (chopBlockEl / WrChopBlock, below) renders separately above the
-    // grid regardless of this flag — it isn't a selectedWidgets entry.
-    const isFixedHome = resolvedLeagueSkin?.type === 'redraft' || resolvedLeagueSkin?.type === 'chopped';
-    const [builderOpen, setBuilderOpen] = React.useState(false);
-    const [reorderOpen, setReorderOpen] = React.useState(false); // phone widget-reorder sheet
-    const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
-    const [dragIdx, setDragIdx] = React.useState(null);
-    const builder = window.WR.DashboardBuilder;
-    const builderScope = builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(currentLeague), sleeperUserId);
-    // Capabilities are also enforced by existing renderers. Keep registered
-    // teaser cards in the catalog so a prior layout is never silently deleted.
-    const builderCatalog = builder.catalog(WIDGET_MODULES);
-    const [saveNotice, setSaveNotice] = React.useState('');
-    const [saveError, setSaveError] = React.useState('');
-    const [savedVersion, setSavedVersion] = React.useState(0);
-    const savedDashboard = React.useMemo(() => builder.readSaved(builderScope), [builderScope, savedVersion]);
-    const activeScope = React.useRef(builderScope);
-    activeScope.current = builderScope;
-    React.useEffect(() => {
-        setBuilderOpen(false); setEditingWidget(null); setReorderOpen(false);
-        setSaveNotice(''); setSaveError('');
-    }, [builderScope]);
-    function saveDashboard(next) {
-        if (readOnly || isFixedHome || activeScope.current !== builderScope ||
-            builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(currentLeague), sleeperUserId) !== builderScope) {
-            throw new Error('This league changed. Open Build with Alex again.');
-        }
-        const result = builder.save(builderScope, next, builderCatalog, selectedWidgets || []);
-        persistSelectedWidgets(result.layout);
-        setSavedVersion(v => v + 1); setSaveError(''); setSaveNotice('Dashboard saved on this device.');
-        return result.layout;
-    }
-    function setSelectedWidgets(next) {
-        try { saveDashboard(typeof next === 'function' ? next(selectedWidgets) : next); }
-        catch (error) { setSaveError(error.message); }
-    }
-    function undoDashboard() {
-        try {
-            const layout = builder.undoSaved(builderScope, builderCatalog, selectedWidgets);
-            if (!layout) return;
-            persistSelectedWidgets(layout); setSavedVersion(v => v + 1);
-            setSaveError(''); setSaveNotice('Previous dashboard restored on this device.');
-        } catch (error) { setSaveError(error.message); }
-    }
-    const builderToolbar = !isFixedHome && !readOnly && (
-        <div className="dhq-builder-entry">
-            <div><strong>Your Home, your priorities</strong><span>Tell Alex what you want to see.</span></div>
-            <div className="dhq-builder-entry-actions">
-                <button type="button" className="dhq-builder-launch" onClick={() => { setEditingWidget(null); setBuilderOpen(true); }}>Build with Alex</button>
-                {savedDashboard?.history?.length > 0 && <button type="button" onClick={undoDashboard}>Undo last save</button>}
-            </div>
-            {saveNotice && <p role="status">{saveNotice}</p>}
-            {saveError && <p role="alert">{saveError}</p>}
-        </div>
-    );
-    const builderPanel = builderOpen && !readOnly && !isFixedHome && (
-        <window.WR.DashboardBuilderPanel key={builderScope} layout={selectedWidgets || []}
-            catalog={builderCatalog} league={currentLeague} scope={builderScope}
-            focusId={editingWidget?.widget?.id || null} onSave={saveDashboard}
-            onClose={() => { setBuilderOpen(false); setEditingWidget(null); }}
-            renderPreview={draft => <DashboardPanel {...props} selectedWidgets={draft} readOnly={true}
-                setSelectedWidgets={() => {}} setActiveTab={() => {}} />}
-        />
-    );
-    // Phone/touch tier (plan Phase 2 item 11): HTML5 DnD never fires on iOS
-    // Safari, so coarse-pointer/phone gets ▲/▼ move controls in the widget
-    // shell (same selectedWidgets order the DnD writes). Fine-pointer desktop
-    // keeps drag-only — no new buttons there.
-    const dashViewport = window.WR.useViewport();
-    const touchReorder = dashViewport.isPhone || dashViewport.isCoarse;
     const [starredWidgets, setStarredWidgets] = React.useState(() => window.WrStarWidget?.getAll() || []);
     const navigateWidget = React.useCallback((target) => {
         if (readOnly) return;
@@ -534,29 +417,6 @@ function DashboardPanel(props) {
         const handler = () => setStarredWidgets(window.WrStarWidget?.getAll() || []);
         window.addEventListener('wr_starred_changed', handler);
         return () => window.removeEventListener('wr_starred_changed', handler);
-    }, []);
-
-    // ── v2 migration: map old 9-module keys → new 6-module keys ──
-    React.useEffect(() => {
-        const WrSt = window.App?.WrStorage;
-        if (readOnly || builder.readSaved(builderScope) || !WrSt) return;
-        const MIGRATED_KEY = 'wr_dashboard_migrated_v2';
-        if (WrSt.get(MIGRATED_KEY, false)) return;
-        const old = selectedWidgets || [];
-        if (!old.length) { WrSt.set(MIGRATED_KEY, true); return; }
-        // Check if ANY old key needs mapping
-        const needsMigration = old.some(w => LEGACY_MODULE_MAP[w.key]);
-        if (!needsMigration) { WrSt.set(MIGRATED_KEY, true); return; }
-        const seen = new Set();
-        const migrated = old.map(w => {
-            const newKey = LEGACY_MODULE_MAP[w.key] || w.key;
-            if (!WIDGET_MODULES[newKey]) return null; // orphaned module
-            if (seen.has(newKey)) return null;         // dedup (e.g., roster + competitive both → roster-pulse)
-            seen.add(newKey);
-            return { ...w, key: newKey, id: newKey + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,5), primaryMetric: WIDGET_MODULES[newKey].metrics?.[0]?.key || null };
-        }).filter(Boolean);
-        if (migrated.length) persistSelectedWidgets(migrated);
-        WrSt.set(MIGRATED_KEY, true);
     }, []);
 
     // ── Listen for theme changes to re-render ──
@@ -1089,185 +949,13 @@ function DashboardPanel(props) {
     // ══════════════════════════════════════════════════════════════
     // WIDGET SHELL — wrapper with gear button + drag handle
     // ══════════════════════════════════════════════════════════════
-    function WidgetShell({ widget, idx, children, compact = false }) {
-        const isTouch = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-        const [showGear, setShowGear] = React.useState(isTouch);
-        // Phone (<768) chrome (iPhone program Phase 1): the ⚙/✕ pair
-        // collapses behind ONE ⋯ toggle per card; the shipped 44px ▲/▼
-        // touch-reorder controls below stay exactly as they are. Desktop
-        // and tablet never render the phone chrome (shellPhone false).
-        const shellPhone = dashViewport.isPhone;
-        const [phoneMenu, setPhoneMenu] = React.useState(false);
+    function WidgetShell({ widget, children, compact = false }) {
         const sizeSpan = { sm: 'span 1', slim: 'span 1', narrow: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
         const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
-
-        // Touch reorder: move this widget one slot earlier/later in the same
-        // layout array the desktop drag-and-drop mutates.
-        function moveWidget(delta) {
-            const to = idx + delta;
-            if (to < 0 || to >= selectedWidgets.length) return;
-            const updated = [...selectedWidgets];
-            const [moved] = updated.splice(idx, 1);
-            updated.splice(to, 0, moved);
-            setSelectedWidgets(updated);
-        }
-        const canMoveUp = idx > 0;
-        const canMoveDown = idx < selectedWidgets.length - 1;
-
-        return (
-            <div
-                className="wr-widget"
-                data-widget-id={widget.id || ''}
-                data-widget-key={widget.key || ''}
-                data-widget-size={widget.size || ''}
-                draggable={!isFixedHome && !readOnly}
-                onDragStart={isFixedHome || readOnly ? undefined : e => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); }}
-                onDragOver={isFixedHome || readOnly ? undefined : e => e.preventDefault()}
-                onDrop={isFixedHome || readOnly ? undefined : e => {
-                    e.preventDefault();
-                    if (dragIdx === null || dragIdx === idx) return;
-                    const updated = [...selectedWidgets];
-                    const [moved] = updated.splice(dragIdx, 1);
-                    updated.splice(idx, 0, moved);
-                    setSelectedWidgets(updated);
-                    setDragIdx(null);
-                }}
-                onMouseEnter={() => setShowGear(true)}
-                onMouseLeave={() => setShowGear(false)}
-                style={{
-                    gridColumn: sizeSpan[widget.size] || 'span 1',
-                    gridRow: widget.key === 'custom-view' ? (widget.size === 'md' ? 'span 2' : 'span 3') : rowSpan[widget.size] || 'span 1',
-                    position: 'relative',
-                    opacity: dragIdx === idx ? 0.4 : 1,
-                    transition: theme.effects?.transition || 'opacity 0.15s',
-                    minHeight: compact ? '142px' : widget.size === 'sm' ? '160px' : undefined,
-                    height: compact ? '142px' : undefined,
-                }}
-            >
-                {children}
-
-                {/* Gear button */}
-                {!isFixedHome && !readOnly && !shellPhone && showGear && (
-                    <button
-                        onClick={e => { e.stopPropagation(); setEditingWidget({ widget, idx }); setBuilderOpen(true); }}
-                        title="Edit with Alex" aria-label="Edit with Alex"
-                        style={{
-                            position: 'absolute', top: '-11px', right: '-11px',
-                            width: '44px', height: '44px', padding: 0,
-                            border: 'none', background: 'transparent',
-                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 5,
-                        }}
-                    ><span style={{
-                            width: '22px', height: '22px', borderRadius: '50%',
-                            border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
-                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
-                            color: S, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'all 0.12s', pointerEvents: 'none',
-                        }}>⚙</span></button>
-                )}
-
-                {/* Remove button */}
-                {!isFixedHome && !readOnly && !shellPhone && showGear && (
-                    <button
-                        onClick={e => { e.stopPropagation(); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
-                        title="Remove widget"
-                        style={{
-                            position: 'absolute', top: '-11px', right: '33px',
-                            width: '44px', height: '44px', padding: 0,
-                            border: 'none', background: 'transparent',
-                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 5,
-                        }}
-                    ><span style={{
-                            width: '22px', height: '22px', borderRadius: '50%',
-                            border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
-                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
-                            color: S, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'all 0.12s', pointerEvents: 'none',
-                        }}>✕</span></button>
-                )}
-
-                {/* Touch reorder ▲/▼ — HTML5 drag events never fire on iOS
-                    Safari. PHONE reorders via the dedicated reorder sheet
-                    (⇅ Reorder toolbar → drag list) so the cards stay clean;
-                    these per-card arrows are the fallback for coarse-pointer
-                    TABLETS only (isCoarse && !isPhone). Fine-pointer desktop
-                    never renders them (touchReorder false). */}
-                {!isFixedHome && !readOnly && showGear && touchReorder && !shellPhone && [
-                    { glyph: '▼', delta: 1, ok: canMoveDown, right: '77px', label: 'Move widget down' },
-                    { glyph: '▲', delta: -1, ok: canMoveUp, right: '121px', label: 'Move widget up' },
-                ].map(b => (
-                    <button
-                        key={b.glyph}
-                        onClick={e => { e.stopPropagation(); if (b.ok) moveWidget(b.delta); }}
-                        disabled={!b.ok}
-                        aria-label={b.label}
-                        title={b.label}
-                        style={{
-                            position: 'absolute', top: '-11px', right: b.right,
-                            width: '44px', height: '44px', padding: 0,
-                            border: 'none', background: 'transparent',
-                            cursor: b.ok ? 'pointer' : 'default', fontSize: 'var(--text-label, 0.75rem)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 5, opacity: b.ok ? 1 : 0.35,
-                        }}
-                    ><span style={{
-                            width: '22px', height: '22px', borderRadius: '50%',
-                            border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
-                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
-                            color: S, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'all 0.12s', pointerEvents: 'none',
-                        }}>{b.glyph}</span></button>
-                ))}
-
-                {/* Phone ⋯ chrome — one toggle per card; tap opens a small
-                    inline action row (⚙ Edit / ✕ Remove) wired to the same
-                    setters the desktop gear/remove buttons use. ▲/▼ above
-                    stay as shipped. */}
-                {!isFixedHome && !readOnly && shellPhone && (
-                    <button
-                        onClick={e => { e.stopPropagation(); setPhoneMenu(v => !v); }}
-                        aria-label="Widget actions"
-                        aria-expanded={phoneMenu}
-                        title="Widget actions"
-                        style={{
-                            position: 'absolute', top: '-11px', right: '-11px',
-                            width: '44px', height: '44px', padding: 0,
-                            border: 'none', background: 'transparent',
-                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 6,
-                        }}
-                    ><span style={{
-                            width: '22px', height: '22px', borderRadius: '50%',
-                            border: '1px solid ' + (phoneMenu ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.15))'),
-                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
-                            color: phoneMenu ? G : S, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'all 0.12s', pointerEvents: 'none', fontWeight: 700, letterSpacing: '1px',
-                        }}>⋯</span></button>
-                )}
-                {!isFixedHome && !readOnly && shellPhone && phoneMenu && (
-                    <div style={{
-                        position: 'absolute', top: '26px', right: '2px', zIndex: 7,
-                        display: 'flex', gap: '4px', padding: '3px 4px',
-                        background: 'var(--surf-solid, rgba(10,10,10,0.92))', backdropFilter: 'blur(4px)',
-                        border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: 'var(--card-radius, 10px)',
-                    }}>
-                        <button
-                            onClick={e => { e.stopPropagation(); setPhoneMenu(false); setEditingWidget({ widget, idx }); setBuilderOpen(true); }}
-                            style={{ minHeight: '44px', padding: '0 12px', background: 'transparent', border: 'none', color: W, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600 }}
-                        >Edit with Alex</button>
-                        <button
-                            onClick={e => { e.stopPropagation(); setPhoneMenu(false); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
-                            style={{ minHeight: '44px', padding: '0 12px', background: 'transparent', border: 'none', color: 'var(--bad, #e74c3c)', cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600 }}
-                        >✕ Remove</button>
-                    </div>
-                )}
-            </div>
-        );
+        return <div className="wr-widget" data-widget-id={widget.id || ''} data-widget-key={widget.key || ''} data-widget-size={widget.size || ''}
+            style={{ gridColumn: sizeSpan[widget.size] || 'span 1', gridRow: widget.key === 'custom-view' ? (widget.size === 'md' ? 'span 2' : 'span 3') : rowSpan[widget.size] || 'span 1', position: 'relative', minWidth: 0, minHeight: compact ? '142px' : widget.size === 'sm' ? '160px' : undefined }}>
+            {children}
+        </div>;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -1502,245 +1190,11 @@ function DashboardPanel(props) {
         );
     }
 
-    // ══ PHONE (<768) — Phase 1 re-pour (iPhone program) ═══════════
-    // Early-return branch: everything inside `if (_phone)` below renders
-    // ONLY at the phone tier; the desktop/tablet MAIN RENDER further down
-    // stays byte-identical to the pre-phase file. Kit presence
-    // (wr-primitives.js loads earlier in the babel chain) is fixed for
-    // the page's lifetime. Layout: severity hero → ONE .wr-kpi-strip band
-    // (all sm widgets) → md+ widget cards in existing stack order →
-    // Add-widget tile at the bottom → Pinned.
-    const _kitReady = !!(window.WR && window.WR.HeroCard);
-    const _phone = dashViewport.isPhone && _kitReady;
-
-    // Lineup delta — feeds the phone sm-strip lineup-check tile (the hero
-    // rung it used to drive moved into the Intel Brief). Same engine call +
-    // MFL empty-starters guard as LineupCheckWidget (js/widgets/lineup-check.js).
-    // Pro-only at the exact wrPro boundary that already gates the
-    // lineup-check widget (pro: true / startsit_depth) — zero gate drift.
-    // Hook runs unconditionally (order safety); short-circuits off-phone.
-    const _phoneLineup = React.useMemo(() => {
-        if (!_phone || !wrPro) return null;
-        const WP = window.App && window.App.WeeklyProj;
-        if (!WP || typeof WP.optimalForRoster !== 'function' || !myRoster || !currentLeague) return null;
-        const platformStarters = (myRoster.starters || []).filter(pid => pid && String(pid) !== '0');
-        if (!platformStarters.length) return null;
-        try { return WP.optimalForRoster(myRoster, currentLeague, { playersData, statsData, priorData: prevStatsData }); }
-        catch (e) { if (window.wrLog) window.wrLog('dashboard.phoneHero', e); return null; }
-    }, [_phone, wrPro, myRoster, currentLeague, playersData, statsData, prevStatsData]);
-
-    // Home keeps personal survival odds visible; League owns the full field.
-    // The compact form leads both layouts without pushing the briefing below
-    // a table of every surviving roster.
+    // Survival remains available for elimination leagues, independent of a
+    // lens's editable sections. All formats use the same lens canvas.
     const chopBlockEl = (resolvedLeagueSkin?.features?.showElimination && window.WrChopBlock)
         ? <div style={{ padding: '14px 16px 0' }}><window.WrChopBlock active compact currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => navigateWidget('central')} /></div>
         : null;
-
-    if (_phone) {
-        // ── Hero: latest pinned insight only. The old rung-1 "lineup alert"
-        // hero moved INTO the Intel Brief (owner ask 2026-07-12,
-        // flash-brief.js lineupAlert), and the "Franchise pulse" fallback is
-        // deleted outright (same ask) — its health/rank stats already render
-        // in the KPI strip and the brief's xxl band, so the card was pure
-        // repetition. No pinned intel → no hero; the widget stack leads.
-        // _ld stays: it still feeds the sm-strip lineup-check tile below.
-        let _phoneHeroEl = null;
-        const _ld = _phoneLineup && _phoneLineup.delta;
-        if (!readOnly && starredWidgets.length > 0) {
-            const _pin = [...starredWidgets].sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
-            const _pinDest = WIDGET_DESTINATIONS[_pin.sourceModule] ? resolveWidgetDestination(_pin.sourceModule) : null;
-            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
-                kicker: _pin.sourceModule ? String(_pin.sourceModule) : 'Pinned intel',
-                headline: _pin.title || 'Pinned intel',
-                facts: _pin.content ? String(_pin.content).slice(0, 120) : 'Starred from across the app',
-                cta: _pinDest ? 'Open' : null,
-                onCta: _pinDest ? () => navigateWidget(_pinDest) : undefined,
-            });
-        }
-
-        // ── Layout split: ALL size-sm widgets merge into one KPI strip;
-        // everything else keeps its card form in existing stack order.
-        // Original selectedWidgets indices ride along so ▲▼/edit/remove in
-        // WidgetShell keep mutating the exact same layout array slots.
-        const _phoneSm = [];
-        const _phoneStack = [];
-        widgets.forEach((w, i) => { ((w && w.size === 'sm') ? _phoneSm : _phoneStack).push({ w, i }); });
-
-        // Strip-tile value ladder (no new engines): Pro-locked teaser at
-        // the exact renderWidget gate → KPI value via the same
-        // computeKpiValue feed the desktop SmallKpiCard reads (plus two
-        // existing-KPI fallbacks for metric-less modules) → the lineup
-        // delta already computed above → icon launcher to the module's
-        // existing sm clickTarget.
-        const _PHONE_SM_KPI = { 'draft-capital': 'pick-capital', 'market-radar': 'faab-efficiency' };
-        const _phoneKpiTile = (widget, idx) => {
-            if (window.App.DashboardLeagueLayout.keys.includes(widget.key) && window.LeagueProgressWidget) {
-                return <WidgetShell key={widget.id || widget.key} widget={widget} idx={idx} compact={true}>
-                    {React.createElement(window.LeagueProgressWidget, {
-                        kind: widget.key, size: 'sm', compact: true, currentLeague, myRoster, playersData, getOwnerName, navigateWidget, setActiveTab,
-                    })}
-                </WidgetShell>;
-            }
-            const mod = WIDGET_MODULES[widget.key];
-            const clickTab = resolveWidgetDestination(mod?.clickTarget?.sm || mod?.clickTarget?.md || null);
-            const tileBase = {
-                background: BK, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px', minHeight: '68px', maxWidth: '150px',
-                display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer', boxSizing: 'border-box',
-            };
-            const labelCss = { fontFamily: monoFont, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: S, opacity: 0.65, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-            const subCss = { fontFamily: dmFont, fontSize: 'var(--text-micro, 0.6875rem)', color: S, opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 'auto' };
-            const valCss = (col) => ({ fontFamily: monoFont, fontSize: '1.15rem', fontWeight: 700, color: col || W, lineHeight: 1.15, whiteSpace: 'nowrap' });
-            const tileKey = widget.id || widget.key;
-            // Tiles keep the WidgetShell data-widget-* hooks so live click
-            // QA (tests/live-click-paths.js) finds sm widgets at the phone
-            // breakpoint too.
-            const tileProps = (onTap, label) => ({
-                role: 'button', tabIndex: 0, title: label,
-                'data-widget-id': widget.id || '',
-                'data-widget-key': widget.key || '',
-                'data-widget-size': widget.size || '',
-                onClick: onTap,
-                onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap && onTap(e); } },
-                style: tileBase,
-            });
-            // 1) Pro module + free user — same condition renderWidget gates
-            //    on; tap routes to the same upsell WidgetProTeaser opens.
-            if (mod?.pro && !wrPro) {
-                const openUpsell = () => {
-                    if (window.showProLaunchPage) window.showProLaunchPage();
-                    else if (window.showUpgradePrompt) window.showUpgradePrompt(mod?.proFeature || '');
-                };
-                return (
-                    <div key={tileKey} {...tileProps(openUpsell, (mod?.label || widget.key) + ' — Pro')}>
-                        <div style={labelCss}>{mod?.label || widget.key}</div>
-                        <div style={valCss(G)}>🔒</div>
-                        <div style={subCss}>Pro</div>
-                    </div>
-                );
-            }
-            const goTab = () => { if (clickTab) navigateWidget(clickTab); };
-            // 2) KPI-backed tile — label / value / delta.
-            const kpiKey = widget.primaryMetric || mod?.metrics?.[0]?.key || _PHONE_SM_KPI[widget.key] || null;
-            if (kpiKey) {
-                const val = kv(kpiKey);
-                const metricLabel = (mod?.metrics || []).find(m => m.key === kpiKey)?.label || KPI_OPTIONS?.[kpiKey]?.label || mod?.label || kpiKey;
-                return (
-                    <div key={tileKey} {...tileProps(goTab, metricLabel)}>
-                        <div style={labelCss}>{metricLabel}</div>
-                        <div style={valCss(val.color)}>{val.value}{trendArrow(val.sparkData, val.color)}</div>
-                        <div style={subCss}>{val.sub || ' '}</div>
-                    </div>
-                );
-            }
-            // 3) Lineup check — reuse the delta already computed for the hero.
-            if (widget.key === 'lineup-check' && _ld) {
-                return (
-                    <div key={tileKey} {...tileProps(() => navigateWidget('lineup'), 'Lineup Check')}>
-                        <div style={labelCss}>Lineup Check</div>
-                        <div style={valCss(_ld.isOptimal ? 'var(--good, #2ecc71)' : G)}>{_ld.isOptimal ? 'SET' : _ld.delta.toFixed(1)}</div>
-                        <div style={subCss}>{_ld.isOptimal ? 'optimal' : 'pts on bench'}</div>
-                    </div>
-                );
-            }
-            // 4) Launcher tile — module icon, taps through to its tab.
-            return (
-                <div key={tileKey} {...tileProps(goTab, mod?.label || widget.key)}>
-                    <div style={labelCss}>{mod?.label || widget.key}</div>
-                    <div style={valCss(W)}>{mod?.icon || '▦'}</div>
-                    <div style={subCss}>Open ›</div>
-                </div>
-            );
-        };
-
-        return (
-            <React.Fragment>
-                {chopBlockEl}
-                {builderToolbar}
-
-
-                {/* Widgets carry inline grid spans — flatten them to the 1-col stack */}
-                <style>{`@media(max-width:767px){
-                    .wr-dashboard-grid>.wr-widget{ grid-column:1 / -1 !important; grid-row:auto !important; min-width:0; }
-                }`}</style>
-
-                {/* Severity hero only — the sm KPI strip (Health Score /
-                    Power Rankings tiles) is removed on phone (owner ask
-                    2026-07-12): that read lives in the Intel Brief now and the
-                    strip was clutter above the widget stack. sm widgets still
-                    render on desktop/tablet via the grid; _phoneSm is left
-                    built (unrendered) so re-enabling is a one-line change. */}
-                {_phoneHeroEl && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: BK }}>
-                        {_phoneHeroEl}
-                    </div>
-                )}
-
-                {!isFixedHome ? (
-                    <div className="wr-dashboard-grid dhq-dashboard-ordered">
-                        {widgets.map((w, i) => renderWidget(w, i))}
-                        {!widgets.length && <p className="dhq-dashboard-empty">Your Home is clear. Build with Alex to add what matters to you.</p>}
-                    </div>
-                ) : <>
-                {/* Weekly results stay visible on phones without restoring the
-                    old health / power-ranking strip. */}
-                {_phoneSm.some(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)) && (
-                    <div className="wr-league-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '10px', padding: 'var(--space-md) var(--space-md) 0' }}>
-                        {_phoneSm.filter(({ w }) => w.key === 'weekly-matchups').map(({ w, i }) => _phoneKpiTile(w, i))}
-                    </div>
-                )}
-                {/* md+ widget cards — existing stack order, original indices */}
-                <div className="wr-dashboard-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0,1fr)',
-                    gridAutoRows: 'auto',
-                    gap: 'var(--space-md)',
-                    padding: 'var(--space-md) var(--space-md) 0',
-                    background: BK,
-                    minWidth: 0,
-                    maxWidth: '100%',
-                    overflowX: 'hidden',
-                }}>
-                    {_phoneStack.map(({ w, i }, position) => (w.key === 'intel-brief' || (isFixedHome && position === 0)) ? renderWidget(w, i) : <window.WR.MobileSection key={w.id || w.key} phone={true} title={WIDGET_MODULES[w.key]?.label || w.title || 'More insights'}>{renderWidget(w, i)}</window.WR.MobileSection>)}
-                    {_phoneSm.filter(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key) && w.key !== 'weekly-matchups').map(({ w, i }) => <window.WR.MobileSection key={w.id || w.key} phone={true} title={WIDGET_MODULES[w.key]?.label || ({ 'league-standings': 'Standings', 'league-stats': 'League stats', 'league-cup': 'Cup' })[w.key]}>{_phoneKpiTile(w, i)}</window.WR.MobileSection>)}
-                </div>
-                </>}
-
-                {!isFixedHome && !readOnly && <>
-                {/* Customizable-widgets section header + reorder entry. The
-                    ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
-                    the per-card ▲▼ arrows on phone, owner ask). */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
-                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Customize Home</div>
-                    {!isFixedHome && !readOnly && widgets.length >= 2 && (
-                        <button type="button" onClick={() => setReorderOpen(true)} style={{
-                            flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', padding: '0 14px',
-                            background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                            borderRadius: 'var(--card-radius-sm, 8px)', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
-                        }}>
-                            <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>⇅</span> Reorder
-                        </button>
-                    )}
-                </div>
-
-                </>}
-                {/* Pinned / starred section */}
-                <PinnedSection />
-
-                {builderPanel}
-
-                {/* Drag-to-reorder sheet (phone). Mounts fresh each open. */}
-                {reorderOpen && !readOnly && (
-                    <WrDashReorder
-                        widgets={widgets}
-                        modules={WIDGET_MODULES}
-                        onReorder={setSelectedWidgets}
-                        onClose={() => setReorderOpen(false)}
-                    />
-                )}
-            </React.Fragment>
-        );
-    }
 
     // ══════════════════════════════════════════════════════════════
     // MAIN RENDER
@@ -1748,7 +1202,6 @@ function DashboardPanel(props) {
     return (
         <React.Fragment>
             {chopBlockEl}
-            {builderToolbar}
             <style>{`
                 @media(max-width:767px){
                     .wr-dashboard-grid{
@@ -1839,7 +1292,6 @@ function DashboardPanel(props) {
             {/* Pinned / starred section */}
             <PinnedSection />
 
-            {builderPanel}
 
         </React.Fragment>
     );

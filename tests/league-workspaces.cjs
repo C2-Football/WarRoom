@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const W = require('../js/shared/league-workspaces.js');
 test('six stable workspaces retain meaningful deep routes', () => {
-    assert.deepEqual(W.navigation().filter(w => !w.utility).map(w => w.label), ['Overview', 'Roster', 'Market', 'Draft', 'League', 'Research']);
+    assert.deepEqual(W.navigation().filter(w => !w.utility).map(w => w.label), ['Lenses', 'Roster', 'Market', 'Draft', 'League', 'Research']);
     for (const [tab, group] of Object.entries({ lineup: 'team', strategy: 'team', decisions: 'team', fa: 'market', trades: 'market', calendar: 'league', trophies: 'league', stats: 'research', compare: 'research' })) {
         assert.equal(W.workspace(tab).id, group);
         assert.ok(W.views(group).some(v => v.tab === tab));

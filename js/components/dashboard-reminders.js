@@ -23,7 +23,7 @@
         scopeRef.current = scope;
         const id = panelId.current;
         const leagueId = String(league?.league_id ?? league?.id ?? '');
-        const viewOptions = views.filter(view => view?.id).map(view => ({ id: view.id, title: String(view.title || view.view?.title || 'Dashboard view').slice(0, 120) }));
+        const viewOptions = views.filter(view => view?.id).map(view => ({ id: view.id, title: String((view.lensName ? view.lensName + ' · ' : '') + (view.title || view.view?.title || 'Dashboard view')).slice(0, 120) }));
         const selectedView = viewOptions.find(view => view.id === editing?.viewId);
         const records = api.mergeReminders(saved.reminders, service);
         const viewIsSaved = viewId => {
@@ -221,7 +221,7 @@
                             <p className="dashboard-reminders-state">{api.statusLabel(draft, service)}</p>
                             {active && <p>Next: {new Date(remote.nextRunAt).toLocaleString([], { timeZone: remote.schedule.timeZone })} · {remote.schedule.timeZone.replace(/_/g, ' ')}</p>}
                             {!viewExists && <p>This view is not in the current preview. Restore it before enabling this draft.</p>}
-                            {viewExists && !persisted && <p>Save your dashboard before enabling this reminder.</p>}
+                            {viewExists && !persisted && <p>Save your lens before enabling this reminder.</p>}
                             <div className="dashboard-reminders-actions">
                                 <button type="button" className="alex-builder-button" disabled={busy || readFailed} onClick={() => { setEditing(JSON.parse(JSON.stringify(draft))); setError(''); setMessage(''); }}>Edit draft</button>
                                 {available && <button type="button" className="alex-builder-button alex-builder-primary" disabled={busy || !persisted} onClick={() => changeDelivery(draft, 'enable')}>{active ? 'Update schedule' : 'Enable reminder'}</button>}
@@ -248,7 +248,7 @@
                         <label htmlFor={id + '-time'}>Time<input id={id + '-time'} aria-label="Time" type="time" value={editing.schedule.time} onChange={event => changeSchedule('time', event.target.value)} required /></label>
                     </div>
                     <label htmlFor={id + '-zone'}>Time zone<input id={id + '-zone'} aria-label="Time zone" list={id + '-zones'} value={editing.schedule.timeZone} placeholder="America/Chicago" autoComplete="off" onChange={event => changeSchedule('timeZone', event.target.value)} required /><datalist id={id + '-zones'}>{zones.map(zone => <option key={zone} value={zone} />)}</datalist></label>
-                    <p className="dashboard-reminders-note">This is a scheduled reminder to review your view. It does not watch scores or injuries for changes. Save the dashboard too to keep a new view.</p>
+                    <p className="dashboard-reminders-note">This is a scheduled reminder to review your view. It does not watch scores or injuries for changes. Save the lens too to keep a new view.</p>
                     <div className="dashboard-reminders-actions"><button type="submit" className="alex-builder-button alex-builder-primary" disabled={busy || readFailed}>Save reminder draft</button><button type="button" className="alex-builder-button" disabled={busy} onClick={() => setEditing(null)}>Cancel</button></div>
                 </form>}
                 {error && <p className="dashboard-reminders-error" role="alert">{error}</p>}

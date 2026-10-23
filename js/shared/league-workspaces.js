@@ -3,7 +3,7 @@
     'use strict';
     const analysisRoutes = { roster: 'team-outlook', draft: 'draft-review', trades: 'market-review', assets: 'research-players', reports: 'research-reports' };
     const routes = [
-        { tab: 'dashboard', workspace: 'home', label: 'Overview' },
+        { tab: 'dashboard', workspace: 'home', label: 'Lenses' },
         { tab: 'myteam', workspace: 'team', label: 'Roster' },
         { tab: 'lineup', workspace: 'team', label: 'Game Day', capability: 'gameDay' },
         { tab: 'team-outlook', workspace: 'team', label: 'Team outlook', analysis: 'roster', phoneHidden: true },
@@ -33,7 +33,7 @@
         { tab: 'alex', workspace: 'team', label: "GM's Office", alex: null, legacy: true, capability: 'gm' },
     ];
     const workspaces = [
-        { id: 'home', label: 'Overview', tab: 'dashboard', iconKey: 'home', description: 'Your next decisions and this week at a glance.' },
+        { id: 'home', label: 'Lenses', tab: 'dashboard', iconKey: 'home', description: 'Your saved views, built with Alex.' },
         { id: 'team', label: 'Roster', tab: 'myteam', iconKey: 'roster', description: 'Your roster, weekly lineup, and plan for the team.' },
         { id: 'market', label: 'Market', tab: 'fa', iconKey: 'fa', description: 'Find an upgrade, compare options, and plan your next move.' },
         { id: 'draft', label: 'Draft', tab: 'draft', iconKey: 'draft', description: 'Prepare your board, follow the draft, and review your picks.' },

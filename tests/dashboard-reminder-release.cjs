@@ -28,12 +28,15 @@ try {
     write('js/shared/reminder-unsubscribe.js', 'window.unsubscribeFixture = true;\n');
     write('dashboard-reminder-sw.js', fs.readFileSync(path.join(root, 'dashboard-reminder-sw.js')));
     write('data/duat/lore-catalog.json', '{}');
+    const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css'];
+    for (const style of dashboardStyles) write(style, fs.readFileSync(path.join(root, style)));
     fs.mkdirSync(path.join(fixture, 'images/duat'), { recursive: true });
 
     const built = run();
     assert.equal(built.status, 0, built.stderr || built.stdout);
     const release = JSON.parse(fs.readFileSync(path.join(fixture, 'dist-deploy/release.json'), 'utf8'));
     assert.equal(release.revision, 'fixture-release-revision');
+    for (const style of dashboardStyles) assert.equal(release.assets[style], crypto.createHash('sha256').update(fs.readFileSync(path.join(root, style))).digest('hex').slice(0, 10), 'Dashboard styles must be fingerprinted for release verification');
     assert(!fs.readFileSync(path.join(fixture, 'dist-deploy/index.html'), 'utf8').includes('dashboard-reminder-sw.js'), 'Worker is dynamically loaded, not an HTML dependency');
 
     // Reproduce Pages' raw-copy then compiled-overlay order, including a stale

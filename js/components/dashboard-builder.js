@@ -7,7 +7,7 @@
     const queryFor = view => Object.fromEntries(['source', 'columns', 'filters', 'sort', 'limit', 'groupBy', 'aggregate'].filter(key => view[key] !== undefined).map(key => [key, view[key]]));
     let nextDialogId = 0;
 
-    function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, onSave, onClose, renderPreview }) {
+    function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, lensName, otherReminderViews = [], normalizeLayout, onSave, onClose, renderPreview }) {
         const [draft, setDraft] = React.useState(() => copy(layout || []));
         const [saved, setSaved] = React.useState(() => copy(layout || []));
         const [history, setHistory] = React.useState([]);
@@ -160,19 +160,20 @@
                 const result = await Promise.race([
                     window.WR.DashboardBuilder.request({
                         prompt: attempt.prompt, messages: attempt.messages,
-                        layout: attempt.layout, catalog, league, focusId: attempt.focusId,
+                        layout: attempt.layout, catalog, league, lensName, focusId: attempt.focusId,
                     }),
                     new Promise((_, reject) => {
                         timeoutRef.current = setTimeout(() => reject(new Error('Alex is taking longer than expected. Try your request again.')), 45000);
                     }),
                 ]);
                 if (!mountedRef.current || sequence !== requestRef.current || requestScope !== scope) return;
-                if (!same(attempt.layout, result.layout)) {
+                const nextLayout = normalizeLayout ? normalizeLayout(result.layout) : result.layout;
+                if (!same(attempt.layout, nextLayout)) {
                     setHistory(previous => [...previous.slice(-19), copy(attempt.layout)]);
-                    setDraft(copy(result.layout));
+                    setDraft(copy(nextLayout));
                 }
                 setMessages([...attempt.messages, { role: 'user', content: attempt.prompt }, { role: 'assistant', content: result.reply }]);
-                setStatus(same(attempt.layout, result.layout) ? 'Alex replied. Your preview is unchanged.' : 'Preview updated. Save when you’re ready.');
+                setStatus(same(attempt.layout, nextLayout) ? 'Alex replied. Your preview is unchanged.' : 'Preview updated. Save when you’re ready.');
                 setLastAttempt(null);
             } catch (failure) {
                 if (!mountedRef.current || sequence !== requestRef.current) return;
@@ -252,7 +253,8 @@
                     if (!titleText.trim()) throw new Error('Give this view a title before saving.');
                     next = window.WR.DashboardBuilder.validateLayout(draft.map(item => item.id === selectedView.id ? { ...item, title: titleText.trim() } : item), catalog);
                 }
-                await onSave(copy(next));
+                const persisted = await onSave(copy(next));
+                if (Array.isArray(persisted)) next = window.WR.DashboardBuilder.validateLayout(persisted, catalog);
                 if (!mountedRef.current) return;
                 setDraft(copy(next)); setSaved(copy(next)); setHistory([]); setDiscardOpen(false);
                 setStatus('Saved on this device.');
@@ -281,9 +283,9 @@
                 <section className="alex-builder" role="dialog" aria-modal="true" aria-labelledby={id + '-title'} aria-describedby={id + '-description'} ref={dialogRef} tabIndex={-1}>
                     <header className="alex-builder-header">
                         <div>
-                            <span className="alex-builder-eyebrow">YOUR HOME · {leagueName}</span>
+                            <span className="alex-builder-eyebrow">{lensName ? lensName + ' · ' : 'YOUR HOME · '}{leagueName}</span>
                             <h2 id={id + '-title'}>Build with Alex</h2>
-                            <p id={id + '-description'}>Describe what matters. Preview it here, then save to Home.</p>
+                            <p id={id + '-description'}>{lensName ? 'Describe what this lens should show. Preview it here, then save.' : 'Describe what matters. Preview it here, then save to Home.'}</p>
                         </div>
                         <button type="button" className="alex-builder-button alex-builder-close" aria-label="Close builder" onClick={close} disabled={saving}>Close</button>
                     </header>
@@ -305,7 +307,7 @@
                             <div className="alex-builder-conversation" ref={logRef}>
                                 {focusedLabel && <p className="alex-builder-focus">Editing: <strong>{focusedLabel}</strong></p>}
                                 {!messages.length && <div className="alex-builder-welcome">
-                                    <h3>What should Home help you do?</h3>
+                                    <h3>{lensName ? 'What should this lens help you see?' : 'What should Home help you do?'}</h3>
                                     <p>Tell Alex what you want to understand. It can choose the data and a useful way to show it, then you can refine the preview.</p>
                                     <div className="alex-builder-suggestions">
                                         {suggestions.map(prompt => <button type="button" key={prompt} className="alex-builder-button" onClick={() => chooseSuggestion(prompt)}>{prompt}</button>)}
@@ -321,7 +323,7 @@
                             </div>
                             <form className="alex-builder-composer" onSubmit={submit}>
                                 {error && <div className="alex-builder-error" role="alert"><p>{error}</p>{lastAttempt && !busy && <button type="button" className="alex-builder-button" onClick={() => runRequest(lastAttempt, true)}>Retry request</button>}</div>}
-                                <label htmlFor={id + '-prompt'}>Describe your dashboard</label>
+                                <label htmlFor={id + '-prompt'}>{lensName ? 'Describe your lens' : 'Describe your dashboard'}</label>
                                 <textarea ref={inputRef} id={id + '-prompt'} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} rows={2} placeholder={focusedLabel ? 'Show this as a chart, or change what it compares…' : 'Compare my roster’s age by position as a bar chart…'} disabled={busy || saving} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event); }} />
                                 {busy
                                     ? <button type="button" className="alex-builder-button" onClick={cancelRequest}>Cancel request</button>
@@ -329,7 +331,7 @@
                             </form>
                         </div>
                         <div className="alex-builder-preview" id={id + '-preview'} role="tabpanel" aria-labelledby={id + '-preview-tab'}>
-                            <div className="alex-builder-preview-heading"><h3>Home preview</h3><span>{draft.length} {draft.length === 1 ? 'section' : 'sections'} · {dirty ? 'Unsaved changes' : 'Saved layout'}</span></div>
+                            <div className="alex-builder-preview-heading"><h3>{lensName ? lensName + ' preview' : 'Home preview'}</h3><span>{draft.length} {draft.length === 1 ? 'section' : 'sections'} · {dirty ? 'Unsaved changes' : 'Saved layout'}</span></div>
                             {selectedView && <details className="alex-builder-visual-options">
                                 <summary><span>Visual options<small>Choose a graphic, color, and spacing</small></span></summary>
                                 <div className="alex-builder-visual-fields">
@@ -371,16 +373,16 @@
                                     <p className="alex-builder-visual-hint alex-builder-field-wide">Changes update the preview. Ask Alex to change the data, filters, or totals.</p>
                                 </div>
                             </details>}
-                            {window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={customViews} savedViews={saved.filter(item => item.key === 'custom-view' && item.view)} />}
+                            {window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={[...customViews, ...otherReminderViews]} savedViews={[...saved.filter(item => item.key === 'custom-view' && item.view), ...otherReminderViews]} />}
                             <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{renderPreview(draft)}</div>
-                            {!draft.length && <p className="alex-builder-empty">Your Home is clear. Ask Alex to add a section.</p>}
+                            {!draft.length && <p className="alex-builder-empty">{lensName ? 'Start with a question. Alex will build a view for this lens.' : 'Your Home is clear. Ask Alex to add a section.'}</p>}
                         </div>
                     </div>
                     <footer className="alex-builder-footer">
-                        <p role="status" className="alex-builder-status">{saving ? 'Saving your dashboard…' : busy ? 'Alex is updating your preview…' : status || (dirty ? 'Your Home stays unchanged until you save.' : 'Layouts are saved on this device.')}</p>
+                        <p role="status" className="alex-builder-status">{saving ? (lensName ? 'Saving your lens…' : 'Saving your dashboard…') : busy ? 'Alex is updating your preview…' : status || (dirty ? (lensName ? 'Your lens stays unchanged until you save.' : 'Your Home stays unchanged until you save.') : 'Saved on this device for this account and league.')}</p>
                         <div className="alex-builder-footer-actions">
                             <button type="button" className="alex-builder-button" onClick={undo} disabled={(!history.length && !titleDirty) || busy || saving}>Undo</button>
-                            <button type="button" className="alex-builder-button alex-builder-primary" onClick={save} disabled={!dirty || busy || saving}>Save dashboard</button>
+                            <button type="button" className="alex-builder-button alex-builder-primary" onClick={save} disabled={!dirty || busy || saving}>{lensName ? 'Save lens' : 'Save dashboard'}</button>
                         </div>
                     </footer>
                 </section>

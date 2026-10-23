@@ -140,12 +140,10 @@ test('the proactive section is rendered above full scoreboard and outside dashbo
     assert(!overview.includes('<details'));
 });
 
-test('mobile Overview does not mount the legacy team outlook dashboard',()=>{
-    const start=detailSource.indexOf('showLeagueOverview ?');
-    const end=detailSource.indexOf(' : dashboardEl(selectedWidgets)',start);
-    assert(start>=0&&end>start);
-    const mobileOverview=detailSource.slice(start,end);
-    assert.match(mobileOverview,/LeagueCentralTabLazy/);
-    assert.doesNotMatch(mobileOverview,/mc-overview-insights|Team outlook &amp; dashboard|dashboardEl\(selectedWidgets\)/);
-    assert.match(detailSource.slice(end),/^ : dashboardEl\(selectedWidgets\)/);
+test('all viewport sizes reach the lens workspace instead of a fixed mobile overview',()=>{
+    assert.doesNotMatch(detailSource, /showLeagueOverview|REDRAFT_FIXED_WIDGETS/);
+    assert.match(detailSource, / : dashboardEl\(selectedWidgets\)/);
+    const canvasSource = fs.readFileSync('js/tabs/dashboard.js', 'utf8');
+    assert.match(canvasSource, /window\.WR\.DashboardLenses/);
+    assert.doesNotMatch(canvasSource, /Customize Home|WrDashReorder|Remove widget/);
 });

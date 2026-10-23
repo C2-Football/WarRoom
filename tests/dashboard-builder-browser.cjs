@@ -42,7 +42,9 @@ const customPlan = [
         limit: 20, display: 'table', appearance: { accent: 'gold', density: 'comfortable' },
     } },
 ];
-const equalLayout = (actual, expected, label) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected, label);
+const normalizeLayout = value => Array.isArray(value) && value.every(item => item && typeof item === 'object' && item.id)
+    ? value.map(({ id, ...item }) => item) : value;
+const equalLayout = (actual, expected, label) => assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(actual))), normalizeLayout(expected), label);
 const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS' };
 
 async function server() {
@@ -113,7 +115,7 @@ async function run() {
                 window.__builderQuotaFailure = false;
                 const original = Storage.prototype.setItem;
                 Storage.prototype.setItem = function (key, value) {
-                    if (window.__builderQuotaFailure && String(key).startsWith('wr_alex_dashboard_v1:')) throw new DOMException('Fixture storage full', 'QuotaExceededError');
+                    if (window.__builderQuotaFailure && String(key).startsWith('wr_dashboard_lenses_v1:')) throw new DOMException('Fixture storage full', 'QuotaExceededError');
                     return original.call(this, key, value);
                 };
             }, { account, username });
@@ -141,7 +143,10 @@ async function run() {
             };
             const saved = id => page.evaluate(id => {
                 const builder = window.WR.DashboardBuilder;
-                return builder.readSaved(builder.scopeFor(id, 'qa-format-owner'));
+                const store = window.WR.DashboardLensesStore, scope = builder.scopeFor(id, 'qa-format-owner');
+                if (!localStorage.getItem(store.storageKey(scope))) return null;
+                const document = store.read(scope, [], builder.catalog(WIDGET_MODULES));
+                return document.lenses.find(lens => lens.id === document.activeId);
             }, id || leagueA);
             const fit = async label => {
                 const dimensions = await dialog().evaluate(el => ({ left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: innerWidth, overflow: document.documentElement.scrollWidth > innerWidth + 1 }));
@@ -160,12 +165,12 @@ async function run() {
             const submit = async (prompt, response) => {
                 await tab('Edit');
                 plans.push(response);
-                await dialog().getByRole('textbox', { name: 'Describe your dashboard', exact: true }).fill(prompt);
+                await dialog().getByRole('textbox', { name: 'Describe your lens', exact: true }).fill(prompt);
                 await reachable(dialog().getByRole('button', { name: 'Update preview', exact: true }), 'Update preview');
                 await click(dialog().getByRole('button', { name: 'Update preview', exact: true }));
             };
             const ready = async () => {
-                await dialog().getByRole('button', { name: 'Save dashboard', exact: true }).waitFor();
+                await dialog().getByRole('button', { name: 'Save lens', exact: true }).waitFor();
                 await page.waitForFunction(() => {
                     const root = [...document.querySelectorAll('[role="dialog"]')].find(el => el.getAttribute('aria-label') === 'Build with Alex' || /Build with Alex/.test(el.textContent));
                     return root && ![...root.querySelectorAll('button')].some(button => button.textContent.trim() === 'Cancel request');
@@ -184,35 +189,35 @@ async function run() {
                 await ready();
                 const startingLayout = JSON.parse(requests[0].context.messages.at(-1).content).currentLayout;
                 await page.screenshot({ path: path.join(output, size.label + '-conversation.png'), fullPage: false });
-                assert(await dialog().getByRole('textbox', { name: 'Describe your dashboard', exact: true }).evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16, 'Input text must avoid phone focus zoom');
+                assert(await dialog().getByRole('textbox', { name: 'Describe your lens', exact: true }).evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16, 'Input text must avoid phone focus zoom');
                 assert.equal(await saved(), null, 'A preview must not persist before Save');
                 equalLayout(await previewKeys(), initialPlan.map(item => item.key), 'Preview renders real dashboard components in requested order');
                 await fit('Generated preview');
                 await page.screenshot({ path: path.join(output, size.label + '-preview.png'), fullPage: false });
-                await reachable(dialog().getByRole('button', { name: 'Save dashboard', exact: true }), 'Save dashboard');
+                await reachable(dialog().getByRole('button', { name: 'Save lens', exact: true }), 'Save dashboard');
                 if (!size.touch) {
-                    await dialog().getByRole('button', { name: 'Save dashboard', exact: true }).focus();
+                    await dialog().getByRole('button', { name: 'Save lens', exact: true }).focus();
                     await page.keyboard.press('Tab');
                     assert.equal(await dialog().getByRole('button', { name: 'Close builder', exact: true }).evaluate(el => document.activeElement === el), true, 'Tab wraps to the first dialog control');
                     await page.keyboard.press('Shift+Tab');
-                    assert.equal(await dialog().getByRole('button', { name: 'Save dashboard', exact: true }).evaluate(el => document.activeElement === el), true, 'Shift+Tab wraps to the last dialog control');
+                    assert.equal(await dialog().getByRole('button', { name: 'Save lens', exact: true }).evaluate(el => document.activeElement === el), true, 'Shift+Tab wraps to the last dialog control');
                 }
                 if (size.label === 'phone') {
                     await page.setViewportSize({ width: 390, height: 360 });
                     await tab('Edit');
                     await fit('Reduced-height phone builder');
-                    await reachable(dialog().getByRole('textbox', { name: 'Describe your dashboard', exact: true }), 'Reduced-height composer');
-                    await reachable(dialog().getByRole('button', { name: 'Save dashboard', exact: true }), 'Reduced-height Save');
+                    await reachable(dialog().getByRole('textbox', { name: 'Describe your lens', exact: true }), 'Reduced-height composer');
+                    await reachable(dialog().getByRole('button', { name: 'Save lens', exact: true }), 'Reduced-height Save');
                     await page.screenshot({ path: path.join(output, 'phone-reduced-height.png') });
                     await page.setViewportSize({ width: size.width, height: size.height });
                 }
                 await page.evaluate(() => { window.__builderQuotaFailure = true; });
-                await click(dialog().getByRole('button', { name: 'Save dashboard', exact: true }));
+                await click(dialog().getByRole('button', { name: 'Save lens', exact: true }));
                 await dialog().getByRole('alert').waitFor();
                 assert.equal(await saved(), null, 'Storage failure must not report a successful save');
                 equalLayout(await previewKeys(), initialPlan.map(item => item.key), 'Storage failure retains the full preview');
                 await page.evaluate(() => { window.__builderQuotaFailure = false; });
-                await click(dialog().getByRole('button', { name: 'Save dashboard', exact: true }));
+                await click(dialog().getByRole('button', { name: 'Save lens', exact: true }));
                 await dialog().getByText('Saved on this device.', { exact: true }).waitFor();
                 equalLayout((await saved()).layout, initialPlan, 'Save persists the validated dashboard');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
@@ -266,6 +271,7 @@ async function run() {
                 await load(leagueA);
                 equalLayout((await saved()).layout, initialPlan, 'Returning to the first league restores its saved dashboard');
                 const requestsBeforeUndo = requests.length;
+                await click(page.getByRole('button', { name: 'Lens options', exact: true }));
                 await click(page.getByRole('button', { name: 'Undo last save', exact: true }));
                 equalLayout((await saved()).layout, startingLayout, 'Undo last save restores the original dashboard after a reload');
                 assert.equal(requests.length, requestsBeforeUndo, 'Persistent Undo does not call AI');
@@ -315,10 +321,11 @@ async function run() {
                 expectedCustom[0].title = 'My position age comparison';
                 expectedCustom[0].view.display = 'table';
                 expectedCustom[0].view.appearance = { accent: 'blue', density: 'compact' };
-                await dialog().locator('.alex-builder-visual-options').getByLabel('View', { exact: true }).selectOption('alex_roster_details');
+                await dialog().locator('.alex-builder-visual-options').getByLabel('View', { exact: true }).selectOption({ label: 'Detailed roster' });
+                const selectedCustomId = await dialog().locator('.alex-builder-visual-options').getByLabel('View', { exact: true }).inputValue();
                 await submit('Keep this view as a detailed roster table.', { layout: expectedCustom });
                 await ready();
-                assert.equal(JSON.parse(requests.at(-1).context.messages.at(-1).content).selectedSectionId, 'alex_roster_details', 'Conversation targets the explicitly selected custom view');
+                assert.equal(JSON.parse(requests.at(-1).context.messages.at(-1).content).selectedSectionId, selectedCustomId, 'Conversation targets the explicitly selected custom view');
                 await tab('Preview');
                 const requestsBeforeCustomSave = requests.length;
                 await click(visualSummary);
@@ -357,10 +364,11 @@ async function run() {
                 assert.equal(await reminderPanel.getByText('Scheduled', { exact: true }).count(), 0, 'Saving a draft never claims it is scheduled');
                 assert.equal(reminderWrites.length, 0, 'Saving a local reminder draft sends no delivery request');
                 await page.screenshot({ path: path.join(output, size.label + '-reminder-draft.png'), fullPage: false });
-                await click(dialog().getByRole('button', { name: 'Save dashboard', exact: true }));
+                await click(dialog().getByRole('button', { name: 'Save lens', exact: true }));
                 await dialog().getByText('Saved on this device.', { exact: true }).waitFor();
                 const savedCustom = (await saved()).layout;
                 equalLayout(savedCustom, expectedCustom, 'Save retains custom query, title, display, and visual options');
+                assert(savedCustom.some(view => view.id === reminderState.current.reminders[0].viewId), 'A reminder drafted before Save still targets the same saved view');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
                 await page.reload({ waitUntil: 'domcontentloaded' });
                 await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
@@ -372,6 +380,7 @@ async function run() {
                 await dialog().locator('.dashboard-reminders').getByText('Review my roster ages', { exact: true }).waitFor();
                 assert.equal(await dialog().locator('.dashboard-reminders').getByText('Scheduled', { exact: true }).count(), 0, 'Reload retains inactive reminder draft status');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
+                await click(page.getByRole('button', { name: 'Lens options', exact: true }));
                 await click(page.getByRole('button', { name: 'Undo last save', exact: true }));
                 equalLayout((await saved()).layout, startingLayout, 'Persistent undo restores Home before custom views');
                 assert.equal(requests.length, requestsBeforeCustomSave, 'Reminders, saving, reloading and persistent undo need no model call');
