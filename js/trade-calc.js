@@ -629,6 +629,7 @@
                     + Math.round(faab * FAAB_RATE);
                 const rosterPlayers = rosterPlayersFor(side);
                 const ownerId = tradeOwner[side] || null;
+                const selectedOwner = ownerOptions.find(option => String(option.id || '') === String(ownerId || ''));
                 const ownerPicksList = ownerId ? (picksByOwner[ownerId] || []).slice().sort(comparePicksByDraftOrder) : [];
                 // The roster filter also searches draft picks so a specific pick is
                 // easy to find: matches the label ("2026 1.13"), round ("r1", "round 1"),
@@ -645,9 +646,10 @@
                 return (
                     <div className={`tc-ta-side tc-side-${side.toLowerCase()}`}>
                         <span style={{ fontFamily:'var(--font-title)', fontSize:'0.95rem', color, letterSpacing:'0.08em' }}>{label}</span>
-                        <select aria-label={label + ' team'} className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { const next = e.target.value || null; if (changeOwner) changeOwner(side, next); else setTradeOwner(prev => ({ ...prev, [side]: next })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
-                            {ownerOptions.map(o => <option key={o.id||'none'} value={o.id||''}>{o.label}</option>)}
+                        <select aria-label={label + ' team'} title={selectedOwner?.label} className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { const next = e.target.value || null; if (changeOwner) changeOwner(side, next); else setTradeOwner(prev => ({ ...prev, [side]: next })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
+                            {ownerOptions.map(o => <option key={o.id||'none'} value={o.id||''}>{compact ? (o.id ? (o.ownerLabel || o.label) : 'Owner…') : o.label}</option>)}
                         </select>
+                        {compact && selectedOwner?.teamLabel && <span className="tc-ta-owner-team">{selectedOwner.teamLabel}</span>}
 
                         {/* Added players */}
                         {ids.map(pid => {
@@ -740,7 +742,7 @@
                                     )}
                                 </div>
                             </div>
-                        ) : <div className="tc-ta-owner-empty" style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
+                        ) : <div className="tc-ta-owner-empty" style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>{compact ? 'Choose an owner to browse their roster' : 'Select an owner above to view their roster'}</div>}
 
                         {/* FAAB */}
                         <div className="tc-ta-faab" style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
@@ -2721,7 +2723,8 @@
                                 return <button type="button" className={'mc-owner-directory-row mc-owner-directory-grid' + (isMe ? ' is-my-team' : '')} data-dna={shownDnaKey} key={rid} onClick={() => setExpandedDnaOwner(rid)}>
                                     <span className="mc-owner-directory-rank"><span className="mc-trade-sr-only">Power rank </span>{idx + 1}</span>
                                     <span className="mc-owner-directory-identity">
-                                        <span className="mc-owner-directory-name"><strong>{a.ownerName}</strong>{isMe && <em>My team</em>}<span className="mc-owner-directory-dna" title={dnaSource}><span className="mc-trade-sr-only">{dnaSource}: </span>{dnaLabel}</span></span>
+                                        <span className="mc-owner-directory-name"><strong>{a.ownerName}</strong>{isMe && <em>My team</em>}</span>
+                                        <span className="mc-owner-directory-dna" title={dnaSource}><span className="mc-trade-sr-only">{dnaSource}: </span>{dnaLabel}</span>
                                         {a.teamName && a.teamName !== a.ownerName && <span className="mc-owner-directory-team">{a.teamName}</span>}
                                     </span>
                                     <span className="mc-owner-directory-stat"><span className="mc-trade-sr-only">Record </span>{record}</span>
@@ -4501,7 +4504,7 @@
             function removePick(side, pickId) { setTradePickIds(prev => ({ ...prev, [side]: prev[side].filter(id => id !== pickId) })); }
             function makePickId(year, round, fromRosterId) { return `PICK-${year}-${round}-${fromRosterId}`; }
             function pickLabel(year, round, fromRid, slot) { return formatPickLabel(year, round, fromRid, slot); }
-            const ownerOptions = [{ id: null, label: '-- None --' }, ...assessments.map(a => ({ id: a.ownerId, label: `${a.ownerName} (${a.teamName})` }))];
+            const ownerOptions = [{ id: null, label: '-- None --' }, ...assessments.map(a => ({ id: a.ownerId, label: `${a.ownerName} (${a.teamName})`, ownerLabel: a.ownerName, teamLabel: a.teamName && a.teamName !== a.ownerName ? a.teamName : '' }))];
 
             return { tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab, playerMetrics: tradePlayerMetrics, changeOwner: changeBuilderOwner };
         }
@@ -4933,7 +4936,7 @@
             // browser's "+" since the 2026-07-12 port; same builder-add +
             // side-B owner-select semantics).
             const phPlusChip = (row) => (
-                <button type="button" aria-label={'Add ' + row.name + ' to the builder'}
+                <button type="button" className="mc-trade-add-asset" aria-label={'Add ' + row.name + ' to the builder'}
                     onClick={e => { e.stopPropagation(); setPhBuilderSide(String(row.rosterId) === String(myRosterId) ? 'A' : 'B'); if (addAssetToBuilder(row)) revealTradeBuilder(); }}
                     style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
@@ -4941,7 +4944,7 @@
                 const rf = tcRookieInfoFor(row.pid);
                 const rookieBits = rf ? [rf.college, rf.draftSlot || (rf.isUDFA ? 'UDFA' : ''), rf.tierLabel].filter(Boolean) : [];
                 return (
-                    <AssetRow key={`${row.rosterId}-${row.pid}`} pos={row.pos} name={row.name}
+                    <AssetRow className="mc-trade-asset" key={`${row.rosterId}-${row.pid}`} pos={row.pos} name={row.name}
                         tag={row.ownerLabel + (row.age ? ' · Age ' + row.age : '') + (rookieBits.length ? ' · ' + rookieBits.join(' · ') : '')}
                         slots={tradePlayerMetrics(row.pid)}
                         verdict={phPlusChip(row)}
@@ -4958,12 +4961,12 @@
             // (ex phAddPickToBuilder — shared with the desktop picks board
             // since the 2026-07-12 port).
             const phPickPlusChip = (row) => (
-                <button type="button" aria-label={'Add ' + row.label + ' to the builder'}
+                <button type="button" className="mc-trade-add-asset" aria-label={'Add ' + row.label + ' to the builder'}
                     onClick={e => { e.stopPropagation(); setPhBuilderSide(String(row.rosterId) === String(myRosterId) ? 'A' : 'B'); if (addPickRowToBuilder(row)) revealTradeBuilder(); }}
                     style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phPickRow = (row) => (
-                <AssetRow key={`${row.rosterId}-${row.id}`} pos="PK" name={row.label}
+                <AssetRow className="mc-trade-asset" key={`${row.rosterId}-${row.id}`} pos="PK" name={row.label}
                     tag={(phPicksScopeMine ? 'Your pick' : row.ownerName) + (row.via && row.via !== row.ownerName ? ' · via ' + row.via : '')}
                     slots={[{ label: 'DHQ', value: row.value.toLocaleString(), strong: true }]}
                     verdict={phPickPlusChip(row)}
@@ -5243,9 +5246,9 @@
                         {_pro && rosterState.isUsable && <div className="mc-trade-scope"><span>{intentLabel} · <b>{pinnedPartnerName}</b>{focusR && focusR.kind !== 'owner' ? ' · ' + focusR.label : ''}</span>{focusR && <button type="button" onClick={phClearFocus} aria-label="Clear trade focus">Clear ×</button>}</div>}
                         {_pro && rosterState.isUsable && (
                             (finderPoolOn && !scanArmed)
-                                ? <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                ? <div className="mc-trade-scan-action">
                                     <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: 'var(--card-radius-sm, 8px)', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Refresh trade ideas' : 'Find trade ideas'}</button>
-                                    <span style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{scanForKey != null ? 'Settings changed — re-run to refresh moves.' : `League-wide across ${partnerBoard.length} partners.`}</span>
+                                    <span>{scanForKey != null ? 'Settings changed' : `${partnerBoard.length} partners`}</span>
                                 </div>
                                 : finderDeals.length
                                 ? <React.Fragment>
