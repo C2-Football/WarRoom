@@ -44,6 +44,13 @@
         { id: 'settings', label: 'Settings', tab: 'settings', iconKey: 'settings', utility: true },
         { id: 'help', label: 'Help', tab: 'legend', iconKey: 'legend', utility: true },
     ];
+    function isInstalledApp() {
+        return root.navigator?.standalone === true || root.matchMedia?.('(display-mode: standalone)')?.matches === true;
+    }
+    function defaultTab(options) {
+        const installed = typeof options?.isInstalledApp === 'boolean' ? options.isInstalledApp : isInstalledApp();
+        return installed ? 'dashboard' : 'lenses';
+    }
     function allowed(route, options) {
         const opts = options || {};
         if (opts.isPhone && route.phoneHidden) return false;
@@ -56,7 +63,7 @@
     }
     function resolve(tab, options) {
         const opts = options || {};
-        let key = tab || 'dashboard';
+        let key = tab || defaultTab(opts);
         if (key === 'analytics') key = analysisRoutes[opts.legacyAnalyticsView] || 'team-outlook';
         if (key === 'league') key = 'research-players';
         const route = routes.find(r => r.tab === key) || routes[0];
@@ -93,13 +100,13 @@
         return routes.filter(r => !r.legacy && !(options?.isPhone && r.phoneMenuOnly) && allowed(r, options)).map(r => ({ ...present(r, options), iconKey: workspaces.find(w => w.id === r.workspace)?.iconKey || 'home' }));
     }
     function dockDefaults(options) {
-        return ['dashboard', 'myteam', 'central', 'lineup'].filter(tab => allowed(routes.find(route => route.tab === tab), options));
+        return [defaultTab(options), 'myteam', 'central', 'lineup'].filter(tab => allowed(routes.find(route => route.tab === tab), options));
     }
     function dockSelection(saved, options) {
         const valid = new Set(dockChoices(options).map(r => r.tab));
         return [...new Set(Array.isArray(saved) ? saved : dockDefaults(options))].filter(tab => valid.has(tab)).slice(0, 4);
     }
-    const api = { dockChoices, dockDefaults, dockSelection, resolve, views, navigation, workspace, analysisRoutes, upgradeStarter };
+    const api = { isInstalledApp, defaultTab, dockChoices, dockDefaults, dockSelection, resolve, views, navigation, workspace, analysisRoutes, upgradeStarter };
     root.WR = root.WR || {};
     root.WR.LeagueWorkspaces = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -78,10 +78,10 @@ function routeUrlModel(pathname, search, hash) {
   return pathname + (qs ? '?' + qs : '') + (hash || '');
 }
 
-function parseHashModel(hash, search) {
+function parseHashModel(hash, search, defaultTab = 'lenses') {
   const params = new URLSearchParams((hash || '').replace('#', ''));
   const query = new URLSearchParams(search || '');
-  const rawTab = params.get('tab') || query.get('tab') || 'dashboard';
+  const rawTab = params.get('tab') || query.get('tab') || defaultTab;
   return {
     leagueId: params.get('league') || query.get('league') || query.get('leagueId'),
     tab: rawTab === 'brief' ? 'dashboard' : rawTab,
@@ -145,7 +145,7 @@ test('route helper preserves dev/user query while adding league hash', () => {
 test('initial history replacement keeps the incoming hash on cold load', () => {
   sourceHas(appSrc, 'const route = parseHash(window.location.hash);', 'cold-load path must parse current hash');
   sourceHas(appSrc, 'history.replaceState(state, \'\', routeUrl(window.location.hash));', 'initial replaceState must keep hash');
-  sourceHas(appSrc, 'routeUrl(buildHash(league.id, route.tab || \'dashboard\'))', 'league restore must rebuild hash via routeUrl');
+  sourceHas(appSrc, 'routeUrl(buildHash(league.id, tab))', 'league restore must rebuild hash via routeUrl');
 });
 
 test('parseHash supports hash routes, query routes, and brief legacy redirect', () => {

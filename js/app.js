@@ -524,6 +524,7 @@
 
     // Main Dashboard
     function OwnerDashboard() {
+        const defaultTab = window.WR?.LeagueWorkspaces?.defaultTab?.() || 'dashboard';
         const [showSettings, setShowSettings] = useState(false);
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
@@ -543,7 +544,7 @@
         const [hubAllLeagues, setHubAllLeagues] = useState(false);
         const [showConnect, setShowConnect] = useState(false); // hub: show platform connect / add-league view
         // Lifted tab state for browser history navigation
-        const [activeTab, setActiveTab] = useState('dashboard');
+        const [activeTab, setActiveTab] = useState(defaultTab);
         const isNavigatingRef = React.useRef(false);
         const initialRouteAppliedRef = React.useRef(false);
         // When the hub's league cards (records/rosters) last finished loading —
@@ -628,7 +629,7 @@
 
         // ── Browser History Navigation ──
         function buildHash(leagueId, tab) {
-            return '#league=' + leagueId + '&tab=' + (tab || 'dashboard');
+            return '#league=' + leagueId + '&tab=' + (tab || defaultTab);
         }
         function routeUrl(hash) {
             const query = new URLSearchParams(window.location.search || '');
@@ -642,7 +643,7 @@
             const params = new URLSearchParams((hash || '').replace('#', ''));
             const query = new URLSearchParams(window.location.search || '');
             // Legacy 'brief' tab was folded into dashboard — redirect old bookmarks
-            const rawTab = params.get('tab') || query.get('tab') || 'dashboard';
+            const rawTab = params.get('tab') || query.get('tab') || defaultTab;
             const tab = rawTab === 'brief' ? 'dashboard' : rawTab;
             return {
                 leagueId: params.get('league') || query.get('league') || query.get('leagueId'),
@@ -661,11 +662,12 @@
             isNavigatingRef.current = true;
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
-            setActiveTab(route.tab === 'brief' ? 'dashboard' : (route.tab || 'dashboard'));
+            const tab = route.tab === 'brief' ? 'dashboard' : (route.tab || defaultTab);
+            setActiveTab(tab);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
             rememberHubLastVisit(league, providerUserId);
-            history.replaceState({ view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' }, '', routeUrl(buildHash(league.id, route.tab || 'dashboard')));
+            history.replaceState({ view: 'league', leagueId: league.id, tab }, '', routeUrl(buildHash(league.id, tab)));
             setTimeout(() => { isNavigatingRef.current = false; }, 0);
         }
         async function resolveLinkedLeagueRoute(route) {
@@ -879,7 +881,7 @@
                     } else resolveLinkedLeagueRoute(nextState);
                 } else {
                     setSelectedLeague(null);
-                    setActiveTab('dashboard');
+                    setActiveTab(defaultTab);
                 }
                 setTimeout(() => { isNavigatingRef.current = false; }, 0);
             }
@@ -1377,7 +1379,7 @@
                             const leagueSelector = navigation?.leagueSelector === true;
                             cancelLinkedLeagueRoute();
                             setSelectedLeague(null);
-                            setActiveTab('dashboard');
+                            setActiveTab(defaultTab);
                             if (leagueSelector) setProMode(false);
                             // Return to Empire Dashboard if Pro mode was active, otherwise hub
                             if (!isNavigatingRef.current) {
@@ -1617,12 +1619,12 @@
             cancelLinkedLeagueRoute();
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
-            setActiveTab('dashboard');
+            setActiveTab(defaultTab);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
             rememberHubLastVisit(league, sleeperUser?.user_id);
             if (!isNavigatingRef.current) {
-                history.pushState({ view: 'league', leagueId: league.id, tab: 'dashboard' }, '', routeUrl(buildHash(league.id, 'dashboard')));
+                history.pushState({ view: 'league', leagueId: league.id, tab: defaultTab }, '', routeUrl(buildHash(league.id, defaultTab)));
             }
         }
 

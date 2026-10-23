@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const W = require('../js/shared/league-workspaces.js');
 test('Overview remains home while Lenses is a separate workspace', () => {
     assert.deepEqual(W.navigation().filter(w => !w.utility).map(w => w.label), ['Overview', 'Roster', 'Market', 'Draft', 'League', 'Research', 'Lenses']);
@@ -8,19 +10,40 @@ test('Overview remains home while Lenses is a separate workspace', () => {
         assert.ok(W.views(group).some(v => v.tab === tab));
     }
 });
-test('every format keeps Overview as default and offers Lenses without changing saved dock choices', () => {
-    for (const isPhone of [false, true]) for (const leagueType of ['dynasty', 'redraft', 'chopped', 'unknown']) {
-        const options = { isPhone, leagueType, showTrades: false, showGmOffice: false };
-        assert.equal(W.resolve(undefined, options).tab, 'dashboard');
+test('every format defaults to Lenses in browsers and Overview when installed without changing saved dock choices', () => {
+    for (const isInstalledApp of [false, true]) for (const isPhone of [false, true]) for (const leagueType of ['dynasty', 'redraft', 'chopped', 'unknown']) {
+        const options = { isInstalledApp, isPhone, leagueType, showTrades: false, showGmOffice: false };
+        const expectedDefault = isInstalledApp ? 'dashboard' : 'lenses';
+        assert.equal(W.defaultTab(options), expectedDefault);
+        assert.equal(W.resolve(undefined, options).tab, expectedDefault);
         assert.equal(W.resolve('dashboard', options).label, 'Overview');
         assert.equal(W.resolve('lenses', options).tab, 'lenses');
         assert.equal(W.workspace('lenses', options).id, 'lenses');
         assert.deepEqual(W.views('home', options).map(route => route.tab), ['dashboard']);
         assert(W.navigation(options).some(item => item.tab === 'lenses'));
         assert(W.dockChoices(options).some(item => item.tab === 'lenses'));
-        assert.deepEqual(W.dockDefaults(options), ['dashboard', 'myteam', 'central', 'lineup']);
+        assert.deepEqual(W.dockDefaults(options), [expectedDefault, 'myteam', 'central', 'lineup']);
+        assert.deepEqual(W.dockSelection(null, options), [expectedDefault, 'myteam', 'central', 'lineup']);
         assert.deepEqual(W.dockSelection(['dashboard', 'myteam', 'central', 'lineup'], options), ['dashboard', 'myteam', 'central', 'lineup']);
         assert.deepEqual(W.dockSelection(['lenses', 'fa'], options), ['lenses', 'fa']);
+    }
+});
+test('installed detection supports standalone display mode and iOS without treating browser fullscreen as installed', () => {
+    const source = fs.readFileSync(require.resolve('../js/shared/league-workspaces.js'), 'utf8');
+    for (const [environment, installed] of [
+        [{}, false],
+        [{ navigator: { standalone: false }, matchMedia: () => ({ matches: false }) }, false],
+        [{ navigator: { standalone: true } }, true],
+        [{ matchMedia: query => ({ matches: query === '(display-mode: standalone)' }) }, true],
+        [{ matchMedia: query => ({ matches: query === '(display-mode: fullscreen)' }) }, false],
+    ]) {
+        const sandbox = { window: environment };
+        vm.runInNewContext(source, sandbox);
+        const api = environment.WR.LeagueWorkspaces;
+        assert.equal(api.isInstalledApp(), installed);
+        assert.equal(api.defaultTab(), installed ? 'dashboard' : 'lenses');
+        assert.equal(api.resolve(undefined).tab, installed ? 'dashboard' : 'lenses');
+        assert.equal(api.defaultTab({ isInstalledApp: !installed }), installed ? 'lenses' : 'dashboard');
     }
 });
 test('legacy analytics links retain their selected report in its new home', () => {

@@ -102,7 +102,7 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     let account = 'owner-a';
     Object.assign(context, {
         OD: { getCurrentUserId: () => account, getSessionToken: () => 'fixture-session' }, sleeperUser: { user_id: 'sleeper-a' },
-        selectedLeague: null, activeTab: 'dashboard', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [], allWireOverlay: null,
+        selectedLeague: null, activeTab: 'dashboard', defaultTab: 'lenses', proMode: false, showSettings: false, customDisplayName: '', leagueMates: [], allWireOverlay: null,
         isNavigatingRef: { current: false }, initialRouteAppliedRef: { current: false },
         linkedRouteRequestRef: { current: 0 }, linkedLeaguesRef: { current: new Map() },
         setLeagueRouteStatus: value => { context.leagueRouteStatus = value; },
@@ -128,7 +128,7 @@ test('real Sleeper IDs survive select, back and direct-link restore without cros
     const leagueCard = all(hub(), n => n.type === 'button' && n.props.className?.includes('hub-league-card'))[0];
     assert.ok(leagueCard); leagueCard.props.onClick();
     assert.equal(context.selectedLeague.id, league.id);
-    assert.equal(context.location.hash, '#league=' + league.id + '&tab=dashboard');
+    assert.equal(context.location.hash, '#league=' + league.id + '&tab=lenses');
     all(context.renderLeagueRoute(), n => n.type === 'league-detail')[0].props.onBack();
     assert.equal(context.selectedLeague, null); assert.equal(context.location.hash, '');
     let tree = hub();

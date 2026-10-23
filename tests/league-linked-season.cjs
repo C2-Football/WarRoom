@@ -54,11 +54,12 @@ test('an account change during metadata lookup prevents membership requests and 
     current = false; release(); await assert.rejects(work, /Account changed/); assert.equal(fixture.requests.length, 1);
 });
 
-function controller(fetcher) {
+function controller(fetcher, installed = false) {
     let principalCurrent = true;
     const location = { hash: '#league=' + league.league_id + '&tab=stats', search: '?dev=true', pathname: '/' };
     const context = vm.createContext({ console, URLSearchParams, setTimeout, clearTimeout,
         sleeperUsername: 'fixture', sleeperUser: user, selectedLeague: null, activeTab: 'dashboard', leagueRouteStatus: { status: 'idle' },
+        defaultTab: require('../js/shared/league-workspaces.js').defaultTab({ isInstalledApp: installed }),
         sleeperLeagues: [{ id: 'current', season: '2026' }], linkedLeaguesRef: { current: new Map() }, linkedRouteRequestRef: { current: 0 }, initialRouteAppliedRef: { current: false }, isNavigatingRef: { current: false },
         accountSessionCurrent: () => principalCurrent, AppStorage: { set() {} }, APP_WR_KEYS: {},
         rememberHubLastVisit: (value, owner) => { context.lastVisit = { value, owner }; },
@@ -71,6 +72,24 @@ function controller(fetcher) {
     vm.runInContext(source.slice(source.indexOf('        function buildHash('), source.indexOf('        useEffect(() => {\n            if (sleeperUsername)')), context);
     return { context, changeAccount: () => { principalCurrent = false; } };
 }
+
+test('browser and installed launches choose their own home while explicit links retain their view', () => {
+    for (const installed of [false, true]) {
+        const { context } = controller(api().fetcher, installed);
+        const expected = installed ? 'dashboard' : 'lenses';
+        assert.equal(context.parseHash('#league=' + league.league_id).tab, expected);
+        assert.equal(context.buildHash(league.league_id), '#league=' + league.league_id + '&tab=' + expected);
+        context.restoreLinkedLeague({ id: league.league_id }, {});
+        assert.equal(context.activeTab, expected);
+        for (const tab of ['dashboard', 'lenses', 'stats', 'brief']) {
+            const route = context.parseHash('#league=' + league.league_id + '&tab=' + tab);
+            context.restoreLinkedLeague({ id: league.league_id }, route);
+            assert.equal(context.activeTab, tab === 'brief' ? 'dashboard' : tab);
+        }
+        context.window.location.search = '?leagueId=' + league.league_id + '&tab=lenses';
+        assert.equal(context.parseHash('').tab, 'lenses');
+    }
+});
 
 test('actual route controller recovers after an error without mixing historical leagues into current portfolio', async () => {
     let fails = true;

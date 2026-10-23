@@ -71,7 +71,8 @@ async function run() {
     try {
         browser = await (browserName === 'webkit' ? webkit : chromium).launch({ headless: true,
             ...(browserName === 'chromium' ? { executablePath: process.env.PLAYWRIGHT_CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' } : {}) });
-        for (const size of matrix) {
+        for (const size of matrix.flatMap(size => ['browser', 'installed'].map(mode => ({ ...size, mode })))) {
+            const caseLabel = size.label + '-' + size.mode;
             const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, hasTouch: size.touch, serviceWorkers: 'block' });
             const provider = createLeagueSkinFixture({ redraftId: leagueB, dynastyId: leagueA, user: username });
             const choppedProvider = createLeagueSkinFixture({ redraftId: leagueB, dynastyId: leagueC, user: username });
@@ -110,7 +111,18 @@ async function run() {
                         : { analysis: JSON.stringify({ version: 1, reply: 'Your lens preview is ready.', layout: response.layout }) }) });
                 } catch (error) { if (!/closed|disposed|cancel|aborted/i.test(error.message)) throw error; }
             });
-            await context.addInitScript(({ account, username, leagueA, leagueC, legacyLayout }) => {
+            await context.addInitScript(({ account, username, leagueA, leagueC, legacyLayout, mode, ios }) => {
+                // Model only the platform's install signals. This is browser
+                // emulation, not proof of a physical home-screen installation.
+                const presentation = localStorage.getItem('lenses-fixture-mode') || mode;
+                const installed = presentation === 'installed';
+                Object.defineProperty(navigator, 'standalone', { configurable: true, value: installed && ios });
+                const matchMedia = window.matchMedia.bind(window);
+                window.matchMedia = query => {
+                    const result = matchMedia(query);
+                    if (query === '(display-mode: standalone)') Object.defineProperty(result, 'matches', { configurable: true, value: installed && !ios });
+                    return result;
+                };
                 if (!localStorage.getItem('fw_session_v1')) {
                     const payload = btoa(JSON.stringify({ sub: account, exp: Math.floor(Date.now() / 1000) + 3600 }));
                     localStorage.setItem('fw_session_v1', JSON.stringify({ token: 'fixture.' + payload + '.fixture', user: { id: account, email: 'lenses@example.invalid' } }));
@@ -131,7 +143,7 @@ async function run() {
                     if (window.__lensQuotaFailure && String(key).startsWith('wr_dashboard_lenses_v1:')) throw new DOMException('Fixture storage full', 'QuotaExceededError');
                     return original.call(this, key, value);
                 };
-            }, { account, username, leagueA, leagueC, legacyLayout });
+            }, { account, username, leagueA, leagueC, legacyLayout, mode: size.mode, ios: size.label === 'phone-small' });
             const page = await context.newPage();
             page.on('pageerror', error => errors.push(error.message));
             const click = locator => size.touch ? locator.tap() : locator.click();
@@ -140,14 +152,14 @@ async function run() {
             const dialog = () => page.getByRole('dialog', { name: 'Build with Alex', exact: true });
             const entry = (id, tab = 'lenses') => { const url = new URL(serving.url); url.searchParams.set('dev', 'true'); url.searchParams.set('user', username); url.hash = 'league=' + id + (tab ? '&tab=' + tab : ''); return url.href; };
             const load = async id => { await page.goto(entry(id), { waitUntil: 'domcontentloaded' }); await workspace().waitFor({ timeout: 60000 }); };
-            const overview = async () => {
+            const overview = async (mode = size.mode) => {
                 await page.locator('.wr-workspace-header').getByRole('heading', { name: 'Overview', exact: true }).filter({ visible: true }).waitFor({ timeout: 60000 });
                 await page.locator(size.touch ? '.mc-league-overview' : '.wr-dashboard-grid').waitFor({ timeout: 60000 });
                 assert.equal(await workspace().count(), 0, 'Overview never mounts the optional lens workspace');
                 assert.equal(await page.getByRole('button', { name: 'Build with Alex', exact: true }).count(), 0, 'The default Overview has no lens creation controls');
                 if (size.touch) {
                     const dock = page.getByRole('navigation', { name: 'Primary', exact: true });
-                    equal(await dock.getByRole('button').allTextContents(), ['Overview', 'Roster', 'League', 'Game Day'], 'Overview remains the first default phone destination');
+                    equal(await dock.getByRole('button').allTextContents(), [mode === 'installed' ? 'Overview' : 'Lenses', 'Roster', 'League', 'Game Day'], 'The default phone destination matches the app presentation');
                     await page.locator('.mc-league-overview .mc-overview-decisions').waitFor();
                     await page.locator('.mc-league-overview .mc-overview-summary').waitFor();
                 }
@@ -231,14 +243,24 @@ async function run() {
             };
             try {
                 await page.goto(entry(leagueA, null), { waitUntil: 'domcontentloaded' });
-                await overview();
-                await page.screenshot({ path: path.join(output, size.label + '-overview-default.png') });
+                if (size.mode === 'installed') {
+                    await overview();
+                    assert.equal(new URLSearchParams(new URL(page.url()).hash.slice(1)).get('tab'), 'dashboard', 'An installed app opens Overview without an explicit route');
+                    await page.screenshot({ path: path.join(output, caseLabel + '-default.png') });
+                } else {
+                    await workspace().waitFor({ timeout: 60000 });
+                    assert.equal(await page.locator('.mc-league-overview').count(), 0, 'A normal browser opens Lenses, not the mobile Overview');
+                    await page.screenshot({ path: path.join(output, caseLabel + '-default.png') });
+                    await navigate('Overview'); await overview();
+                }
+                // Seed an existing pin before entering Lenses, so this checks
+                // persisted content rather than racing a new mount's effect.
+                await page.evaluate(() => { if (!window.WrStarWidget.isStarred('fixture-pin')) window.WrStarWidget.toggle({ id: 'fixture-pin', title: 'Unrelated pinned fixture', content: 'This saved pin must not appear in a new lens.' }); });
                 await navigate('Lenses');
                 await workspace().waitFor({ timeout: 60000 });
                 assert(new URLSearchParams(new URL(page.url()).hash.slice(1)).get('tab') === 'lenses', 'The optional tool has its own deep-link route');
                 await activeName('Home');
                 equal((await state()).lenses[0].layout, legacyLayout, 'The old dashboard becomes Home without losing saved sections');
-                await page.evaluate(() => { if (!window.WrStarWidget.isStarred('fixture-pin')) window.WrStarWidget.toggle({ id: 'fixture-pin', title: 'Unrelated pinned fixture', content: 'This saved pin must not appear in a new lens.' }); });
                 await canvas().getByText('Unrelated pinned fixture', { exact: true }).waitFor();
                 assert.equal(await workspace().getByRole('button', { name: /Add Widget|Reorder|Customize Home/ }).count(), 0, 'The former widget setup is replaced');
                 await fit('Migrated lens');
@@ -263,7 +285,7 @@ async function run() {
                     equal(await blankScrollState(), lockedBlank, 'Native touch scrolling a blank preview never moves the dashboard');
                     await inputSession.detach();
                 }
-                await page.screenshot({ path: path.join(output, size.label + '-blank-lens.png') });
+                await page.screenshot({ path: path.join(output, caseLabel + '-blank-lens.png') });
                 const home = (await state()).lenses[0];
                 await submit('Compare roster age by position, with a detailed roster table.', { layout: rosterLayout });
                 await ready();
@@ -271,7 +293,7 @@ async function run() {
                 equal((await active()).layout, [], 'Alex preview does not save before confirmation');
                 await builderTab('Preview');
                 await dialog().getByRole('heading', { name: 'Average age by position', exact: true }).waitFor();
-                await page.screenshot({ path: path.join(output, size.label + '-lens-preview.png') });
+                await page.screenshot({ path: path.join(output, caseLabel + '-lens-preview.png') });
                 await save();
                 equal(withoutIds((await active()).layout), withoutIds(rosterLayout), 'The lens saves its own custom data views');
                 await close();
@@ -280,13 +302,24 @@ async function run() {
                 const rosterId = (await active()).id;
                 equal((await state()).lenses.find(lens => lens.id === home.id), home, 'Saving another lens leaves Home unchanged');
                 await fit('Custom lens');
-                await page.screenshot({ path: path.join(output, size.label + '-lens-dashboard.png') });
+                await page.screenshot({ path: path.join(output, caseLabel + '-lens-dashboard.png') });
                 const savedBeforeOverview = await state();
                 await navigate('Overview'); await overview();
                 equal(await state(), savedBeforeOverview, 'Opening Overview never changes saved lenses');
                 await page.reload({ waitUntil: 'domcontentloaded' }); await overview();
                 await navigate('Lenses'); await activeName('Roster watch');
                 equal(await state(), savedBeforeOverview, 'Returning to Lenses restores the selected lens and its contents');
+                const otherMode = size.mode === 'installed' ? 'browser' : 'installed';
+                await page.evaluate(mode => localStorage.setItem('lenses-fixture-mode', mode), otherMode);
+                const presentationEntry = new URL(entry(leagueA, null));
+                presentationEntry.searchParams.set('fixturePresentation', otherMode);
+                await page.goto(presentationEntry.href, { waitUntil: 'domcontentloaded' });
+                if (otherMode === 'installed') await overview(otherMode);
+                else await activeName('Roster watch');
+                equal(await state(), savedBeforeOverview, 'Changing between browser and installed presentation preserves the same saved lenses');
+                await page.evaluate(mode => localStorage.setItem('lenses-fixture-mode', mode), size.mode);
+                await load(leagueA); await activeName('Roster watch');
+                equal(await state(), savedBeforeOverview, 'An explicit Lenses route is honored in either presentation');
                 await create('League pulse');
                 await submit('Show the league standings.', { layout: leagueLayout });
                 await ready(); await save(); await close();
@@ -348,7 +381,7 @@ async function run() {
                 await workspace().getByLabel('Lens name', { exact: true }).fill('Roster radar');
                 await click(workspace().getByRole('button', { name: 'Save name', exact: true }));
                 await fit('Management controls');
-                await page.screenshot({ path: path.join(output, size.label + '-managed-lenses.png') });
+                await page.screenshot({ path: path.join(output, caseLabel + '-managed-lenses.png') });
 
                 // The second league is deliberately redraft: the new lens UI
                 // must replace the old fixed-layout exception too.
@@ -403,11 +436,11 @@ async function run() {
                 }
                 assert.equal(errors.length, 0, 'No browser runtime errors: ' + errors.join(' | '));
                 assert.equal(plans.length, 0, 'All queued fixture responses were consumed');
-                results.push({ viewport: size.label, dimensions: `${size.width}x${size.height}`, touch: size.touch, passed: true, aiFixtureRequests: requests.length, blockedExternalWrites: blocked.length });
-                console.log('PASS dashboard lenses ' + size.label + ': default Overview, optional menu route, preserved lenses on return, migration, independent creation, preview/save, switching, touch/keyboard, nested scrolling, reload, rename/duplicate/remove/restore, per-lens undo, quota, league/account isolation');
+                results.push({ viewport: size.label, presentation: size.mode, installSignal: size.mode === 'installed' ? size.label === 'phone-small' ? 'navigator.standalone' : 'display-mode' : null, dimensions: `${size.width}x${size.height}`, touch: size.touch, passed: true, aiFixtureRequests: requests.length, blockedExternalWrites: blocked.length });
+                console.log('PASS dashboard lenses ' + caseLabel + ': presentation default, explicit routes, preserved lenses across presentation changes, migration, independent creation, preview/save, switching, touch/keyboard, nested scrolling, reload, rename/duplicate/remove/restore, per-lens undo, quota, league/account isolation');
             } catch (error) {
-                await page.screenshot({ path: path.join(output, size.label + '-failure.png') }).catch(() => {});
-                fs.writeFileSync(path.join(output, size.label + '-failure.json'), JSON.stringify({ error: error.stack, browserErrors: errors, url: page.url(), text: await page.locator('body').innerText().catch(() => ''), requests }, null, 2));
+                await page.screenshot({ path: path.join(output, caseLabel + '-failure.png') }).catch(() => {});
+                fs.writeFileSync(path.join(output, caseLabel + '-failure.json'), JSON.stringify({ error: error.stack, browserErrors: errors, url: page.url(), text: await page.locator('body').innerText().catch(() => ''), requests }, null, 2));
                 throw error;
             } finally { await context.close(); }
         }

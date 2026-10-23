@@ -9,7 +9,7 @@ const nodes=n=>n&&typeof n==='object'?[n,...(n.children||[]).flatMap(nodes)]:[];
 const text=n=>typeof n==='object'?(n.children||[]).map(text).join(''):n==null?'':String(n);
 const ctx=vm.createContext({React:{createElement:h,Fragment:'fragment'},useState:init=>{const i=cursor++;if(!(i in state))state[i]=typeof init==='function'?init():init;return[state[i],v=>state[i]=typeof v==='function'?v(state[i]):v];},useEffect:fn=>{const key=fn.toString();if(!effects.has(key)){effects.add(key);fn();}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},window:{addEventListener:(n,fn)=>events[n]=fn,removeEventListener:()=>{},WR:{LeagueWorkspaces:W,Sheet:'sheet'}},NAV_ICON_PATHS:{home:[]}});
 vm.runInContext(code,ctx);
-const props={activeTab:'lineup',navItems:W.navigation(),onSelectTab:tab=>selected=tab,workspaceOptions:{leagueType:'redraft',accountId:'a'}};
+const props={activeTab:'lineup',navItems:W.navigation(),onSelectTab:tab=>selected=tab,workspaceOptions:{leagueType:'redraft',accountId:'a',isInstalledApp:true}};
 let out;
 const render=()=>{cursor=0;out=ctx.PhoneDockInner(props);};
 const button=label=>nodes(out).find(n=>n.type==='button'&&text(n)===label);
@@ -28,6 +28,9 @@ props.workspaceOptions.accountId='b';render();assert.deepEqual(chips().map(text)
 check('Overview').props.onChange();render();check('Lenses').props.onChange();render();
 assert.deepEqual(chips().map(text),['Roster','League','Game Day','Lenses'],'Lenses can be added by choice');
 state=[];render();assert.deepEqual(chips().map(text),['Roster','League','Game Day','Lenses'],'optional Lenses choice survives remount');
+props.workspaceOptions.isInstalledApp=false;render();assert.deepEqual(chips().map(text),['Roster','League','Game Day','Lenses'],'browser mode preserves a saved custom dock');
+props.workspaceOptions.accountId='c';render();assert.deepEqual(chips().map(text),['Lenses','Roster','League','Game Day'],'browser starts with Lenses without a saved preference');
+props.workspaceOptions.isInstalledApp=true;render();assert.deepEqual(chips().map(text),['Overview','Roster','League','Game Day'],'installed mode starts with Overview without a saved preference');
 assert.deepEqual(W.dockSelection(['trades','lineup','lineup','unknown'],{showTrades:false,showGameDay:true}),['lineup']);
 assert.deepEqual(W.dockSelection([],{}),[],'Top-left menu remains usable with zero selected');
 assert.deepEqual(W.dockSelection(['fa','draft','central','stats','compare'],{}),['fa','draft','central','stats']);

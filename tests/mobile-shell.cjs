@@ -33,10 +33,12 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
 
 const closed = fixture();
 const dock = closed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip'));
-assert.deepEqual(dock.map(closed.text), ['Overview', 'Roster', 'League', 'Game Day']);
+assert.deepEqual(dock.map(closed.text), ['Lenses', 'Roster', 'League', 'Game Day']);
 assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'Roster');
 closed.events['wr:phone-menu']();
 assert.deepEqual(closed.updates, [false, true]);
+const installed = fixture({ options: { isInstalledApp: true } });
+assert.deepEqual(installed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip')).map(installed.text), ['Overview', 'Roster', 'League', 'Game Day'], 'Installed app keeps the Overview dock default');
 
 const expanded = fixture({ open: true, activeTab: 'stats' });
 for (const tab of ['fa', 'trades', 'draft', 'mock-draft', 'draft-review', 'wire', 'stats', 'compare', 'lenses', 'settings', 'gm-settings', 'legend']) {
@@ -101,10 +103,11 @@ const appSource = fs.readFileSync('js/app.js', 'utf8');
 const backStart = appSource.indexOf('onBack={(navigation) => {') + 'onBack={'.length;
 const backEnd = appSource.indexOf('}}\n                        activeTab', backStart);
 assert(backStart > 0 && backEnd > backStart);
-for (const proMode of [false, true]) {
+for (const isInstalledApp of [false, true]) for (const proMode of [false, true]) {
     const actions = [], routes = [];
     let allowed = true;
-    const navigationContext = vm.createContext({ window: { App: { NavigationGuard: { canNavigate: () => allowed } } }, proMode,
+    const defaultTab = workspaces.defaultTab({ isInstalledApp });
+    const navigationContext = vm.createContext({ window: { App: { NavigationGuard: { canNavigate: () => allowed } } }, proMode, defaultTab,
         cancelLinkedLeagueRoute: () => actions.push('cancel'), setSelectedLeague: league => actions.push(['league', league]),
         setActiveTab: tab => actions.push(['tab', tab]), setProMode: value => actions.push(['pro', value]),
         isNavigatingRef: { current: false }, routeUrl: () => '/', history: { pushState: state => routes.push(state.view) },
@@ -113,6 +116,7 @@ for (const proMode of [false, true]) {
     leaveLeague({ leagueSelector: true });
     assert.deepEqual(routes, ['hub'], 'Explicit league switching opens the selector even from Empire mode');
     assert(actions.some(action => Array.isArray(action) && action[0] === 'pro' && action[1] === false));
+    assert(actions.some(action => Array.isArray(action) && action[0] === 'tab' && action[1] === defaultTab));
     actions.length = 0; routes.length = 0; allowed = false;
     leaveLeague({ leagueSelector: true });
     assert.equal(actions.length, 0, 'League switching retains the existing unsaved-work guard');
