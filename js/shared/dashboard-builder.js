@@ -73,7 +73,11 @@
             if (item.key === 'custom-view') {
                 if (typeof item.title !== 'string' || !item.title.trim() || item.title.length > 120 || /[\x00-\x1f]/.test(item.title)) fail('Give this view a short title.');
                 value.title = item.title.trim();
-                value.view = validateView(item.view);
+                try { value.view = validateView(item.view); }
+                catch (error) {
+                    if (error.dashboardRepair) error.dashboardRepair.sectionId = item.id;
+                    throw error;
+                }
             }
             return value;
         });
@@ -137,8 +141,9 @@
             'Preserve existing section IDs and keys when moving or resizing. New sections need a unique ID starting alex_. IDs may contain only letters, digits, underscores, hyphens, periods or colons, at most 100 characters.',
             'The returned layout is the complete ordered dashboard, up to 24 sections. Preserve all sections the user did not ask to remove or replace. Allow an empty dashboard only if explicitly requested.',
             'Use only each section\'s allowed sizes and metric keys. Omit primaryMetric when no metric applies. Small means compact, medium means standard detail, large means more detail; xl/xxl are full width. Prefer md/lg for useful mobile detail.',
-            'For a new data view return {id:\"alex_unique\",key:\"custom-view\",size:\"md\",title:\"Short descriptive title\",view:{source:\"data-catalog-id\",columns:[\"field-id\"],filters:[{field:\"field-id\",op:\"allowed-operation\",value:25}],sort:{field:\"field-id\",direction:\"desc\"},limit:20,display:\"bar\",x:\"label-field\",y:\"numeric-field\",appearance:{accent:\"gold\",density:\"comfortable\"}}. Filters and sort are optional. All field names and operators must come from dataCatalog.',
-            'Queries may groupBy one field and aggregate {op:\"count|sum|avg|min|max\",field:\"numeric-field\"}. Count may omit field. The output is groupBy plus value; with no groupBy it is just value. columns selects these output fields; sort must use an output field. Filtering happens BEFORE grouping. Limit is 1-100 and applies AFTER aggregation and sort.',
+            'For a new data view return {id:\"alex_unique\",key:\"custom-view\",size:\"md\",title:\"Short descriptive title\",view:{source:\"data-catalog-id\",columns:[\"field-id\"],filters:[{field:\"field-id\",op:\"allowed-operation\",value:25}],sort:{field:\"field-id\",direction:\"desc\"},limit:20,display:\"bar\",x:\"label-field\",y:\"numeric-field\",appearance:{accent:\"gold\",density:\"comfortable\"}}. Filters and sort are optional. Input fields and filter operators must come from dataCatalog; output fields follow the aggregation rules below.',
+            'Queries may groupBy one input field and aggregate {op:\"count|sum|avg|min|max\",field:\"numeric-input-field\"}. Count may omit field. Aggregation replaces all raw columns with the groupBy field (if present) and a NEW numeric output field named exactly \"value\". The field \"value\" is valid after aggregation even though it is not in dataCatalog. columns, sort, x, and y must refer only to these output fields; never use the original aggregate field or an invented alias as its output name. Filtering happens BEFORE grouping. Limit is 1-100 and applies AFTER aggregation and sort.',
+            'Example: average player age by position uses view:{source:\"roster\",groupBy:\"position\",aggregate:{op:\"avg\",field:\"age\"},columns:[\"position\",\"value\"],sort:{field:\"value\",direction:\"desc\"},limit:20,display:\"bar\",x:\"position\",y:\"value\",appearance:{accent:\"gold\",density:\"comfortable\"}}. For tables/cards without aggregation use raw dataset columns instead.',
             'Display choices: table, cards, bar, metric. Bar requires x and a numeric y from the output. Metric requires numeric y and either an ungrouped aggregate or limit:1. Omit x/y for table/cards if not used. Never imply a trend from categorical rows. Appearance accents: gold,teal,blue,rose; density: comfortable,compact. Custom sizes: md,lg,xl.',
             'Explain the data and visual choice briefly in reply. Follow-up instructions may change filters, fields, ordering, grouping, titles, chart style, or colors. Preserve untouched views. If data is unavailable in the catalog, explain and ask one useful clarification; never fabricate a source, computed formula, values, predictions or player history.',
             'Reminders can be configured in the reminder panel. Email and push are inactive until a delivery service is connected; never claim a reminder was scheduled or sent. Do not put reminders into the layout JSON.',
@@ -160,20 +165,42 @@
         // callAI owns authentication and provider credentials. Cancellation discards
         // its eventual result because the shared adapter does not expose fetch abort.
         let listener;
-        const operation = Promise.resolve().then(() => {
-            if (signal?.aborted) throw abortError();
-            return root.OD.callAI({ type: 'recon-chat', context });
-        });
         const canceled = signal && new Promise((resolve, reject) => {
             listener = () => reject(abortError());
             signal.addEventListener('abort', listener, { once: true });
             if (signal.aborted) listener();
         });
-        try {
-            const response = await (canceled ? Promise.race([operation, canceled]) : operation);
+        const call = nextContext => {
+            const operation = Promise.resolve().then(() => {
+                if (signal?.aborted) throw abortError();
+                if (requestAccount !== sessionAccount()) fail('Your account changed. Open Build with Alex again.');
+                return root.OD.callAI({ type: 'recon-chat', context: nextContext });
+            });
+            return canceled ? Promise.race([operation, canceled]) : operation;
+        };
+        const checkCurrent = () => {
             if (signal?.aborted) throw abortError();
             if (requestAccount !== sessionAccount()) fail('Your account changed. Open Build with Alex again.');
-            return parseResponse(response?.analysis, available, layout);
+        };
+        try {
+            const response = await call(context);
+            checkCurrent();
+            try { return parseResponse(response?.analysis, available, layout); }
+            catch (error) {
+                if (!error.dashboardRepair) throw error;
+                // One bounded correction still goes through the entire validator.
+                // A failed attempt never changes either preview or saved layout.
+                const repair = await call({ ...context, messages: [...context.messages,
+                    { role: 'assistant', content: response.analysis },
+                    { role: 'user', content: JSON.stringify({ task: 'Repair the invalid column selection in this dashboard JSON.',
+                        validation: error.dashboardRepair,
+                        instruction: 'Keep the requested view and all other sections. Choose only the allowed output columns, with no duplicates. Update chart and sort fields to match the output. Return the complete corrected dashboard JSON.' }) },
+                ] });
+                checkCurrent();
+                const repaired = parseResponse(repair?.analysis, available, layout);
+                if (!repaired.layout.some(item => item.id === error.dashboardRepair.sectionId && item.key === 'custom-view')) throw error;
+                return repaired;
+            }
         } finally {
             if (listener) signal.removeEventListener('abort', listener);
         }

@@ -6,7 +6,7 @@ const path = require('node:path');
 const Babel = require('@babel/standalone');
 const root = path.resolve(__dirname, '..');
 const storage = new Map();
-const window = { WR: {}, localStorage: { getItem: k => storage.get(k) || null, setItem: (k,v) => storage.set(k,v) } };
+const window = { WR: {}, atob: value => Buffer.from(value, 'base64').toString('utf8'), localStorage: { getItem: k => storage.get(k) || null, setItem: (k,v) => storage.set(k,v) } };
 const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }) };
 const ctx = vm.createContext({ window, React, console });
 for (const file of ['js/shared/dashboard-view-data.js', 'js/shared/dashboard-builder.js', 'js/components/dashboard-view.js']) {
@@ -81,5 +81,50 @@ console.log('PASS real renderer shows grouped values, missing data, truthful per
     assert(envelope.dataCatalog.some(source=>source.id==='leagueRoster'));
     assert(!JSON.stringify(envelope).includes('First <script>'));
     assert(captured.context.system.includes('Email and push are inactive'));
+    assert(captured.context.system.includes('NEW numeric output field named exactly "value"'));
     console.log('PASS model receives semantic data catalog and returns a new view without requesting raw player data');
+
+    const options = {prompt:'Compare my average player age by position',layout:original,catalog,league:{league_id:'1234567890123456789'}};
+    const answer = layout => ({analysis:JSON.stringify({version:1,reply:'Average age by position.',layout})});
+    const invalid = {...slot,view:{...slot.view,columns:['position','age'],y:'age'}};
+    const calls=[];
+    window.OD.callAI=async request=>{calls.push(request);return answer(calls.length===1?[...original,invalid]:[...original,slot]);};
+    const before=JSON.stringify([...storage]);
+    const repaired=await api.request(options);
+    assert.deepEqual(clean(repaired.layout),[...original,...canonical]);
+    assert.equal(calls.length,2,'a schema mistake receives one repair attempt');
+    const correction=JSON.parse(calls[1].context.messages.at(-1).content);
+    assert.deepEqual(clean(correction.validation),{source:'roster',allowedColumns:['position','value'],sectionId:'alex_age'});
+    assert.equal(calls[1].context.messages.at(-2).role,'assistant');
+    assert.equal(JSON.stringify([...storage]),before,'repair creates only a preview');
+    console.log('PASS aggregate raw-column mistake receives exact output schema and a validated preview');
+
+    for(const columns of [['position','age'],['position','value','value'],['position','eval(1)'],[],Array(13).fill('value')]) {
+        let attempts=0;
+        window.OD.callAI=async()=>{attempts++;return answer([{...slot,view:{...slot.view,columns}}]);};
+        await assert.rejects(api.request(options),/Choose up to 12 different fields/);
+        assert.equal(attempts,2,'invalid fields still fail after one bounded correction');
+    }
+    let droppedCalls=0;
+    window.OD.callAI=async()=>answer(++droppedCalls===1?[invalid]:original);
+    await assert.rejects(api.request(options),/Choose up to 12 different fields/,'repair cannot silently remove the requested view');
+    let unsafeCalls=0;
+    window.OD.callAI=async()=>{unsafeCalls++;return answer([{...slot,view:{...slot.view,source:'secret'}}]);};
+    await assert.rejects(api.request(options),/connected dataset/);
+    assert.equal(unsafeCalls,1,'unrelated invalid schema is not treated as a column mismatch');
+    console.log('PASS unknown, duplicate, empty and excessive columns remain rejected; retries are bounded');
+
+    const flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
+    for(const change of ['cancel','account']) {
+        const controller=new AbortController();let finish,attempts=0,account='one';
+        window.OD.getSessionToken=()=> 'header.'+Buffer.from(JSON.stringify({sub:account,exp:Date.now()/1000+60})).toString('base64url')+'.signature';
+        window.OD.callAI=()=>++attempts===1?Promise.resolve(answer([invalid])):new Promise(resolve=>{finish=resolve;});
+        const pending=api.request({...options,signal:controller.signal});
+        await flush();assert.equal(attempts,2);
+        if(change==='cancel')controller.abort();else account='two';
+        finish(answer([slot]));
+        await assert.rejects(pending,change==='cancel'?error=>error.name==='AbortError':/account changed/);
+        assert.equal(JSON.stringify([...storage]),before);
+    }
+    console.log('PASS cancellation and account changes discard pending column repairs without saving');
 })().catch(error=>{console.error(error);process.exitCode=1;});

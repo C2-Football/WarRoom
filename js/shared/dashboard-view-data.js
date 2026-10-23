@@ -85,7 +85,13 @@
         }
         const outputFields = resultFields(query, source);
         const columns = input.columns == null ? (query.aggregate ? outputFields.map(item => item.id) : source.defaultColumns) : input.columns;
-        if (!Array.isArray(columns) || columns.length < 1 || columns.length > 12 || new Set(columns).size !== columns.length || columns.some(id => !outputFields.some(item => item.id === id))) fail('Choose up to 12 different fields from this dataset.');
+        if (!Array.isArray(columns) || columns.length < 1 || columns.length > 12 || new Set(columns).size !== columns.length || columns.some(id => !outputFields.some(item => item.id === id))) {
+            const error = new Error('Choose up to 12 different fields from this dataset.');
+            // The model can repair its query using this trusted schema. Never
+            // coerce a raw field into an aggregate or silently discard columns.
+            error.dashboardRepair = { source: source.id, allowedColumns: outputFields.map(item => item.id) };
+            throw error;
+        }
         query.columns = columns.slice();
         if (input.filters != null) {
             if (!Array.isArray(input.filters) || input.filters.length > 12) fail('A view can contain up to 12 filters.');
