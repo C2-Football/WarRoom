@@ -28,7 +28,7 @@ const waiverCandidates = () => [candidate('add-a', 'Available Runner', 3, 10), c
 const tradeCandidates = () => [candidate('trade-a', 'Trade Target', 2, 0, { season: { status: 'unavailable', reason: 'Load the full season.' }, price: { delta: -100, unit: 'DHQ' } }), candidate('trade-b', 'Other Trade Target', 12, 0)];
 const ready = candidates => ({ status: 'ready', week: 6, candidates });
 
-function harness({ integrated = false, pro = true } = {}) {
+function harness({ integrated = false, pro = true, metrics = false } = {}) {
     const slots = [], pending = new Map(), events = [], listeners = new Map(), calls = [], seasonCalls = [], writes = [], navigations = [], acquisition = [], comparisons = [];
     let index = 0, dirty = false, tree, lens, viewer = 'owner', saveFailure = false;
     const storage = new Map();
@@ -97,6 +97,7 @@ function harness({ integrated = false, pro = true } = {}) {
     const context = vm.createContext({ window: root, React, console, CustomEvent: root.CustomEvent, localStorage,
         InlineCareerStats: 'career', getPlayerAnnotation: () => null, wrAlpha: color => color,
         setTimeout: fn => fn(), requestAnimationFrame: noop, document: { querySelector: () => null } });
+    if (metrics) { root.React = React; vm.runInContext(fs.readFileSync('js/shared/player-metrics.js', 'utf8'), context); }
     vm.runInContext(compiledLens, context);
     const api = root.WR.RosterLens;
     const input = { league, roster, players, statsData: {}, priorData: {}, userId: 'owner', gm, skin: { type: 'redraft', features: { showTrades: true, showTaxi: true, showWeeklyVerdict: false } }, revision: 1, isPro: pro, setActiveTab: tab => navigations.push(tab) };
@@ -546,19 +547,36 @@ const rosterTrigger = (h, pid) => find(rosterPlayer(h, pid), node => node.props.
 const previewNodes = h => all(h.tree, node => !!node.props['data-lens-preview']);
 const activeSources = h => all(h.tree, node => !!node.props['data-wr-lens-source']);
 
-test('loading the mobile lens leaves every suggested owned row available and all replacement identities closed', async () => {
-    const h = harness({ integrated: true }), moves = [...waiverCandidates(), secondSourceMove()];
+test('yellow player bars replace stats with the gain while open and neutral players retain their four stat columns', async () => {
+    const h = harness({ integrated: true, metrics: true }), moves = [...waiverCandidates(), secondSourceMove()];
+    const metricCells = metric => all(metric, node => node.type === 'span' && !!node.props.title)
+        .map(cell => ({ value: text(find(cell, node => node.type === 'strong')), label: text(find(cell, node => node.type === 'small')) }));
+    const originalMetrics = new Map(Object.keys(h.players).map(pid => [pid, metricCells(find(rosterTrigger(h, pid), node => node.props.className === 'mc-roster-metrics'))]));
+    const assertOriginalMetrics = pid => {
+        const trigger = rosterTrigger(h, pid), metric = find(trigger, node => node.props.className === 'mc-roster-metrics');
+        assert(metric); assert(trigger.children.includes(metric), 'The metric group remains a direct player-bar child');
+        assert.equal(metricCells(metric).length, 4, 'All four selected stat columns remain visible');
+        assert.deepEqual(metricCells(metric), originalMetrics.get(pid), 'Player stats keep their original values and labels');
+        assert(!find(trigger, node => node.props.className === 'wr-lens-bar-gain'), 'The gain replaces stats only for a closed suggested source');
+    };
+    for (const pid of Object.keys(h.players)) assertOriginalMetrics(pid);
     await loadWaivers(h, moves);
     assert.equal(h.lens.selected, null, 'Receiving recommendations never opens the first candidate');
     assert.equal(activeSources(h).length, 0); assert.equal(previewNodes(h).length, 0);
-    for (const [pid, name, id] of [['bench', 'Bench Runner', 'add-a'], ['starter', 'Starter Receiver', 'new-receiver']]) {
+    for (const [pid, name, gain] of [['bench', 'Bench Runner', '+3.0'], ['starter', 'Starter Receiver', '+2.5']]) {
         const row = rosterPlayer(h, pid), trigger = rosterTrigger(h, pid);
         assert.equal(row.props['data-wr-lens-state'], 'available', 'The entire source row has the yellow availability state');
-        assert.equal(trigger.type, 'button'); assert.equal(trigger.props.type, 'button', 'Native controls provide pointer, Enter, and Space activation');
+        assert.equal(trigger.type, 'button'); assert.equal(trigger.props.type, 'button', 'The entire player bar stays one native activation target');
         assert.equal(trigger.props['aria-label'], 'Preview move for ' + name); assert.equal(trigger.props['aria-expanded'], false);
-        const peek = find(row, node => node.props['data-lens-peek'] === id);
-        assert(peek); assert.equal(peek.type, 'button'); assert.equal(peek.props.className, 'wr-lens-peek');
-        assert.match(text(peek), /Potential gain.*\+\d/);
+        assert.equal(trigger.props['data-wr-lens-gain'], '1');
+        const summary = find(trigger, node => node.props.className === 'wr-lens-bar-gain');
+        assert(summary, 'Potential gain is visible inside the owned player bar');
+        assert(text(summary).includes('Potential gain')); assert(text(summary).includes(gain));
+        assert(!find(trigger, node => node.props.className === 'mc-roster-metrics'), 'The closed source shows its gain instead of four stat columns');
+        assert(!find(trigger, node => node.props.className === 'wr-roster-mobile-player-value'), 'The legacy single stat is replaced too');
+        assert.equal(all(trigger, node => node.type === 'button').length, 1, 'The inline gain does not create a nested button');
+        assert(!find(row, node => node.props.className === 'wr-lens-row'), 'A collapsed bar has no separate lower lens row');
+        assert(!find(row, node => node.props.className === 'wr-lens-peek'), 'Potential gain does not add another lower launcher');
         assert(!find(row, node => node.props.className === 'wr-lens-actions'));
         assert(!find(row, node => node.props['aria-label'] === 'Acquisition ideas for ' + name), 'A collapsed source has no replacement menu');
     }
@@ -566,6 +584,16 @@ test('loading the mobile lens leaves every suggested owned row available and all
         assert(!text(h.tree).includes(asset.name), 'Replacement names are absent until their source opens: ' + asset.name);
     }
     assert(!find(h.tree, node => node.props.className === 'wr-lens-impact'), 'A closed lens does not show a comparison headline');
+    for (const pid of ['ir', 'taxi']) assertOriginalMetrics(pid);
+    h.click('Preview move for Bench Runner');
+    assertOriginalMetrics('bench');
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'active');
+    assert(!find(rosterTrigger(h, 'starter'), node => node.props.className === 'mc-roster-metrics'));
+    h.click('Preview move for Starter Receiver');
+    assertOriginalMetrics('starter');
+    assert(!find(rosterTrigger(h, 'bench'), node => node.props.className === 'mc-roster-metrics'), 'The previous source returns to gain-only when another move opens');
+    h.click('Lens off');
+    for (const pid of Object.keys(h.players)) assertOriginalMetrics(pid);
     assert.equal(h.writes.length, 0); assert.equal(h.comparisons.length, 0); assert.equal(h.events.length, 0);
 });
 

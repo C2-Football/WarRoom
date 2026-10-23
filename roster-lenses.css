@@ -105,6 +105,13 @@
 .wr-lens-roster-settings{min-width:0;border-bottom:1px solid var(--ov-6,rgba(203,213,229,.2));margin-bottom:4px}
 .wr-lens-roster-settings>summary{min-height:44px;padding:10px 2px;font:500 12px var(--font-body,sans-serif);line-height:1.5;color:var(--silver);cursor:pointer;overflow-wrap:anywhere}
 .wr-lens-roster-settings[open]>.wr-roster-mobile-controls{padding-bottom:9px}
+@media(max-width:767px){
+  .wr-mission-control .wr-roster-mobile-player-trigger[data-wr-lens-gain="1"]{grid-template-columns:minmax(0,1fr) auto!important;gap:8px;min-height:60px!important;padding:8px 9px!important;box-sizing:border-box;align-items:center}
+  .wr-roster-mobile-player-trigger[data-wr-lens-gain="1"]>.wr-lens-bar-gain{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0;color:var(--silver);font:500 10px/1.3 var(--font-body,sans-serif);white-space:nowrap}
+  .wr-lens-bar-gain>small{font:inherit}
+  .wr-lens-bar-gain .wr-lens-gain{display:inline-flex;align-items:baseline;gap:4px;min-width:0;font-size:18px;line-height:1.3;white-space:nowrap}
+  .wr-lens-bar-gain .wr-lens-gain small{display:inline;font-size:11px;line-height:inherit}
+}
 @media(max-width:767px){.wr-lens-strategy{flex-basis:100%;justify-content:space-between}.wr-lens-strategy>span{flex:1;min-width:100px}.wr-lens-strategy select{flex:0 1 160px;min-width:150px;max-width:180px}.wr-mission-control .wr-roster-lens-active .wr-roster-mobile-summary-main{padding-block:8px}.wr-mission-control .wr-roster-lens-active .wr-roster-mobile-summary h2{font-size:13px}.wr-mission-control .wr-roster-lens-active .wr-roster-mobile-capacity strong{font-size:17px}}
 @media(min-width:768px){.wr-roster-lens{max-width:860px;width:100%}.wr-lens-switch{max-width:430px}.wr-lens-preview{max-width:760px}.wr-lens-context{justify-content:flex-start;gap:15px}}
 @media(max-width:370px){.wr-lens-context{gap:3px}.wr-lens-impact>div>strong{font-size:20px}.wr-lens-row{padding-inline:8px}.wr-lens-incoming{gap:8px}.wr-lens-gain{font-size:15px}}

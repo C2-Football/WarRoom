@@ -1807,6 +1807,7 @@ function MyTeamTab({
       const isDropFlag = _isActiveDrop(r);
       const isLensSource = !!rosterLens?.selected && rosterLens.mode !== 'off' && !rosterLens.loading
         && (rosterLens.byAnchor.get(String(r.pid)) || []).some(candidate => candidate.id === rosterLens.selected?.id);
+      const lensCandidate = opportunity && !isLensSource ? rosterLens.byAnchor.get(String(r.pid))?.[0] : null;
       const primaryStat = isChoppedRoster ? {
         label: 'Bye',
         value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
@@ -1814,7 +1815,7 @@ function MyTeamTab({
       } : _phoneSlotFor(_phoneSlotKeys[0], r);
       g.rows.push(
         <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid} data-wr-lens-source={isLensSource ? rosterLens.mode : undefined} data-wr-lens-state={opportunity ? isLensSource ? 'active' : 'available' : undefined}>
-          <button type="button" className="wr-roster-mobile-player-trigger" aria-label={opportunity ? (isLensSource ? 'Collapse move for ' : 'Preview move for ') + getPlayerName(r.pid) : undefined} aria-expanded={opportunity ? isLensSource : isExpanded} aria-controls={opportunity ? 'roster-lens-' + r.pid : isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => {
+          <button type="button" className="wr-roster-mobile-player-trigger" data-wr-lens-gain={lensCandidate ? '1' : undefined} aria-describedby={lensCandidate ? 'roster-lens-gain-' + r.pid : undefined} aria-label={opportunity ? (isLensSource ? 'Collapse move for ' : 'Preview move for ') + getPlayerName(r.pid) : undefined} aria-expanded={opportunity ? isLensSource : isExpanded} aria-controls={opportunity ? isLensSource ? 'roster-lens-' + r.pid : undefined : isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => {
             if (opportunity) {
               setExpandedPid(null);
               if (isLensSource) rosterLens.clear();
@@ -1826,16 +1827,17 @@ function MyTeamTab({
               <span className="wr-roster-position-icon" style={{ '--wr-position-color': window.App.positionColor?.(r.p.position || r.pos) || posColors[r.pos] || ({ QB: '#e74c3c', RB: '#2ecc71', WR: '#3498db', TE: '#f0a500', K: '#9b59b6', DEF: '#85929e' })[r.pos] || 'var(--silver)' }}>{window.App.idpPositionFamily?.(r.p.position) ? String(r.p.position).toUpperCase() : r.pos}</span>
               <span className="wr-roster-identity-copy"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r, false)}{isLensSource && <span className="wr-lens-source-badge">In lens</span>}</span></span>
             </span>
-            {metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {
+            {lensCandidate && <span id={'roster-lens-gain-' + r.pid} className="wr-lens-bar-gain"><small>Potential gain</small><window.WR.RosterLens.Gain candidate={lensCandidate} lens={rosterLens} inline /></span>}
+            {!lensCandidate && (metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {
               proj: projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null,
               ppg: window.App?.WeeklyProj?.formStats?.(r.pid, 5)?.rollingPPG,
               dhq: showRosterRosPoints ? rosterRosPoints(r.pid) : r.dhq,
               age: r.age || null, season: r.curGP > 0 ? r.curPPG : null,
               bye: window.App?.NFLByes?.weekForPlayer?.(r.p, byeSeason), matchup: isPro ? projFor(r.pid)?.matchupGrade : null,
-            }).map(stat => <span key={stat.key} title={stat.key === 'dhq' ? valueLabel : stat.label}><strong>{stat.value}</strong><small>{stat.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : stat.label}</small></span>)}</span> : <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>}
+            }).map(stat => <span key={stat.key} title={stat.key === 'dhq' ? valueLabel : stat.label}><strong>{stat.value}</strong><small>{stat.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : stat.label}</small></span>)}</span> : <span className="wr-roster-mobile-player-value" data-tone={primaryStat.tone}><span>{primaryStat.label}</span><strong>{primaryStat.value}</strong></span>)}
             <span className="wr-roster-mobile-player-chevron" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
           </button>
-          {rosterLens && <window.WR.RosterLens.Row lens={rosterLens} pid={r.pid} onOpenPlayer={pid => setExpandedPid(prev => prev === pid ? null : pid)} />}
+          {rosterLens && <window.WR.RosterLens.Row lens={rosterLens} pid={r.pid} onOpenPlayer={pid => setExpandedPid(prev => prev === pid ? null : pid)} inlineSummary />}
           {isExpanded && <div id={'roster-detail-' + r.pid} className="wr-roster-mobile-detail">
             <div className="mc-player-actions">
               {skinFeatures.showTrades !== false && <button type="button" onClick={() => { window._wrTradeBuilderTarget = { pid: r.pid, returnTab: 'myteam', ts: Date.now() }; setActiveTab?.('trades'); window.dispatchEvent(new CustomEvent('wr:open-trade-builder', { detail: window._wrTradeBuilderTarget })); }}>Build a trade</button>}

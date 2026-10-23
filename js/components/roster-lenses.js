@@ -226,13 +226,13 @@
             setBid: bid => update({ bid, notice: '', error: false }), retry: () => setRetry(value => value + 1),
         };
     }
-    function Gain({ candidate, lens }) {
+    function Gain({ candidate, lens, inline = false }) {
         if (futureView(lens)) {
             const age = candidate.futureFit?.ageDifference;
-            return <strong className="wr-lens-gain wr-lens-age">{finite(age) ? compactNumber(Math.abs(age)) : '—'}<small>{finite(age) ? age > 0 ? 'years younger' : age < 0 ? 'years older' : 'same age' : 'age comparison'}</small></strong>;
+            return <strong className={'wr-lens-gain wr-lens-age' + (inline ? ' is-inline' : '')}>{finite(age) ? compactNumber(Math.abs(age)) : '—'}<small>{finite(age) ? age > 0 ? 'years younger' : age < 0 ? 'years older' : 'same age' : 'age comparison'}</small></strong>;
         }
         const delta = deltaOf(candidate, lens.ui.horizon);
-        return <strong className={'wr-lens-gain' + (delta != null && delta < 0 ? ' is-loss' : '')}>{signed(delta)}<small>{lens.ui.horizon === 'season' ? 'ROS pts' : lens.ui.basis === 'average' ? 'avg pts' : 'lineup pts'}</small></strong>;
+        return <strong className={'wr-lens-gain' + (delta != null && delta < 0 ? ' is-loss' : '') + (inline ? ' is-inline' : '')}>{signed(delta)}<small>{lens.ui.horizon === 'season' ? 'ROS pts' : lens.ui.basis === 'average' ? 'avg pts' : 'lineup pts'}</small></strong>;
     }
     function Impact({ lens }) {
         const candidate = lens.selected, metric = metricOf(candidate, lens.ui.horizon);
@@ -321,11 +321,12 @@
             {!lens.ui.review && lens.ui.notice && <p className={'wr-lens-feedback' + (lens.ui.error ? ' is-error' : '')} role={lens.ui.error ? 'alert' : 'status'}>{lens.ui.notice}</p>}
         </div>;
     }
-    function Row({ lens, pid, onOpenPlayer }) {
+    function Row({ lens, pid, onOpenPlayer, inlineSummary = false }) {
         if (!lens || lens.mode === 'off' || lens.loading) return null;
         const candidates = lens.byAnchor.get(text(pid)) || [];
         const selected = candidates.some(candidate => candidate.id === lens.selected?.id) ? lens.selected : null;
         if (!candidates.length) return null;
+        if (inlineSummary && !selected) return null;
         const owned = lens.input.players?.[pid];
         const ownedName = owned?.full_name || [owned?.first_name, owned?.last_name].filter(Boolean).join(' ')
             || candidates.flatMap(candidate => candidate.outgoing || []).find(asset => pidOf(asset) === text(pid))?.name || 'your player';
@@ -336,5 +337,5 @@
             </React.Fragment>}
         </div>;
     }
-    WR.RosterLens = { useLens, Controls, Row, Preview, identity, signature, ranked, metricOf, deltaOf };
+    WR.RosterLens = { useLens, Controls, Row, Preview, Gain, identity, signature, ranked, metricOf, deltaOf };
 })(window);
