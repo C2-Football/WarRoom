@@ -104,3 +104,4 @@ assert.deepEqual(result.usageMetrics, [
 ], 'custom stats retain observed zeros and use the same actual sample as the cards');
 assert.equal(result.usage.length, 2, 'the default card keeps two role stats');
 console.log('PASS player comparison: season/source fallback, zero/negative values, MFL averages, sample denominators, observed usage, nullable trends, and recent-game history');
+require('./player-compare-handoff.cjs');

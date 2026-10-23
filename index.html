@@ -3115,7 +3115,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <link rel="stylesheet" href="mission-v8-port.css?v=20261017studio1">
 <link rel="stylesheet" href="player-metrics-mobile.css?v=20261022headersort1">
 <link rel="stylesheet" href="roster-scoring-visuals.css?v=20261018visualscores1">
-<link rel="stylesheet" href="roster-lenses.css?v=20261022idpaverage1">
+<link rel="stylesheet" href="roster-lenses.css?v=20261022lensplayer1">
 <link rel="stylesheet" href="mobile-live-standings.css?v=20261019playoffviews1">
 <link rel="stylesheet" href="player-compare.css?v=20261012compare2">
 <link rel="stylesheet" href="team-compare.css?v=20261012compare3">
@@ -3307,10 +3307,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20261022headersort1"></script>
-<script type="text/babel" data-wr-defer="myteam" src="js/components/roster-lenses.js?v=20261022idpaverage1"></script>
+<script type="text/babel" data-wr-defer="myteam" src="js/components/roster-lenses.js?v=20261022lensplayer1"></script>
 <script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20261022headersort1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
-<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20261012compare2"></script>
+<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20261022lensplayer1"></script>
 <script type="text/babel" data-wr-defer="central" src="js/components/woeppel-cup-panel.js?v=20261019followcompact1"></script>
 <script type="text/babel" data-wr-defer="central" src="js/components/league-live-scoreboard.js?v=20261012choppedpolish1"></script>
 <script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20261020coresweep1"></script>
@@ -3364,7 +3364,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260915audit5"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
     <script type="text/babel" src="js/components/mission-alex.js?v=20261007mission1"></script>
-    <script type="text/babel" src="js/league-detail.js?v=20261022idpaverage1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20261022lensplayer1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20261021vaultresume1"></script>
 

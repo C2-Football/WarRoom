@@ -37,6 +37,11 @@ function CompareTab({
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
     const valueLabel = resolvedLeagueSkin?.vocabulary?.valueLabel || 'DHQ Value';
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+    const playerHandoff = window.WR?.PlayerCompareHandoff;
+    const replacementIntent = window._wrPlayerCompareTarget;
+    const pendingPlayerReplacement = playerHandoff?.matches(replacementIntent, currentLeague, sleeperUserId)
+        && replacementIntent.playerIds.every(pid => !!playersData?.[pid]) ? replacementIntent : null;
+    const playerHandoffScope = JSON.stringify(playerHandoff?.context(currentLeague, sleeperUserId) || {});
     const intelReady = !!window.App?.LI_LOADED && String(window.App?.LI?.sourceLeagueId || '') === String(leagueId);
     function comparisonValues() {
         if (!seasonalFormat && !intelReady) return {};
@@ -72,6 +77,7 @@ function CompareTab({
     });
     const [compareScope, setCompareScope] = React.useState(() => {
         try {
+            if (pendingPlayerReplacement) return 'players';
             // A player card deep-linked into compare → land directly in Players mode.
             if (window._wrAddComparePlayer != null && window._wrAddComparePlayer !== '') return 'players';
             return localStorage.getItem('wr_compare_scope_' + (leagueId || 'default')) || 'duel';
@@ -80,6 +86,7 @@ function CompareTab({
     // Players mode: up to 4 players compared straight on DHQ + signals.
     const [comparePlayerIds, setComparePlayerIds] = React.useState(() => {
         try {
+            if (pendingPlayerReplacement) return pendingPlayerReplacement.playerIds.slice();
             const raw = localStorage.getItem('wr_compare_players_' + (leagueId || 'default'));
             const list = raw ? JSON.parse(raw).map(String) : [];
             // Merge any pending deep-link target so it survives a remount even if the
@@ -228,6 +235,30 @@ function CompareTab({
         window.addEventListener('wr:add-compare-player', onAddCompare);
         return () => window.removeEventListener('wr:add-compare-player', onAddCompare);
     }, []);
+
+    // Scoped replacements seed an exact pair (or one player for an open roster
+    // spot). The pending intent covers a lazy mount; the event covers a tab
+    // that is already mounted. Only the matching intent can be cleared.
+    React.useEffect(() => {
+        const applyReplacement = target => {
+            if (!playerHandoff?.matches(target, currentLeague, sleeperUserId)
+                || !target.playerIds.every(pid => !!playersData?.[pid])) {
+                playerHandoff?.clear(target);
+                return;
+            }
+            setComparePlayerIds(target.playerIds.slice());
+            setCompareScope('players');
+            playerHandoff.clear(target);
+        };
+        if (window._wrPlayerCompareTarget) applyReplacement(window._wrPlayerCompareTarget);
+        const onReplacePlayers = event => {
+            // An older deferred event cannot replace a newer pending choice.
+            if (window._wrPlayerCompareTarget?.requestId !== event?.detail?.requestId) return;
+            applyReplacement(event.detail);
+        };
+        window.addEventListener('wr:replace-compare-players', onReplacePlayers);
+        return () => window.removeEventListener('wr:replace-compare-players', onReplacePlayers);
+    }, [playerHandoffScope, playersData]);
 
     React.useEffect(() => {
         if (!leagueId || !compareTeamId) return;

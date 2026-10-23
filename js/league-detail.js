@@ -5,6 +5,41 @@
     const LEAGUE_WR_KEYS  = window.App.WR_KEYS;
     const LeagueStorage = window.App.WrStorage;
 
+    // A replacement comparison is an in-memory navigation intent, scoped like
+    // the roster lens that created it. It must survive a lazy mount without
+    // being replayed into a different account, league or season.
+    (function installPlayerCompareHandoff() {
+        const WR = window.WR = window.WR || {};
+        const text = value => String(value == null ? '' : value);
+        const context = (league, userId) => ({
+            accountKey: WR.WaiverPlans?.account?.() || ((window.App?.OD || window.OD)?.getCurrentUserId?.()
+                ? 'account:' + (window.App?.OD || window.OD).getCurrentUserId() : userId ? 'viewer:' + text(userId) : ''),
+            platform: text(league?._platform || window.S?.platform || 'sleeper'),
+            leagueId: text(league?.league_id || league?.id), season: text(league?.season),
+        });
+        const playerIds = values => [...new Set((Array.isArray(values) ? values : [values])
+            .filter(value => ['string', 'number'].includes(typeof value)).map(value => text(value).trim()).filter(value => value && value !== '0'))].slice(0, 4);
+        const sameContext = (target, league, userId) => {
+            const current = context(league, userId);
+            return !!target && ['accountKey', 'platform', 'leagueId', 'season'].every(key => text(target[key]) === current[key])
+                && (window.S?.currentLeagueId == null || text(window.S.currentLeagueId) === current.leagueId);
+        };
+        const matches = (target, league, userId) => target?.kind === 'players-replace' && !!target.requestId
+            && !!target.accountKey && !!target.leagueId && !!target.season && sameContext(target, league, userId)
+            && Array.isArray(target.playerIds) && target.playerIds.length > 0 && target.playerIds.length <= 4
+            && JSON.stringify(playerIds(target.playerIds)) === JSON.stringify(target.playerIds);
+        const clear = target => {
+            if (window._wrPlayerCompareTarget?.requestId === target?.requestId) {
+                try { delete window._wrPlayerCompareTarget; } catch (_) { window._wrPlayerCompareTarget = null; }
+            }
+        };
+        const discardStale = (league, userId) => {
+            const target = window._wrPlayerCompareTarget;
+            if (target && !matches(target, league, userId)) clear(target);
+        };
+        WR.PlayerCompareHandoff = { context, playerIds, sameContext, matches, clear, discardStale };
+    })();
+
     // Lazy boundary factory for deferred module groups (see js/module-loader.js).
     // Heavy tab modules are inert at boot; on first open we inject the group's
     // scripts, show a spinner, then render the real component. The components are
@@ -582,8 +617,34 @@
         // We persist the intent (player + scope) to the SAME localStorage keys
         // CompareTab reads on mount, so it survives any tab/mount churn — the
         // in-memory global + deferred event are just the already-mounted fast path.
-        window.wrComparePlayers = (pid) => {
+        window.WR.PlayerCompareHandoff.discardStale(currentLeague, sleeperUserId);
+        window.wrComparePlayers = (pid, options = {}) => {
+            let replacement = null;
             try {
+                const handoff = window.WR.PlayerCompareHandoff;
+                const current = handoff.context(currentLeague, sleeperUserId);
+                const requestSequence = window._wrPlayerCompareSerial = (window._wrPlayerCompareSerial || 0) + 1;
+                const requestId = String(Date.now()) + ':' + String(requestSequence);
+                if (Array.isArray(pid) || options.replace === true) {
+                    const ids = handoff.playerIds(pid);
+                    if (options.replace !== true || !ids.length || ids.some(id => !playersData?.[id])
+                        || !['accountKey', 'leagueId', 'season'].every(key => String(options[key] ?? '') === current[key])
+                        || options.platform != null && String(options.platform) !== current.platform) return false;
+                    const target = { kind: 'players-replace', ...current, playerIds: ids, requestId, source: options.source || 'player-comparison' };
+                    if (!handoff.matches(target, currentLeague, sleeperUserId)) return false;
+                    replacement = target;
+                    window._wrPlayerCompareTarget = target;
+                    try { delete window._wrAddComparePlayer; } catch (_) { window._wrAddComparePlayer = null; }
+                    setActiveTab('compare');
+                    setTimeout(() => {
+                        if (window._wrPlayerCompareTarget?.requestId !== requestId || !handoff.matches(target, currentLeague, sleeperUserId)) return;
+                        window.dispatchEvent(new CustomEvent('wr:replace-compare-players', { detail: target }));
+                    }, 50);
+                    return true;
+                }
+                // Preserve the player card's additive single-player behavior.
+                // A newer replacement or a changed context cancels its timer.
+                handoff.clear(window._wrPlayerCompareTarget);
                 const lid = currentLeague?.league_id || currentLeague?.id || '';
                 if (pid != null && pid !== '') {
                     window._wrAddComparePlayer = String(pid);
@@ -598,8 +659,15 @@
                     }
                 }
                 setActiveTab('compare');
-                setTimeout(() => window.dispatchEvent(new CustomEvent('wr:add-compare-player', { detail: { pid } })), 50);
-            } catch (_) { /* noop */ }
+                setTimeout(() => {
+                    if (window._wrPlayerCompareSerial !== requestSequence || !handoff.sameContext(current, currentLeague, sleeperUserId)) return;
+                    window.dispatchEvent(new CustomEvent('wr:add-compare-player', { detail: { pid } }));
+                }, 50);
+                return true;
+            } catch (_) {
+                if (replacement) window.WR?.PlayerCompareHandoff?.clear(replacement);
+                return false;
+            }
         };
 
         useEffect(() => {

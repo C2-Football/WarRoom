@@ -33,7 +33,11 @@
 .wr-lens-preview{padding:8px 1px;min-width:0;color:var(--white);font-family:var(--font-body,sans-serif)}
 .wr-lens-incoming{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
 .wr-lens-incoming>div{min-width:0}
-.wr-lens-incoming>div>strong{display:block;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.wr-lens-incoming strong{display:block;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.wr-roster-lens .wr-lens-player-target,.wr-lens-row .wr-lens-player-target{display:block;min-width:0;width:100%;min-height:44px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--white);text-align:left}
+.wr-lens-player-target:hover>strong,.wr-lens-player-target:focus-visible>strong{color:var(--gold)}
+.wr-lens-player-target:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wr-lens-player-chevron{display:inline-block;margin-left:6px;color:var(--gold);font-size:18px;line-height:1;vertical-align:baseline}
 .wr-lens-incoming strong small{display:block;font-size:11px;font-weight:400;color:var(--silver)}
 .wr-lens-incoming strong small.wr-lens-player-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:5px;font-size:12px}
 .wr-lens-player-stats b{color:var(--white);font-variant-numeric:tabular-nums;margin-left:3px;font-weight:650}

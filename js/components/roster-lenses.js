@@ -205,6 +205,18 @@
                 root.dispatchEvent(new root.CustomEvent('wr:open-trade-builder', { detail: root._wrTradeBuilderTarget }));
             }
         };
+        const openIncoming = (candidate, asset) => {
+            if (!pidOf(asset) || !isCurrent(candidate) || !candidate.incoming?.some(item => pidOf(item) === pidOf(asset))) return;
+            if (mode === 'trades') { openModule(candidate); return; }
+            const ids = [...new Set([text(candidate.dropPid || pidOf(candidate.outgoing?.[0])), pidOf(asset)].filter(Boolean))];
+            if (!ids.length || typeof root.wrComparePlayers !== 'function') {
+                update({ notice: 'Player comparison could not be opened. Try again.', error: true });
+                return;
+            }
+            const opened = root.wrComparePlayers(ids, { replace: true, leagueId: text(input.league?.league_id || input.league?.id),
+                season: text(input.league?.season), accountKey: account(input), source: 'roster-waiver-lens' });
+            if (opened === false) update({ notice: 'This comparison changed. Choose a current move.', error: true });
+        };
         const byAnchor = new Map();
         options.forEach(candidate => {
             const anchor = text(candidate.anchorPlayerId || candidate.dropPid || pidOf(candidate.outgoing?.[0]));
@@ -213,7 +225,7 @@
         });
         return { input, scope, key, ui, mode, enabled: allowed, canTrade, result, options, selected, byAnchor,
             loading: mode !== 'off' && (!result || result.status === 'loading'), seasonLoading: seasonNeeded && selected?.season?.status === 'loading',
-            setMode, choose, clear, openReview, savePlan, openModule,
+            setMode, choose, clear, openReview, savePlan, openModule, openIncoming,
             setHorizon: horizon => update({ horizon: allowSeasonView ? horizon : 'week', selected: selected?.id || '', notice: '', error: false }),
             setBasis: next => update({ basis: normalizeBasis(next), horizon: 'week', selected: null, review: false, bid: '', notice: '', error: false }),
             explore: next => update({ exploreMode: next, selected: null, review: false, notice: '', error: false }),
@@ -283,7 +295,7 @@
         const otherDelta = deltaOf(candidate, lens.ui.horizon === 'season' ? 'week' : 'season');
         const left = budget(lens.input);
         return <div className="wr-lens-preview" data-lens-preview={candidate.id} aria-label="Acquisition preview">
-            <div className="wr-lens-incoming"><div>{incoming.map(asset => <strong key={pidOf(asset)}>{nameOf(asset)}<small><span className="wr-lens-position" style={{ '--wr-position-color': root.App?.positionColor?.(asset.position || asset.pos) || root.App?.POS_COLORS?.[asset.position || asset.pos] }}>{asset.position || asset.pos}</span>{[asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).map(detail => ' · ' + detail)}</small><small className="wr-lens-player-stats"><span title={asset.comparisonBasis === 'average' ? [asset.averageSeason || lens.input.league?.season, 'season average', finite(asset.averageGames) ? asset.averageGames + ' games' : ''].filter(Boolean).join(' · ') : undefined}>{asset.comparisonBasis === 'average' ? 'Avg' : trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b>{asset.comparisonBasis === 'average' && finite(asset.averageGames) && <small>{compactNumber(asset.averageGames)} games</small>}</span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong>)}</div><Gain candidate={candidate} lens={lens} /></div>
+            <div className="wr-lens-incoming"><div>{incoming.map(asset => <button type="button" className="wr-lens-player-target" key={pidOf(asset)} aria-label={trade ? 'Open trade calculator for ' + nameOf(asset) : 'Compare ' + nameOf(asset) + (outgoing[0] ? ' with ' + nameOf(outgoing[0]) : '')} onClick={event => { event?.stopPropagation(); lens.openIncoming(candidate, asset); }}><strong>{nameOf(asset)}<span className="wr-lens-player-chevron" aria-hidden="true">›</span><small><span className="wr-lens-position" style={{ '--wr-position-color': root.App?.positionColor?.(asset.position || asset.pos) || root.App?.POS_COLORS?.[asset.position || asset.pos] }}>{asset.position || asset.pos}</span>{[asset.team, asset.age != null ? 'Age ' + asset.age : null].filter(Boolean).map(detail => ' · ' + detail)}</small><small className="wr-lens-player-stats"><span title={asset.comparisonBasis === 'average' ? [asset.averageSeason || lens.input.league?.season, 'season average', finite(asset.averageGames) ? asset.averageGames + ' games' : ''].filter(Boolean).join(' · ') : undefined}>{asset.comparisonBasis === 'average' ? 'Avg' : trade ? 'W' + lens.result?.week + ' proj' : 'Proj'} <b>{number(asset.projection)}</b>{asset.comparisonBasis === 'average' && finite(asset.averageGames) && <small>{compactNumber(asset.averageGames)} games</small>}</span><span>L5 PPG <b>{number(recentForm(lens.input, pidOf(asset)))}</b></span></small></strong></button>)}</div><Gain candidate={candidate} lens={lens} /></div>
             <div className="wr-lens-costs"><p className="wr-lens-price">{outgoing.length ? <React.Fragment><span>You {trade ? 'send' : 'drop'}</span> {outgoing.map((asset, index) => <React.Fragment key={pidOf(asset)}>{index > 0 ? ' + ' : ''}{nameOf(asset)}{lens.ui.basis !== 'projected' && <small> · {asset.comparisonBasis === 'average' ? 'Avg' : 'Proj'} {number(asset.projection)}</small>}</React.Fragment>)}</React.Fragment> : 'No drop needed'}</p>
                 {!trade && usesBids(lens.input) && lens.ui.bid !== '' && <p className="wr-lens-price"><span>Max bid</span> ${lens.ui.bid}</p>}
                 {trade && candidate.price && finite(candidate.price.delta) && <p className="wr-lens-price"><span>Value change</span> {candidate.price.delta > 0 ? '+' : ''}{compactNumber(candidate.price.delta)} {candidate.price.unit || 'value'}</p>}
@@ -302,6 +314,7 @@
                 <div className="wr-lens-actions">{!trade && <button type="button" className="wr-lens-primary" onClick={() => lens.savePlan(candidate)}>Save claim plan</button>}<button type="button" className={trade ? 'wr-lens-primary' : ''} onClick={() => lens.openModule(candidate)}>{trade ? 'Open in Trade Builder' : 'Open in Waivers'}</button></div>
                 {lens.ui.notice && <p className={'wr-lens-feedback' + (lens.ui.error ? ' is-error' : '')} role={lens.ui.error ? 'alert' : 'status'}>{lens.ui.notice}</p>}
             </section>}
+            {!lens.ui.review && lens.ui.notice && <p className={'wr-lens-feedback' + (lens.ui.error ? ' is-error' : '')} role={lens.ui.error ? 'alert' : 'status'}>{lens.ui.notice}</p>}
         </div>;
     }
     function Row({ lens, pid }) {

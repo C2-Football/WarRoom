@@ -29,7 +29,7 @@ const tradeCandidates = () => [candidate('trade-a', 'Trade Target', 2, 0, { seas
 const ready = candidates => ({ status: 'ready', week: 6, candidates });
 
 function harness({ integrated = false, pro = true } = {}) {
-    const slots = [], pending = new Map(), events = [], listeners = new Map(), calls = [], seasonCalls = [], writes = [], navigations = [], acquisition = [];
+    const slots = [], pending = new Map(), events = [], listeners = new Map(), calls = [], seasonCalls = [], writes = [], navigations = [], acquisition = [], comparisons = [];
     let index = 0, dirty = false, tree, lens, viewer = 'owner', saveFailure = false;
     const storage = new Map();
     const localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) };
@@ -73,6 +73,7 @@ function harness({ integrated = false, pro = true } = {}) {
         dispatchEvent(event) { events.push(event); for (const fn of listeners.get(event.type) || []) fn(event); },
         CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
         RosterPlayerStats: 'roster-stats', wrIsPro: () => pro,
+        wrComparePlayers: (ids, options) => { comparisons.push({ ids, options }); return true; },
         WR: {
             useViewport: () => ({ width: 390, isPhone: true }),
             GmMode: { useGmEffects: () => gm, getPreset: () => ({}) },
@@ -127,7 +128,7 @@ function harness({ integrated = false, pro = true } = {}) {
         return tree;
     }
     async function flush() { for (let i = 0; i < 12; i++) { await Promise.resolve(); if (dirty) render(); } return tree; }
-    const apiForTest = { root, api, input, props, calls, seasonCalls, writes, events, navigations, acquisition, plans, players, roster, league, gm, render, flush,
+    const apiForTest = { root, api, input, props, calls, seasonCalls, writes, events, navigations, acquisition, comparisons, plans, players, roster, league, gm, render, flush,
         get tree() { return tree; }, get lens() { return lens; },
         set viewer(value) { viewer = value; }, set saveFailure(value) { saveFailure = value; },
         click(label) { const button = find(tree, node => node.type === 'button' && (text(node) === label || node.props['aria-label'] === label)); assert(button, 'button: ' + label); button.props.onClick(); render(); return button; },
@@ -318,6 +319,56 @@ test('trade handoff carries both sides and rejects changed-account or wrong acti
     h.viewer = 'someone-else'; prior.openModule(prior.selected); assert.equal(h.events.length, count);
     h.viewer = 'owner'; h.root.S.currentLeagueId = 'different'; prior.openModule(prior.selected); assert.equal(h.events.length, count);
     assert.equal(h.writes.length, 0);
+});
+
+test('tapping a waiver target compares the exact add/drop immediately without saving or opening Waivers', async () => {
+    const h = harness(); await loadWaivers(h);
+    const before = JSON.stringify(h.roster), bid = h.lens.ui.bid;
+    const target = h.click('Compare Available Runner with Bench Runner');
+    assert.equal(target.props.type, 'button');
+    assert.deepEqual(Array.from(h.comparisons[0].ids), ['bench', 'add-a']);
+    assert.equal(h.comparisons[0].options.replace, true);
+    assert.equal(h.comparisons[0].options.leagueId, 'one');
+    assert.equal(h.comparisons[0].options.season, '2026');
+    assert.equal(h.comparisons[0].options.accountKey, 'account:owner');
+    assert.equal(h.lens.ui.review, false, 'No review disclosure is needed before comparing');
+    assert.equal(h.acquisition.length, 0); assert.equal(h.writes.length, 0);
+    assert.equal(h.lens.ui.bid, bid); assert.equal(JSON.stringify(h.roster), before);
+    const captured = target.props.onClick;
+    h.viewer = 'another-owner'; captured(); assert.equal(h.comparisons.length, 1, 'Captured target cannot cross an account boundary');
+    h.viewer = 'owner'; h.root.S.currentLeagueId = 'different'; captured(); assert.equal(h.comparisons.length, 1);
+});
+
+test('an open-spot waiver target opens one player and stale point-basis targets cannot navigate', async () => {
+    const h = harness(); await loadWaivers(h, [candidate('add-a', 'Available Runner', 3, 10, { dropPid: null, anchorPlayerId: null, outgoing: [] })]);
+    const target = h.click('Compare Available Runner');
+    assert.deepEqual(Array.from(h.comparisons[0].ids), ['add-a'], 'Do not invent a drop for an open roster spot');
+    const stale = target.props.onClick;
+    h.change('Point comparison basis', 'average'); await h.flush(); stale();
+    assert.equal(h.comparisons.length, 1, 'A previous-basis preview cannot open a current comparison');
+});
+
+test('tapping any incoming trade player opens the complete suggested calculator package directly', async () => {
+    const h = harness(), move = tradeCandidates()[0];
+    move.incoming.push({ pid: 'trade-other', name: 'Second Target', position: 'WR' });
+    move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
+    await loadTrades(h, [move]);
+    const target = h.click('Open trade calculator for Second Target');
+    assert.equal(h.navigations.at(-1), 'trades');
+    assert.equal(h.events.at(-1).type, 'wr:open-trade-builder');
+    assert.deepEqual(Array.from(h.events.at(-1).detail.receivePlayerIds), ['trade-a', 'trade-other']);
+    assert.deepEqual(Array.from(h.events.at(-1).detail.givePlayerIds), ['bench', 'starter']);
+    assert.equal(h.events.at(-1).detail.returnTab, 'myteam');
+    assert.equal(h.lens.ui.review, false); assert.equal(h.writes.length, 0); assert.equal(h.comparisons.length, 0);
+    const count = h.events.length;
+    h.click('Lens off'); target.props.onClick(); assert.equal(h.events.length, count, 'An old incoming target is inert after the lens closes');
+});
+
+test('an unavailable compare entry reports an inline failure instead of silently opening a player card', async () => {
+    const h = harness(); await loadWaivers(h); delete h.root.wrComparePlayers;
+    h.click('Compare Available Runner with Bench Runner');
+    assert.match(text(find(h.tree, node => node.props.role === 'alert')), /Player comparison could not be opened/);
+    assert.equal(h.writes.length, 0); assert.equal(h.acquisition.length, 0);
 });
 
 test('actual My Roster places review inside its player row and restores untouched filters/sort on lens off', async () => {
