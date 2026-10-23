@@ -309,17 +309,23 @@
         }, [controller, key, visible, detailed]);
         if (!controller?.enabled) return null;
         const data = result?.key === key ? result.data : null;
-        const num = (value, places = 1) => value != null && Number.isFinite(Number(value)) ? Number(value).toFixed(places) : '—';
-        const pct = value => value != null && Number.isFinite(Number(value)) ? num(value, 0) + '%' : '—';
-        const signed = (value, suffix = '', places = 1) => value != null && Number.isFinite(Number(value)) ? (Number(value) > 0 ? '+' : '') + num(value, places) + suffix : 'Unavailable';
-        const displayedPctDelta = (before, after) => before != null && after != null && Number.isFinite(Number(before)) && Number.isFinite(Number(after)) ? Math.round(Number(after)) - Math.round(Number(before)) : null;
+        const knownNumber = value => (typeof value === 'number' || typeof value === 'string') && String(value).trim() !== '' && Number.isFinite(Number(value));
+        const num = (value, places = 1) => knownNumber(value) ? Number(value).toFixed(places) : '—';
+        const pct = value => knownNumber(value) ? num(value, 0) + '%' : '—';
+        const signed = (value, suffix = '', places = 1) => knownNumber(value) ? (Number(value) > 0 ? '+' : '') + num(value, places) + suffix : 'Unavailable';
+        const displayedPctDelta = (before, after) => knownNumber(before) && knownNumber(after) ? Math.round(Number(after)) - Math.round(Number(before)) : null;
         const ready = data && data.status !== 'unavailable';
-        const delta = ready ? data.wins?.delta : null;
+        const delta = ready && knownNumber(data.wins?.delta) ? Number(data.wins.delta) : null;
         const headline = !ready ? 'Season impact' : delta == null ? 'Impact incomplete' : delta >= 0.15 ? 'Helps your season' : delta <= -0.15 ? 'Costs projected wins' : 'No clear gain';
         const tone = delta == null || Math.abs(delta) < 0.15 ? 'neutral' : delta > 0 ? 'positive' : 'negative';
         const effectiveWeek = data?.effectiveWeek || controller.fromWeek;
         const message = controller.status === 'unavailable' ? controller.reason : data?.status === 'unavailable' ? data.reason : 'Calculating the remaining-season impact…';
-        const metric = (label, before, after, change) => <div className="tc-season-metric"><span>{label}</span><strong><span aria-label="Before trade">{before}</span><i aria-hidden="true">→</i><span aria-label="After trade">{after}</span></strong><small>{change}</small></div>;
+        const metricTrend = (before, after, lowerIsBetter = false) => {
+            if (!knownNumber(before) || !knownNumber(after)) return 'neutral';
+            const change = (Number(after) - Number(before)) * (lowerIsBetter ? -1 : 1);
+            return change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
+        };
+        const metric = (label, before, after, change, trend) => <div className="tc-season-metric" data-trend={compact ? trend : undefined}><span>{label}</span><strong><span aria-label="Before trade">{before}</span><i aria-hidden="true">→</i><span aria-label="After trade">{after}</span></strong><small>{change}</small></div>;
         const playerNames = starters => (starters || []).map(player => {
             const pid = typeof player === 'object' ? player.pid || player.playerId || player.id : player;
             return controller.playerName?.(pid) || String(pid || 'Open slot');
@@ -331,11 +337,11 @@
             {effectiveWeek && <p className="tc-season-timing">Starts Week {effectiveWeek} · this week's roster unchanged</p>}
             {ready ? <>
                 <div className="tc-season-metrics">
-                    {metric(compact ? 'Power rank' : 'Projected power rank', data.powerRank?.before != null ? '#' + data.powerRank.before : '—', data.powerRank?.after != null ? '#' + data.powerRank.after : '—', 'of ' + (data.powerRank?.total || '—') + ' teams')}
-                    {metric(data.wins?.decisionsPerWeek === 2 ? 'Standings wins' : 'Remaining wins', num(data.wins?.beforeRemaining), num(data.wins?.afterRemaining), signed(data.wins?.delta, ' expected wins'))}
-                    {metric('Playoff chance', data.playoffs?.available ? pct(data.playoffs.beforePct) : '—', data.playoffs?.available ? pct(data.playoffs.afterPct) : '—', data.playoffs?.available ? signed(displayedPctDelta(data.playoffs.beforePct, data.playoffs.afterPct), compact ? ' pp' : ' percentage points', 0) : 'Unavailable')}
+                    {metric(compact ? 'Power rank' : 'Projected power rank', data.powerRank?.before != null ? '#' + data.powerRank.before : '—', data.powerRank?.after != null ? '#' + data.powerRank.after : '—', 'of ' + (data.powerRank?.total || '—') + ' teams', metricTrend(data.powerRank?.before, data.powerRank?.after, true))}
+                    {metric(data.wins?.decisionsPerWeek === 2 ? 'Standings wins' : 'Remaining wins', num(data.wins?.beforeRemaining), num(data.wins?.afterRemaining), signed(data.wins?.delta, ' expected wins'), delta == null ? 'neutral' : metricTrend(data.wins?.beforeRemaining, data.wins?.afterRemaining))}
+                    {metric('Playoff chance', data.playoffs?.available ? pct(data.playoffs.beforePct) : '—', data.playoffs?.available ? pct(data.playoffs.afterPct) : '—', data.playoffs?.available ? signed(displayedPctDelta(data.playoffs.beforePct, data.playoffs.afterPct), compact ? ' pp' : ' percentage points', 0) : 'Unavailable', data.playoffs?.available ? metricTrend(data.playoffs.beforePct, data.playoffs.afterPct) : 'neutral')}
                 </div>
-                <p className="tc-season-lineup">{compact ? <><span>Projected lineup</span><strong>{num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)}</strong><span>pts/week</span>{data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? <b>{signed(data.powerRank.afterPoints - data.powerRank.beforePoints)}</b> : null}</> : <>Projected lineup: {num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)} pts/week {data.powerRank?.beforePoints != null && data.powerRank?.afterPoints != null ? '(' + signed(data.powerRank.afterPoints - data.powerRank.beforePoints) + ')' : ''}</>}</p>
+                <p className="tc-season-lineup" data-trend={compact ? metricTrend(data.powerRank?.beforePoints, data.powerRank?.afterPoints) : undefined}>{compact ? <><span>Projected lineup</span><strong>{num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)}</strong><span>pts/week</span>{knownNumber(data.powerRank?.beforePoints) && knownNumber(data.powerRank?.afterPoints) ? <b>{signed(data.powerRank.afterPoints - data.powerRank.beforePoints)}</b> : null}</> : <>Projected lineup: {num(data.powerRank?.beforePoints)} → {num(data.powerRank?.afterPoints)} pts/week {knownNumber(data.powerRank?.beforePoints) && knownNumber(data.powerRank?.afterPoints) ? '(' + signed(data.powerRank.afterPoints - data.powerRank.beforePoints) + ')' : ''}</>}</p>
                 {data.wins?.decisionsPerWeek === 2 && <p className="tc-season-coverage">Standings wins include your matchup and an extra league-median result each week.</p>}
                 <p className="tc-season-coverage">{data.status === 'limited' ? 'Partial evidence · ' : ''}{data.coverage?.projected ?? 0}/{data.coverage?.total ?? data.remainingWeeks ?? 0} remaining matchups projected{data.playoffs?.available && data.playoffs.simCount ? ' · ' + data.playoffs.simCount.toLocaleString() + ' season simulations' : ''}</p>
                 {!data.playoffs?.available && data.playoffs?.reason && <p className="tc-season-warning">Playoff odds unavailable: {data.playoffs.reason}</p>}
@@ -404,6 +410,7 @@
         const valueChange = (value, suffix = '') => knownValue(value) ? (Number(value) > 0 ? '+' : '') + Math.round(Number(value)).toLocaleString() + suffix : '—';
         const nonzero = value => knownValue(value) && Number(value) !== 0;
         const changeColor = value => !knownValue(value) || Number(value) === 0 ? 'var(--cx-ink,var(--white))' : Number(value) > 0 ? 'var(--good)' : 'var(--bad)';
+        const valueTrend = value => !knownValue(value) || Number(value) === 0 ? 'neutral' : Number(value) > 0 ? 'positive' : 'negative';
         // Post-review: the 8-factor psych-tax table + approach line live behind a
         // collapsed-by-default 'Why? ▾' toggle (owner-approved wireframe) so the rail
         // Verdict card stays short enough to keep the DNA-mini card above the fold.
@@ -426,9 +433,9 @@
                     <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
                 </div>}
                 {mobileDetails ? <dl className="tc-trade-value-rows">
-                    <div><dt>Player value</dt><dd><strong style={{ color: changeColor(starterValueDelta) }}>{valueChange(starterValueDelta, ' DHQ')}</strong><small>{rosterImpactLabel || 'Impact unavailable'}</small></dd></div>
-                    {(nonzero(pickCapitalDelta) || nonzero(pickQuantityDelta)) && <div><dt>Pick capital</dt><dd><strong style={{ color: changeColor(pickCapitalDelta) }}>{valueChange(pickCapitalDelta, ' DHQ')}</strong><small>{valueChange(pickQuantityDelta, ' picks')}</small></dd></div>}
-                    {nonzero(faabDelta) && <div><dt>FAAB</dt><dd><strong style={{ color: changeColor(faabDelta) }}>{Number(faabDelta) > 0 ? '+' : '−'}${Math.abs(Number(faabDelta)).toLocaleString()}</strong><small>{valueChange(Number(faabDelta) * Number(FAAB_RATE), ' DHQ value')}</small></dd></div>}
+                    <div data-trend={valueTrend(starterValueDelta)}><dt>Player value</dt><dd><strong style={{ color: changeColor(starterValueDelta) }}>{valueChange(starterValueDelta, ' DHQ')}</strong><small>{rosterImpactLabel || 'Impact unavailable'}</small></dd></div>
+                    {(nonzero(pickCapitalDelta) || nonzero(pickQuantityDelta)) && <div data-trend={valueTrend(pickCapitalDelta)}><dt>Pick capital</dt><dd><strong style={{ color: changeColor(pickCapitalDelta) }}>{valueChange(pickCapitalDelta, ' DHQ')}</strong><small>{valueChange(pickQuantityDelta, ' picks')}</small></dd></div>}
+                    {nonzero(faabDelta) && <div data-trend={valueTrend(faabDelta)}><dt>FAAB</dt><dd><strong style={{ color: changeColor(faabDelta) }}>{Number(faabDelta) > 0 ? '+' : '−'}${Math.abs(Number(faabDelta)).toLocaleString()}</strong><small>{valueChange(Number(faabDelta) * Number(FAAB_RATE), ' DHQ value')}</small></dd></div>}
                 </dl> : <div className="tc-ta-impact-grid">
                     <div>
                         <span>Roster Impact</span>
