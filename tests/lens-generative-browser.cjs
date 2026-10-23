@@ -111,6 +111,25 @@ async function run() {
             const submit = async prompt => { await tab('Edit'); await dialog().getByRole('textbox', { name: /Describe your (?:dashboard|lens)/ }).fill(prompt); await click(dialog().getByRole('button', { name: 'Update preview', exact: true })); await dialog().getByRole('button', { name: 'Cancel request', exact: true }).waitFor({ state: 'hidden', timeout: 60000 }); assert.deepEqual(routeErrors, []); await tab('Preview'); };
             const save = async () => { await click(dialog().getByRole('button', { name: 'Save lens', exact: true })); await dialog().getByText('Saved on this device.', { exact: true }).waitFor(); };
             const close = async () => { await click(dialog().getByRole('button', { name: 'Close builder', exact: true })); await dialog().waitFor({ state: 'hidden' }); };
+            const visualsOnly = async host => {
+                const article = host.locator('[data-lens-composition]').first();
+                await article.waitFor();
+                await page.waitForFunction(el => el.querySelectorAll('.lens-composition-graphic svg').length === 3 && !el.querySelector('.lens-composition-chart-status'), await article.elementHandle(), { timeout: 45000 });
+                assert.equal(await article.locator('.lens-composition-text, .lens-composition-prose').count(), 0, 'Narrative blocks are absent from the visual canvas');
+                assert.equal(await article.locator('.lens-composition-heading > p, .lens-composition-block > header > p').count(), 0, 'No lens or chart subtitle paragraphs');
+                assert.equal(await article.locator('.lens-composition-block > footer').count(), 0, 'Source notes are not repeated below charts');
+                assert.equal(await article.locator('p:visible').count(), 0, 'The initial composition shows visuals rather than explanatory paragraphs');
+                assert.equal(await article.locator('.lens-composition-block.lens-composition-chart').count(), 3, 'All three core graphics remain');
+                assert.equal(await article.locator('[data-lens-block="players"] tbody tr').count(), 18, 'The player data remains intact');
+                const sources = article.locator('.lens-composition-research');
+                assert.equal(await sources.count(), 1, 'There is one sources disclosure');
+                assert.equal(await sources.getAttribute('open'), null, 'Evidence is closed initially');
+                const note = calls.find(call => call.phase === 'lens-compose').payload.datasets[0].note;
+                assert((await sources.locator('.lens-composition-snapshots').textContent()).includes(note), 'Dataset limitations remain available inside the disclosure');
+                const links = article.locator('a[data-lens-source]');
+                assert.equal(await links.count(), await sources.locator('a[data-lens-source]').count(), 'Source links live only in the single disclosure');
+                assert.equal(await links.first().isVisible(), false, 'Sources do not add captions to the initial canvas');
+            };
             try {
                 const entry = new URL(serving.url); entry.searchParams.set('dev', 'true'); entry.searchParams.set('user', username); entry.hash = 'league=' + leagueId + '&tab=lenses';
                 await page.goto(entry.href, { waitUntil: 'domcontentloaded' }); await workspace().waitFor({ timeout: 60000 });
@@ -127,6 +146,7 @@ async function run() {
                 assert.equal(await dialog().getByText(/could not render/).count(), 0); assert.equal((await active()).layout.length, 0, 'Generated preview stays unsaved');
                 assert.deepEqual(calls.map(call => call.phase), ['lens-plan', 'lens-compose']);
                 assert(calls[0].payload.dataCatalog.some(source => source.id === 'tradeTargets'));
+                await visualsOnly(dialog());
                 await fit('Generated preview'); await scrollLock();
                 const details = dialog().locator('[data-lens-block="players"] .lens-composition-row-details details').first();
                 if (await details.isVisible()) { await click(details.locator('summary')); assert.equal(await details.getAttribute('open'), ''); }
@@ -137,22 +157,40 @@ async function run() {
                 await fit('Interactive preview'); await page.screenshot({ path: path.join(output, caseLabel + '-preview.png') });
                 await save(); await close(); const saved = (await active()).layout;
                 assert.equal(saved.length, 1); assert.equal(saved[0].key, 'generative-lens'); assert.equal(saved[0].composition.datasets[0].rows.length, 18);
+                assert.equal(saved[0].composition.subtitle, undefined, 'New compositions discard model-supplied caption prose');
+                assert(saved[0].composition.blocks.every(block => block.kind !== 'text' && block.subtitle === undefined && block.body === undefined), 'New saves contain visual blocks without explanatory captions');
                 assert(Date.now() - Date.parse(saved[0].composition.datasets[0].asOf) < 300000, 'Newly fetched statistics carry their real snapshot time');
                 const beforeReload = calls.length; await page.reload({ waitUntil: 'domcontentloaded' }); await workspace().getByRole('tab', { name: 'Trade target research', exact: true, selected: true }).waitFor({ timeout: 60000 });
                 await canvas().getByRole('heading', { name: 'Trade targets from losing teams', exact: true }).waitFor(); assert.equal(calls.length, beforeReload, 'Reload renders saved evidence without calling AI');
-                assert.deepEqual((await active()).layout, saved); await fit('Reloaded lens');
+                assert.deepEqual((await active()).layout, saved); await visualsOnly(canvas()); await fit('Reloaded lens');
                 await click(workspace().getByRole('button', { name: 'Edit lens', exact: true })); await dialog().waitFor();
                 await submit('Make it purple and put the player details first.');
                 await dialog().getByRole('heading', { name: 'Trade targets in purple', exact: true }).waitFor();
+                await visualsOnly(dialog());
                 assert.equal(calls.at(-2).phase, 'lens-plan'); assert.equal(calls.at(-1).phase, 'lens-compose'); assert.equal(calls.at(-2).payload.currentComposition.title, saved[0].composition.title);
                 assert.deepEqual((await active()).layout, saved, 'Conversational edit remains unsaved'); await save(); await close();
                 assert.equal((await active()).layout[0].composition.theme.accent, '#b585ed'); assert.equal((await active()).layout[0].composition.blocks[0].kind, 'table');
                 await click(workspace().getByRole('button', { name: 'Lens options', exact: true })); await click(workspace().getByRole('button', { name: 'Undo last save', exact: true }));
                 assert.deepEqual((await active()).layout, saved, 'Undo restores original composition and evidence');
-                await canvas().getByRole('heading', { name: 'Trade targets from losing teams', exact: true }).waitFor(); await fit('Undo');
+                await canvas().getByRole('heading', { name: 'Trade targets from losing teams', exact: true }).waitFor(); await visualsOnly(canvas()); await fit('Undo');
+                // A pre-change saved document can still contain prose. Keep its
+                // source data intact while verifying the new renderer hides it.
+                await page.evaluate(leagueId => {
+                    const store = window.WR.DashboardLensesStore, scope = window.WR.DashboardBuilder.scopeFor(leagueId), key = store.storageKey(scope);
+                    const doc = JSON.parse(localStorage.getItem(key)), lens = doc.lenses.find(item => item.id === doc.activeId), composition = lens.layout[0].composition;
+                    composition.subtitle = 'Legacy explanation should stay off the canvas.';
+                    composition.blocks[0].subtitle = 'Legacy chart caption should stay off the canvas.';
+                    composition.blocks.push({ id: 'legacy_narrative', kind: 'text', title: 'Legacy explanation', body: 'Old explanatory paragraphs should remain hidden.', sourceIds: composition.sources.map(source => source.id), span: 12, tabletSpan: 12 });
+                    localStorage.setItem(key, JSON.stringify(doc));
+                }, leagueId);
+                const beforeLegacyReload = calls.length;
+                await page.reload({ waitUntil: 'domcontentloaded' }); await workspace().getByRole('tab', { name: 'Trade target research', exact: true, selected: true }).waitFor({ timeout: 60000 });
+                await visualsOnly(canvas()); assert.equal(calls.length, beforeLegacyReload, 'Legacy saved documents render without another AI call');
+                assert((await active()).layout[0].composition.blocks.some(block => block.id === 'legacy_narrative'), 'Rendering does not rewrite the saved document');
+                await fit('Legacy saved captions hidden');
                 await page.screenshot({ path: path.join(output, caseLabel + '-saved.png') });
                 assert.deepEqual(errors, [], 'No uncaught page exceptions'); assert.deepEqual(routeErrors, []);
-                results.push({ width: size.width, height: size.height, calls: calls.map(call => call.phase), datasets: 1, rows: 18, renderedCharts: 3, blockedExternalWrites: blocked.length, status: 'passed' });
+                results.push({ width: size.width, height: size.height, calls: calls.map(call => call.phase), datasets: 1, rows: 18, renderedCharts: 3, visualOnlyCanvas: true, evidenceInitiallyCollapsed: true, legacyCaptionsHidden: true, blockedExternalWrites: blocked.length, status: 'passed' });
                 console.log('PASS generative lens full flow at ' + caseLabel);
             } catch (error) {
                 await page.screenshot({ path: path.join(output, caseLabel + '-failure.png') }).catch(() => {});

@@ -13,6 +13,8 @@ const rows=Array.from({length:60},(_,i)=>({name:'Player '+(i+1),position:i%2?'WR
 const dataset={id:'targets',source:'tradeTargets',fields,rows,status:'partial',note:'Missing PPG remains unavailable.',asOf:'2026-10-23T12:00:00Z',sourceIds:['source_1'],query:{source:'tradeTargets',params:{season:'2026'},filters:[{field:'teamWinPct',op:'lt',value:50}],limit:60}};
 const scatter={mark:{type:'point',filled:true,size:100},encoding:{x:{field:'value',type:'quantitative',title:'Observed value'},y:{field:'ppg',type:'quantitative'},color:{field:'position',type:'nominal'},tooltip:[{field:'name'},{field:'ppg'},{field:'value'}]},height:340};
 const composition={version:1,title:'Opportunity board',subtitle:'Observed production on losing fantasy teams',theme:{accent:'#65d9c5',style:'editorial'},blocks:[{id:'comparison',kind:'chart',title:'Production and value',datasetId:'targets',visual:scatter,mobileVisual:{mark:'bar',encoding:{y:{field:'position',type:'nominal'},x:{field:'ppg',type:'quantitative',aggregate:'mean'}}},sourceIds:['source_1'],span:8,tabletSpan:12},{id:'context',kind:'text',title:'How to read this',body:'These records do not establish a willingness to trade.',sourceIds:['source_1'],span:4,tabletSpan:12},{id:'board',kind:'table',title:'All candidates',datasetId:'targets',columns:['name','position','teamName','teamRecord','ppg','value'],sourceIds:['source_1'],span:12,tabletSpan:12}],datasets:[dataset],sources:[{id:'source_1',title:'Loaded league records',url:'https://api.sleeper.app/v1/league/123/rosters',asOf:'2026-10-23T12:00:00Z',note:'Reported records and verified scoring.'}],research:{prompt:'Find targets on losing teams',createdAt:'2026-10-23T13:00:00Z'}};
+composition.blocks[0].subtitle='Comparison caption should stay hidden.';
+composition.research.notes='Research context belongs in the disclosure.';
 const valid=api.validate(composition);
 assert.equal(valid.datasets[0].rows[0].ppg,0);
 assert.equal(valid.datasets[0].rows[1].ppg,null);
@@ -47,7 +49,23 @@ reject(v=>v.blocks[0].visual.encoding.x={field:'name',aggregate:'sum',type:'quan
 for(const key of ['data','url','transform','params','config','hconcat','facet','repeat','resolve','usermeta']) reject(v=>v.blocks[0].visual[key]={url:'https://example.com'});
 for(const key of ['expr','condition','datum']) reject(v=>v.blocks[0].visual.encoding.x[key]='datum.value');
 const pollution=copy(composition);pollution.datasets[0].query.params=JSON.parse('{"__proto__":{"polluted":true}}');assert.throws(()=>api.validate(pollution));
+reject(v=>v.blocks[0].desktopSpan=8,/Unsupported composition block key: "desktopSpan"\. Allowed keys: .*span, tabletSpan/);
+reject(v=>v.blocks[0].visual.encoding.x.axis=[],/Invalid axis: expected an object\. Allowed keys: title, labels/);
 console.log('PASS strict grammar rejects executable expressions, external resources, unknown fields, excessive rows and misleading metrics');
+const percentageFields=[{id:'winPct',label:'Win percentage',type:'number',unit:'percent'}];
+const percentVisual=encoding=>({mark:'bar',encoding:{x:encoding}});
+for (const format of ['.0%','.2p']) {
+    for (const location of ['format','axis','legend']) {
+        const encoding={field:'winPct',type:'quantitative',...(location==='format' ? {format} : {[location]:{format}})};
+        assert.throws(()=>api.validateVisual(percentVisual(encoding),percentageFields),/already use 0–100.*50 as 5000%/);
+    }
+}
+assert.equal(api.validateVisual(percentVisual({field:'winPct',type:'quantitative',axis:{format:'.0f',title:'Win percentage (%)'}}),percentageFields).encoding.x.axis.format,'.0f');
+assert.equal(api.validateVisual(percentVisual({field:'winPct',type:'quantitative',aggregate:'mean',format:'.1f'}),percentageFields).encoding.x.format,'.1f');
+assert.throws(()=>api.validateVisual(percentVisual({field:'winPct',type:'quantitative',aggregate:'mean',format:'.0%'}),percentageFields),/already use 0–100/);
+for (const aggregate of ['count','distinct','valid','missing']) assert.equal(api.validateVisual(percentVisual({field:'winPct',type:'quantitative',aggregate,format:'.0%'}),percentageFields).encoding.x.format,'.0%');
+assert.equal(api.validateVisual(percentVisual({field:'winPct',type:'quantitative',stack:'normalize',axis:{format:'.0%'}}),percentageFields).encoding.x.axis.format,'.0%');
+console.log('PASS percentage-point fields reject 100× formatting in labels, axes and legends while true normalized ratios remain supported');
 const unreported={...dataset,rows:rows.map(row=>({...row,ppg:null}))};
 assert.equal(api.hasPlottableData(scatter,unreported),false);
 assert.equal(api.hasPlottableData(scatter,{...dataset,rows:[{...rows[0],ppg:0}]}),true,'reported zero can be drawn');
@@ -58,9 +76,35 @@ const React={createElement:(type,props,...children)=>({type,props:props||{},chil
 const window={WR:{LensComposition:api}};
 const context=vm.createContext({window,React,URL,console});
 vm.runInContext(Babel.transform(fs.readFileSync(path.join(root,'js/components/lens-composition.js'),'utf8'),{presets:['react']}).code,context);
-const tree=window.WR.LensCompositionView({composition:valid}),nodes=[];
+const savedBeforeRender=JSON.stringify(valid),tree=window.WR.LensCompositionView({composition:valid}),nodes=[];
 function walk(node){if(node==null || typeof node!=='object')return;if(Array.isArray(node))return node.forEach(walk);if(typeof node.type==='function')return walk(node.type({...node.props,children:node.children}));nodes.push(node);walk(node.children);}
 walk(tree);
+const surfaceNodes=[];
+function surface(node){if(node==null || typeof node!=='object')return;if(Array.isArray(node))return node.forEach(surface);if(typeof node.type==='function')return surface(node.type({...node.props,children:node.children}));if(node.props.className==='lens-composition-research')return;surfaceNodes.push({type:node.type,props:node.props,children:node.children.filter(child=>typeof child!=='object')});surface(node.children);}
+surface(tree);
+const surfaceText=JSON.stringify(surfaceNodes),allText=JSON.stringify(nodes.map(node=>({type:node.type,props:node.props,children:node.children.filter(child=>typeof child!=='object')})));
+assert(!surfaceText.includes(composition.subtitle));
+assert(!allText.includes(composition.blocks[0].subtitle));
+assert(!allText.includes(composition.blocks[1].body));
+assert(!nodes.some(node=>node.props.className==='lens-composition-block lens-composition-text'));
+assert(!nodes.some(node=>node.type==='footer'));
+assert(surfaceText.includes('Production and value'));
+assert(surfaceText.includes('All candidates'));
+assert(!surfaceText.includes(dataset.note));
+assert(!surfaceText.includes(composition.sources[0].note));
+assert(!surfaceText.includes(composition.research.notes));
+assert(!surfaceText.includes('Data as of'));
+assert(!surfaceNodes.some(node=>node.props['data-lens-source']),'source links live only in the source disclosure');
+const researchPanels=nodes.filter(node=>node.type==='details' && node.props.className==='lens-composition-research');
+assert.equal(researchPanels.length,1);
+assert.equal(researchPanels[0].props.open,undefined,'research starts collapsed');
+assert(JSON.stringify(researchPanels[0]).includes(dataset.note));
+assert(JSON.stringify(researchPanels[0]).includes(composition.sources[0].note));
+assert(JSON.stringify(researchPanels[0]).includes(composition.research.notes));
+assert(JSON.stringify(researchPanels[0]).includes('Data as of'));
+assert.equal(JSON.stringify(valid),savedBeforeRender,'rendering leaves legacy narrative, sources and data unchanged');
+assert.equal(valid.blocks[1].kind,'text','legacy saved text blocks still validate');
+console.log('PASS visual-only canvas omits legacy narrative and captions; one closed source ledger retains notes, timestamps and links');
 assert(!nodes.some(node=>'dangerouslySetInnerHTML' in node.props));
 assert(nodes.some(node=>node.type==='a' && node.props['data-lens-source'] && node.props.rel==='noopener noreferrer'));
 assert(nodes.some(node=>node.type==='table'));

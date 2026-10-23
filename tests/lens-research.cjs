@@ -46,13 +46,15 @@ async function main() {
         assert.equal(comp.datasets[0].rows[0].value, null);
         assert.equal(comp.blocks[0].visual.mark, 'point');
         assert.equal(comp.blocks[0].mobileVisual.mark, 'bar');
+        assert(comp.blocks.every(block => ['chart', 'table', 'metric'].includes(block.kind)));
+        assert.equal(comp.subtitle, undefined);
         assert.match(comp.research.notes, /losing fantasy teams/);
         assert(!JSON.stringify(s.calls).includes('never send this context field'));
         assert(!JSON.stringify(s.calls).includes('.signature'));
         assert(s.progress.length >= 3);
         assert.equal(s.storage.size, 0, 'research only creates a preview');
     });
-    await test('only verified grounding URLs become narrative evidence', async () => {
+    await test('only verified reporting is retained in research disclosure, outside the visual canvas', async () => {
         const s = setup();
         s.window.OD.callAI = async args => {
             s.calls.push(args);
@@ -64,6 +66,8 @@ async function main() {
         assert.equal(s.calls[1].context.useWebSearch, true);
         assert.equal(compose.verifiedWebFacts.length, 1);
         assert.equal(result.layout[0].composition.sources.length, 2);
+        assert.match(result.layout[0].composition.research.notes, /The team reported a practice update\. Sources: Team practice report\./);
+        assert(result.layout[0].composition.blocks.every(block => block.kind !== 'text'));
         assert(!JSON.stringify(result).includes('fake.example'));
         assert(!JSON.stringify(compose).includes('Invented claim'));
     });
@@ -110,7 +114,7 @@ async function main() {
         assert.notEqual(result.layout[0].composition.datasets[0].sourceIds[0], result.layout[0].composition.datasets[1].sourceIds[0]);
     });
     await test('model-supplied rows, unsafe visuals and invented sources fail after one bounded repair', async () => {
-        for (const mutate of [answer => { answer.composition.datasets = [{ rows: [{ ppg: 999 }] }]; }, answer => { answer.composition.blocks[0].visual.data = { url: 'https://bad.example' }; }, answer => { answer.composition.blocks[2].sourceIds = ['invented_source']; }]) {
+        for (const mutate of [answer => { answer.composition.datasets = [{ rows: [{ ppg: 999 }] }]; }, answer => { answer.composition.blocks[0].visual.data = { url: 'https://bad.example' }; }, answer => { answer.composition.blocks[0].sourceIds = ['invented_source']; }]) {
             const s = setup(); let compositions = 0;
             s.window.OD.callAI = async args => { if (args.context.callType === 'lens-plan') return response(plan); compositions++; const answer = design(); mutate(answer); return response(answer); };
             await assert.rejects(s.builder.request(s.options));
@@ -124,6 +128,33 @@ async function main() {
         s.window.OD.callAI = async () => response({ version: 1, reply: 'Kept the lens.', layout: first.layout });
         const unchanged = await s.builder.request({ ...s.options, layout: first.layout, dataContext: null });
         assert.deepEqual(clean(unchanged.layout), clean(first.layout));
+    });
+    await test('new outputs remove caption prose while old stored text remains valid and untouched', async () => {
+        const s = setup(), first = await s.builder.request(s.options);
+        const legacy = clean(first.layout);
+        legacy[0].composition.subtitle = 'An old explanatory caption';
+        legacy[0].composition.blocks.push(clean(design().composition.blocks[2]));
+        assert.equal(s.builder.validateLayout(legacy, s.catalog)[0].composition.blocks.at(-1).kind, 'text');
+        const before = JSON.stringify(legacy);
+        s.window.OD.callAI = async args => {
+            if (args.context.callType === 'lens-plan') return response({ version: 1, needs: [], researchQuestion: null, reuseEvidence: true, assumptions: [] });
+            const answer = design();
+            Object.assign(answer.composition.blocks[0], { subtitle: 'Caption', caption: 'Another caption', description: 'Explaining the chart', body: 'Commentary that is not data' });
+            return response(answer);
+        };
+        const result = await s.builder.request({ ...s.options, layout: legacy, prompt: 'Just visuals' });
+        assert.equal(JSON.stringify(legacy), before);
+        assert.equal(result.layout[0].composition.subtitle, undefined);
+        assert(result.layout[0].composition.blocks.every(block => !block.subtitle && !block.caption && !block.description && !block.body && block.kind !== 'text'));
+    });
+    await test('narrative-only model output must repair to a real visual or fail explicitly', async () => {
+        const s = setup(); let compositions = 0;
+        s.window.OD.callAI = async args => {
+            if (args.context.callType === 'lens-plan') return response(plan);
+            compositions++; const answer = design(); answer.composition.blocks = [answer.composition.blocks[2]]; return response(answer);
+        };
+        await assert.rejects(s.builder.request(s.options), /at least one chart, table, or metric/);
+        assert.equal(compositions, 2);
     });
     await test('malformed bad-team plan falls back to a real typed trade-target query with explicit scope', async () => {
         const s = setup();

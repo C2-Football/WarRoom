@@ -26,13 +26,6 @@
         return String(value);
     }
     function timestamp(value) { const date=new Date(value); return value && Number.isFinite(date.getTime()) ? date.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}) : 'Timestamp unavailable'; }
-    function Sources({ids,sources}) {
-        if(!ids?.length) return null;
-        return <ul className="lens-composition-citations" aria-label="Sources">{ids.map(id=>{
-            const source=sources.find(item=>item.id===id); if(!source) return null;
-            return <li key={id}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer" data-lens-source="true">{source.title}<span aria-hidden="true"> ↗</span></a> : <span>{source.title}</span>}</li>;
-        })}</ul>;
-    }
     function DataTable({dataset,columns,title,expanded=false}) {
         const fields=(columns || dataset.fields.map(field=>field.id)).map(id=>dataset.fields.find(field=>field.id===id));
         const first=fields[0];
@@ -85,15 +78,12 @@
     }
     function Block({block,composition}) {
         const dataset=composition.datasets.find(item=>item.id===block.datasetId);
-        const sources=[...new Set([...block.sourceIds,...(dataset?.sourceIds || [])])];
         const field=dataset?.fields.find(item=>item.id===block.field);
         return <section className={'lens-composition-block lens-composition-'+block.kind} data-lens-block={block.id} style={{'--lens-span':block.span,'--lens-tablet-span':block.tabletSpan}} aria-label={block.title}>
-            <header><h3>{block.title}</h3>{block.subtitle && <p>{block.subtitle}</p>}</header>
+            <header><h3>{block.title}</h3></header>
             {block.kind==='chart' && <Chart block={block} dataset={dataset} accent={composition.theme.accent} />}
             {block.kind==='table' && <DataTable dataset={dataset} columns={block.columns} title={block.title} expanded={true} />}
             {block.kind==='metric' && <div className="lens-composition-metric-value">{format(dataset.status==='unavailable' ? null : dataset.rows[0]?.[block.field],field)}{field.unit && field.unit!=='percent' && <small>{field.unit}</small>}</div>}
-            {block.kind==='text' && <div className="lens-composition-prose">{block.body.split(/\n\s*\n/).map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>}
-            {(dataset?.note || dataset?.asOf || sources.length>0) && <footer>{dataset?.note && <p>{dataset.note}</p>}{dataset?.asOf && <p className="lens-composition-asof">Data as of <time dateTime={dataset.asOf}>{timestamp(dataset.asOf)}</time></p>}<Sources ids={sources} sources={composition.sources} /></footer>}
         </section>;
     }
     function LensCompositionView({composition}) {
@@ -101,9 +91,9 @@
         if(checked.error) return <div className="lens-composition-invalid" role="alert">This saved lens could not be displayed. {checked.error}</div>;
         const doc=checked.value;
         return <article className={'lens-composition lens-composition-style-'+doc.theme.style} style={{'--lens-accent':doc.theme.accent}} data-lens-composition="true">
-            <header className="lens-composition-heading"><span className="lens-composition-eyebrow">Your lens · Built with Alex</span><h2>{doc.title}</h2>{doc.subtitle && <p>{doc.subtitle}</p>}</header>
-            <div className="lens-composition-grid">{doc.blocks.map(block=><Block key={block.id} block={block} composition={doc} />)}</div>
-            {(doc.sources.length>0 || doc.research.notes) && <details className="lens-composition-research" data-lens-interactive="true"><summary data-lens-interactive="true">Research and sources · {doc.sources.length}</summary><p>Lens researched {timestamp(doc.research.createdAt)}. Each source retains its own snapshot time.</p>{doc.research.notes && <p>{doc.research.notes}</p>}<ol>{doc.sources.map(source=><li key={source.id}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer" data-lens-source="true">{source.title} ↗</a> : <strong>{source.title}</strong>}{source.note && <p>{source.note}</p>}<small>{source.asOf ? 'As of '+timestamp(source.asOf) : 'Snapshot timestamp unavailable'}</small></li>)}</ol></details>}
+            <header className="lens-composition-heading"><h2>{doc.title}</h2></header>
+            <div className="lens-composition-grid">{doc.blocks.filter(block=>block.kind!=='text').map(block=><Block key={block.id} block={block} composition={doc} />)}</div>
+            {(doc.sources.length>0 || doc.datasets.length>0 || doc.research.notes) && <details className="lens-composition-research" data-lens-interactive="true"><summary data-lens-interactive="true">Research and sources · {doc.sources.length}</summary><small>Researched {timestamp(doc.research.createdAt)}</small>{doc.research.notes && <p>{doc.research.notes}</p>}{doc.datasets.length>0 && <ol className="lens-composition-snapshots" aria-label="Data snapshots">{doc.datasets.map(dataset=><li key={dataset.id}><strong>{doc.blocks.find(block=>block.datasetId===dataset.id)?.title || dataset.source}</strong>{dataset.note && <p>{dataset.note}</p>}<small>{dataset.asOf ? 'Data as of '+timestamp(dataset.asOf) : 'Snapshot timestamp unavailable'}</small></li>)}</ol>}<ol aria-label="Sources">{doc.sources.map(source=><li key={source.id}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer" data-lens-source="true">{source.title} ↗</a> : <strong>{source.title}</strong>}{source.note && <p>{source.note}</p>}<small>{source.asOf ? 'As of '+timestamp(source.asOf) : 'Snapshot timestamp unavailable'}</small></li>)}</ol></details>}
         </article>;
     }
     window.WR=window.WR||{};

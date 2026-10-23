@@ -8,7 +8,10 @@
     const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]';
     const fail = message => { throw new Error(message); };
     function keys(value, allowed, label) {
-        if (!plain(value) || Object.keys(value).some(key => BAD.has(key) || !allowed.includes(key))) fail('Unsupported ' + label + '. Ask Alex to simplify this part.');
+        const permitted=' Allowed keys: '+allowed.join(', ')+'.';
+        if (!plain(value)) fail('Invalid '+label+': expected an object.'+permitted);
+        const unsupported=Object.keys(value).filter(key=>BAD.has(key) || !allowed.includes(key));
+        if (unsupported.length) fail('Unsupported '+label+' '+(unsupported.length===1 ? 'key' : 'keys')+': '+unsupported.slice(0,4).map(key=>JSON.stringify(key.slice(0,80))).join(', ')+(unsupported.length>4 ? ', …' : '')+'.'+permitted);
     }
     function string(value, max, label, optional = false) {
         if (value == null && optional) return undefined;
@@ -112,6 +115,12 @@
         }
         const definition = input.field && fields.find(field => field.id === input.field);
         if (!definition && !(input.aggregate === 'count' && input.field == null)) fail('A chart references a field outside its dataset.');
+        if (definition?.unit==='percent' && !['count','distinct','valid','missing'].includes(input.aggregate) && input.stack!=='normalize') {
+            // D3's % and p formats multiply by 100. Reported percentages are
+            // already percentage points; normalized stacks are ratios instead.
+            const formats=[input.format,input.axis?.format,input.legend?.format];
+            if (formats.some(value=>typeof value==='string' && /[%p]$/.test(value.trim()))) fail('Percent fields already use 0–100 values. Use a numeric format such as .0f and a % axis title; .0% would display 50 as 5000%.');
+        }
         const out = definition ? { field: definition.id } : {};
         if (input.type != null) {
             out.type = choice(input.type,['quantitative','nominal','ordinal','temporal'],'encoding type');
