@@ -70,6 +70,7 @@ function compileScript(src) {
 }
 
 function build() {
+  require('child_process').execFileSync(process.execPath, [path.join(ROOT, 'scripts/build-lens-visuals.cjs')], { cwd: ROOT, stdio: 'inherit' });
   cleanOutput();
   let html = fs.readFileSync(INDEX_PATH, 'utf8');
   const compiled = [];

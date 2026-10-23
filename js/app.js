@@ -1373,6 +1373,8 @@
                     <LeagueDetail
                         key={selectedLeague.id}
                         league={selectedLeague}
+                        lensLeagues={[...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues]}
+                        lensPortfolioCoverage={sleeperCoverage}
                         onOpenAllWire={() => setAllWireOpen(true)}
                         onBack={(navigation) => {
                             if (window.App.NavigationGuard?.canNavigate() === false) return;

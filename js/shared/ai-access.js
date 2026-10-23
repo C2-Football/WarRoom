@@ -107,13 +107,14 @@
     // Personal keys are sent only to our authenticated AI function, never arbitrary model URLs.
     var response = await fetch(base + '/functions/v1/ai-analyze', {
       method: 'POST', headers: headers, body: JSON.stringify({ type: args.type || 'recon-chat', context: context }),
+      ...(args.signal ? { signal: args.signal } : {}),
     });
     var data = await response.json().catch(function () { return {}; });
     if (!response.ok) {
       if (response.status === 401) clear();
       var error = new Error(data.error || 'AI request could not be completed.'); error.status = response.status; throw error;
     }
-    showSources(data.grounding);
+    if (!args.inlineGrounding) showSources(data.grounding);
     return data;
   };
   window.hasServerAI = window.hasAnyAI = function () { return !!token(); };

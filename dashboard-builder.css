@@ -143,3 +143,17 @@
     .alex-builder-footer { padding:7px 16px calc(7px + env(safe-area-inset-bottom,0px)); gap:5px; }
     .alex-builder-error { max-height:75px; }
 }
+
+/* Evidence stays usable in the otherwise read-only draft canvas. */
+.alex-builder-preview-content [data-lens-source],
+.alex-builder-preview-content [data-lens-interactive] { pointer-events:auto; }
+.wr-generative-canvas { min-width:0; width:100%; }
+.alex-builder-field input[type="color"] { padding:4px; }
+/* Give iPad previews the whole canvas width instead of squeezing them beside chat. */
+@media (min-width:768px) and (max-width:1100px) {
+    .alex-builder-tabs { flex:none; display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:8px 20px; border-bottom:1px solid var(--border,rgba(189,184,173,.16)); }
+    .alex-builder-tabs [aria-selected="true"] { background:var(--gold,#d4af37); color:var(--black,#101216); border-color:var(--gold,#d4af37); }
+    .alex-builder-body { display:flex; flex-direction:column; }
+    .alex-builder-editor,.alex-builder-preview { flex:1; border:0; }
+    .alex-builder-show-edit .alex-builder-preview,.alex-builder-show-preview .alex-builder-editor { display:none; }
+}

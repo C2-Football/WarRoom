@@ -39,6 +39,7 @@
             })),
         })).filter(item => item.sizes.length);
         if (root.WR?.DashboardViewData) entries.push({ key: 'custom-view', label: 'Custom data view', description: 'A new view of league data: filter, group, compare, and choose a visual.', sizes: ['md', 'lg', 'xl'], metrics: [] });
+        if (root.WR?.LensComposition) entries.push({ key: 'generative-lens', label: 'Alex lens', description: 'A researched, original visual composition built around your question.', sizes: ['xl'], metrics: [] });
         return entries;
     }
 
@@ -63,7 +64,8 @@
         if (!Array.isArray(layout) || layout.length > MAX_SECTIONS) fail('A dashboard can contain up to 24 sections.');
         const ids = new Set();
         return layout.map(item => {
-            if (!plain(item) || Object.keys(item).some(key => !(item.key === 'custom-view' ? ['id', 'key', 'size', 'title', 'view'] : SLOT_FIELDS).includes(key))) fail('Alex returned an unsupported section. Try describing the change again.');
+            const fields = item?.key === 'generative-lens' ? ['id', 'key', 'size', 'title', 'composition'] : item?.key === 'custom-view' ? ['id', 'key', 'size', 'title', 'view'] : SLOT_FIELDS;
+            if (!plain(item) || Object.keys(item).some(key => !fields.includes(key))) fail('Alex returned an unsupported section. Try describing the change again.');
             if (typeof item.id !== 'string' || !IDENTIFIER.test(item.id) || ids.has(item.id)) fail('Alex returned duplicate or invalid section identifiers. Please try again.');
             if (typeof item.key !== 'string' || !IDENTIFIER.test(item.key) || !SIZES.includes(item.size)) fail('Alex returned an unsupported section or size. Please try again.');
             if (item.primaryMetric != null && (typeof item.primaryMetric !== 'string' || !IDENTIFIER.test(item.primaryMetric))) fail('Alex returned an unsupported metric. Please try again.');
@@ -78,6 +80,12 @@
                     if (error.dashboardRepair) error.dashboardRepair.sectionId = item.id;
                     throw error;
                 }
+            }
+            if (item.key === 'generative-lens') {
+                if (item.size !== 'xl' || typeof item.title !== 'string' || !item.title.trim() || item.title.length > 120 || /[\x00-\x1f]/.test(item.title)) fail('Give this lens a short title.');
+                if (!root.WR?.LensComposition?.validate) fail('The lens renderer is still loading. Please try again.');
+                value.title = item.title.trim();
+                value.composition = root.WR.LensComposition.validate(item.composition);
             }
             return value;
         });
@@ -107,6 +115,9 @@
         const layout = validateLayout(result.layout, available);
         const prior = new Map(previous.map(item => [item.id, item]));
         for (const item of layout) {
+            // The legacy layout editor can retain a researched lens, but only
+            // LensResearch may attach or refresh its trusted evidence snapshot.
+            if (item.key === 'generative-lens' && (!prior.has(item.id) || !same(item.composition, prior.get(item.id).composition))) fail('Researched lenses need the connected research tools. Please reopen Build with Alex.');
             if (prior.has(item.id) && prior.get(item.id).key !== item.key) fail('Alex changed a section identifier unexpectedly. Please try again.');
             if (!prior.has(item.id) && !item.id.startsWith('alex_')) fail('Alex returned an invalid new section identifier. Please try again.');
         }
@@ -129,6 +140,10 @@
         const requestAccount = sessionAccount();
         const leagueId = String(league?.league_id ?? league?.id ?? '');
         if (!leagueId) fail('Open a league before building its dashboard.');
+        const contextLeague = options.dataContext?.currentLeague;
+        if (contextLeague && String(contextLeague.league_id ?? contextLeague.id ?? '') !== leagueId) fail('Your league changed. Open Build with Alex again.');
+        const openLeagueId = () => String(root.S?.currentLeague?.league_id ?? root.S?.currentLeague?.id ?? '');
+        const watchLeague = openLeagueId() === leagueId;
         const decisionContext = root.WR?.AIContext?.decisionContext?.(league) || {
             leagueId, season: league?.season ?? null,
             leagueType: league?.type ?? league?.settings?.type ?? 'unknown',
@@ -174,15 +189,23 @@
             const operation = Promise.resolve().then(() => {
                 if (signal?.aborted) throw abortError();
                 if (requestAccount !== sessionAccount()) fail('Your account changed. Open Build with Alex again.');
-                return root.OD.callAI({ type: 'recon-chat', context: nextContext });
+                if (watchLeague && openLeagueId() !== leagueId) fail('Your league changed. Open Build with Alex again.');
+                return root.OD.callAI({ type: 'recon-chat', context: nextContext, signal, inlineGrounding: !!options.dataContext });
             });
             return canceled ? Promise.race([operation, canceled]) : operation;
         };
         const checkCurrent = () => {
             if (signal?.aborted) throw abortError();
             if (requestAccount !== sessionAccount()) fail('Your account changed. Open Build with Alex again.');
+            if (watchLeague && openLeagueId() !== leagueId) fail('Your league changed. Open Build with Alex again.');
         };
         try {
+            if (options.dataContext) {
+                if (!root.WR?.LensResearch?.request) fail('Alex’s research tools are still loading. Please try again.');
+                const result = await root.WR.LensResearch.request({ ...options, prompt: text, layout, call, checkCurrent, decisionContext });
+                checkCurrent();
+                return { ...result, layout: validateLayout(result.layout, available) };
+            }
             const response = await call(context);
             checkCurrent();
             try { return parseResponse(response?.analysis, available, layout); }

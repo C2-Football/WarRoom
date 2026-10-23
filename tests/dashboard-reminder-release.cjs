@@ -23,12 +23,13 @@ const run = () => spawnSync(process.execPath, ['scripts/build-deploy.cjs'], {
 try {
     fs.symlinkSync(path.join(root, 'node_modules'), path.join(fixture, 'node_modules'), 'dir');
     write('scripts/build-deploy.cjs', fs.readFileSync(path.join(root, 'scripts/build-deploy.cjs')));
-    write('index.html', '<!doctype html><title>Worker release fixture</title>');
+    write('scripts/build-lens-visuals.cjs', fs.readFileSync(path.join(root, 'scripts/build-lens-visuals.cjs')));
+    write('index.html', '<!doctype html><title>Worker release fixture</title><link rel="stylesheet" href="lens-composition.css"><script type="text/wr-lens-runtime" data-lens-visuals-runtime src="js/vendor/lens-visuals.js"></script>');
     write('reminder-unsubscribe.html', '<!doctype html><script src="js/shared/reminder-unsubscribe.js"></script>');
     write('js/shared/reminder-unsubscribe.js', 'window.unsubscribeFixture = true;\n');
     write('dashboard-reminder-sw.js', fs.readFileSync(path.join(root, 'dashboard-reminder-sw.js')));
     write('data/duat/lore-catalog.json', '{}');
-    const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css'];
+    const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css', 'lens-composition.css'];
     for (const style of dashboardStyles) write(style, fs.readFileSync(path.join(root, style)));
     fs.mkdirSync(path.join(fixture, 'images/duat'), { recursive: true });
 
@@ -36,6 +37,13 @@ try {
     assert.equal(built.status, 0, built.stderr || built.stdout);
     const release = JSON.parse(fs.readFileSync(path.join(fixture, 'dist-deploy/release.json'), 'utf8'));
     assert.equal(release.revision, 'fixture-release-revision');
+    const runtime = fs.readFileSync(path.join(fixture, 'dist-deploy/js/vendor/lens-visuals.js'));
+    const runtimeHash = crypto.createHash('sha256').update(runtime).digest('hex').slice(0, 10);
+    assert.equal(release.assets['js/vendor/lens-visuals.js'], runtimeHash, 'Lazy graphics runtime is fingerprinted');
+    const html = fs.readFileSync(path.join(fixture, 'dist-deploy/index.html'), 'utf8');
+    assert(html.includes('lens-composition.css?v=' + release.assets['lens-composition.css']), 'Responsive lens styles are cache-busted with their actual bytes');
+    assert(html.includes('type="text/wr-lens-runtime"'), 'Graphics remain lazy in the production entry');
+    assert(html.includes('js/vendor/lens-visuals.js?v=' + runtimeHash), 'Lazy loader discovers the exact shipped runtime');
     for (const style of dashboardStyles) assert.equal(release.assets[style], crypto.createHash('sha256').update(fs.readFileSync(path.join(root, style))).digest('hex').slice(0, 10), 'Dashboard styles must be fingerprinted for release verification');
     assert(!fs.readFileSync(path.join(fixture, 'dist-deploy/index.html'), 'utf8').includes('dashboard-reminder-sw.js'), 'Worker is dynamically loaded, not an HTML dependency');
 

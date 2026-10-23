@@ -94,6 +94,13 @@ async function run() {
                 return Array.isArray(value) ? value.map(inSeason) : inSeason(value);
             } });
             const plans = [], requests = [], errors = [];
+            // This regression suite exercises existing saved widget/custom-view lenses.
+            // The separate lens-generative-browser suite exercises the production
+            // planner, scoped evidence resolver, composer, and chart runtime.
+            await context.route('**/js/shared/dashboard-builder.js*', route => route.fulfill({
+                contentType: 'application/javascript',
+                body: fs.readFileSync(path.join(root, 'js/shared/dashboard-builder.js'), 'utf8') + '\n{ const legacyRequest = window.WR.DashboardBuilder.request; window.WR.DashboardBuilder.request = options => legacyRequest({...options,dataContext:null}); }',
+            }));
             await context.route('**/functions/v1/ai-analyze', async route => {
                 if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
                 const body = route.request().postDataJSON();

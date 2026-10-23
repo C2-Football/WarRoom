@@ -45,6 +45,7 @@ const root = fs.realpathSync(path.resolve(getArg('root', process.cwd())));
 const openPath = getArg('open', '');
 const COMPILE = process.argv.includes('--compile');
 if (COMPILE) {
+  require('child_process').execFileSync(process.execPath, [path.join(root, 'scripts/build-lens-visuals.cjs')], { cwd: root, stdio: 'inherit' });
   try {
     Babel = require('@babel/standalone');
   } catch (err) {

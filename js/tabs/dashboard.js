@@ -356,6 +356,23 @@ function legacyDashboardLensLayout(layout, catalog) {
     return imported;
 }
 
+// Generative compositions own their responsive layout; legacy saved cards retain theirs.
+function LensCanvas({ layout, canvasProps, includeLegacyExtras = false }) {
+    const groups = [];
+    for (const slot of layout || []) {
+        if (slot.key === 'generative-lens') groups.push({ id: slot.id, composition: slot.composition });
+        else {
+            const last = groups[groups.length - 1];
+            if (last?.legacy) last.legacy.push(slot);
+            else groups.push({ id: slot.id, legacy: [slot] });
+        }
+    }
+    if (!groups.some(group => group.composition)) return <DashboardCanvas {...canvasProps} selectedWidgets={layout} includeLegacyExtras={includeLegacyExtras} />;
+    return <div className="wr-generative-canvas">{groups.map(group => group.composition
+        ? <window.WR.LensCompositionView key={group.id} composition={group.composition} />
+        : <DashboardCanvas {...canvasProps} key={group.id} selectedWidgets={group.legacy} includeLegacyExtras={false} />)}</div>;
+}
+
 function DashboardPanel(props) {
     if (props.readOnly) return <DashboardCanvas {...props} />;
     if (props.overview) return <DashboardCanvas {...props} includeLegacyExtras={true} />;
@@ -365,13 +382,18 @@ function DashboardPanel(props) {
     const legacyLayout = legacyDashboardLensLayout(props.selectedWidgets, catalog);
     return <window.WR.DashboardLenses key={scope} scope={scope} legacyLayout={legacyLayout}
         catalog={catalog} league={props.currentLeague}
+        dataContext={{ currentLeague: props.currentLeague, myRoster: props.myRoster,
+            playersData: props.viewPlayersData || props.playersData, transactions: props.transactions,
+            getOwnerName: props.getOwnerName, getPlayerName: props.getPlayerName,
+            allowedLeagues: props.lensLeagues || [], portfolioCoverage: props.lensPortfolioCoverage,
+            isCurrent: () => builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(props.currentLeague), props.sleeperUserId) === scope }}
         assertCurrentScope={() => {
             if (builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(props.currentLeague), props.sleeperUserId) !== scope) {
                 throw new Error('Your account changed. Reload your lenses before saving.');
             }
         }}
-        renderCanvas={(layout, lens) => <DashboardCanvas {...props} selectedWidgets={layout} includeLegacyExtras={lens?.id === 'lens_home'} />}
-        renderPreview={layout => <DashboardCanvas {...props} selectedWidgets={layout} readOnly={true} setActiveTab={() => {}} />} />;
+        renderCanvas={(layout, lens) => <LensCanvas layout={layout} canvasProps={props} includeLegacyExtras={lens?.id === 'lens_home'} />}
+        renderPreview={layout => <LensCanvas layout={layout} canvasProps={{ ...props, readOnly: true, setActiveTab: () => {} }} />} />;
 }
 
 function DashboardCanvas(props) {

@@ -120,13 +120,14 @@
         };
     }
 
-    function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, lensName, creating = false, otherReminderViews = [], normalizeLayout, onSave, onClose, renderPreview }) {
+    function DashboardBuilderPanel({ layout, catalog, league, dataContext, scope, focusId, lensName, creating = false, otherReminderViews = [], normalizeLayout, onSave, onClose, renderPreview }) {
         const [draft, setDraft] = React.useState(() => copy(layout || []));
         const [saved, setSaved] = React.useState(() => copy(layout || []));
         const [history, setHistory] = React.useState([]);
         const [messages, setMessages] = React.useState([]);
         const [input, setInput] = React.useState('');
         const [busy, setBusy] = React.useState(false);
+        const [progress, setProgress] = React.useState('');
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
         const [status, setStatus] = React.useState('');
@@ -141,12 +142,15 @@
         const logRef = React.useRef(null);
         const previewRef = React.useRef(null);
         const requestRef = React.useRef(0);
+        const abortRef = React.useRef(null);
         const timeoutRef = React.useRef(null);
         const mountedRef = React.useRef(true);
         const closeRef = React.useRef(null);
         const idRef = React.useRef(null);
         if (!idRef.current) idRef.current = 'alex-builder-' + (++nextDialogId);
         const id = idRef.current;
+        const compositions = draft.filter(item => item.key === 'generative-lens' && item.composition);
+        const activeComposition = compositions.find(item => item.id === selectedViewId) || compositions[0];
         const customViews = draft.filter(item => item.key === 'custom-view' && item.view);
         const selectedView = customViews.find(item => item.id === selectedViewId) || customViews[0];
         const fields = selectedView ? (window.WR.DashboardViewData?.fieldsFor?.(queryFor(selectedView.view)) || []) : [];
@@ -162,6 +166,7 @@
 
         function cancelRequest() {
             requestRef.current += 1;
+            abortRef.current?.abort();
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
             setBusy(false);
@@ -218,6 +223,7 @@
             return () => {
                 mountedRef.current = false;
                 requestRef.current += 1;
+                abortRef.current?.abort();
                 clearTimeout(timeoutRef.current);
                 window.visualViewport?.removeEventListener('resize', updateViewport);
                 window.visualViewport?.removeEventListener('scroll', updateViewport);
@@ -249,7 +255,7 @@
             if (!preview) return undefined;
             const disableActions = () => {
                 preview.querySelectorAll('button, a[href], input, select, textarea, [tabindex]').forEach(element => {
-                    if (element.hasAttribute('data-alex-scroll')) return;
+                    if (element.hasAttribute('data-alex-scroll') || element.closest('[data-lens-source], [data-lens-interactive]')) return;
                     element.setAttribute('tabindex', '-1');
                     element.setAttribute('aria-disabled', 'true');
                 });
@@ -264,6 +270,10 @@
             if (busy || saving) return;
             const sequence = ++requestRef.current;
             const requestScope = scope;
+            abortRef.current?.abort();
+            const controller = new window.AbortController();
+            abortRef.current = controller;
+            setProgress('Planning your lens…');
             setError(''); setStatus(''); setBusy(true); setLastAttempt(attempt);
             setDiscardOpen(false);
             if (!retry) setMessages([...attempt.messages, { role: 'user', content: attempt.prompt }]);
@@ -273,9 +283,11 @@
                     window.WR.DashboardBuilder.request({
                         prompt: attempt.prompt, messages: attempt.messages,
                         layout: attempt.layout, catalog, league, lensName, focusId: attempt.focusId,
+                        dataContext, signal: controller.signal,
+                        onProgress: value => { if (mountedRef.current && sequence === requestRef.current) setProgress(typeof value === 'string' ? value : value?.message || 'Building your lens…'); },
                     }),
                     new Promise((_, reject) => {
-                        timeoutRef.current = setTimeout(() => reject(new Error('Alex is taking longer than expected. Try your request again.')), 45000);
+                        timeoutRef.current = setTimeout(() => { reject(new Error('Alex is taking longer than expected. Try your request again.')); controller.abort(); }, 180000);
                     }),
                 ]);
                 if (!mountedRef.current || sequence !== requestRef.current || requestScope !== scope) return;
@@ -295,7 +307,7 @@
             } finally {
                 if (sequence === requestRef.current) {
                     clearTimeout(timeoutRef.current); timeoutRef.current = null;
-                    if (mountedRef.current) setBusy(false);
+                    if (mountedRef.current) { setBusy(false); setProgress(''); }
                 }
             }
         }
@@ -304,7 +316,7 @@
             event?.preventDefault();
             const prompt = input.trim();
             if (!prompt || busy || saving) return;
-            runRequest({ prompt, layout: copy(draft), messages: messages.slice(-12), focusId: selectedViewId || focusId });
+            runRequest({ prompt, layout: copy(draft), messages: messages.slice(-12), focusId: selectedViewId || focusId || activeComposition?.id });
         }
 
         function replaceView(nextSlot, message) {
@@ -321,6 +333,17 @@
                 setStatus('That change could not be applied. Your preview is unchanged.');
                 return false;
             }
+        }
+
+        function updateComposition(patch) {
+            if (!activeComposition || busy || saving) return;
+            try {
+                const next = window.WR.DashboardBuilder.validateLayout(draft.map(item => item.id === activeComposition.id
+                    ? { ...item, composition: { ...item.composition, ...patch } } : item), catalog);
+                if (same(next, draft)) return;
+                setHistory(previous => [...previous.slice(-19), copy(draft)]);
+                setDraft(next); setError(''); setStatus('Appearance updated. Save when you’re ready.');
+            } catch (failure) { setError(failure.message); }
         }
 
         function updateView(patch) {
@@ -380,7 +403,7 @@
 
         const suggestions = focusedLabel
             ? ['Move this section to the top', 'Show more detail in this section', 'Remove this section']
-            : ['Compare my average player age by position', 'Chart points scored by each team', 'Summarize recent league activity'];
+            : ['Find the best players on struggling teams I could target in a trade', 'Explore how player production has changed week by week', 'Build a visual report of my league’s strengths and weaknesses'];
         const chooseSuggestion = prompt => { setInput(prompt); setTab('edit'); inputRef.current?.focus(); };
         const changeTab = next => { if (next === 'preview') inputRef.current?.blur(); setTab(next); setDiscardOpen(false); };
         const tabKeyDown = event => {
@@ -406,7 +429,7 @@
                             <p>Leave without saving your changes?</p>
                             <div className="alex-builder-inline-actions">
                                 <button type="button" className="alex-builder-button" onClick={() => setDiscardOpen(false)}>Keep editing</button>
-                                <button type="button" className="alex-builder-button" onClick={() => { requestRef.current += 1; onClose(); }}>Discard changes</button>
+                                <button type="button" className="alex-builder-button" onClick={() => { requestRef.current += 1; abortRef.current?.abort(); onClose(); }}>Discard changes</button>
                             </div>
                         </div>
                     )}
@@ -420,7 +443,7 @@
                                 {focusedLabel && <p className="alex-builder-focus">Editing: <strong>{focusedLabel}</strong></p>}
                                 {!messages.length && <div className="alex-builder-welcome">
                                     <h3>{lensName ? 'What should this lens help you see?' : 'What should Home help you do?'}</h3>
-                                    <p>Tell Alex what you want to understand. It can choose the data and a useful way to show it, then you can refine the preview.</p>
+                                    <p>Tell Alex what you want to understand. Alex gathers relevant league data and research, then creates visuals around your question. Ask follow-up questions to reshape the result.</p>
                                     <div className="alex-builder-suggestions">
                                         {suggestions.map(prompt => <button type="button" key={prompt} className="alex-builder-button" onClick={() => chooseSuggestion(prompt)}>{prompt}</button>)}
                                     </div>
@@ -431,12 +454,12 @@
                                         <p>{message.content}</p>
                                     </div>)}
                                 </div>
-                                {busy && <div className="alex-builder-working" aria-hidden="true">Alex is updating your preview…</div>}
+                                {busy && <div className="alex-builder-working" aria-hidden="true">{progress || 'Building your lens…'}</div>}
                             </div>
                             <form className="alex-builder-composer" onSubmit={submit}>
                                 {error && <div className="alex-builder-error" role="alert"><p>{error}</p>{lastAttempt && !busy && <button type="button" className="alex-builder-button" onClick={() => runRequest(lastAttempt, true)}>Retry request</button>}</div>}
                                 <label htmlFor={id + '-prompt'}>{lensName ? 'Describe your lens' : 'Describe your dashboard'}</label>
-                                <textarea ref={inputRef} id={id + '-prompt'} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} rows={2} placeholder={focusedLabel ? 'Show this as a chart, or change what it compares…' : 'Compare my roster’s age by position as a bar chart…'} disabled={busy || saving} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event); }} />
+                                <textarea ref={inputRef} id={id + '-prompt'} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} rows={2} placeholder={focusedLabel ? 'Show this as a chart, or change what it compares…' : 'Find strong players on struggling teams I could trade for…'} disabled={busy || saving} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event); }} />
                                 {busy
                                     ? <button type="button" className="alex-builder-button" onClick={cancelRequest}>Cancel request</button>
                                     : <button type="submit" className="alex-builder-button alex-builder-primary" disabled={!input.trim() || saving}>Update preview</button>}
@@ -444,6 +467,16 @@
                         </div>
                         <div className="alex-builder-preview" id={id + '-preview'} role="tabpanel" aria-labelledby={id + '-preview-tab'}>
                             <div className="alex-builder-preview-heading"><h3>{lensName ? lensName + ' preview' : 'Home preview'}</h3><span>{draft.length} {draft.length === 1 ? 'section' : 'sections'} · {dirty ? 'Unsaved changes' : 'Saved layout'}</span></div>
+                            {activeComposition && <details className="alex-builder-visual-options">
+                                <summary><span>Appearance<small>Refine the design, or ask Alex for a different visual</small></span></summary>
+                                <div className="alex-builder-visual-fields">
+                                    {compositions.length > 1 && <div className="alex-builder-field alex-builder-field-wide"><label htmlFor={id + '-composition'}>Composition</label><select id={id + '-composition'} value={activeComposition.id} onChange={event => setSelectedViewId(event.target.value)} disabled={busy || saving}>{compositions.map(item => <option key={item.id} value={item.id}>{item.title || item.composition.title}</option>)}</select></div>}
+                                    <div className="alex-builder-field"><label htmlFor={id + '-style'}>Style</label><select id={id + '-style'} value={activeComposition.composition.theme?.style || 'analytic'} onChange={event => updateComposition({ theme: { ...activeComposition.composition.theme, style: event.target.value } })} disabled={busy || saving}><option value="analytic">Analytic</option><option value="editorial">Editorial</option><option value="bold">Bold</option></select></div>
+                                    <div className="alex-builder-field"><label htmlFor={id + '-accent'}>Accent color</label><input id={id + '-accent'} type="color" value={activeComposition.composition.theme?.accent || '#80c7ff'} onChange={event => updateComposition({ theme: { ...activeComposition.composition.theme, accent: event.target.value } })} disabled={busy || saving} /></div>
+                                    <div className="alex-builder-field alex-builder-field-wide"><label htmlFor={id + '-arrangement'}>Arrangement</label><select id={id + '-arrangement'} value="" onChange={event => { if (event.target.value) updateComposition({ blocks: activeComposition.composition.blocks.map(block => ({ ...block, span: Number(event.target.value), tabletSpan: Number(event.target.value) === 12 ? 12 : 6 })) }); }} disabled={busy || saving}><option value="">Designed by Alex</option><option value="12">Full-width sections</option><option value="6">Side-by-side sections</option></select></div>
+                                    <p className="alex-builder-visual-hint alex-builder-field-wide">Phone layouts stack automatically. Ask Alex to change the comparisons, labels, chart shapes, or supporting research.</p>
+                                </div>
+                            </details>}
                             {selectedView && <details className="alex-builder-visual-options">
                                 <summary><span>Visual options<small>Choose a graphic, color, and spacing</small></span></summary>
                                 <div className="alex-builder-visual-fields">
@@ -486,11 +519,11 @@
                                 </div>
                             </details>}
                             {(!creating || customViews.length > 0) && window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={[...customViews, ...otherReminderViews]} savedViews={[...saved.filter(item => item.key === 'custom-view' && item.view), ...otherReminderViews]} />}
-                            <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{draft.length ? renderPreview(draft) : <div className="alex-builder-empty-canvas"><h3>Your blank canvas</h3><p>Describe what you want to see. Only the views you create will appear here.</p></div>}</div>
+                            <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { if (event.target.closest('[data-lens-source], [data-lens-interactive]')) return; event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.target.closest('[data-lens-source], [data-lens-interactive]')) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{draft.length ? renderPreview(draft) : <div className="alex-builder-empty-canvas"><h3>Your blank canvas</h3><p>Describe what you want to see. Only the views you create will appear here.</p></div>}</div>
                         </div>
                     </div>
                     <footer className="alex-builder-footer">
-                        <p role="status" className="alex-builder-status">{saving ? (lensName ? 'Saving your lens…' : 'Saving your dashboard…') : busy ? 'Alex is updating your preview…' : status || (dirty ? (lensName ? 'Your lens stays unchanged until you save.' : 'Your Home stays unchanged until you save.') : 'Saved on this device for this account and league.')}</p>
+                        <p role="status" className="alex-builder-status">{saving ? (lensName ? 'Saving your lens…' : 'Saving your dashboard…') : busy ? progress || 'Building your lens…' : status || (dirty ? (lensName ? 'Your lens stays unchanged until you save.' : 'Your Home stays unchanged until you save.') : 'Saved on this device for this account and league.')}</p>
                         <div className="alex-builder-footer-actions">
                             <button type="button" className="alex-builder-button" onClick={undo} disabled={(!history.length && !titleDirty) || busy || saving}>Undo</button>
                             <button type="button" className="alex-builder-button alex-builder-primary" onClick={save} disabled={!dirty || busy || saving}>{lensName ? 'Save lens' : 'Save dashboard'}</button>

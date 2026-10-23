@@ -381,7 +381,7 @@
     }
 
     // League Detail Component
-    function LeagueDetail({ league, onBack, onOpenAllWire, sleeperUserId, onOpenSettings, settingsProps = {}, activeTab: propActiveTab, onTabChange }) {
+    function LeagueDetail({ lensLeagues = [], lensPortfolioCoverage, league, onBack, onOpenAllWire, sleeperUserId, onOpenSettings, settingsProps = {}, activeTab: propActiveTab, onTabChange }) {
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
         const [playersData, setPlayersData] = useState({});
@@ -2723,6 +2723,8 @@
                 transactions={transactions}
                 standings={standings}
                 currentLeague={currentLeague}
+                lensLeagues={lensLeagues}
+                lensPortfolioCoverage={lensPortfolioCoverage}
                 leagueSkin={leagueSkin}
                 playersData={playersData}
                 viewPlayersData={basePlayersData || playersData}

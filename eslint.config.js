@@ -50,6 +50,7 @@ module.exports = [
       "**/*.min.js",
       // Pinned, unmodified upstream library; provenance and license live beside it.
       "js/duat/vendor/lz-string-1.5.0.js",
+      "js/vendor/lens-visuals.js",
       "draft-war-room/**",
       "team-comps/**",
       "android/**",

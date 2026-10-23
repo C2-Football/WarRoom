@@ -175,6 +175,15 @@ function processEntry(entry, html) {
     return `<script${before}src=${q}${src.split('?')[0]}?v=${hash}${q}${after}>`;
   });
 
+  // These styles are also verified in the release manifest. Keep installed
+  // clients from retaining a prior layout after the script bundle has updated.
+  html = html.replace(/<link\b([^>]*?)\bhref=(["'])([^"']+)\2([^>]*)>/gi, (match, before, quote, href, after) => {
+    if (isExternalSrc(href)) return match;
+    const pathname = path.posix.normalize(path.posix.join(path.posix.dirname(entry), href.split('?')[0]));
+    const hash = pathname.endsWith('.css') && assetHash.get(pathname);
+    return hash ? `<link${before}href=${quote}${href.split('?')[0]}?v=${hash}${quote}${after}>` : match;
+  });
+
   // Safety net: the deploy must ship NO in-browser Babel (match real script tags,
   // not the word "text/babel" appearing inside a comment/string).
   if (/<script\b[^>]*\btype=["']text\/babel["']/i.test(html)) {
@@ -190,6 +199,7 @@ function processEntry(entry, html) {
 }
 
 async function build() {
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts/build-lens-visuals.cjs')], { cwd: ROOT, stdio: 'inherit' });
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   ensureDir(OUT_DIR);
 
@@ -207,19 +217,19 @@ async function build() {
     if (!babelSrcs.has(src)) await emitModule(src, { jsx: false });
   }
 
-  for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
-
   const duatFiles = directory => fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })
     .flatMap(entry => entry.isDirectory() ? duatFiles(directory + '/' + entry.name) : entry.isFile() ? [directory + '/' + entry.name] : []);
   const duatStyles = fs.readdirSync(ROOT).filter(name => /^duat(?:-[a-z-]+)?\.css$/.test(name));
-  const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css'];
+  const dashboardStyles = ['dashboard-lenses.css', 'dashboard-builder.css', 'dashboard-views.css', 'dashboard-reminders.css', 'lens-composition.css'];
   for (const name of [...duatStyles, ...dashboardStyles, ...duatFiles('images/duat'), 'data/duat/lore-catalog.json']) {
     assetHash.set(name, contentHash(fs.readFileSync(path.join(ROOT, name))));
   }
+  for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
+
   const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   fs.writeFileSync(path.join(OUT_DIR, 'release.json'), JSON.stringify({
     revision, builtAt: new Date().toISOString(), environment: process.env.GITHUB_REPOSITORY || 'local-preview',
-    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat') || name.includes('dashboard-') || WORKERS.includes(name) || name === 'js/shared/reminder-unsubscribe.js')),
+    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat') || name.includes('dashboard-') || name.includes('lens-') || WORKERS.includes(name) || name === 'js/shared/reminder-unsubscribe.js')),
   }, null, 2) + '\n');
 
   const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;

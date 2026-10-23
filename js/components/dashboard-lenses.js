@@ -12,7 +12,7 @@
         return <DashboardLensesWorkspace key={props.scope || 'unconnected'} {...props} />;
     }
 
-    function DashboardLensesWorkspace({ scope, legacyLayout, catalog, league, renderCanvas, renderPreview, assertCurrentScope }) {
+    function DashboardLensesWorkspace({ scope, legacyLayout, catalog, league, dataContext, renderCanvas, renderPreview, assertCurrentScope }) {
         const store = window.WR.DashboardLensesStore;
         const [initial] = React.useState(() => {
             try { return { document: store.read(scope, legacyLayout, catalog), error: '' }; }
@@ -304,7 +304,7 @@
                 </div>)}
             </div>
             {count > 1 && form !== 'create' && <p className="dashboard-lenses-swipe-hint"><span aria-hidden="true">↔</span> Swipe the view to change lenses</p>}
-            {editing && <window.WR.DashboardBuilderPanel key={scope + ':' + editing.id} layout={editing.layout} catalog={catalog} league={league} scope={scope} lensId={editing.id} lensName={saved.lenses.find(lens => lens.id === editing.id)?.name || active.name} creating={editing.creating} otherReminderViews={saved.lenses.filter(lens => lens.id !== editing.id).flatMap(customViews)} normalizeLayout={layout => store.prepareLayout(editing.expected, editing.id, layout, catalog)} onSave={saveLens} onClose={closeBuilder} renderPreview={renderPreview} />}
+            {editing && <window.WR.DashboardBuilderPanel key={scope + ':' + editing.id} layout={editing.layout} catalog={catalog} league={league} dataContext={dataContext} scope={scope} lensId={editing.id} lensName={saved.lenses.find(lens => lens.id === editing.id)?.name || active.name} creating={editing.creating} otherReminderViews={saved.lenses.filter(lens => lens.id !== editing.id).flatMap(customViews)} normalizeLayout={layout => store.prepareLayout(editing.expected, editing.id, layout, catalog)} onSave={saveLens} onClose={closeBuilder} renderPreview={renderPreview} />}
         </section>;
     }
     window.WR.DashboardLenses = DashboardLenses;
