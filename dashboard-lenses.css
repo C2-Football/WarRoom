@@ -104,3 +104,18 @@
     .dashboard-lenses-stepper::before { display:none; }
 }
 @media(prefers-reduced-motion:reduce) { .dashboard-lenses-page-next,.dashboard-lenses-page-previous { animation:none; } }
+
+
+/* The browser shell already identifies the league and workspace. */
+@media (min-width:1024px) {
+    .wr-mission-control .dashboard-lenses-header { padding:10px 4px 8px; gap:12px; }
+    .wr-mission-control .dashboard-lenses-heading { flex-basis:220px; }
+    .wr-mission-control .dashboard-lenses-heading h2 { margin:0; font-size:1.65rem; line-height:1.2; }
+    .wr-mission-control .dashboard-lenses-eyebrow,.wr-mission-control .dashboard-lenses-heading p { display:none; }
+    .wr-mission-control .dashboard-lenses-navigation { padding-inline:4px; gap:12px; }
+    .wr-mission-control .dashboard-lenses-tab { min-height:44px; padding:8px 14px; }
+    .wr-mission-control .dashboard-lenses-tab:first-child { padding-left:2px; }
+    .wr-mission-control .dashboard-lenses-options,.wr-mission-control .dashboard-lenses-form,.wr-mission-control .dashboard-lenses-remove-confirm,.wr-mission-control .dashboard-lenses-restore,.wr-mission-control .dashboard-lenses-error,.wr-mission-control .dashboard-lenses-sync { margin:10px 4px 0; padding:12px; }
+    .wr-mission-control .dashboard-lenses-status { margin:8px 4px 0; }
+    .wr-mission-control .dashboard-lenses-status:empty { margin:0; }
+}

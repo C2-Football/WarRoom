@@ -283,6 +283,34 @@
     function navItemIsActive(item, activeTab) {
         return !!item.tab && item.workspace === window.WR.LeagueWorkspaces.resolve(activeTab).workspace;
     }
+    // Task groups are shared by phone and desktop; workspace permissions still
+    // decide which destinations are available in each format and viewport.
+    function buildLeagueCommandGroups(options, navigation) {
+        const W = window.WR.LeagueWorkspaces;
+        const views = (navigation || W.navigation(options)).flatMap(item => W.views(item.workspace, options));
+        const definitions = [
+            { label: 'Your team', tabs: ['dashboard', 'lenses', 'myteam', 'lineup', 'team-outlook'] },
+            { label: 'Market & draft', tabs: ['fa', 'trades', 'targets', 'market-review', 'draft', 'mock-draft', 'draft-review'] },
+            { label: 'League & research', tabs: ['central', 'wire', 'stats', 'research-players', 'compare', 'research-reports', 'calendar', 'trophies'] },
+            { label: 'Alex & tools', tabs: ['strategy', 'decisions', 'patterns', 'settings', 'gm-settings', 'legend'] },
+        ];
+        const groupedTabs = new Set(definitions.flatMap(group => group.tabs));
+        const groups = definitions.map(group => ({ label: group.label, views: group.tabs.map(tab => views.find(view => view.tab === tab)).filter(Boolean) }));
+        // New permitted destinations remain reachable before their group is curated.
+        groups[groups.length - 1].views.push(...views.filter(view => !groupedTabs.has(view.tab)));
+        return groups.filter(group => group.views.length > 0);
+    }
+    function DesktopCommandNav({ activeTab, workspaceOptions, onSelectTab }) {
+        return <nav className="wr-desktop-command" aria-label="Your command center">
+            <h2 className="wr-desktop-command-title">Command center</h2>
+            {buildLeagueCommandGroups(workspaceOptions).map(group => <section key={group.label} className="wr-desktop-command-group" aria-label={group.label}>
+                <h3>{group.label}</h3>
+                <div className="wr-desktop-command-grid">{group.views.map(view => <button key={view.tab} type="button"
+                    className="wr-desktop-command-view" aria-current={view.tab === activeTab ? 'page' : undefined}
+                    onClick={() => onSelectTab(view.tab)}>{view.label}</button>)}</div>
+            </section>)}
+        </nav>;
+    }
 
     // ── Phone bottom dock (≤767 only) ──
     // Four customizable destinations; the header menu keeps every permitted
@@ -306,17 +334,7 @@
         const selected = W.dockSelection(savedDock.key === preferenceKey ? savedDock.tabs : readSaved(), workspaceOptions);
         const choices = W.dockChoices(workspaceOptions);
         const chips = selected.map(tab => choices.find(item => item.tab === tab)).filter(Boolean);
-        const moreItems = navItems.filter(item => item.tab);
-        const menuViews = moreItems.flatMap(item => W.views(item.workspace, workspaceOptions));
-        // Group by the job on a phone, without changing workspace routes or permissions.
-        const menuGroups = [
-            { label: 'Your team', tabs: ['dashboard', 'lenses', 'myteam', 'lineup'] },
-            { label: 'Market & draft', tabs: ['fa', 'trades', 'targets', 'draft', 'mock-draft', 'draft-review'] },
-            { label: 'League & research', tabs: ['central', 'wire', 'stats', 'compare', 'calendar', 'trophies'] },
-            { label: 'Alex & tools', tabs: ['strategy', 'decisions', 'patterns', 'settings', 'gm-settings', 'legend'] },
-        ];
-        const groupedTabs = new Set(menuGroups.flatMap(group => group.tabs));
-        const extraViews = menuViews.filter(view => !groupedTabs.has(view.tab));
+        const menuGroups = buildLeagueCommandGroups(workspaceOptions, navItems.filter(item => item.tab));
         const menuButton = view => <button key={view.tab} type="button"
             aria-current={view.tab === activeTab ? 'page' : undefined}
             onClick={() => selectTab(view.tab)}><span>{view.label}</span><span aria-hidden="true">›</span></button>;
@@ -383,13 +401,11 @@
 
                     {!editingDock && <div className="wr-command-groups">
                         {menuGroups.map(group => {
-                            const views = group.tabs.map(tab => menuViews.find(view => view.tab === tab)).filter(Boolean);
-                            return views.length > 0 && <section key={group.label} aria-label={group.label}>
+                            return <section key={group.label} aria-label={group.label}>
                                 <h2>{group.label}</h2>
-                                <div className="wr-command-grid">{views.map(menuButton)}</div>
+                                <div className="wr-command-grid">{group.views.map(menuButton)}</div>
                             </section>;
                         })}
-                        {extraViews.length > 0 && <section aria-label="More tools"><h2>More tools</h2><div className="wr-command-grid">{extraViews.map(menuButton)}</div></section>}
                     </div>}
 
                 </div>
@@ -2702,7 +2718,8 @@
             return { method: 'Original', date: '\u2014', cost: '', season: '', week: 0 };
         }
 
-        const sidebarWidth = sidebarCollapsed ? 72 : 176;
+        const desktopCommandExpanded = alexVp.isDesktop && !sidebarCollapsed;
+        const sidebarWidth = sidebarCollapsed ? 72 : alexVp.isDesktop ? 232 : 176;
         // Icon paths live at module scope (NAV_ICON_PATHS, above PhoneDock)
         // so the sidebar and the phone dock strip draw the same glyphs.
         const iconPaths = NAV_ICON_PATHS;
@@ -2770,7 +2787,7 @@
 
         return (
           <window.App.SeasonContext.Provider value={_seasonCtxValue}>
-            <div className={'app-container wr-mission-control wr-mission-v8 ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
+            <div className={'app-container wr-mission-control wr-mission-v8 ' + (desktopCommandExpanded ? 'wr-browser-command-expanded ' : '') + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
                 {/* DHQ Loading Bubble — .wr-dhq-bubble: phone tier repoints it
                     above the bottom dock (index.html PHONE TIER block). */}
                 {dhqStatus.loading && (
@@ -2937,7 +2954,7 @@
                             });
                             setResults(matches.slice(0, 8));
                         }, [q]);
-                        return React.createElement('div', { style: { padding: '4px 12px 8px', position: 'relative' } },
+                        return React.createElement('div', { className: 'wr-sidebar-search', style: { padding: '4px 12px 8px', position: 'relative' } },
                             React.createElement('input', {
                                 ref: inputRef, type: 'text', placeholder: 'Search...', value: q,
                                 onChange: e => setQ(e.target.value),
@@ -2971,10 +2988,10 @@
                         );
                     })}
 
-                    {/* Nav items — grouped: FRONT OFFICE / LEAGUE / DOSSIER / SETTINGS.
-                        Definition = buildLeagueNavItems (module scope) — the
-                        same navItems array also drives the PhoneDock strip. */}
-                    {navItems.map((item, i) => {
+                    {/* Expanded desktop exposes permitted views directly. The compact
+                        icon rail and tablet drawer retain workspace navigation. */}
+                    {desktopCommandExpanded ? <DesktopCommandNav activeTab={viewTab} workspaceOptions={workspaceOptions}
+                        onSelectTab={tab => { setSidebarOpen(false); setActiveTab(tab); }} /> : navItems.map((item, i) => {
                         if (item.section) {
                             // Hairline divider only — section labels removed for a
                             // cleaner list. The grouping rhythm still reads via the
@@ -3039,7 +3056,7 @@
                                 : 'var(--k-2ecc71, #2ecc71)';
                         }
                         return (
-                            <div className="wr-sidebar-extra" title="Auto-refreshes when you return to the tab. Click Refresh Data for a full rebuild (values + history)." style={{ fontSize: 'var(--text-body, 1rem)', color, textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
+                            <div className="wr-sidebar-extra wr-sidebar-status" title="Auto-refreshes when you return to the tab. Click Refresh Data for a full rebuild (values + history)." style={{ fontSize: 'var(--text-body, 1rem)', color, textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
                                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, margin: '0 auto 2px' }}></div>
                                 {label}
                             </div>
@@ -3047,7 +3064,7 @@
                     })()}
 
                     {/* Refresh Button */}
-                    <button onClick={async () => {
+                    <button className="wr-sidebar-refresh" onClick={async () => {
                         try {
                             Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                             // Real cache clears (audit:refresh-stale step 2): the old
