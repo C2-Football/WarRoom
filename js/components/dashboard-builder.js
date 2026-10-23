@@ -303,7 +303,7 @@
                 if (!mountedRef.current || sequence !== requestRef.current) return;
                 const requestError = failure?.message || 'Alex could not update your preview. Please try again.';
                 setError(failure?.status === 429 || /\b429\b|rate.?limit/i.test(requestError)
-                    ? 'Alex has reached a temporary request limit. Your preview is safe. Try again shortly.'
+                    ? 'Alex has reached a request limit. Your preview is safe. Try again later.'
                     : requestError);
                 setMessages([...attempt.messages, { role: 'user', content: attempt.prompt }, { role: 'assistant', content: 'That request was not applied. Your dashboard preview is unchanged.' }]);
                 setInput(attempt.prompt);

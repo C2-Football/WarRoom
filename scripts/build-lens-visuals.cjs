@@ -12,9 +12,38 @@ import {parse, View} from 'vega';
 import {expressionInterpreter} from 'vega-interpreter';
 const deny = () => Promise.reject(new Error('Lens graphics cannot load external resources.'));
 const loader = {load:deny, sanitize:deny, http:deny, file:deny};
+function fitLegends(spec,rows,width,height) {
+    const channels=['color','fill','stroke','shape','size','opacity','strokeDash'];
+    for(const node of [spec,...(spec.layer || [])]) {
+        for(const channel of channels) {
+            const field=node.encoding?.[channel];
+            if(!field?.field || field.legend===null) continue;
+            const requested=field.legend || {},orient=requested.orient || 'bottom';
+            const side=orient==='left' || orient==='right';
+            const available=Math.max(48,side ? Math.min(180,width*.3) : width-20);
+            const direction=requested.direction || (side ? 'vertical' : 'horizontal');
+            const gradient=['color','fill','stroke'].includes(channel) && ['quantitative','temporal'].includes(field.type) && !field.bin && !['ordinal','band','point'].includes(field.scale?.type);
+            const labelLimit=Math.min(requested.labelLimit || 160,Math.max(20,available-32));
+            if(gradient) {
+                field.legend={...requested,direction,labelLimit:side ? labelLimit : {expr:'max(20,min('+labelLimit+',width-32))'},titleLimit:side ? available : {expr:'max(20,min('+available+',width))'},gradientLength:direction==='horizontal' && !side ? {expr:'max(40,min(200,width-20))'} : Math.max(40,Math.min(200,height-60))};
+                continue;
+            }
+            const longest=rows.reduce((length,row)=>Math.max(length,String(row[field.field] ?? '').length),0);
+            const entryWidth=Math.min(labelLimit,Math.max(24,longest*8))+32;
+            const fitting=Math.max(1,Math.floor(available/entryWidth));
+            const columns=Math.min(requested.columns || (direction==='vertical' ? 1 : 8),fitting);
+            // width is Vega's final plot width, after axis gutters. These
+            // app-owned expressions use the same AST interpreter as the chart.
+            field.legend={...requested,columns:side ? columns : {expr:'max(1,min('+columns+',floor(width/'+entryWidth+')))'},direction:columns===1 ? 'vertical' : direction,labelLimit:side ? labelLimit : {expr:'max(20,min('+labelLimit+',width-32))'},titleLimit:side ? available : {expr:'max(20,min('+available+',width))'},columnPadding:12,rowPadding:5};
+        }
+    }
+    return spec;
+}
 function createView({spec,rows,fields,container,width=640,height=320,accent='#66d9c5',renderer='svg'}) {
+    const chartWidth=Math.max(120,Math.floor(width));
     const safe = window.WR.LensComposition.validateVisual(spec, fields);
-    const compiled = compile({...safe, width:Math.max(120,Math.floor(width)), height:safe.height || height,
+    fitLegends(safe,rows,chartWidth,safe.height || height);
+    const compiled = compile({...safe, width:chartWidth, height:safe.height || height,
         data:{values:rows}, background:'transparent',
         autosize:{type:'fit',contains:'padding',resize:true},
         config:{view:{stroke:null},font:'Inter,system-ui,sans-serif',

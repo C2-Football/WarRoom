@@ -65,6 +65,10 @@
                 host.current.replaceChildren();
                 view=runtime.createView({container:host.current,spec:visual,rows:dataset.rows,fields:dataset.fields,width,height:rowHeight,accent});
                 await view.runAsync();
+                // Axis gutters settle the plot width first. Refit after that
+                // width determines the wrapped legend's final number of rows.
+                if(cancelled) return;
+                await view.resize().runAsync();
                 if(!cancelled) setState('ready');
             }).catch(()=>{if(!cancelled){view?.finalize();host.current?.replaceChildren();setState('error');}});
             return ()=>{cancelled=true;view?.finalize();};

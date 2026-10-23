@@ -142,6 +142,32 @@ async function runtimeTest(){
         assert(!svg.includes('<script'));
         view.finalize();
     }
+    const positions=['DB','DEF','DL','K','LB','QB','RB','TE','WR'];
+    const legendFields=[{id:'position',label:'Position',type:'string'},{id:'name',label:'Player',type:'string'},{id:'ppg',label:'PPG',type:'number'}];
+    const legendRows=positions.map((position,index)=>({position,name:'Long player name '+index,ppg:10+index}));
+    for(const width of [220,310,338,640]) {
+        for(const columns of [undefined,8,2]) {
+            for(const kind of ['arc','bar']) {
+            const spec={mark:kind==='arc' ? {type:'arc',innerRadius:45} : 'bar',encoding:{...(kind==='arc' ? {theta:{aggregate:'count',type:'quantitative'}} : {x:{field:'ppg',type:'quantitative'},y:{field:'name',type:'nominal',axis:{labelLimit:110}}}),color:{field:'position',type:'nominal',...(columns ? {legend:{columns,direction:'horizontal'}} : {})}}};
+            const before=JSON.stringify(spec);
+            const view=runtimeWindow.WR.LensVisualRuntime.createView({spec,rows:legendRows,fields:legendFields,width,renderer:'none'});
+            await view.runAsync();
+            await view.resize().runAsync();
+            const scene=[];const visit=node=>{scene.push(node);node.items?.forEach(visit);};visit(view.scenegraph().root);
+            const legends=scene.filter(node=>node.role==='legend');
+            assert.equal(legends.length,1);
+            const bounds=legends[0].bounds,origin=view.origin();
+            assert(bounds.x1+origin[0]>=-1 && bounds.x2+origin[0]<=width+1,'legend must fit the actual '+width+'px '+kind+' SVG after axis gutters');
+            assert(bounds.y1+origin[1]>=-1 && bounds.y2+origin[1]<=321,'all wrapped legend rows must fit the 320px SVG height');
+            const labels=scene.filter(node=>node.role==='legend-label').flatMap(node=>node.items.map(item=>item.text));
+            assert.deepEqual(Array.from(labels).sort(),positions.slice().sort(),'every position remains in the legend');
+            if(width<=338 || columns===2) assert(bounds.y2-bounds.y1>30,'narrow or explicitly small-column legends wrap onto multiple rows');
+            assert.equal(JSON.stringify(spec),before,'responsive legend fitting does not alter the saved visual');
+            view.finalize();
+            }
+        }
+    }
+    console.log('PASS actual SVG scenegraphs retain all nine legend labels within narrow/wide donuts and bars with large axis gutters, including oversized requested columns');
     assert.equal(generated,0,'all compiler-generated expressions run through the interpreter');
     assert.equal(network,0,'charts never fetch resources');
     console.log('PASS real Vega runs layered, scatter, temporal, binned and arc grammar under no-eval with no network');

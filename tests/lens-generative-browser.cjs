@@ -129,6 +129,22 @@ async function run() {
                 const links = article.locator('a[data-lens-source]');
                 assert.equal(await links.count(), await sources.locator('a[data-lens-source]').count(), 'Source links live only in the single disclosure');
                 assert.equal(await links.first().isVisible(), false, 'Sources do not add captions to the initial canvas');
+                const legendGeometry = await article.locator('.lens-composition-block.lens-composition-chart').evaluateAll(blocks => blocks.map(block => {
+                    const graphic = block.querySelector('.lens-composition-graphic'), svg = graphic.querySelector('svg');
+                    const host = graphic.getBoundingClientRect(), viewport = svg.getBoundingClientRect();
+                    const labels = [...svg.querySelectorAll('.role-legend-label text, .role-legend-title text')].map(el => {
+                        const r = el.getBoundingClientRect();
+                        return { text: el.textContent, clipped: r.left < Math.max(host.left, viewport.left) - 2 || r.right > Math.min(host.right, viewport.right) + 2 || r.top < viewport.top - 2 || r.bottom > viewport.bottom + 2, box: { left: r.left - viewport.left, right: r.right - viewport.left, top: r.top - viewport.top, bottom: r.bottom - viewport.top } };
+                    });
+                    return { id: block.dataset.lensBlock, width: viewport.width, height: viewport.height, labels, values: [...svg.querySelectorAll('.role-legend-label text')].map(el => el.textContent.trim()) };
+                }));
+                const dataRows = calls.find(call => call.phase === 'lens-compose').payload.datasets[0].rows;
+                for (const chart of legendGeometry) {
+                    assert(chart.labels.length, 'Each fixture chart has a rendered legend');
+                    assert(chart.labels.every(label => !label.clipped), 'Legend labels fit inside the rendered SVG and chart: ' + JSON.stringify(chart));
+                    const field = chart.id === 'ranking' ? 'teamName' : 'position';
+                    assert.deepEqual(chart.values.slice().sort(), [...new Set(dataRows.map(row => row[field]))].sort(), 'All legend categories remain fully readable: ' + chart.id);
+                }
             };
             try {
                 const entry = new URL(serving.url); entry.searchParams.set('dev', 'true'); entry.searchParams.set('user', username); entry.hash = 'league=' + leagueId + '&tab=lenses';
@@ -188,9 +204,10 @@ async function run() {
                 await visualsOnly(canvas()); assert.equal(calls.length, beforeLegacyReload, 'Legacy saved documents render without another AI call');
                 assert((await active()).layout[0].composition.blocks.some(block => block.id === 'legacy_narrative'), 'Rendering does not rewrite the saved document');
                 await fit('Legacy saved captions hidden');
+                await canvas().locator('[data-lens-block="positions"]').screenshot({ path: path.join(output, caseLabel + '-legend.png') });
                 await page.screenshot({ path: path.join(output, caseLabel + '-saved.png') });
                 assert.deepEqual(errors, [], 'No uncaught page exceptions'); assert.deepEqual(routeErrors, []);
-                results.push({ width: size.width, height: size.height, calls: calls.map(call => call.phase), datasets: 1, rows: 18, renderedCharts: 3, visualOnlyCanvas: true, evidenceInitiallyCollapsed: true, legacyCaptionsHidden: true, blockedExternalWrites: blocked.length, status: 'passed' });
+                results.push({ width: size.width, height: size.height, calls: calls.map(call => call.phase), datasets: 1, rows: 18, renderedCharts: 3, visualOnlyCanvas: true, evidenceInitiallyCollapsed: true, legacyCaptionsHidden: true, legendLabelsContained: true, blockedExternalWrites: blocked.length, status: 'passed' });
                 console.log('PASS generative lens full flow at ' + caseLabel);
             } catch (error) {
                 await page.screenshot({ path: path.join(output, caseLabel + '-failure.png') }).catch(() => {});

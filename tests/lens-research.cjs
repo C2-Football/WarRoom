@@ -78,6 +78,39 @@ async function main() {
         assert.equal(result.layout[0].composition.sources.length, 1);
         assert.match(result.layout[0].composition.research.notes, /No verifiable linked reporting/);
     });
+    await test('visual edits preserve complete long reporting and its source links within the disclosure limit', async () => {
+        const s = setup();
+        const facts = Array.from({ length: 6 }, (_, index) => ({ text: 'Verified public report ' + index + '. ' + 'Season context. '.repeat(34) + 'Return date remains unconfirmed.', sourceUrls: ['https://www.nfl.com/news/report-' + index] }));
+        const sources = facts.map((fact, index) => ({ title: 'Official report ' + index, url: fact.sourceUrls[0] }));
+        s.window.OD.callAI = async args => {
+            if (args.context.callType === 'lens-plan') return response({ ...plan, researchQuestion: 'Current public reporting' });
+            if (args.context.callType === 'lens-sources') return { ...response({ facts, note: '' }), grounding: { sources } };
+            return response(design());
+        };
+        const first = await s.builder.request(s.options), original = clean(first.layout);
+        const originalNotes = first.layout[0].composition.research.notes;
+        assert(originalNotes.length > 3000 && originalNotes.length <= 4000);
+        assert(originalNotes.includes(facts.at(-1).text), 'complete facts retain their final uncertainty qualifier');
+        assert(originalNotes.endsWith('Sources: Official report 5.'));
+        s.window.OD.callAI = async args => {
+            if (args.context.callType === 'lens-plan') return response({ version: 1, needs: [], researchQuestion: null, reuseEvidence: true, assumptions: [] });
+            const supplied = JSON.parse(args.context.messages[0].content);
+            assert.equal(supplied.notes[0], originalNotes, 'the composer also receives the preserved reporting');
+            return response(design());
+        };
+        let edited = first;
+        for (let index = 0; index < 2; index++) edited = await s.builder.request({ ...s.options, prompt: 'Make the chart blue', layout: edited.layout });
+        assert.equal(edited.layout[0].composition.research.notes, originalNotes);
+        assert.deepEqual(clean(edited.layout[0].composition.sources), original[0].composition.sources);
+        assert.deepEqual(clean(first.layout), original, 'edits do not mutate the saved snapshot');
+        // An already full valid disclosure must survive without partial entries.
+        edited.layout[0].composition.research.notes = originalNotes.padEnd(4000, '.');
+        const fullNotes = edited.layout[0].composition.research.notes;
+        s.window.OD.callAI = async args => args.context.callType === 'lens-plan' ? response({ version: 1, needs: [], reuseEvidence: true, assumptions: ['Another assumption.'] }) : response(design());
+        const full = await s.builder.request({ ...s.options, prompt: 'Make it purple', layout: edited.layout });
+        assert.equal(full.layout[0].composition.research.notes, fullNotes);
+        assert.deepEqual(clean(full.layout[0].composition.sources), original[0].composition.sources);
+    });
     await test('cosmetic edit reuses evidence and preserves section IDs, old sections and save undo', async () => {
         const s = setup(), first = await s.builder.request(s.options);
         const original = [{ id: 'old_section', key: 'old', size: 'md' }, ...clean(first.layout)];
