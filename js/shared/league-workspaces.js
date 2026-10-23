@@ -3,7 +3,7 @@
     'use strict';
     const analysisRoutes = { roster: 'team-outlook', draft: 'draft-review', trades: 'market-review', assets: 'research-players', reports: 'research-reports' };
     const routes = [
-        { tab: 'dashboard', workspace: 'home', label: 'Lenses' },
+        { tab: 'dashboard', workspace: 'home', label: 'Overview' },
         { tab: 'myteam', workspace: 'team', label: 'Roster' },
         { tab: 'lineup', workspace: 'team', label: 'Game Day', capability: 'gameDay' },
         { tab: 'team-outlook', workspace: 'team', label: 'Team outlook', analysis: 'roster', phoneHidden: true },
@@ -26,6 +26,7 @@
         { tab: 'research-players', workspace: 'research', label: 'Players & picks', analysis: 'assets', phoneHidden: true },
         { tab: 'compare', workspace: 'research', label: 'Compare' },
         { tab: 'research-reports', workspace: 'research', label: 'Custom reports', analysis: 'reports', phoneHidden: true },
+        { tab: 'lenses', workspace: 'lenses', label: 'Lenses' },
         { tab: 'settings', workspace: 'settings', label: 'Settings' },
         { tab: 'gm-settings', workspace: 'settings', label: 'Alex preferences', alex: 'settings', capability: 'gm' },
         { tab: 'legend', workspace: 'help', label: 'Help & glossary' },
@@ -33,12 +34,13 @@
         { tab: 'alex', workspace: 'team', label: "GM's Office", alex: null, legacy: true, capability: 'gm' },
     ];
     const workspaces = [
-        { id: 'home', label: 'Lenses', tab: 'dashboard', iconKey: 'home', description: 'Your saved views, built with Alex.' },
+        { id: 'home', label: 'Overview', tab: 'dashboard', iconKey: 'home', description: 'Your next decisions and this week at a glance.' },
         { id: 'team', label: 'Roster', tab: 'myteam', iconKey: 'roster', description: 'Your roster, weekly lineup, and plan for the team.' },
         { id: 'market', label: 'Market', tab: 'fa', iconKey: 'fa', description: 'Find an upgrade, compare options, and plan your next move.' },
         { id: 'draft', label: 'Draft', tab: 'draft', iconKey: 'draft', description: 'Prepare your board, follow the draft, and review your picks.' },
         { id: 'league', label: 'League', tab: 'central', iconKey: 'central', description: 'The competition, important dates, and your league history.' },
         { id: 'research', label: 'Research', phoneLabel: 'Stats hub', tab: 'stats', iconKey: 'analytics', description: 'Explore stats, value, scouting, and comparisons.' },
+        { id: 'lenses', label: 'Lenses', tab: 'lenses', iconKey: 'analytics', description: 'Your saved views, built with Alex.' },
         { id: 'settings', label: 'Settings', tab: 'settings', iconKey: 'settings', utility: true },
         { id: 'help', label: 'Help', tab: 'legend', iconKey: 'legend', utility: true },
     ];

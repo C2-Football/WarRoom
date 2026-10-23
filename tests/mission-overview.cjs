@@ -140,10 +140,15 @@ test('the proactive section is rendered above full scoreboard and outside dashbo
     assert(!overview.includes('<details'));
 });
 
-test('all viewport sizes reach the lens workspace instead of a fixed mobile overview',()=>{
-    assert.doesNotMatch(detailSource, /showLeagueOverview|REDRAFT_FIXED_WIDGETS/);
-    assert.match(detailSource, / : dashboardEl\(selectedWidgets\)/);
+test('Overview restores the original mobile surface and Lenses has an explicit separate route',()=>{
+    assert.match(detailSource, /showLeagueOverview = alexPhone && isCurrentYear && leagueSkin\?\.phase === 'in_season'/);
+    assert.match(detailSource, /viewTab === 'lenses' \? dashboardEl\(selectedWidgets\) : showLeagueOverview \?/);
+    const start = detailSource.indexOf(' : showLeagueOverview ?');
+    const end = detailSource.indexOf(' : dashboardEl(overviewWidgets, true)', start);
+    assert(start >= 0 && end > start);
+    assert.match(detailSource.slice(start, end), /LeagueCentralTabLazy.*overview=\{true\}/);
     const canvasSource = fs.readFileSync('js/tabs/dashboard.js', 'utf8');
+    assert.match(canvasSource, /if \(props.overview\) return <DashboardCanvas/);
     assert.match(canvasSource, /window\.WR\.DashboardLenses/);
     assert.doesNotMatch(canvasSource, /Customize Home|WrDashReorder|Remove widget/);
 });

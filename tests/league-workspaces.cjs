@@ -1,11 +1,26 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const W = require('../js/shared/league-workspaces.js');
-test('six stable workspaces retain meaningful deep routes', () => {
-    assert.deepEqual(W.navigation().filter(w => !w.utility).map(w => w.label), ['Lenses', 'Roster', 'Market', 'Draft', 'League', 'Research']);
-    for (const [tab, group] of Object.entries({ lineup: 'team', strategy: 'team', decisions: 'team', fa: 'market', trades: 'market', calendar: 'league', trophies: 'league', stats: 'research', compare: 'research' })) {
+test('Overview remains home while Lenses is a separate workspace', () => {
+    assert.deepEqual(W.navigation().filter(w => !w.utility).map(w => w.label), ['Overview', 'Roster', 'Market', 'Draft', 'League', 'Research', 'Lenses']);
+    for (const [tab, group] of Object.entries({ lineup: 'team', strategy: 'team', decisions: 'team', fa: 'market', trades: 'market', calendar: 'league', trophies: 'league', stats: 'research', compare: 'research', lenses: 'lenses' })) {
         assert.equal(W.workspace(tab).id, group);
         assert.ok(W.views(group).some(v => v.tab === tab));
+    }
+});
+test('every format keeps Overview as default and offers Lenses without changing saved dock choices', () => {
+    for (const isPhone of [false, true]) for (const leagueType of ['dynasty', 'redraft', 'chopped', 'unknown']) {
+        const options = { isPhone, leagueType, showTrades: false, showGmOffice: false };
+        assert.equal(W.resolve(undefined, options).tab, 'dashboard');
+        assert.equal(W.resolve('dashboard', options).label, 'Overview');
+        assert.equal(W.resolve('lenses', options).tab, 'lenses');
+        assert.equal(W.workspace('lenses', options).id, 'lenses');
+        assert.deepEqual(W.views('home', options).map(route => route.tab), ['dashboard']);
+        assert(W.navigation(options).some(item => item.tab === 'lenses'));
+        assert(W.dockChoices(options).some(item => item.tab === 'lenses'));
+        assert.deepEqual(W.dockDefaults(options), ['dashboard', 'myteam', 'central', 'lineup']);
+        assert.deepEqual(W.dockSelection(['dashboard', 'myteam', 'central', 'lineup'], options), ['dashboard', 'myteam', 'central', 'lineup']);
+        assert.deepEqual(W.dockSelection(['lenses', 'fa'], options), ['lenses', 'fa']);
     }
 });
 test('legacy analytics links retain their selected report in its new home', () => {

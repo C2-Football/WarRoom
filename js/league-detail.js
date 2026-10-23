@@ -1033,15 +1033,8 @@
             'transaction-ticker': { label: 'Transaction Ticker', icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Recent league transactions: trades, waivers, and free agent moves' },
             'league-standings':   { label: 'League Standings',   icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Current league standings with W-L records and DHQ totals' },
         };
-        // Curiosity-first default dashboard (new leagues only — existing users keep
-        // their saved layout). One large "wow" anchor + two tension numbers + a
-        // visual + a live feed, spanning AI / roster / league / market so the board
-        // telegraphs the system's breadth and invites a click on first load:
-        //   1. Intel Brief (large)   — Alex's narrative + action CTAs
-        //   2. Health Score (small)  — a lone 0–100 that begs "why?"
-        //   3. Power Rankings (small)— "where do I stand?" competitive tension
-        //   4. Elite Players (medium)— your cornerstones (visual)
-        //   5. Market Radar (medium) — a moving feed of trade/waiver opportunities
+        // Overview stays curated. Saved custom layouts belong to Lenses and
+        // remain available as migration input without changing the landing view.
         const leagueWidgetLayout = window.App.DashboardLeagueLayout;
         const widgetScope = leagueWidgetLayout.leagueId(currentLeague);
         const widgetAccountScope = window.WR.DashboardBuilder.scopeFor(widgetScope, sleeperUserId);
@@ -1051,6 +1044,9 @@
             { id: 'dw_calendar', key: 'league-calendar', size: 'md' },
             { id: 'dw_team', key: 'roster-pulse', size: 'md', primaryMetric: 'health-score' },
         ];
+        const overviewWidgets = leagueSkin?.type === 'redraft' || leagueSkin?.type === 'chopped'
+            ? [...DEFAULT_WIDGETS, { id: 'rfw5', key: 'lineup-check', size: 'md' }, { id: 'rfw7', key: 'analyst-mock', size: 'sm' }]
+            : DEFAULT_WIDGETS;
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
             if (!stored || !Array.isArray(stored)) return DEFAULT_WIDGETS;
@@ -2642,11 +2638,12 @@
         // this render, so the two surfaces can never drift.
         const navItems = buildLeagueNavItems(workspaceOptions);
 
-        // The lens workspace is the Home destination for every league format
-        // and viewport. Existing layouts are passed only as migration input.
-        const dashboardEl = (widgets) => (
+        // Overview and Lenses share live cards, but only Lenses owns editing and
+        // saved layouts. Opening Overview never reads or changes the active lens.
+        const dashboardEl = (widgets, overview = false) => (
             <DashboardPanel key={widgetAccountScope}
-                selectedWidgets={widgetLayoutScope === widgetAccountScope ? widgets : loadWidgetLayout()}
+                overview={overview}
+                selectedWidgets={overview || widgetLayoutScope === widgetAccountScope ? widgets : loadWidgetLayout()}
                 setSelectedWidgets={setSelectedWidgets}
                 editingKpi={editingKpi}
                 setEditingKpi={setEditingKpi}
@@ -2680,6 +2677,7 @@
             setLeagueViewMode('roster');
             setActiveTab('league-team');
         };
+        const showLeagueOverview = alexPhone && isCurrentYear && leagueSkin?.phase === 'in_season';
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
         const leagueSkinClassName = leagueSkin?.theme?.className || (leagueSkin?.type ? 'wr-league-skin-' + leagueSkin.type : 'wr-league-skin-default');
 
@@ -3399,7 +3397,7 @@
                     </nav>}
                 </header>
                 {/* Phones open The Wire from the command menu. */}
-                {viewTab !== 'dashboard' && (!alexPhone || viewTab === 'wire') && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
+                {!['dashboard', 'lenses'].includes(viewTab) && (!alexPhone || viewTab === 'wire') && <div className="wr-league-wire-entry">{typeof window.WrLeagueWire === 'function' && (
                     <window.WrLeagueWire
                         sidebarWidth={sidebarWidth}
                         onOpenAllWire={onOpenAllWire}
@@ -3584,7 +3582,7 @@
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
                     homeMerged: false, onOpenTeam: openLeagueTeam,
-                }) : viewTab === 'wire' ? <section className="mc-wire-destination"><h2>The Wire</h2><p>Your league’s stories, records, rivalries and weekly editions.</p><button type="button" className="gd-primary" onClick={() => window.dispatchEvent(new CustomEvent('wr:wire-open'))}>Open The Wire</button></section> : dashboardEl(selectedWidgets)}
+                }) : viewTab === 'wire' ? <section className="mc-wire-destination"><h2>The Wire</h2><p>Your league’s stories, records, rivalries and weekly editions.</p><button type="button" className="gd-primary" onClick={() => window.dispatchEvent(new CustomEvent('wr:wire-open'))}>Open The Wire</button></section> : viewTab === 'lenses' ? dashboardEl(selectedWidgets) : showLeagueOverview ? <div className="mc-overview"><LeagueCentralTabLazy currentLeague={currentLeague} leagueSkin={leagueSkin} myRoster={myRoster} playersData={playersData} standings={standings} transactions={transactions} sleeperUserId={sleeperUserId} getOwnerName={getOwnerName} getPlayerName={getPlayerName} timeAgo={timeAgo} setActiveTab={setActiveTab} onOpenTeam={openLeagueTeam} overview={true} /></div> : dashboardEl(overviewWidgets, true)}
                 </div>
                 </div>{/* end marginLeft wrapper */}
 

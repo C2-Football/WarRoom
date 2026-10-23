@@ -127,7 +127,7 @@ async function run() {
             const entry = id => {
                 const url = new URL(serving.url);
                 url.searchParams.set('dev', 'true'); url.searchParams.set('user', username);
-                url.hash = 'league=' + id + '&tab=dashboard';
+                url.hash = 'league=' + id + '&tab=lenses';
                 return url.href;
             };
             const load = async id => {

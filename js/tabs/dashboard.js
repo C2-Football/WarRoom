@@ -358,6 +358,7 @@ function legacyDashboardLensLayout(layout, catalog) {
 
 function DashboardPanel(props) {
     if (props.readOnly) return <DashboardCanvas {...props} />;
+    if (props.overview) return <DashboardCanvas {...props} includeLegacyExtras={true} />;
     const builder = window.WR.DashboardBuilder;
     const scope = builder.scopeFor(window.App.DashboardLeagueLayout.leagueId(props.currentLeague), props.sleeperUserId);
     const catalog = builder.catalog(WIDGET_MODULES);

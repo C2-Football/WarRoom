@@ -33,13 +33,13 @@ function fixture({ open = false, phone = true, keyboard = false, activeTab = 'my
 
 const closed = fixture();
 const dock = closed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip'));
-assert.deepEqual(dock.map(closed.text), ['Lenses', 'Roster', 'League', 'Game Day']);
+assert.deepEqual(dock.map(closed.text), ['Overview', 'Roster', 'League', 'Game Day']);
 assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'Roster');
 closed.events['wr:phone-menu']();
 assert.deepEqual(closed.updates, [false, true]);
 
 const expanded = fixture({ open: true, activeTab: 'stats' });
-for (const tab of ['fa', 'trades', 'draft', 'mock-draft', 'draft-review', 'wire', 'stats', 'compare', 'settings', 'gm-settings', 'legend']) {
+for (const tab of ['fa', 'trades', 'draft', 'mock-draft', 'draft-review', 'wire', 'stats', 'compare', 'lenses', 'settings', 'gm-settings', 'legend']) {
     const expected = workspaces.resolve(tab,{isPhone:true}).label;
     assert.ok(expanded.nodes.some(n => n.type === 'button' && expanded.text(n) === expected + '›'), `More must retain ${expected}`);
 }
@@ -53,6 +53,7 @@ const labels = restricted.nodes.filter(n => n.type === 'button').map(restricted.
 assert.ok(labels.includes('Waivers›'));
 assert.ok(!labels.includes('Trade Desk›'));
 assert.ok(!labels.includes('Alex preferences›'));
+assert.ok(labels.includes('Lenses›'), 'Lenses remains available in seasonal league menus');
 
 for (const opts of [{ phone: false }, { keyboard: true }]) {
     const f = fixture(opts);
@@ -76,7 +77,7 @@ for (const activeTab of ['myteam', 'alex']) {
     assert.equal(f.text(title), workspaces.resolve(activeTab).label);
     assert.ok(!title.children.some(node => node?.type === 'select'), 'Mobile shows a stable workspace title instead of a route selector');
 }
-assert.match(source, /viewTab !== 'dashboard' && \(!alexPhone \|\| viewTab === 'wire'\)/, 'Phones only mount Wire on its menu destination');
+assert.match(source, /!\['dashboard', 'lenses'\]\.includes\(viewTab\) && \(!alexPhone \|\| viewTab === 'wire'\)/, 'Overview and Lenses stay clear of the Wire; phones open it from its menu destination');
 console.log('PASS mobile titles: stable route labels and My Team phone focus');
 
 const leagueOptions = fixture({ open: true });

@@ -77,16 +77,20 @@ async function run() {
             const choppedProvider = createLeagueSkinFixture({ redraftId: leagueB, dynastyId: leagueC, user: username });
             const chopped = value => value?.league_id === leagueC && value.settings?.type !== undefined
                 ? { ...value, name: 'QA Chopped Lenses', settings: { ...value.settings, type: 3, last_chopped_leg: 0 } } : value;
+            const inSeason = value => value?.league_id === leagueA && value.settings?.type !== undefined
+                ? { ...value, status: 'in_season', settings: { ...value.settings, leg: 7 } }
+                : value?.draft_id === 'qa-draft-' + leagueA ? { ...value, status: 'complete' } : value;
             const blocked = await installReadOnlyRoutes(context, { fixture: url => {
+                if (/^api\.sleeper\.(?:app|com)$/.test(url.hostname) && url.pathname.endsWith('/state/nfl')) return { season: '2026', league_season: '2026', season_type: 'regular', week: 7, display_week: 7 };
                 if (url.pathname.includes('/league/' + leagueC)) {
                     const value = choppedProvider(url);
                     return Array.isArray(value) ? value.map(chopped) : chopped(value);
                 }
                 const value = provider(url);
                 if (Array.isArray(value) && value.some(item => item?.league_id === leagueA && item.settings?.type !== undefined)) {
-                    return [...value, chopped(choppedProvider(url).find(item => item.league_id === leagueC))];
+                    return [...value.map(inSeason), chopped(choppedProvider(url).find(item => item.league_id === leagueC))];
                 }
-                return value;
+                return Array.isArray(value) ? value.map(inSeason) : inSeason(value);
             } });
             const plans = [], requests = [], errors = [];
             await context.route('**/functions/v1/ai-analyze', async route => {
@@ -134,8 +138,26 @@ async function run() {
             const workspace = () => page.locator('.dashboard-lenses').first();
             const canvas = () => workspace().locator('.dashboard-lenses-canvas');
             const dialog = () => page.getByRole('dialog', { name: 'Build with Alex', exact: true });
-            const entry = id => { const url = new URL(serving.url); url.searchParams.set('dev', 'true'); url.searchParams.set('user', username); url.hash = 'league=' + id + '&tab=dashboard'; return url.href; };
+            const entry = (id, tab = 'lenses') => { const url = new URL(serving.url); url.searchParams.set('dev', 'true'); url.searchParams.set('user', username); url.hash = 'league=' + id + (tab ? '&tab=' + tab : ''); return url.href; };
             const load = async id => { await page.goto(entry(id), { waitUntil: 'domcontentloaded' }); await workspace().waitFor({ timeout: 60000 }); };
+            const overview = async () => {
+                await page.locator('.wr-workspace-header').getByRole('heading', { name: 'Overview', exact: true }).filter({ visible: true }).waitFor({ timeout: 60000 });
+                await page.locator(size.touch ? '.mc-league-overview' : '.wr-dashboard-grid').waitFor({ timeout: 60000 });
+                assert.equal(await workspace().count(), 0, 'Overview never mounts the optional lens workspace');
+                assert.equal(await page.getByRole('button', { name: 'Build with Alex', exact: true }).count(), 0, 'The default Overview has no lens creation controls');
+                if (size.touch) {
+                    const dock = page.getByRole('navigation', { name: 'Primary', exact: true });
+                    equal(await dock.getByRole('button').allTextContents(), ['Overview', 'Roster', 'League', 'Game Day'], 'Overview remains the first default phone destination');
+                    await page.locator('.mc-league-overview .mc-overview-decisions').waitFor();
+                    await page.locator('.mc-league-overview .mc-overview-summary').waitFor();
+                }
+            };
+            const navigate = async name => {
+                if (size.touch) {
+                    await click(page.getByRole('button', { name: 'Open all views', exact: true }));
+                    await click(page.locator('#wr-phone-more-menu').getByRole('button', { name, exact: true }));
+                } else await click(page.locator('.wr-sidebar').getByRole('button', { name, exact: true }));
+            };
             const state = async (id = leagueA, owner = account) => page.evaluate(({ id, owner }) => {
                 return window.WR.DashboardLensesStore.read(encodeURIComponent(owner) + ':' + encodeURIComponent(id), [], window.WR.DashboardBuilder.catalog(WIDGET_MODULES));
             }, { id, owner });
@@ -208,7 +230,12 @@ async function run() {
                 }, { dx, dy, clickAfter });
             };
             try {
-                await load(leagueA);
+                await page.goto(entry(leagueA, null), { waitUntil: 'domcontentloaded' });
+                await overview();
+                await page.screenshot({ path: path.join(output, size.label + '-overview-default.png') });
+                await navigate('Lenses');
+                await workspace().waitFor({ timeout: 60000 });
+                assert(new URLSearchParams(new URL(page.url()).hash.slice(1)).get('tab') === 'lenses', 'The optional tool has its own deep-link route');
                 await activeName('Home');
                 equal((await state()).lenses[0].layout, legacyLayout, 'The old dashboard becomes Home without losing saved sections');
                 await page.evaluate(() => { if (!window.WrStarWidget.isStarred('fixture-pin')) window.WrStarWidget.toggle({ id: 'fixture-pin', title: 'Unrelated pinned fixture', content: 'This saved pin must not appear in a new lens.' }); });
@@ -254,6 +281,12 @@ async function run() {
                 equal((await state()).lenses.find(lens => lens.id === home.id), home, 'Saving another lens leaves Home unchanged');
                 await fit('Custom lens');
                 await page.screenshot({ path: path.join(output, size.label + '-lens-dashboard.png') });
+                const savedBeforeOverview = await state();
+                await navigate('Overview'); await overview();
+                equal(await state(), savedBeforeOverview, 'Opening Overview never changes saved lenses');
+                await page.reload({ waitUntil: 'domcontentloaded' }); await overview();
+                await navigate('Lenses'); await activeName('Roster watch');
+                equal(await state(), savedBeforeOverview, 'Returning to Lenses restores the selected lens and its contents');
                 await create('League pulse');
                 await submit('Show the league standings.', { layout: leagueLayout });
                 await ready(); await save(); await close();
@@ -346,7 +379,7 @@ async function run() {
                     const hold = new Promise(resolve => { release = resolve; });
                     await submit('A late request must remain in this league.', { layout: leagueLayout, hold });
                     await dialog().getByRole('button', { name: 'Cancel request', exact: true }).waitFor();
-                    await page.evaluate(id => { location.hash = 'league=' + id + '&tab=dashboard'; }, leagueB);
+                    await page.evaluate(id => { location.hash = 'league=' + id + '&tab=lenses'; }, leagueB);
                     await workspace().getByRole('tab', { name: 'Season focus', exact: true, selected: true }).waitFor({ timeout: 60000 });
                     release();
                     await dialog().waitFor({ state: 'hidden' });
@@ -371,7 +404,7 @@ async function run() {
                 assert.equal(errors.length, 0, 'No browser runtime errors: ' + errors.join(' | '));
                 assert.equal(plans.length, 0, 'All queued fixture responses were consumed');
                 results.push({ viewport: size.label, dimensions: `${size.width}x${size.height}`, touch: size.touch, passed: true, aiFixtureRequests: requests.length, blockedExternalWrites: blocked.length });
-                console.log('PASS dashboard lenses ' + size.label + ': migration, independent creation, preview/save, switching, touch/keyboard, nested scrolling, reload, rename/duplicate/remove/restore, per-lens undo, quota, league/account isolation');
+                console.log('PASS dashboard lenses ' + size.label + ': default Overview, optional menu route, preserved lenses on return, migration, independent creation, preview/save, switching, touch/keyboard, nested scrolling, reload, rename/duplicate/remove/restore, per-lens undo, quota, league/account isolation');
             } catch (error) {
                 await page.screenshot({ path: path.join(output, size.label + '-failure.png') }).catch(() => {});
                 fs.writeFileSync(path.join(output, size.label + '-failure.json'), JSON.stringify({ error: error.stack, browserErrors: errors, url: page.url(), text: await page.locator('body').innerText().catch(() => ''), requests }, null, 2));

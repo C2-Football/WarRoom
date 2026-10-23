@@ -171,7 +171,7 @@ async function run() {
             const page = await context.newPage();
             const errors = [];
             page.on('pageerror', error => errors.push(error.message));
-            const url = new URL(serving.url); url.searchParams.set('dev', 'true'); url.searchParams.set('user', username); url.hash = 'league=' + leagueId + '&tab=dashboard';
+            const url = new URL(serving.url); url.searchParams.set('dev', 'true'); url.searchParams.set('user', username); url.hash = 'league=' + leagueId + '&tab=lenses';
             const dialog = () => page.getByRole('dialog', { name: 'Build with Alex', exact: true });
             const panel = () => dialog().locator('.dashboard-reminders');
             const click = async locator => { await locator.scrollIntoViewIfNeeded(); return size.touch ? locator.tap() : locator.click(); };
