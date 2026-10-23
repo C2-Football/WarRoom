@@ -307,6 +307,19 @@
         const choices = W.dockChoices(workspaceOptions);
         const chips = selected.map(tab => choices.find(item => item.tab === tab)).filter(Boolean);
         const moreItems = navItems.filter(item => item.tab);
+        const menuViews = moreItems.flatMap(item => W.views(item.workspace, workspaceOptions));
+        // Group by the job on a phone, without changing workspace routes or permissions.
+        const menuGroups = [
+            { label: 'Your team', tabs: ['dashboard', 'lenses', 'myteam', 'lineup'] },
+            { label: 'Market & draft', tabs: ['fa', 'trades', 'targets', 'draft', 'mock-draft', 'draft-review'] },
+            { label: 'League & research', tabs: ['central', 'wire', 'stats', 'compare', 'calendar', 'trophies'] },
+            { label: 'Alex & tools', tabs: ['strategy', 'decisions', 'patterns', 'settings', 'gm-settings', 'legend'] },
+        ];
+        const groupedTabs = new Set(menuGroups.flatMap(group => group.tabs));
+        const extraViews = menuViews.filter(view => !groupedTabs.has(view.tab));
+        const menuButton = view => <button key={view.tab} type="button"
+            aria-current={view.tab === activeTab ? 'page' : undefined}
+            onClick={() => selectTab(view.tab)}><span>{view.label}</span><span aria-hidden="true">›</span></button>;
         const moreActive = !chips.some(item => item.tab === activeTab);
         const saveDock = tabs => {
             setSavedDock({key:preferenceKey,tabs});
@@ -322,7 +335,7 @@
 
         useEffect(() => { setMoreOpen(false); }, [activeTab]);
         useEffect(() => {
-            const openMenu = () => setMoreOpen(true);
+            const openMenu = () => { setEditingDock(false); setMoreOpen(true); };
             window.addEventListener?.('wr:phone-menu', openMenu);
             return () => window.removeEventListener?.('wr:phone-menu', openMenu);
         }, []);
@@ -353,9 +366,11 @@
             </nav>
             {moreOpen && <window.WR.Sheet open={true} title="Your command center" onClose={() => setMoreOpen(false)}>
                 <div id="wr-phone-more-menu" className="wr-phone-more-menu">
-                    <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('wr:mission-alex-open')); }}>Chat with Alex</button>
-                    {onOpenLeagueOptions && <button type="button" onClick={() => { setMoreOpen(false); onOpenLeagueOptions(); }}>League options</button>}
-                    <button type="button" onClick={() => setEditingDock(v => !v)} aria-expanded={editingDock}>Customize bottom menu</button>
+                    {!editingDock && <div className="wr-command-actions">
+                        <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('wr:mission-alex-open')); }}>Chat with Alex</button>
+                        {onOpenLeagueOptions && <button type="button" onClick={() => { setMoreOpen(false); onOpenLeagueOptions(); }}>League options</button>}
+                    </div>}
+                    <button className="wr-command-customize" type="button" onClick={() => setEditingDock(v => !v)} aria-expanded={editingDock}>{editingDock ? 'Back to command center' : 'Customize bottom menu'}</button>
                     {editingDock && <section aria-label="Customize bottom menu">
                         <p>Choose up to four destinations. The top-left menu always opens every view. Saved for this account and league format.</p>
                         <p>{selected.length} of 4 selected</p>
@@ -366,15 +381,17 @@
                         <button type="button" onClick={()=>setEditingDock(false)}>Done</button>
                     </section>}
 
-                    {moreItems.map(item => {
-                        const views = window.WR.LeagueWorkspaces.views(item.workspace, workspaceOptions);
-                        return <section key={item.workspace}>
-                            <h2>{item.label}</h2>
-                            {views.map(view => <button key={view.tab} type="button"
-                                aria-current={view.tab === activeTab ? 'page' : undefined}
-                                onClick={() => selectTab(view.tab)}><span>{view.label}</span><span aria-hidden="true">›</span></button>)}
-                        </section>;
-                    })}
+                    {!editingDock && <div className="wr-command-groups">
+                        {menuGroups.map(group => {
+                            const views = group.tabs.map(tab => menuViews.find(view => view.tab === tab)).filter(Boolean);
+                            return views.length > 0 && <section key={group.label} aria-label={group.label}>
+                                <h2>{group.label}</h2>
+                                <div className="wr-command-grid">{views.map(menuButton)}</div>
+                            </section>;
+                        })}
+                        {extraViews.length > 0 && <section aria-label="More tools"><h2>More tools</h2><div className="wr-command-grid">{extraViews.map(menuButton)}</div></section>}
+                    </div>}
+
                 </div>
             </window.WR.Sheet>}
         </React.Fragment>;

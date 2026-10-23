@@ -36,11 +36,14 @@ const dock = closed.nodes.filter(n => n.type === 'button' && n.props.className?.
 assert.deepEqual(dock.map(closed.text), ['Lenses', 'Roster', 'League', 'Game Day']);
 assert.equal(dock.find(n => n.props['aria-current'] === 'page').children.map(closed.text).join(''), 'Roster');
 closed.events['wr:phone-menu']();
-assert.deepEqual(closed.updates, [false, true]);
+assert.deepEqual(closed.updates, [false, false, true]);
 const installed = fixture({ options: { isInstalledApp: true } });
 assert.deepEqual(installed.nodes.filter(n => n.type === 'button' && n.props.className?.includes('wr-dock-chip')).map(installed.text), ['Overview', 'Roster', 'League', 'Game Day'], 'Installed app keeps the Overview dock default');
 
 const expanded = fixture({ open: true, activeTab: 'stats' });
+assert.deepEqual(expanded.nodes.filter(n => n.type === 'h2').map(expanded.text), ['Your team', 'Market & draft', 'League & research', 'Alex & tools']);
+const menuDestinations = expanded.nodes.filter(n => n.type === 'button' && expanded.text(n).endsWith('›')).map(expanded.text);
+assert.equal(new Set(menuDestinations).size, menuDestinations.length, 'Every destination appears once in the grouped menu');
 for (const tab of ['fa', 'trades', 'draft', 'mock-draft', 'draft-review', 'wire', 'stats', 'compare', 'lenses', 'settings', 'gm-settings', 'legend']) {
     const expected = workspaces.resolve(tab,{isPhone:true}).label;
     assert.ok(expanded.nodes.some(n => n.type === 'button' && expanded.text(n) === expected + '›'), `More must retain ${expected}`);
