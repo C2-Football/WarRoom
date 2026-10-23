@@ -1810,7 +1810,7 @@ function MyTeamTab({
         tone: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) === byeWeekNow ? 'warn' : undefined,
       } : _phoneSlotFor(_phoneSlotKeys[0], r);
       g.rows.push(
-        <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid} data-wr-lens-source={isLensSource ? rosterLens.mode : undefined}>
+        <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid} data-wr-lens-source={isLensSource ? rosterLens.mode : undefined} data-wr-lens-state={opportunity ? isLensSource ? 'active' : 'available' : undefined}>
           <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
             <span className="wr-roster-mobile-player-identity">

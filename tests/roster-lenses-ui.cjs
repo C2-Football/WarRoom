@@ -399,7 +399,10 @@ test('the active source row and leading outgoing identity follow the selected wa
     const next = candidate('new-receiver', 'Available Receiver', 2, 5, { anchorPlayerId: 'starter', dropPid: 'starter', outgoing: [{ pid: 'starter', name: 'Starter Receiver' }] });
     await loadWaivers(h, [...waiverCandidates(), next]);
     const marked = () => all(h.tree, node => !!node.props['data-wr-lens-source']);
+    const state = pid => find(h.tree, node => node.props['data-wr-roster-pid'] === pid)?.props['data-wr-lens-state'];
     assert.deepEqual(marked().map(node => node.props['data-wr-roster-pid']), ['bench']);
+    assert.equal(state('bench'), 'active'); assert.equal(state('starter'), 'available');
+    assert.equal(state('ir'), undefined, 'An unrelated roster player has no availability highlight');
     assert.equal(marked()[0].props['data-wr-lens-source'], 'waivers');
     assert.match(text(find(marked()[0], node => node.props.className === 'wr-roster-mobile-player-trigger')), /Bench Runner.*In lens/);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
@@ -412,12 +415,16 @@ test('the active source row and leading outgoing identity follow the selected wa
     assert(choices, 'Alternate selection names its owned source');
     h.lens.choose(next); h.render();
     assert.deepEqual(marked().map(node => node.props['data-wr-roster-pid']), ['starter']);
+    assert.equal(state('starter'), 'active'); assert.equal(state('bench'), 'available', 'The previous selection returns to available');
     preview = find(h.tree, node => node.props['data-lens-preview'] === 'new-receiver');
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropStarter Receiver/);
     h.click('Clear'); assert.equal(marked().length, 0);
+    assert.equal(state('bench'), 'available'); assert.equal(state('starter'), 'available', 'Clear leaves all current suggestions available');
     h.lens.choose(next); h.render(); h.change('Point comparison basis', 'average');
     assert.equal(marked().length, 0, 'Loading the next basis cannot retain the old source highlight');
+    assert.equal(state('bench'), undefined); assert.equal(state('starter'), undefined, 'Loading hides stale availability too');
     h.click('Lens off'); assert.equal(marked().length, 0);
+    assert.equal(state('bench'), undefined); assert.equal(state('starter'), undefined);
     assert.equal(JSON.stringify(h.roster), original); assert.equal(h.writes.length, 0);
 });
 
@@ -438,6 +445,7 @@ test('hidden source, multi-player trade and open-slot previews state exactly wha
     const open = harness({ integrated: true });
     await loadWaivers(open, [candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] })]);
     preview = find(open.tree, node => node.props['data-lens-preview'] === 'open-add');
+    assert.equal(preview.props['data-lens-state'], 'active', 'An open-slot selection is active without inventing a source row');
     assert.equal(text(find(preview, node => node.props.className === 'wr-lens-source')), 'Open roster spot');
     assert.equal(all(open.tree, node => !!node.props['data-wr-lens-source']).length, 0);
     assert(!text(preview).includes('You drop'), 'An open roster spot never invents an outgoing player');

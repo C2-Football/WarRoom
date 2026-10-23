@@ -294,7 +294,7 @@
         const trade = lens.mode === 'trades', metric = metricOf(candidate, lens.ui.horizon), partner = candidate.partner;
         const otherDelta = deltaOf(candidate, lens.ui.horizon === 'season' ? 'week' : 'season');
         const left = budget(lens.input);
-        return <div className="wr-lens-preview" data-lens-preview={candidate.id} aria-label="Acquisition preview">
+        return <div className="wr-lens-preview" data-lens-preview={candidate.id} data-lens-state="active" aria-label="Acquisition preview">
             <div className="wr-lens-source" aria-label={trade ? 'Your players in this trade' : 'Your player in this waiver move'}>
                 <span>{outgoing.length ? trade ? 'You send' : 'You drop' : 'Open roster spot'}</span>
                 {outgoing.length > 0 && <strong>{outgoing.map((asset, index) => <React.Fragment key={pidOf(asset)}>{index > 0 ? ' + ' : ''}{nameOf(asset)}{lens.ui.basis !== 'projected' && <small> · {asset.comparisonBasis === 'average' ? 'Avg' : 'Proj'} {number(asset.projection)}</small>}</React.Fragment>)}</strong>}
@@ -331,7 +331,7 @@
         const owned = lens.input.players?.[pid];
         const ownedName = owned?.full_name || [owned?.first_name, owned?.last_name].filter(Boolean).join(' ')
             || candidates.flatMap(candidate => candidate.outgoing || []).find(asset => pidOf(asset) === text(pid))?.name || 'your player';
-        return <div className="wr-lens-row" data-lens={lens.mode}>
+        return <div className="wr-lens-row" data-lens={lens.mode} data-lens-state={selected ? 'active' : 'available'}>
             {selected && <Preview lens={lens} candidate={selected} />}
             {candidates.length > 2 ? <label className="wr-lens-more">{selected ? 'Other ideas for ' : 'Ideas for '}{ownedName}<select aria-label={'Acquisition ideas for ' + ownedName} value={selected?.id || ''} onChange={event => { const candidate = candidates.find(item => item.id === event.target.value); if (candidate) lens.choose(candidate); }}><option value="" disabled>Choose a move</option>{candidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.incoming.map(nameOf).join(' + ')} · {futureView(lens) ? candidate.futureFit?.label || 'Compare value' : signed(deltaOf(candidate, lens.ui.horizon)) + (lens.ui.horizon === 'season' ? ' ROS pts' : ' lineup pts')}</option>)}</select></label> : candidates.filter(candidate => candidate.id !== selected?.id).map(candidate => <button type="button" className="wr-lens-try" key={candidate.id} onClick={() => lens.choose(candidate)}><span>Try {candidate.incoming.map(nameOf).join(' + ')}</span><Gain candidate={candidate} lens={lens} /><span aria-hidden="true">↓</span></button>)}
         </div>;
