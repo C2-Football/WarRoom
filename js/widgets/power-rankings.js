@@ -58,7 +58,7 @@
         return clean.length ? clean.reduce((s, n) => s + n, 0) / clean.length : 0;
     }
 
-    function PowerRankingsWidget({ size, sleeperUserId, currentLeague, playersData, setActiveTab, navigateWidget }) {
+    function PowerRankingsWidget({ size, sleeperUserId, currentLeague, playersData, setActiveTab, navigateWidget, readOnly = false }) {
         // Default view is format-aware (owner ask): Blended (health score) reads
         // as a dynasty-flavored composite that doesn't map cleanly onto a
         // single-season league — Contender (this-season optimal-lineup PPG) is
@@ -67,7 +67,7 @@
         const [view, setView] = React.useState(() =>
             window._wrPrView || (window.App?.LeagueSkin?.getCurrent?.()?.type === 'redraft' ? 'contender' : 'blended')
         );
-        React.useEffect(() => { window._wrPrView = view; }, [view]);
+        React.useEffect(() => { if (!readOnly) window._wrPrView = view; }, [view, readOnly]);
 
         // Free/Pro (fail-open): ranks + gap math stay free (owner Q7); the
         // Roster Identity build read + riser/win-now framing are Pro.
@@ -166,6 +166,7 @@
 
         function jumpToLeague(e) {
             e?.stopPropagation?.();
+            if (readOnly) return;
             if (navigateWidget) navigateWidget('analytics');
             else if (setActiveTab) setActiveTab('analytics');
         }
@@ -216,7 +217,7 @@
                 }, ...['blended', 'contender', 'dynasty'].map(k =>
                     React.createElement('button', {
                         key: k,
-                        onClick: e => { e.stopPropagation(); setView(k); },
+                        onClick: e => { e.stopPropagation(); if (!readOnly) setView(k); },
                         title: VIEW_META[k].help,
                         style: {
                             minHeight: compact ? '30px' : '32px',

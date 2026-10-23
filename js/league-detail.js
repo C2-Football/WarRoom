@@ -1041,6 +1041,7 @@
         //   5. Market Radar (medium) — a moving feed of trade/waiver opportunities
         const leagueWidgetLayout = window.App.DashboardLeagueLayout;
         const widgetScope = leagueWidgetLayout.leagueId(currentLeague);
+        const widgetAccountScope = window.WR.DashboardBuilder.scopeFor(widgetScope, sleeperUserId);
         const DEFAULT_WIDGETS = [
             { id: 'dw0', key: 'intel-brief', size: 'xl' },
             ...leagueWidgetLayout.defaults(),
@@ -1109,6 +1110,11 @@
             return widgets;
         }
         const loadWidgetLayout = () => {
+            const dashboard = window.WR.DashboardBuilder.readSaved(widgetAccountScope);
+            if (dashboard) {
+                try { return window.WR.DashboardBuilder.validateLayout(dashboard.layout, window.WR.DashboardBuilder.catalog(WIDGET_MODULES)); }
+                catch (error) { window.wrLog?.('dashboard.saved-layout', error); }
+            }
             const saved = LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope));
             const migrated = LeagueStorage.get(leagueWidgetLayout.marker(widgetScope), false);
             if (migrated && Array.isArray(saved) && !saved.length) return [];
@@ -1116,14 +1122,17 @@
             return migrated ? stored : leagueWidgetLayout.addMissing(stored);
         };
         const [selectedWidgets, setSelectedWidgets] = useState(loadWidgetLayout);
-        const [widgetLayoutScope, setWidgetLayoutScope] = useState(widgetScope);
+        const [widgetLayoutScope, setWidgetLayoutScope] = useState(widgetAccountScope);
         useEffect(() => {
-            if (widgetLayoutScope === widgetScope) return;
+            if (widgetLayoutScope === widgetAccountScope) return;
             setSelectedWidgets(loadWidgetLayout());
-            setWidgetLayoutScope(widgetScope);
-        }, [widgetScope, widgetLayoutScope]);
+            setWidgetLayoutScope(widgetAccountScope);
+        }, [widgetAccountScope, widgetLayoutScope]);
         useEffect(() => {
-            if (widgetLayoutScope !== widgetScope) return;
+            if (widgetLayoutScope !== widgetAccountScope) return;
+            // Builder saves are account-scoped and authoritative. Do not copy
+            // a new account's dashboard into the old shared league preference.
+            if (window.WR.DashboardBuilder.readSaved(widgetAccountScope)) return;
             const key = LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope);
             LeagueStorage.set(key, selectedWidgets);
             // Mark only after the new layout was saved. Removing a card later
@@ -1131,7 +1140,7 @@
             if (JSON.stringify(LeagueStorage.get(key)) === JSON.stringify(selectedWidgets)) {
                 LeagueStorage.set(leagueWidgetLayout.marker(widgetScope), true);
             }
-        }, [selectedWidgets, widgetScope, widgetLayoutScope]);
+        }, [selectedWidgets, widgetScope, widgetAccountScope, widgetLayoutScope]);
         // Redraft + Chopped Home is fixed (owner ask) — force the curated
         // layout the moment the league's format resolves to either, overwriting
         // any saved custom layout (every affected user resets to the same fixed
@@ -2666,8 +2675,8 @@
         // can never drift apart — the only difference is which widget list they
         // are handed.
         const dashboardEl = (widgets) => (
-            <DashboardPanel
-                selectedWidgets={widgets}
+            <DashboardPanel key={widgetAccountScope}
+                selectedWidgets={widgetLayoutScope === widgetAccountScope ? widgets : loadWidgetLayout()}
                 setSelectedWidgets={setSelectedWidgets}
                 editingKpi={editingKpi}
                 setEditingKpi={setEditingKpi}

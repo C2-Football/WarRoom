@@ -21,9 +21,9 @@
 (function () {
     'use strict';
 
-    function AnalystMockWidget({ size, myRoster, currentLeague, setActiveTab, navigateWidget }) {
+    function AnalystMockWidget({ size, myRoster, currentLeague, setActiveTab, navigateWidget, readOnly = false }) {
         const cardStyle = window.WrTheme?.cardStyle?.() || { background: 'var(--black)', border: 'var(--card-border)', borderRadius: 'var(--card-radius)' };
-        const go = () => { if (navigateWidget) navigateWidget('draft'); else if (setActiveTab) setActiveTab('draft'); };
+        const go = () => { if (readOnly) return; if (navigateWidget) navigateWidget('draft'); else if (setActiveTab) setActiveTab('draft'); };
         const lid = currentLeague?.league_id || currentLeague?.id || '';
 
         const [groupReady, setGroupReady] = React.useState(!!window.__wrModuleGroupsLoaded?.draft);

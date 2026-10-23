@@ -82,6 +82,7 @@ function IntelligenceBriefWidget({
 	  timeRecomputeTs,
 	  setActiveTab,
 	  navigateWidget,
+	  readOnly = false,
 	}) {
     // GM Strategy is the single source of truth for plan substance — drives
     // the strategy-frame lead line and the fallback waiver filters (faFilters).
@@ -139,6 +140,7 @@ function IntelligenceBriefWidget({
 	            currentLeague,
 	            briefDraftInfo,
 	            rosterState,
+	            readOnly,
 	        }) : null;
 	        if (actionTarget) {
 	            return {
@@ -186,7 +188,7 @@ function IntelligenceBriefWidget({
             }
         }
         return candidates[0] || null;
-	    }, [rosterState.isUsable, needs, playersData, statsData, prevStatsData, myRoster, currentLeague, briefDraftInfo, scores, timeRecomputeTs, faModuleTick, gm.faFilters]);
+	    }, [readOnly, rosterState.isUsable, needs, playersData, statsData, prevStatsData, myRoster, currentLeague, briefDraftInfo, scores, timeRecomputeTs, faModuleTick, gm.faFilters]);
 
     // Lineup gap — the weekly start/sit read, promoted INTO the brief (owner
     // ask 2026-07-12): the dashboard's standalone phone "lineup alert" hero is
@@ -217,7 +219,7 @@ function IntelligenceBriefWidget({
     // reader is Alex's AI digest ([TOP_RECOMMENDATIONS]), so the same gap the
     // brief shows gets offered up in Alex chat with zero reader changes.
     useEffect(() => {
-        if (!lineupAlert) return;
+        if (readOnly || !lineupAlert) return;
         if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return; // free publishes nothing app-wide
         const I = window.App?.Intelligence;
         if (!I || typeof I.buildLineupRecommendation !== 'function' || typeof I.publishRecommendations !== 'function') return;
@@ -231,7 +233,7 @@ function IntelligenceBriefWidget({
             });
             if (rec) I.publishRecommendations('lineup', [rec], { surface: 'intel-brief' });
         } catch (e) { /* the brief renders fine without the bus */ }
-    }, [lineupAlert, gm.hasStrategy, gm.mode, myRoster?.roster_id]);
+    }, [readOnly, lineupAlert, gm.hasStrategy, gm.mode, myRoster?.roster_id]);
 
     // Sell-rule trips — rostered players whose position/age trips a GM sell
     // rule or sell-position (untouchables excluded). Feeds the 'GM plan says
@@ -298,7 +300,7 @@ function IntelligenceBriefWidget({
     }, [canTrade, rosterState.isUsable, myAssess, currentLeague, myRoster, ownerProfiles, gm.hasStrategy, gm.targetPositions, timeRecomputeTs]);
 
     useEffect(() => {
-        if (!tradeWarm.length) return;
+        if (readOnly || !tradeWarm.length) return;
         const I = window.App?.Intelligence;
         if (!I || typeof I.buildTradeRecommendation !== 'function' || typeof I.publishRecommendations !== 'function') return;
         // Never overwrite REAL desk deals with warm partner fits — the desk's
@@ -327,7 +329,7 @@ function IntelligenceBriefWidget({
             }));
             if (recs.length) I.publishRecommendations('trade', recs, { surface: 'intel-brief-warm' });
         } catch (e) { /* warm is best-effort */ }
-    }, [tradeWarm]);
+    }, [readOnly, tradeWarm]);
 
     // Key drops (high-value players dropped in last 3 weeks)
     const keyDrops = useMemo(() => {
@@ -433,6 +435,7 @@ function IntelligenceBriefWidget({
 
     const cardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid var(--acc-line1, rgba(212,175,55,0.2)))', borderRadius: 'var(--card-radius, 10px)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
     const goTo = (target) => {
+        if (readOnly) return;
         if (navigateWidget) navigateWidget(target);
         else if (setActiveTab) setActiveTab(target);
     };
@@ -558,6 +561,7 @@ function IntelligenceBriefWidget({
         return React.createElement('button', {
             key,
             onClick: () => {
+                if (readOnly) return;
                 if (a.acquisition && typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(a.acquisition);
                 else goTo(a.tab);
             }, style: btnStyle,

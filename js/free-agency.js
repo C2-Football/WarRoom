@@ -449,7 +449,7 @@
             .filter(x => x.fitScore > 0 && !rosterRead.owned.some(p => p.pid === String(x.pid)))
             .sort((a,b) => (b.fit.weeklyGain ?? 0)-(a.fit.weeklyGain ?? 0) || (b.fit.seasonGain ?? 0)-(a.fit.seasonGain ?? 0));
         const priorityAdds = actionBoardPlayers.slice(0,5);
-        if (faIsPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+        if (!args.readOnly && faIsPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });
         }
         return { priorityAdds, actionBoardPlayers, availablePlayers, rosterRead, gmFaFilters: gmFa, gmHiddenCount: Math.max(0, availablePlayers.length - recPool.length) };
@@ -513,7 +513,7 @@
             return { pos, count: inPos.length, top: inPos[0] || null };
         }).filter(g => g.count > 0);
 
-        if ((typeof window.wrIsPro !== 'function' || window.wrIsPro()) && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+        if (!args.readOnly && (typeof window.wrIsPro !== 'function' || window.wrIsPro()) && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', candidates.slice(0, 8).map(x => x.intelligence).filter(Boolean), { surface: 'udfa-craze' });
         }
         return { total: candidates.length, groups, candidates };
