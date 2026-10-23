@@ -140,10 +140,21 @@ function harness({ integrated = false, pro = true } = {}) {
 async function loadWaivers(h, candidates = waiverCandidates()) { h.click('Waivers'); await h.flush(); const call = h.calls.at(-1); assert.equal(call.mode, 'waivers'); call.resolve(ready(candidates)); await h.flush(); return h.lens; }
 async function loadTrades(h, candidates = tradeCandidates()) { h.click('Trades'); await h.flush(); const call = h.calls.at(-1); assert.equal(call.mode, 'trades'); call.resolve({ ...ready(candidates), week: 7, timing: { fromWeek: 7 } }); await h.flush(); return h.lens; }
 
+// Loading recommendations never opens a preview. Existing detail-focused tests
+// explicitly choose their move through these helpers instead of relying on a
+// default selection; the interaction tests below use the native row buttons.
+function chooseMove(h, id = h.lens.options[0]?.id) {
+    const move = h.lens.options.find(candidate => candidate.id === id);
+    assert(move, 'Choose a loaded current move'); h.lens.choose(move); h.render();
+    return h.lens;
+}
+async function openWaivers(h, candidates = waiverCandidates()) { await loadWaivers(h, candidates); chooseMove(h); await h.flush(); return h.lens; }
+async function openTrades(h, candidates = tradeCandidates()) { await loadTrades(h, candidates); chooseMove(h); await h.flush(); return h.lens; }
+
 test('lens is opt-in, read-only, and disabled without the existing recommendation entitlement', async () => {
     const h = harness(), before = JSON.stringify(h.roster), strategy = JSON.stringify(h.gm);
     await h.flush(); assert.equal(h.calls.length, 0); assert.equal(h.seasonCalls.length, 0); assert.equal(h.lens.mode, 'off');
-    await loadWaivers(h); h.click('Lens off'); await h.flush();
+    await openWaivers(h); h.click('Lens off'); await h.flush();
     assert.equal(h.lens.mode, 'off'); assert(h.lens.selected == null); assert.equal(h.calls.length, 1);
     assert.equal(JSON.stringify(h.roster), before); assert.equal(JSON.stringify(h.gm), strategy); assert.equal(h.writes.length, 0); assert.equal(h.events.length, 0);
     const free = harness({ pro: false }); free.lens.setMode('waivers'); free.render(); await free.flush();
@@ -152,8 +163,8 @@ test('lens is opt-in, read-only, and disabled without the existing recommendatio
     assert.equal(find(chopped.tree, node => node.type === 'button' && text(node) === 'Trades off').props.disabled, true);
 });
 
-test('same exact add/drop survives horizon reranking; auto-selection restores its saved bid', async () => {
-    const h = harness(); await loadWaivers(h);
+test('an explicitly opened add/drop survives horizon reranking and restores its saved bid', async () => {
+    const h = harness(); await openWaivers(h);
     assert.equal(h.lens.selected.id, 'add-a'); assert.equal(h.lens.ui.bid, '7');
     h.click('Season'); await h.flush();
     assert.equal(h.lens.options[0].id, 'add-c', 'Season alternatives rerank');
@@ -171,7 +182,7 @@ test('same exact add/drop survives horizon reranking; auto-selection restores it
 test('Chopped keeps waiver previews week-only instead of relabeling a survival window as the full season', async () => {
     const h = harness(); h.input.skin = { type: 'chopped', features: { showTrades: false } };
     h.input.league = { ...h.league, settings: { ...h.league.settings, type: 3 } }; h.render();
-    await loadWaivers(h);
+    await openWaivers(h);
     assert(!find(h.tree, node => node.props['aria-label'] === 'Acquisition projection horizon'), 'One supported horizon needs no selector');
     assert(!find(h.tree, node => node.type === 'button' && text(node) === 'Season'), 'Chopped does not offer a misleading season scope');
     assert.equal(h.lens.ui.horizon, 'week');
@@ -184,7 +195,7 @@ test('Chopped keeps waiver previews week-only instead of relabeling a survival w
 });
 
 test('compact preview keeps decision facts, shows one preview cue, and avoids repeated names or generic captions', async () => {
-    const h = harness(); await loadWaivers(h);
+    const h = harness(); await openWaivers(h);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
     for (const fact of ['Available Runner', 'Bench Runner', 'RB', 'CHI', 'Proj', '18.0', 'L5 PPG', '11.5', '$7']) assert(text(preview).includes(fact), 'Decision fact remains visible: ' + fact);
@@ -201,10 +212,10 @@ test('compact preview keeps decision facts, shows one preview cue, and avoids re
 });
 
 test('condensing preserves a negative alternate-horizon tradeoff and actionable primary projection failure', async () => {
-    const h = harness(); await loadWaivers(h, [candidate('add-a', 'Available Runner', 3, -8)]);
+    const h = harness(); await openWaivers(h, [candidate('add-a', 'Available Runner', 3, -8)]);
     const preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     assert.match(text(preview), /Rest of season: -8\.0 lineup pts/, 'Loss remains visible without opening review');
-    const missing = harness(); await loadWaivers(missing, [candidate('add-a', 'Available Runner', 3, 0, { season: { status: 'unavailable', before: null, after: null, delta: null, reason: 'ROS inputs are missing.' } })]);
+    const missing = harness(); await openWaivers(missing, [candidate('add-a', 'Available Runner', 3, 0, { season: { status: 'unavailable', before: null, after: null, delta: null, reason: 'ROS inputs are missing.' } })]);
     assert(!text(missing.tree).includes('ROS inputs are missing.'), 'An unused unavailable horizon adds no caption');
     missing.click('Season'); await missing.flush();
     assert.match(text(missing.tree), /Comparison unavailable/); assert.match(text(missing.tree), /ROS inputs are missing\./, 'The active horizon keeps its concrete missing-evidence reason');
@@ -216,7 +227,7 @@ test('compact dynasty age fit retains real ages, price, inferred partner and exp
         futureFit: { outgoingAverageAge: 32, incomingAge: 24, ageDifference: 8, label: 'Younger roster asset' },
         partner: { name: 'Northside', direction: { label: 'Competing profile', source: 'inferred', reason: 'Based on this roster’s production, not a declared GM strategy.' } },
         reason: 'Receive a younger asset while giving up immediate production.', cautions: ['You give up projected production now.'] });
-    await loadTrades(h, [move]); h.click('Future fit'); await h.flush();
+    await openTrades(h, [move]); h.click('Future fit'); await h.flush();
     const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
     assert.match(text(impact), /32.*24/); assert.match(text(impact), /8years younger/); assert.equal(h.seasonCalls.length, 0);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'trade-a');
@@ -229,7 +240,7 @@ test('compact dynasty age fit retains real ages, price, inferred partner and exp
 });
 
 test('failed plan write is visible inline and never reported as a saved claim', async () => {
-    const h = harness(); await loadWaivers(h); h.click('Review claim'); h.saveFailure = true; h.click('Save claim plan');
+    const h = harness(); await openWaivers(h); h.click('Review claim'); h.saveFailure = true; h.click('Save claim plan');
     const preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     const review = find(preview, node => node.props.className === 'wr-lens-review');
     assert(review); assert.match(text(find(review, node => node.props.role === 'alert')), /could not be saved/);
@@ -244,7 +255,7 @@ test('pending work cannot reactivate the lens after off, or leak into another ac
     const h = harness(); h.click('Waivers'); await h.flush(); const pending = h.calls[0];
     h.click('Lens off'); pending.resolve(ready(waiverCandidates())); await h.flush();
     assert.equal(h.lens.mode, 'off'); assert(h.lens.selected == null); assert.equal(h.calls.length, 1);
-    await loadWaivers(h); const priorLens = h.lens, priorMove = priorLens.selected;
+    await openWaivers(h); const priorLens = h.lens, priorMove = priorLens.selected;
     h.input.revision = 2; h.render(); await h.flush(); const late = h.calls.at(-1);
     h.viewer = 'second-owner'; h.input.league = { ...h.league, league_id: 'two', season: '2027' }; h.root.S.currentLeagueId = 'two';
     h.render(false);
@@ -256,7 +267,7 @@ test('pending work cannot reactivate the lens after off, or leak into another ac
 });
 
 test('a changed roster revision hides earlier results and rejects captured actions before replacement data arrives', async () => {
-    const h = harness(); await loadWaivers(h); const prior = h.lens, move = prior.selected;
+    const h = harness(); await openWaivers(h); const prior = h.lens, move = prior.selected;
     h.input.roster = { ...h.roster, players: ['starter'] }; h.input.league = { ...h.league, rosters: [h.input.roster] };
     h.render(false); assert.equal(h.lens.loading, true); assert.equal(h.lens.options.length, 0); assert.equal(h.lens.selected, null);
     prior.openReview(move); prior.openModule(move); prior.savePlan(move);
@@ -273,7 +284,7 @@ test('each independent identity boundary hides old previews before effects and b
         roster: h => { h.input.roster = { ...h.roster, roster_id: 22 }; },
     };
     for (const [name, change] of Object.entries(changes)) {
-        const h = harness(); await loadWaivers(h); const prior = h.lens, move = prior.selected;
+        const h = harness(); await openWaivers(h); const prior = h.lens, move = prior.selected;
         change(h); h.render(false);
         assert.equal(h.lens.mode, 'off', name + ' boundary'); assert(h.lens.selected == null, name + ' hides selected move');
         prior.openModule(move); prior.savePlan(move);
@@ -282,7 +293,7 @@ test('each independent identity boundary hides old previews before effects and b
 });
 
 test('redraft season work is lazy and its selected clone reaches both impact and inline row', async () => {
-    const h = harness(); await loadTrades(h);
+    const h = harness(); await openTrades(h);
     assert.equal(h.lens.selected.id, 'trade-a', 'Weekly trade ordering retains service strategy fit');
     assert.equal(h.seasonCalls.length, 0, 'Week-only trade browsing does no season simulation');
     h.click('Season'); await h.flush(); assert.equal(h.seasonCalls.length, 1);
@@ -299,7 +310,7 @@ test('redraft season work is lazy and its selected clone reaches both impact and
 });
 
 test('late season result for a previous package cannot replace the newly selected package', async () => {
-    const h = harness(); await loadTrades(h); h.click('Season'); await h.flush();
+    const h = harness(); await openTrades(h); h.click('Season'); await h.flush();
     const first = h.seasonCalls[0];
     h.lens.choose(h.lens.options.find(move => move.id === 'trade-b')); h.render(); await h.flush();
     assert.equal(h.seasonCalls.length, 2); const second = h.seasonCalls[1];
@@ -311,7 +322,7 @@ test('late season result for a previous package cannot replace the newly selecte
 
 test('trade handoff carries both sides and rejects changed-account or wrong active-league actions', async () => {
     const h = harness(); const incoming = tradeCandidates()[0]; incoming.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
-    await loadTrades(h, [incoming]); h.click('Review trade'); h.click('Open in Trade Builder');
+    await openTrades(h, [incoming]); h.click('Review trade'); h.click('Open in Trade Builder');
     assert.equal(h.navigations.at(-1), 'trades'); assert.equal(h.events.at(-1).type, 'wr:open-trade-builder');
     assert.deepEqual(Array.from(h.events.at(-1).detail.givePlayerIds), ['bench', 'starter']); assert.deepEqual(Array.from(h.events.at(-1).detail.receivePlayerIds), ['trade-a']);
     assert.equal(h.events.at(-1).detail.returnTab, 'myteam');
@@ -322,7 +333,7 @@ test('trade handoff carries both sides and rejects changed-account or wrong acti
 });
 
 test('tapping a waiver target compares the exact add/drop immediately without saving or opening Waivers', async () => {
-    const h = harness(); await loadWaivers(h);
+    const h = harness(); await openWaivers(h);
     const before = JSON.stringify(h.roster), bid = h.lens.ui.bid;
     const target = h.click('Compare Available Runner with Bench Runner');
     assert.equal(target.props.type, 'button');
@@ -340,7 +351,7 @@ test('tapping a waiver target compares the exact add/drop immediately without sa
 });
 
 test('an open-spot waiver target opens one player and stale point-basis targets cannot navigate', async () => {
-    const h = harness(); await loadWaivers(h, [candidate('add-a', 'Available Runner', 3, 10, { dropPid: null, anchorPlayerId: null, outgoing: [] })]);
+    const h = harness(); await openWaivers(h, [candidate('add-a', 'Available Runner', 3, 10, { dropPid: null, anchorPlayerId: null, outgoing: [] })]);
     const target = h.click('Compare Available Runner');
     assert.deepEqual(Array.from(h.comparisons[0].ids), ['add-a'], 'Do not invent a drop for an open roster spot');
     const stale = target.props.onClick;
@@ -352,7 +363,7 @@ test('tapping any incoming trade player opens the complete suggested calculator 
     const h = harness(), move = tradeCandidates()[0];
     move.incoming.push({ pid: 'trade-other', name: 'Second Target', position: 'WR' });
     move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
-    await loadTrades(h, [move]);
+    await openTrades(h, [move]);
     const target = h.click('Open trade calculator for Second Target');
     assert.equal(h.navigations.at(-1), 'trades');
     assert.equal(h.events.at(-1).type, 'wr:open-trade-builder');
@@ -365,7 +376,7 @@ test('tapping any incoming trade player opens the complete suggested calculator 
 });
 
 test('an unavailable compare entry reports an inline failure instead of silently opening a player card', async () => {
-    const h = harness(); await loadWaivers(h); delete h.root.wrComparePlayers;
+    const h = harness(); await openWaivers(h); delete h.root.wrComparePlayers;
     h.click('Compare Available Runner with Bench Runner');
     assert.match(text(find(h.tree, node => node.props.role === 'alert')), /Player comparison could not be opened/);
     assert.equal(h.writes.length, 0); assert.equal(h.acquisition.length, 0);
@@ -377,7 +388,7 @@ test('actual My Roster places review inside its player row and restores untouche
     const controls = find(h.tree, node => node.props['aria-label'] === 'Roster acquisition lenses');
     const playerSection = find(h.tree, node => node.props.className === 'wr-roster-mobile-players');
     const flat = walk(h.tree); assert(flat.indexOf(controls) < flat.indexOf(playerSection));
-    await loadWaivers(h);
+    await openWaivers(h);
     const anchor = find(h.tree, node => node.props['data-wr-roster-pid'] === 'bench');
     const trigger = find(anchor, node => node.props.className === 'wr-roster-mobile-player-trigger');
     const preview = find(anchor, node => node.props['data-lens-preview'] === 'add-a');
@@ -397,7 +408,7 @@ test('actual My Roster places review inside its player row and restores untouche
 test('the active source row and leading outgoing identity follow the selected waiver move', async () => {
     const h = harness({ integrated: true }), original = JSON.stringify(h.roster);
     const next = candidate('new-receiver', 'Available Receiver', 2, 5, { anchorPlayerId: 'starter', dropPid: 'starter', outgoing: [{ pid: 'starter', name: 'Starter Receiver' }] });
-    await loadWaivers(h, [...waiverCandidates(), next]);
+    await openWaivers(h, [...waiverCandidates(), next]);
     const marked = () => all(h.tree, node => !!node.props['data-wr-lens-source']);
     const state = pid => find(h.tree, node => node.props['data-wr-roster-pid'] === pid)?.props['data-wr-lens-state'];
     assert.deepEqual(marked().map(node => node.props['data-wr-roster-pid']), ['bench']);
@@ -418,8 +429,8 @@ test('the active source row and leading outgoing identity follow the selected wa
     assert.equal(state('starter'), 'active'); assert.equal(state('bench'), 'available', 'The previous selection returns to available');
     preview = find(h.tree, node => node.props['data-lens-preview'] === 'new-receiver');
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropStarter Receiver/);
-    h.click('Clear'); assert.equal(marked().length, 0);
-    assert.equal(state('bench'), 'available'); assert.equal(state('starter'), 'available', 'Clear leaves all current suggestions available');
+    h.click('Close'); assert.equal(marked().length, 0);
+    assert.equal(state('bench'), 'available'); assert.equal(state('starter'), 'available', 'Close leaves all current suggestions available');
     h.lens.choose(next); h.render(); h.change('Point comparison basis', 'average');
     assert.equal(marked().length, 0, 'Loading the next basis cannot retain the old source highlight');
     assert.equal(state('bench'), undefined); assert.equal(state('starter'), undefined, 'Loading hides stale availability too');
@@ -429,21 +440,21 @@ test('the active source row and leading outgoing identity follow the selected wa
 });
 
 test('hidden source, multi-player trade and open-slot previews state exactly what leaves the roster', async () => {
-    const h = harness({ integrated: true }); await loadWaivers(h);
+    const h = harness({ integrated: true }); await openWaivers(h);
     h.props.rosterFilter = 'Starters'; h.render();
     assert.equal(all(h.tree, node => !!node.props['data-wr-lens-source']).length, 0);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropBench Runner/, 'A standalone preview remains self-contained when its original row is hidden');
     const trade = harness({ integrated: true }), move = tradeCandidates()[0];
     move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
-    await loadTrades(trade, [move]);
+    await openTrades(trade, [move]);
     assert.deepEqual(all(trade.tree, node => !!node.props['data-wr-lens-source']).map(node => node.props['data-wr-roster-pid']), ['bench'], 'Only the preview anchor receives the badge');
     preview = find(trade.tree, node => node.props['data-lens-preview'] === 'trade-a');
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You sendBench Runner \+ Starter Receiver/);
     assert.equal(text(preview).split('Bench Runner').length - 1, 1); assert.equal(text(preview).split('Starter Receiver').length - 1, 1);
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-target-label')), /You get/);
     const open = harness({ integrated: true });
-    await loadWaivers(open, [candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] })]);
+    await openWaivers(open, [candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] })]);
     preview = find(open.tree, node => node.props['data-lens-preview'] === 'open-add');
     assert.equal(preview.props['data-lens-state'], 'active', 'An open-slot selection is active without inventing a source row');
     assert.equal(text(find(preview, node => node.props.className === 'wr-lens-source')), 'Open roster spot');
@@ -452,7 +463,7 @@ test('hidden source, multi-player trade and open-slot previews state exactly wha
 });
 
 test('changing point basis clears the old scenario until a newly optimized comparison arrives', async () => {
-    const h = harness(), original = JSON.stringify(h.roster); await loadWaivers(h);
+    const h = harness(), original = JSON.stringify(h.roster); await openWaivers(h);
     const prior = h.lens, move = prior.selected;
     assert.equal(h.lens.ui.basis, 'projected'); assert.equal(h.calls[0].options.basis, 'projected');
     const basis = find(h.tree, node => node.type === 'select' && node.props['aria-label'] === 'Point comparison basis');
@@ -467,6 +478,7 @@ test('changing point basis clears the old scenario until a newly optimized compa
         outgoing: [{ pid: 'bench', name: 'Bench Runner', projection: 7.5, comparisonBasis: 'average' }],
         weekly: { status: 'ready', before: 70, after: 75, delta: 5 }, season: { status: 'unavailable', delta: null } });
     h.calls[1].resolve({ ...ready([averaged]), basis: 'average' }); await h.flush();
+    assert.equal(h.lens.selected, null, 'New average results require another explicit open'); chooseMove(h, 'avg-a');
     const preview = find(h.tree, node => node.props['data-lens-preview'] === 'avg-a');
     const impact = find(h.tree, node => node.props.className === 'wr-lens-impact');
     assert.match(text(impact), /2026 avg lineup.*70\.0.*75\.0.*\+5\.0avg pts/);
@@ -483,20 +495,20 @@ test('a late projected result cannot be relabeled as averages or overwrite the a
     h.change('Point comparison basis', 'average'); await h.flush(); const averaged = h.calls[1];
     assert.equal(projected.options.basis, 'projected'); assert.equal(averaged.options.basis, 'average');
     const move = candidate('same-asset', 'Average Selection', 4, 0, { basis: 'average', incoming: [{ pid: 'same-asset', name: 'Average Selection', position: 'RB', projection: 10, comparisonBasis: 'average', averageGames: 5, averageSeason: '2026' }] });
-    averaged.resolve({ ...ready([move]), basis: 'average' }); await h.flush();
+    averaged.resolve({ ...ready([move]), basis: 'average' }); await h.flush(); chooseMove(h, move.id);
     projected.resolve(ready([candidate('same-asset', 'Late Projected Selection', 999, 999)])); await h.flush();
     assert.equal(h.lens.ui.basis, 'average'); assert.equal(h.lens.selected.weekly.delta, 4); assert.equal(h.lens.selected.incoming[0].name, 'Average Selection');
     assert(!text(h.tree).includes('Late Projected Selection')); assert(!text(h.tree).includes('+999.0'));
 });
 
 test('IDP average mode labels each asset source and keeps offensive projections distinct', async () => {
-    const h = harness(); await loadWaivers(h); h.change('Point comparison basis', 'idp-average'); await h.flush();
+    const h = harness(); await openWaivers(h); h.change('Point comparison basis', 'idp-average'); await h.flush();
     assert.equal(h.calls.at(-1).options.basis, 'idp-average');
     const idp = candidate('idp-a', 'Tackle Leader', 3, 0, { basis: 'idp-average',
         incoming: [{ pid: 'idp-a', name: 'Tackle Leader', position: 'LB', projection: 0, comparisonBasis: 'average', averageGames: 5, averageSeason: '2026' }], season: { status: 'unavailable', delta: null } });
     const offense = candidate('offense-a', 'Offense Receiver', 2, 0, { basis: 'idp-average',
         incoming: [{ pid: 'offense-a', name: 'Offense Receiver', position: 'WR', projection: 12.3, comparisonBasis: 'projected' }], season: { status: 'unavailable', delta: null } });
-    h.calls.at(-1).resolve({ ...ready([idp, offense]), basis: 'idp-average' }); await h.flush();
+    h.calls.at(-1).resolve({ ...ready([idp, offense]), basis: 'idp-average' }); await h.flush(); chooseMove(h, idp.id);
     assert.match(text(find(h.tree, node => node.props.className === 'wr-lens-impact')), /IDP avg \+ projections/);
     let preview = find(h.tree, node => node.props['data-lens-preview'] === 'idp-a');
     assert.match(text(preview), /LB/); assert.match(text(preview), /Avg\s*0\.05 games/, 'A measured zero remains visible with its observed-game count');
@@ -514,7 +526,7 @@ test('average trade scenarios retain age-fit exploration and hand off the select
     const move = candidate('average-trade', 'Younger Defender', -4, 0, { basis: 'average',
         incoming: [{ pid: 'average-trade', name: 'Younger Defender', position: 'DB', projection: 8.5, comparisonBasis: 'average', averageGames: 6, averageSeason: '2026' }],
         futureFit: { outgoingAverageAge: 32, incomingAge: 24, ageDifference: 8 }, season: { status: 'unavailable', delta: null } });
-    next.resolve({ ...ready([move]), basis: 'average', week: 7 }); await h.flush(); first.resolve(ready(tradeCandidates())); await h.flush();
+    next.resolve({ ...ready([move]), basis: 'average', week: 7 }); await h.flush(); chooseMove(h, move.id); first.resolve(ready(tradeCandidates())); await h.flush();
     h.click('Future fit'); await h.flush();
     assert.equal(h.lens.ui.horizon, 'season'); assert.match(text(find(h.tree, node => node.props.className === 'wr-lens-impact')), /32.*24/);
     assert.equal(h.seasonCalls.length, 0, 'Age fit is not a fabricated average-based season simulation');
@@ -523,4 +535,173 @@ test('average trade scenarios retain age-fit exploration and hand off the select
     assert.deepEqual(Array.from(h.events.at(-1).detail.receivePlayerIds), ['average-trade']); assert.equal(JSON.stringify(h.gm), originalStrategy);
     const old = h.lens, eventCount = h.events.length; h.change('Point comparison basis', 'idp-average');
     old.openModule(old.selected); assert.equal(h.events.length, eventCount, 'A prior-basis trade cannot open after switching the comparison');
+});
+
+const secondSourceMove = () => candidate('new-receiver', 'Available Receiver', 2.5, 5, {
+    anchorPlayerId: 'starter', dropPid: 'starter',
+    outgoing: [{ pid: 'starter', name: 'Starter Receiver', position: 'WR', projection: 8 }],
+});
+const rosterPlayer = (h, pid) => find(h.tree, node => node.props['data-wr-roster-pid'] === pid);
+const rosterTrigger = (h, pid) => find(rosterPlayer(h, pid), node => node.props.className === 'wr-roster-mobile-player-trigger');
+const previewNodes = h => all(h.tree, node => !!node.props['data-lens-preview']);
+const activeSources = h => all(h.tree, node => !!node.props['data-wr-lens-source']);
+
+test('loading the mobile lens leaves every suggested owned row available and all replacement identities closed', async () => {
+    const h = harness({ integrated: true }), moves = [...waiverCandidates(), secondSourceMove()];
+    await loadWaivers(h, moves);
+    assert.equal(h.lens.selected, null, 'Receiving recommendations never opens the first candidate');
+    assert.equal(activeSources(h).length, 0); assert.equal(previewNodes(h).length, 0);
+    for (const [pid, name, id] of [['bench', 'Bench Runner', 'add-a'], ['starter', 'Starter Receiver', 'new-receiver']]) {
+        const row = rosterPlayer(h, pid), trigger = rosterTrigger(h, pid);
+        assert.equal(row.props['data-wr-lens-state'], 'available', 'The entire source row has the yellow availability state');
+        assert.equal(trigger.type, 'button'); assert.equal(trigger.props.type, 'button', 'Native controls provide pointer, Enter, and Space activation');
+        assert.equal(trigger.props['aria-label'], 'Preview move for ' + name); assert.equal(trigger.props['aria-expanded'], false);
+        const peek = find(row, node => node.props['data-lens-peek'] === id);
+        assert(peek); assert.equal(peek.type, 'button'); assert.equal(peek.props.className, 'wr-lens-peek');
+        assert.match(text(peek), /Potential gain.*\+\d/);
+        assert(!find(row, node => node.props.className === 'wr-lens-actions'));
+        assert(!find(row, node => node.props['aria-label'] === 'Acquisition ideas for ' + name), 'A collapsed source has no replacement menu');
+    }
+    for (const move of moves) for (const asset of move.incoming) {
+        assert(!text(h.tree).includes(asset.name), 'Replacement names are absent until their source opens: ' + asset.name);
+    }
+    assert(!find(h.tree, node => node.props.className === 'wr-lens-impact'), 'A closed lens does not show a comparison headline');
+    assert.equal(h.writes.length, 0); assert.equal(h.comparisons.length, 0); assert.equal(h.events.length, 0);
+});
+
+test('native source buttons open one move, switch the green source, and collapse without exposing previous alternatives', async () => {
+    const h = harness({ integrated: true }); await loadWaivers(h, [...waiverCandidates(), secondSourceMove()]);
+    const beforeRoster = JSON.stringify(h.roster), beforeSort = JSON.stringify(h.props.rosterSort);
+    h.click('Preview move for Bench Runner');
+    assert.equal(h.lens.selected.id, 'add-a'); assert.equal(h.lens.ui.bid, '7', 'The saved maximum belongs to the explicitly opened move');
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'active');
+    assert.equal(rosterTrigger(h, 'bench').props['aria-label'], 'Collapse move for Bench Runner');
+    assert.equal(rosterTrigger(h, 'bench').props['aria-expanded'], true);
+    assert.equal(previewNodes(h).length, 1); assert(text(h.tree).includes('Available Runner'));
+    assert(find(h.tree, node => node.props['aria-label'] === 'Acquisition ideas for Bench Runner'), 'Only the open source exposes its alternatives');
+    for (const name of ['Other Runner', 'Third Runner', 'Available Receiver']) assert(!text(h.tree).includes(name), 'Unselected replacement names stay hidden even beside an open preview: ' + name);
+    h.click('Preview move for Starter Receiver');
+    assert.equal(h.lens.selected.id, 'new-receiver');
+    assert.deepEqual(activeSources(h).map(node => node.props['data-wr-roster-pid']), ['starter']);
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+    assert.equal(rosterTrigger(h, 'bench').props['aria-expanded'], false);
+    for (const name of ['Available Runner', 'Other Runner', 'Third Runner']) assert(!text(h.tree).includes(name), 'Previous replacement detail is fully closed: ' + name);
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Acquisition ideas for Bench Runner'));
+    assert.equal(previewNodes(h).length, 1); assert(text(h.tree).includes('Available Receiver'));
+    h.click('Collapse move for Starter Receiver');
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assert.equal(activeSources(h).length, 0);
+    assert.equal(rosterPlayer(h, 'starter').props['data-wr-lens-state'], 'available');
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+    assert(!text(h.tree).includes('Available Receiver'));
+    assert.equal(JSON.stringify(h.roster), beforeRoster); assert.equal(JSON.stringify(h.props.rosterSort), beforeSort);
+    assert.equal(h.writes.length, 0);
+});
+
+test('owned dossier and incoming compare actions remain separate from source collapse and switching closes the old dossier', async () => {
+    const h = harness({ integrated: true }); await loadWaivers(h, [...waiverCandidates(), secondSourceMove()]);
+    h.click('Preview move for Bench Runner');
+    const owned = find(h.tree, node => node.props['aria-label'] === 'Open player details for Bench Runner');
+    assert.equal(owned.type, 'button'); assert.equal(owned.props.type, 'button');
+    let stops = 0; owned.props.onClick({ stopPropagation: () => { stops++; } }); h.render();
+    assert.equal(stops, 1); assert.equal(h.props.expandedPid, 'bench');
+    assert(find(h.tree, node => node.props.id === 'roster-detail-bench'), 'The original roster dossier is still reachable');
+    assert.equal(h.lens.selected.id, 'add-a'); assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'active');
+    const incoming = find(h.tree, node => node.props['aria-label'] === 'Compare Available Runner with Bench Runner');
+    incoming.props.onClick({ stopPropagation: () => { stops++; } }); h.render();
+    assert.equal(stops, 2); assert.deepEqual(Array.from(h.comparisons[0].ids), ['bench', 'add-a']);
+    assert.equal(h.lens.selected.id, 'add-a'); assert.equal(h.props.expandedPid, 'bench', 'The incoming action does not toggle the owned dossier or source');
+    h.click('Preview move for Starter Receiver');
+    assert.equal(h.props.expandedPid, null); assert(!find(h.tree, node => node.props.id === 'roster-detail-bench'));
+    assert.equal(h.lens.selected.id, 'new-receiver'); assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+    assert.equal(h.writes.length, 0);
+});
+
+test('the selected trade source keeps its owned dossier and full calculator package as distinct native actions', async () => {
+    const h = harness({ integrated: true }), move = tradeCandidates()[0];
+    move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
+    await loadTrades(h, [move]);
+    assert.equal(h.lens.selected, null); assert(!text(h.tree).includes('Trade Target'));
+    h.click('Preview move for Bench Runner'); h.click('Open player details for Bench Runner');
+    assert.equal(h.props.expandedPid, 'bench'); assert.equal(h.lens.selected.id, move.id);
+    h.click('Open trade calculator for Trade Target');
+    assert.equal(h.lens.selected.id, move.id); assert.equal(h.props.expandedPid, 'bench');
+    assert.deepEqual(Array.from(h.events.at(-1).detail.givePlayerIds), ['bench', 'starter']);
+    assert.deepEqual(Array.from(h.events.at(-1).detail.receivePlayerIds), ['trade-a']);
+    assert.equal(h.navigations.at(-1), 'trades'); assert.equal(h.writes.length, 0);
+    h.click('Close'); assert.equal(h.lens.selected, null); assert.equal(h.props.expandedPid, null);
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+});
+
+test('an open roster spot is an owned-context fallback and reveals its incoming player only after an explicit click', async () => {
+    const h = harness({ integrated: true }), move = candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] });
+    await loadWaivers(h, [move]);
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assert(!text(h.tree).includes('Open Spot Add'));
+    const fallback = find(h.tree, node => node.props['data-lens-peek'] === move.id);
+    assert.equal(fallback.type, 'button'); assert.equal(fallback.props.type, 'button');
+    assert.equal(fallback.props['aria-label'], 'Preview move for Open roster spot'); assert.match(text(fallback), /Open roster spot.*\+2\.0/);
+    h.click('Preview move for Open roster spot');
+    assert.equal(h.lens.selected.id, move.id); assert(text(h.tree).includes('Open Spot Add')); assert.equal(previewNodes(h).length, 1);
+    assert.equal(activeSources(h).length, 0, 'An open roster spot does not invent an owned source');
+    h.click('Compare Open Spot Add'); assert.deepEqual(Array.from(h.comparisons[0].ids), ['open-add']);
+    h.click('Close'); assert.equal(previewNodes(h).length, 0); assert(!text(h.tree).includes('Open Spot Add'));
+    assert(find(h.tree, node => node.props['aria-label'] === 'Preview move for Open roster spot'));
+});
+
+test('filtered source fallbacks name the owned player and stay closed until clicked', async () => {
+    const h = harness({ integrated: true }); h.props.rosterFilter = 'Starters'; h.render(); await loadWaivers(h, [waiverCandidates()[0]]);
+    assert(!rosterPlayer(h, 'bench')); assert.equal(h.lens.selected, null); assert(!text(h.tree).includes('Available Runner'));
+    const fallback = find(h.tree, node => node.props['data-lens-peek'] === 'add-a');
+    assert.equal(fallback.props['aria-label'], 'Preview move for Bench Runner'); assert.match(text(fallback), /Bench Runner/);
+    assert(!text(fallback).includes('Available Runner'));
+    h.click('Preview move for Bench Runner');
+    assert.match(text(find(previewNodes(h)[0], node => node.props.className === 'wr-lens-source')), /You dropBench Runner/);
+});
+
+test('point-basis reload and lens re-entry return suggestions to closed yellow rows without auto-selection', async () => {
+    const h = harness({ integrated: true }), moves = [...waiverCandidates(), secondSourceMove()]; await loadWaivers(h, moves);
+    h.click('Preview move for Bench Runner'); h.change('Point comparison basis', 'average');
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assert.equal(h.lens.loading, true);
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], undefined, 'Old available highlights are hidden during a new-basis read');
+    await h.flush(); h.calls.at(-1).resolve({ ...ready(moves), basis: 'average' }); await h.flush();
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0);
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+    assert.equal(rosterPlayer(h, 'starter').props['data-wr-lens-state'], 'available');
+    assert(!text(h.tree).includes('Available Runner')); assert(!text(h.tree).includes('Available Receiver'));
+    h.click('Preview move for Starter Receiver'); h.click('Lens off');
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0);
+    await loadWaivers(h, moves);
+    assert.equal(h.lens.selected, null); assert.equal(rosterPlayer(h, 'starter').props['data-wr-lens-state'], 'available');
+    assert(!text(h.tree).includes('Available Receiver')); assert.equal(h.writes.length, 0);
+});
+
+test('season trade analysis does no work before a source opens and a closed source stays closed after a late result', async () => {
+    const h = harness(); await loadTrades(h, [tradeCandidates()[0]]);
+    assert.equal(h.lens.selected, null); assert.equal(h.seasonCalls.length, 0);
+    h.click('Season'); await h.flush();
+    assert.equal(h.lens.selected, null); assert.equal(h.seasonCalls.length, 0, 'Changing the horizon alone cannot select or simulate a move');
+    assert(!text(h.tree).includes('Trade Target')); assert(!text(h.tree).includes('Other Trade Target'));
+    h.click('Preview move for Bench Runner'); await h.flush();
+    assert.equal(h.lens.selected.id, 'trade-a'); assert.equal(h.seasonCalls.length, 1);
+    const pending = h.seasonCalls[0]; h.click('Close'); await h.flush();
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0);
+    pending.resolve({ season: { status: 'ready', before: 1000, after: 1999, delta: 999 } }); await h.flush();
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0);
+    assert(!text(h.tree).includes('Trade Target')); assert(!text(h.tree).includes('+999.0'));
+});
+
+test('a same-source alternate exposes only its gain until clicked and closes the previous owned dossier', async () => {
+    const h = harness({ integrated: true }); await loadTrades(h);
+    h.click('Preview move for Bench Runner'); h.click('Open player details for Bench Runner');
+    assert.equal(h.lens.selected.id, 'trade-a'); assert.equal(h.props.expandedPid, 'bench');
+    assert(!text(h.tree).includes('Other Trade Target'), 'The unopened alternate does not reveal its incoming player');
+    const alternate = find(h.tree, node => node.props['data-lens-peek'] === 'trade-b');
+    assert.equal(alternate.type, 'button'); assert.equal(alternate.props.type, 'button');
+    assert.match(text(alternate), /Other move.*\+12\.0/); assert(!text(alternate).includes('Other Trade Target'));
+    alternate.props.onClick(); h.render();
+    assert.equal(h.lens.selected.id, 'trade-b'); assert.equal(h.props.expandedPid, null);
+    assert.equal(previewNodes(h).length, 1); assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'active');
+    assert(find(h.tree, node => node.props['aria-label'] === 'Open trade calculator for Other Trade Target'));
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Open trade calculator for Trade Target'));
+    h.click('Close');
+    assert.equal(previewNodes(h).length, 0); assert(!text(h.tree).includes('Other Trade Target'));
 });
