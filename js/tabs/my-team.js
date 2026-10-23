@@ -1802,18 +1802,20 @@ function MyTeamTab({
       }
       const isExpanded = expandedPid === r.pid;
       const isDropFlag = _isActiveDrop(r);
+      const isLensSource = !!rosterLens?.selected && rosterLens.mode !== 'off' && !rosterLens.loading
+        && (rosterLens.byAnchor.get(String(r.pid)) || []).some(candidate => candidate.id === rosterLens.selected?.id);
       const primaryStat = isChoppedRoster ? {
         label: 'Bye',
         value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
         tone: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) === byeWeekNow ? 'warn' : undefined,
       } : _phoneSlotFor(_phoneSlotKeys[0], r);
       g.rows.push(
-        <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid}>
+        <div key={r.pid} className="wr-roster-mobile-player" data-wr-drop-flag={isDropFlag ? '1' : undefined} data-wr-roster-pid={r.pid} data-wr-lens-source={isLensSource ? rosterLens.mode : undefined}>
           <button type="button" className="wr-roster-mobile-player-trigger" aria-expanded={isExpanded} aria-controls={isExpanded ? 'roster-detail-' + r.pid : undefined} onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)} title="Open roster player detail">
             <span className="wr-roster-mobile-player-avatar" aria-hidden="true">{getPlayerName(r.pid).split(/\s+/).slice(0, 2).map(part => part[0]).join('')}</span>
             <span className="wr-roster-mobile-player-identity">
               <span className="wr-roster-position-icon" style={{ '--wr-position-color': window.App.positionColor?.(r.p.position || r.pos) || posColors[r.pos] || ({ QB: '#e74c3c', RB: '#2ecc71', WR: '#3498db', TE: '#f0a500', K: '#9b59b6', DEF: '#85929e' })[r.pos] || 'var(--silver)' }}>{window.App.idpPositionFamily?.(r.p.position) ? String(r.p.position).toUpperCase() : r.pos}</span>
-              <span className="wr-roster-identity-copy"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r, false)}</span></span>
+              <span className="wr-roster-identity-copy"><strong>{getPlayerName(r.pid)}</strong><span>{_phoneTagFor(r, false)}{isLensSource && <span className="wr-lens-source-badge">In lens</span>}</span></span>
             </span>
             {metricPreference ? <span className="mc-roster-metrics" style={{ '--mc-columns': metricPreference.selected.length }}>{window.WR.PlayerMetrics.slots(metricPreference.selected, {
               proj: projFor(r.pid)?.available !== false ? projFor(r.pid)?.points?.median : null,

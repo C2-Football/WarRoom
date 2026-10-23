@@ -159,10 +159,10 @@ test('same exact add/drop survives horizon reranking; auto-selection restores it
     assert.equal(h.lens.options[0].id, 'add-c', 'Season alternatives rerank');
     assert.equal(h.lens.selected.id, 'add-a', 'The chosen move stays the same');
     assert.equal(h.lens.selected.dropPid, 'bench'); assert.equal(h.lens.ui.bid, '7'); assert.equal(h.calls.length, 1, 'Horizon is a view on the same snapshot');
-    const choices = find(h.tree, node => node.type === 'select' && node.props['aria-label'] === 'Acquisition ideas for this roster spot');
+    const choices = find(h.tree, node => node.type === 'select' && node.props['aria-label'] === 'Acquisition ideas for Bench Runner');
     assert.equal(all(choices, node => node.type === 'option' && !node.props.disabled).length, 3, 'All same-anchor ideas are reachable');
-    h.change('Acquisition ideas for this roster spot', 'add-c'); assert.equal(h.lens.selected.id, 'add-c'); assert.equal(h.lens.ui.bid, '');
-    h.change('Acquisition ideas for this roster spot', 'add-a'); assert.equal(h.lens.ui.bid, '7');
+    h.change('Acquisition ideas for Bench Runner', 'add-c'); assert.equal(h.lens.selected.id, 'add-c'); assert.equal(h.lens.ui.bid, '');
+    h.change('Acquisition ideas for Bench Runner', 'add-a'); assert.equal(h.lens.ui.bid, '7');
     h.click('Review claim'); h.click('Save claim plan');
     assert.equal(h.writes.at(-1).bid, 7); assert.equal(h.writes.at(-1).pid, 'add-a'); assert.equal(h.writes.at(-1).dropPid, 'bench');
     assert.match(text(h.tree), /Private claim plan saved\. No claim has been submitted\./);
@@ -392,6 +392,55 @@ test('actual My Roster places review inside its player row and restores untouche
     assert.equal(h.props.rosterFilter, 'Starters'); assert.equal(JSON.stringify(h.props.rosterSort), beforeSort); assert.equal(JSON.stringify(h.props.visibleCols), beforeColumns);
     assert.equal(JSON.stringify(h.roster), beforeRoster); assert(!find(h.tree, node => node.props.className === 'wr-lens-roster-settings'));
     assert(!find(h.tree, node => node.props['data-lens-preview'])); assert(!text(h.tree).includes('Starting lineup'), 'Roster lenses do not mount a second Game Day lineup workflow');
+});
+
+test('the active source row and leading outgoing identity follow the selected waiver move', async () => {
+    const h = harness({ integrated: true }), original = JSON.stringify(h.roster);
+    const next = candidate('new-receiver', 'Available Receiver', 2, 5, { anchorPlayerId: 'starter', dropPid: 'starter', outgoing: [{ pid: 'starter', name: 'Starter Receiver' }] });
+    await loadWaivers(h, [...waiverCandidates(), next]);
+    const marked = () => all(h.tree, node => !!node.props['data-wr-lens-source']);
+    assert.deepEqual(marked().map(node => node.props['data-wr-roster-pid']), ['bench']);
+    assert.equal(marked()[0].props['data-wr-lens-source'], 'waivers');
+    assert.match(text(find(marked()[0], node => node.props.className === 'wr-roster-mobile-player-trigger')), /Bench Runner.*In lens/);
+    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
+    const source = find(preview, node => node.props.className === 'wr-lens-source');
+    assert.match(text(source), /You dropBench Runner/);
+    assert(walk(preview).indexOf(source) < walk(preview).findIndex(node => node?.props?.className === 'wr-lens-incoming'), 'Your player is named before the incoming player');
+    assert.equal(text(preview).split('Bench Runner').length - 1, 1, 'The old muted lower outgoing caption is removed');
+    assert.match(text(find(preview, node => node.props.className === 'wr-lens-target-label')), /You add/);
+    const choices = find(h.tree, node => node.props['aria-label'] === 'Acquisition ideas for Bench Runner');
+    assert(choices, 'Alternate selection names its owned source');
+    h.lens.choose(next); h.render();
+    assert.deepEqual(marked().map(node => node.props['data-wr-roster-pid']), ['starter']);
+    preview = find(h.tree, node => node.props['data-lens-preview'] === 'new-receiver');
+    assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropStarter Receiver/);
+    h.click('Clear'); assert.equal(marked().length, 0);
+    h.lens.choose(next); h.render(); h.change('Point comparison basis', 'average');
+    assert.equal(marked().length, 0, 'Loading the next basis cannot retain the old source highlight');
+    h.click('Lens off'); assert.equal(marked().length, 0);
+    assert.equal(JSON.stringify(h.roster), original); assert.equal(h.writes.length, 0);
+});
+
+test('hidden source, multi-player trade and open-slot previews state exactly what leaves the roster', async () => {
+    const h = harness({ integrated: true }); await loadWaivers(h);
+    h.props.rosterFilter = 'Starters'; h.render();
+    assert.equal(all(h.tree, node => !!node.props['data-wr-lens-source']).length, 0);
+    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
+    assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropBench Runner/, 'A standalone preview remains self-contained when its original row is hidden');
+    const trade = harness({ integrated: true }), move = tradeCandidates()[0];
+    move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
+    await loadTrades(trade, [move]);
+    assert.deepEqual(all(trade.tree, node => !!node.props['data-wr-lens-source']).map(node => node.props['data-wr-roster-pid']), ['bench'], 'Only the preview anchor receives the badge');
+    preview = find(trade.tree, node => node.props['data-lens-preview'] === 'trade-a');
+    assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You sendBench Runner \+ Starter Receiver/);
+    assert.equal(text(preview).split('Bench Runner').length - 1, 1); assert.equal(text(preview).split('Starter Receiver').length - 1, 1);
+    assert.match(text(find(preview, node => node.props.className === 'wr-lens-target-label')), /You get/);
+    const open = harness({ integrated: true });
+    await loadWaivers(open, [candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] })]);
+    preview = find(open.tree, node => node.props['data-lens-preview'] === 'open-add');
+    assert.equal(text(find(preview, node => node.props.className === 'wr-lens-source')), 'Open roster spot');
+    assert.equal(all(open.tree, node => !!node.props['data-wr-lens-source']).length, 0);
+    assert(!text(preview).includes('You drop'), 'An open roster spot never invents an outgoing player');
 });
 
 test('changing point basis clears the old scenario until a newly optimized comparison arrives', async () => {

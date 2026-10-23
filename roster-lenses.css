@@ -31,6 +31,16 @@
 .wr-lens-row[data-lens=waivers]{border-inline-start:3px solid var(--good)}
 .wr-lens-row[data-lens=trades]{border-inline-start:3px solid var(--gold)}
 .wr-lens-preview{padding:8px 1px;min-width:0;color:var(--white);font-family:var(--font-body,sans-serif)}
+.wr-lens-source{display:flex;align-items:baseline;gap:5px 7px;flex-wrap:wrap;padding:0 0 7px;margin-bottom:7px;border-bottom:1px solid var(--ov-5,rgba(203,213,229,.12));font:500 12px/1.4 var(--font-body,sans-serif)}
+.wr-lens-source>span{flex-shrink:0;color:var(--silver)}
+.wr-lens-source>strong{min-width:0;color:var(--white);font-size:14px;font-weight:700;overflow-wrap:anywhere}
+.wr-lens-source small{font-size:11px;font-weight:400;color:var(--silver)}
+.wr-lens-target-label{margin-bottom:2px;color:var(--good);font:650 10px/1.3 var(--font-body,sans-serif)}
+.wr-lens-row[data-lens=trades] .wr-lens-target-label{color:var(--gold)}
+.wr-mission-control .wr-roster-mobile-player[data-wr-lens-source]{--wr-lens-accent:var(--good);box-shadow:inset 3px 0 var(--wr-lens-accent);background:var(--acc-fill2,rgba(180,205,255,.1))}
+.wr-mission-control .wr-roster-mobile-player[data-wr-lens-source=trades]{--wr-lens-accent:var(--gold)}
+.wr-roster-mobile-player[data-wr-lens-source]>.wr-lens-row{border-inline-start:0}
+.wr-lens-source-badge{display:inline-block;margin-left:5px;padding:1px 4px;border:1px solid currentColor;border-radius:3px;color:var(--wr-lens-accent,var(--gold));font:700 9px/1.25 var(--font-body,sans-serif);white-space:nowrap}
 .wr-lens-incoming{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
 .wr-lens-incoming>div{min-width:0}
 .wr-lens-incoming strong{display:block;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
@@ -47,6 +57,7 @@
 .wr-lens-price>span{color:var(--silver);margin-right:5px}
 .wr-lens-price small{font-size:inherit;color:var(--silver)}
 .wr-lens-costs{display:flex;align-items:baseline;justify-content:space-between;gap:2px 12px;flex-wrap:wrap}
+.wr-lens-costs:empty{display:none}
 .wr-lens-costs>.wr-lens-price{margin:0}
 .wr-lens-partner{color:var(--silver);font-size:12px}
 .wr-lens-reason{margin:8px 0;font-size:13px;line-height:1.5;color:var(--white)}
