@@ -2,7 +2,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),babel=require('@babel/standalone');
 const W=require('../js/shared/league-workspaces.js');
 const source=fs.readFileSync('js/league-detail.js','utf8');
-const code=babel.transform(source.slice(source.indexOf('    function PhoneDockInner('),source.indexOf('    // League Detail Component')),{presets:['react']}).code;
+const commandGroups=source.slice(source.indexOf('    function buildLeagueCommandGroups('),source.indexOf('    function DesktopCommandNav('));
+const code=babel.transform(commandGroups+source.slice(source.indexOf('    function PhoneDockInner('),source.indexOf('    // League Detail Component')),{presets:['react']}).code;
 const storage=new Map(),events={},effects=new Set(); let state=[],cursor=0,selected;
 const h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity)});
 const nodes=n=>n&&typeof n==='object'?[n,...(n.children||[]).flatMap(nodes)]:[];
