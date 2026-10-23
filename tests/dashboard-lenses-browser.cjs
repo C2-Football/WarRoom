@@ -14,6 +14,7 @@ const { createLeagueSkinFixture } = require('./helpers/league-skin-fixture.cjs')
 const root = path.resolve(__dirname, '..');
 const output = path.resolve(process.env.LENSES_OUTPUT || path.join(root, 'output/playwright/dashboard-lenses'));
 const leagueA = '1312100327931019264', leagueB = '1312100327931019265';
+const leagueC = '1312100327931019266';
 const username = 'lenses-fixture';
 const account = '10000000-0000-4000-8000-000000000017';
 const secondAccount = '10000000-0000-4000-8000-000000000018';
@@ -73,7 +74,20 @@ async function run() {
         for (const size of matrix) {
             const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, hasTouch: size.touch, serviceWorkers: 'block' });
             const provider = createLeagueSkinFixture({ redraftId: leagueB, dynastyId: leagueA, user: username });
-            const blocked = await installReadOnlyRoutes(context, { fixture: provider });
+            const choppedProvider = createLeagueSkinFixture({ redraftId: leagueB, dynastyId: leagueC, user: username });
+            const chopped = value => value?.league_id === leagueC && value.settings?.type !== undefined
+                ? { ...value, name: 'QA Chopped Lenses', settings: { ...value.settings, type: 3, last_chopped_leg: 0 } } : value;
+            const blocked = await installReadOnlyRoutes(context, { fixture: url => {
+                if (url.pathname.includes('/league/' + leagueC)) {
+                    const value = choppedProvider(url);
+                    return Array.isArray(value) ? value.map(chopped) : chopped(value);
+                }
+                const value = provider(url);
+                if (Array.isArray(value) && value.some(item => item?.league_id === leagueA && item.settings?.type !== undefined)) {
+                    return [...value, chopped(choppedProvider(url).find(item => item.league_id === leagueC))];
+                }
+                return value;
+            } });
             const plans = [], requests = [], errors = [];
             await context.route('**/functions/v1/ai-analyze', async route => {
                 if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
@@ -92,7 +106,7 @@ async function run() {
                         : { analysis: JSON.stringify({ version: 1, reply: 'Your lens preview is ready.', layout: response.layout }) }) });
                 } catch (error) { if (!/closed|disposed|cancel|aborted/i.test(error.message)) throw error; }
             });
-            await context.addInitScript(({ account, username, leagueA, legacyLayout }) => {
+            await context.addInitScript(({ account, username, leagueA, leagueC, legacyLayout }) => {
                 if (!localStorage.getItem('fw_session_v1')) {
                     const payload = btoa(JSON.stringify({ sub: account, exp: Math.floor(Date.now() / 1000) + 3600 }));
                     localStorage.setItem('fw_session_v1', JSON.stringify({ token: 'fixture.' + payload + '.fixture', user: { id: account, email: 'lenses@example.invalid' } }));
@@ -102,6 +116,7 @@ async function run() {
                 }
                 if (!localStorage.getItem('lenses-fixture-initialized')) {
                     localStorage.setItem('wr_alex_dashboard_v1:' + account + ':' + leagueA, JSON.stringify({ version: 1, layout: legacyLayout, history: [] }));
+                    localStorage.setItem('wr_alex_dashboard_v1:' + account + ':' + leagueC, JSON.stringify({ version: 1, layout: legacyLayout, history: [] }));
                     localStorage.setItem('lenses-fixture-initialized', '1');
                 }
                 localStorage.setItem('dynastyhq_username', username);
@@ -112,7 +127,7 @@ async function run() {
                     if (window.__lensQuotaFailure && String(key).startsWith('wr_dashboard_lenses_v1:')) throw new DOMException('Fixture storage full', 'QuotaExceededError');
                     return original.call(this, key, value);
                 };
-            }, { account, username, leagueA, legacyLayout });
+            }, { account, username, leagueA, leagueC, legacyLayout });
             const page = await context.newPage();
             page.on('pageerror', error => errors.push(error.message));
             const click = locator => size.touch ? locator.tap() : locator.click();
@@ -158,10 +173,20 @@ async function run() {
             const ready = async () => { await dialog().getByText('Your lens preview is ready.', { exact: true }).last().waitFor(); await dialog().getByRole('button', { name: 'Cancel request', exact: true }).waitFor({ state: 'hidden' }); };
             const save = async () => { await click(dialog().getByRole('button', { name: /^Save (?:dashboard|lens)$/ })); await dialog().getByText('Saved on this device.', { exact: true }).waitFor(); };
             const close = async () => { await click(dialog().getByRole('button', { name: 'Close builder', exact: true })); await dialog().waitFor({ state: 'hidden' }); };
-            const open = async () => { await click(workspace().getByRole('button', { name: 'Build with Alex', exact: true })); await dialog().waitFor(); };
+            const open = async () => { await click(workspace().getByRole('button', { name: 'Edit lens', exact: true })); await dialog().waitFor(); };
+            let testedCreateCancel = false;
             const create = async name => {
-                await reachable(workspace().getByRole('button', { name: 'New lens', exact: true }), 'New lens');
-                await click(workspace().getByRole('button', { name: 'New lens', exact: true }));
+                const priorKeys = await canvas().locator('[data-widget-key]').evaluateAll(nodes => nodes.map(node => node.dataset.widgetKey));
+                await reachable(workspace().getByRole('button', { name: 'Build with Alex', exact: true }), 'Build with Alex');
+                await click(workspace().getByRole('button', { name: 'Build with Alex', exact: true }));
+                assert.equal(await canvas().isVisible(), false, 'Naming a new lens hides the previous lens canvas');
+                assert.equal(await canvas().locator('[data-widget-key], .mc-chop-panel').count(), 0, 'The name step unmounts old content instead of showing unrelated sections');
+                if (!testedCreateCancel) {
+                    await click(workspace().getByRole('button', { name: 'Cancel', exact: true }));
+                    equal(await canvas().locator('[data-widget-key]').evaluateAll(nodes => nodes.map(node => node.dataset.widgetKey)), priorKeys, 'Canceling creation restores the active lens content');
+                    await click(workspace().getByRole('button', { name: 'Build with Alex', exact: true }));
+                    testedCreateCancel = true;
+                }
                 await workspace().getByLabel('Lens name', { exact: true }).fill(name);
                 await click(workspace().getByRole('button', { name: 'Create lens', exact: true }));
                 await dialog().waitFor();
@@ -186,13 +211,36 @@ async function run() {
                 await load(leagueA);
                 await activeName('Home');
                 equal((await state()).lenses[0].layout, legacyLayout, 'The old dashboard becomes Home without losing saved sections');
+                await page.evaluate(() => { if (!window.WrStarWidget.isStarred('fixture-pin')) window.WrStarWidget.toggle({ id: 'fixture-pin', title: 'Unrelated pinned fixture', content: 'This saved pin must not appear in a new lens.' }); });
+                await canvas().getByText('Unrelated pinned fixture', { exact: true }).waitFor();
                 assert.equal(await workspace().getByRole('button', { name: /Add Widget|Reorder|Customize Home/ }).count(), 0, 'The former widget setup is replaced');
                 await fit('Migrated lens');
                 await create('Roster watch');
                 equal((await active()).layout, [], 'A new lens starts blank rather than as a fixed preset');
+                assert.equal(await dialog().locator('[data-widget-key], .alex-data-view, .dashboard-reminders').count(), 0, 'A new builder has no legacy widgets, data views, or unrelated reminder controls before the first request');
+                assert.equal(await dialog().getByText('Unrelated pinned fixture', { exact: true }).count(), 0, 'The builder does not import global pins');
+                await builderTab('Preview');
+                await dialog().getByRole('heading', { name: 'Your blank canvas', exact: true }).waitFor();
+                assert.equal(await dialog().locator('.wr-dashboard-grid, .mc-chop-panel').count(), 0, 'The empty preview never renders the legacy or Chopped canvas');
+                const blankScrollState = () => page.evaluate(() => ({ x: scrollX, y: scrollY, root: document.documentElement.scrollTop, body: document.body.scrollTop, fallback: JSON.stringify(window.__WR_SCROLL_FALLBACK_LAST ?? null) }));
+                const lockedBlank = await blankScrollState();
+                const blankPane = await dialog().locator('.alex-builder-preview').boundingBox();
+                await page.mouse.move(blankPane.x + blankPane.width / 2, blankPane.y + blankPane.height / 2);
+                await page.mouse.wheel(0, 500);
+                await page.waitForTimeout(120);
+                equal(await blankScrollState(), lockedBlank, 'Wheeling a blank preview never scrolls the dashboard behind it');
+                if (size.touch && browserName === 'chromium') {
+                    const inputSession = await context.newCDPSession(page);
+                    await inputSession.send('Input.synthesizeScrollGesture', { x: blankPane.x + blankPane.width / 2, y: blankPane.y + blankPane.height / 2, yDistance: -60, speed: 600, preventFling: true, gestureSourceType: 'touch' });
+                    await page.waitForTimeout(120);
+                    equal(await blankScrollState(), lockedBlank, 'Native touch scrolling a blank preview never moves the dashboard');
+                    await inputSession.detach();
+                }
+                await page.screenshot({ path: path.join(output, size.label + '-blank-lens.png') });
                 const home = (await state()).lenses[0];
                 await submit('Compare roster age by position, with a detailed roster table.', { layout: rosterLayout });
                 await ready();
+                equal(JSON.parse(requests.at(-1).context.messages.at(-1).content).currentLayout, [], 'The first prompt receives an empty layout, not the active saved lens');
                 equal((await active()).layout, [], 'Alex preview does not save before confirmation');
                 await builderTab('Preview');
                 await dialog().getByRole('heading', { name: 'Average age by position', exact: true }).waitFor();
@@ -200,6 +248,8 @@ async function run() {
                 await save();
                 equal(withoutIds((await active()).layout), withoutIds(rosterLayout), 'The lens saves its own custom data views');
                 await close();
+                equal(await canvas().locator('[data-widget-key]').evaluateAll(nodes => nodes.map(node => node.dataset.widgetKey)), rosterLayout.map(item => item.key), 'The saved canvas renders only the sections created in this lens');
+                assert.equal(await canvas().getByText('Unrelated pinned fixture', { exact: true }).count(), 0, 'New saved lenses do not append global pins');
                 const rosterId = (await active()).id;
                 equal((await state()).lenses.find(lens => lens.id === home.id), home, 'Saving another lens leaves Home unchanged');
                 await fit('Custom lens');
@@ -278,6 +328,19 @@ async function run() {
                 equal(await state(), leagueADocument, 'Returning to a league restores its exact collection');
 
                 if (size.label === 'phone' || (selected?.length === 1)) {
+                    await load(leagueC); await activeName('Home');
+                    await canvas().locator('[aria-label="Survival summary"]').or(canvas().getByText('The Chopping Block', { exact: true })).first().waitFor();
+                    await create('Chopped roster view'); await builderTab('Preview');
+                    assert.equal(await dialog().locator('[aria-label="Survival summary"], .mc-chop-panel').count(), 0, 'A blank Chopped preview excludes the existing survival panel');
+                    assert.equal(await dialog().getByText('The Chopping Block', { exact: true }).count(), 0);
+                    await submit('Show only my roster age comparison and detailed roster.', { layout: rosterLayout });
+                    await ready(); await builderTab('Preview');
+                    equal(await dialog().locator('[data-widget-key]').evaluateAll(nodes => nodes.map(node => node.dataset.widgetKey)), ['custom-view', 'custom-view'], 'A generated Chopped preview contains only the requested sections');
+                    assert.equal(await dialog().locator('[aria-label="Survival summary"], .mc-chop-panel').count(), 0);
+                    await save(); await close();
+                    assert.equal(await canvas().locator('[aria-label="Survival summary"], .mc-chop-panel').count(), 0, 'A new saved Chopped lens does not append the legacy survival panel');
+                    assert.equal(await canvas().getByText('Unrelated pinned fixture', { exact: true }).count(), 0);
+                    await load(leagueA); await activeName('Roster radar');
                     await open();
                     let release;
                     const hold = new Promise(resolve => { release = resolve; });

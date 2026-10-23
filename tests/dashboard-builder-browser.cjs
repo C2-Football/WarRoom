@@ -136,7 +136,7 @@ async function run() {
             };
             const click = locator => size.touch ? locator.tap() : locator.click();
             const dialog = () => page.getByRole('dialog', { name: 'Build with Alex', exact: true });
-            const open = async () => { await click(page.getByRole('button', { name: 'Build with Alex', exact: true }).first()); await dialog().waitFor(); };
+            const open = async () => { await click(page.getByRole('button', { name: 'Edit lens', exact: true }).first()); await dialog().waitFor(); };
             const tab = async name => {
                 const control = dialog().getByRole('tab', { name, exact: true });
                 if (await control.isVisible()) await click(control);
@@ -175,23 +175,88 @@ async function run() {
                     const root = [...document.querySelectorAll('[role="dialog"]')].find(el => el.getAttribute('aria-label') === 'Build with Alex' || /Build with Alex/.test(el.textContent));
                     return root && ![...root.querySelectorAll('button')].some(button => button.textContent.trim() === 'Cancel request');
                 });
+                assert.equal(await dialog().getByRole('alert').count(), 0, 'A valid preview request must finish without an error');
             };
             const previewKeys = async () => {
                 await tab('Preview');
                 return dialog().locator('[data-widget-key]').evaluateAll(nodes => nodes.map(node => node.dataset.widgetKey));
             };
+            // These use the browser's input pipeline rather than synthetic DOM
+            // touch events, so default scrolling and scroll chaining are tested.
+            const inputSession = browserName === 'chromium' ? await context.newCDPSession(page) : null;
+            const gesture = async (locator, delta, source = 'wheel') => {
+                const rect = await locator.boundingBox();
+                assert(rect && rect.height > 5, 'Scroll target must be visible');
+                const x = Math.min(size.width - 8, Math.max(8, rect.x + Math.min(24, rect.width / 2)));
+                const y = Math.min(size.height - 8, Math.max(8, rect.y + rect.height / 2));
+                if (source === 'touch') {
+                    assert(inputSession, 'Native touch acceptance requires Chromium');
+                    const distance = Math.sign(delta) * Math.min(Math.abs(delta), delta > 0 ? y - 8 : size.height - y - 8);
+                    await inputSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+                    for (let step = 1; step <= 8; step++) {
+                        await inputSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - distance * step / 8 }] });
+                        await page.waitForTimeout(18);
+                    }
+                    await inputSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                } else {
+                    await page.mouse.move(x, y);
+                    await page.mouse.wheel(0, delta);
+                }
+                await page.waitForTimeout(120);
+            };
+            const rememberBackground = async () => page.evaluate(() => {
+                const nodes = [document.documentElement, document.body];
+                for (let node = document.querySelector('.dashboard-lenses'); node; node = node.parentElement) nodes.push(node);
+                window.__builderBackgroundNodes = [...new Set(nodes)];
+                return window.__builderBackgroundNodes.map(node => ({ tag: node.tagName, className: node.className, top: node.scrollTop, left: node.scrollLeft, style: node.getAttribute('style') || '' }));
+            });
+            const backgroundOffsets = async () => page.evaluate(() => ({
+                x: window.scrollX, y: window.scrollY,
+                nodes: window.__builderBackgroundNodes.map(node => ({ top: node.scrollTop, left: node.scrollLeft })),
+                fallback: JSON.stringify(window.__WR_SCROLL_FALLBACK_LAST ?? null),
+            }));
+            const assertRestored = async expected => {
+                const actual = await page.evaluate(() => window.__builderBackgroundNodes.map(node => ({ tag: node.tagName, className: node.className, top: node.scrollTop, left: node.scrollLeft, style: node.getAttribute('style') || '' })));
+                assert.deepEqual(actual, expected, 'Closing restores every background scroll position and inline style');
+            };
+            const assertScrollContained = async (pane, label, overflowing = true) => {
+                const locked = await backgroundOffsets();
+                const maximum = await pane.evaluate(el => el.scrollHeight - el.clientHeight);
+                if (overflowing) assert(maximum > 30, label + ' has real overflowing content');
+                for (const source of ['wheel', ...(size.touch && inputSession ? ['touch'] : [])]) {
+                    await pane.evaluate(el => { el.scrollTop = 0; });
+                    await gesture(pane, Math.min(100, Math.max(35, (await pane.boundingBox()).height * .3)), source);
+                    if (overflowing) assert(await pane.evaluate(el => el.scrollTop) > 0, label + ' scrolls through native ' + source + ' input');
+                    assert.deepEqual(await backgroundOffsets(), locked, label + ' does not move the background during ' + source);
+                    await pane.evaluate(el => { el.scrollTop = el.scrollHeight; });
+                    await gesture(pane, 80, source);
+                    assert.deepEqual(await backgroundOffsets(), locked, label + ' cannot chain ' + source + ' beyond its bottom');
+                    await pane.evaluate(el => { el.scrollTop = 0; });
+                    await gesture(pane, -80, source);
+                    assert.deepEqual(await backgroundOffsets(), locked, label + ' cannot chain ' + source + ' beyond its top');
+                    await gesture(dialog().locator('.alex-builder-header'), 80, source);
+                    await gesture(dialog().locator('.alex-builder-footer'), 80, source);
+                    assert.deepEqual(await backgroundOffsets(), locked, 'Builder header/footer never move the page during ' + source);
+                }
+                await pane.evaluate(el => { el.scrollTop = 0; });
+            };
             try {
                 await load(leagueA);
                 assert.equal(await page.getByRole('button', { name: 'Add Widget', exact: true }).count(), 0, 'The old picker must be replaced');
+                const initialBackground = await rememberBackground();
                 await open();
                 await fit('Initial builder');
-                await submit('Put my matchup first, then roster health and the calendar.', { layout: initialPlan });
+                await submit('Put my matchup first, then roster health and the calendar.', { layout: initialPlan,
+                    reply: Array.from({ length: 20 }, (_, index) => `Review ${index + 1}: Matchup, roster health, calendar.`).join('\n') });
                 await ready();
+                await tab('Edit');
+                await assertScrollContained(dialog().locator('.alex-builder-conversation'), 'Conversation');
                 const startingLayout = JSON.parse(requests[0].context.messages.at(-1).content).currentLayout;
                 await page.screenshot({ path: path.join(output, size.label + '-conversation.png'), fullPage: false });
                 assert(await dialog().getByRole('textbox', { name: 'Describe your lens', exact: true }).evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16, 'Input text must avoid phone focus zoom');
                 assert.equal(await saved(), null, 'A preview must not persist before Save');
                 equalLayout(await previewKeys(), initialPlan.map(item => item.key), 'Preview renders real dashboard components in requested order');
+                await assertScrollContained(dialog().locator('.alex-builder-preview'), 'Generated preview', false);
                 await fit('Generated preview');
                 await page.screenshot({ path: path.join(output, size.label + '-preview.png'), fullPage: false });
                 await reachable(dialog().getByRole('button', { name: 'Save lens', exact: true }), 'Save dashboard');
@@ -222,8 +287,9 @@ async function run() {
                 equalLayout((await saved()).layout, initialPlan, 'Save persists the validated dashboard');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
                 await dialog().waitFor({ state: 'hidden' });
-                if (!size.touch) await page.waitForFunction(() => document.activeElement?.classList.contains('dhq-builder-launch'), null, { timeout: 3000 });
-                if (!size.touch) assert.equal(await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().evaluate(el => document.activeElement === el), true, 'Closing returns keyboard focus to the entry control: ' + await page.evaluate(() => document.activeElement?.outerHTML?.slice(0, 250)));
+                await assertRestored(initialBackground);
+                if (!size.touch) await page.waitForFunction(el => document.activeElement === el, await page.getByRole('button', { name: 'Edit lens', exact: true }).first().elementHandle(), { timeout: 3000 });
+                if (!size.touch) assert.equal(await page.getByRole('button', { name: 'Edit lens', exact: true }).first().evaluate(el => document.activeElement === el), true, 'Closing returns keyboard focus to the entry control: ' + await page.evaluate(() => document.activeElement?.outerHTML?.slice(0, 250)));
                 const countAfterSave = requests.length;
                 await page.reload({ waitUntil: 'domcontentloaded' });
                 await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
@@ -374,12 +440,20 @@ async function run() {
                 await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
                 equalLayout((await saved()).layout, expectedCustom, 'Custom view survives reload');
                 await page.locator('.alex-data-view').first().getByRole('heading', { name: 'My position age comparison', exact: true }).waitFor();
+                await page.evaluate(() => window.scrollTo({ top: 40, behavior: 'instant' }));
+                assert(await page.evaluate(() => window.scrollY) > 0, 'The real dashboard can scroll before opening the builder');
+                const scrolledBackground = await rememberBackground();
                 await open();
                 await tab('Preview');
+                await assertScrollContained(dialog().locator('.alex-builder-preview'), 'Saved custom preview');
                 await click(dialog().locator('.dashboard-reminders-toggle'));
                 await dialog().locator('.dashboard-reminders').getByText('Review my roster ages', { exact: true }).waitFor();
                 assert.equal(await dialog().locator('.dashboard-reminders').getByText('Scheduled', { exact: true }).count(), 0, 'Reload retains inactive reminder draft status');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
+                await assertRestored(scrolledBackground);
+                const restoredScroll = await page.evaluate(() => window.scrollY);
+                await gesture(page.locator('.dashboard-lenses-canvas'), 100);
+                assert(await page.evaluate(() => window.scrollY) > restoredScroll, 'Normal wheel scrolling resumes after closing the builder');
                 await click(page.getByRole('button', { name: 'Lens options', exact: true }));
                 await click(page.getByRole('button', { name: 'Undo last save', exact: true }));
                 equalLayout((await saved()).layout, startingLayout, 'Persistent undo restores Home before custom views');
@@ -387,12 +461,12 @@ async function run() {
                 assert.equal(errors.length, 0, 'No browser runtime errors: ' + errors.join(' | '));
                 assert.equal(plans.length, 0, 'All queued fixture responses were consumed');
                 results.push({ viewport: size.label, dimensions: `${size.width}x${size.height}`, touch: size.touch, passed: true, aiFixtureRequests: requests.length, blockedExternalWrites: blocked.length });
-                console.log('PASS dashboard builder ' + size.label + ': preview, custom queries/visuals, table scroll, save/reload, conversation, draft/persistent undo, discard, storage/AI failures, cancel, league isolation, focus');
+                console.log('PASS dashboard builder ' + size.label + ': preview, custom queries/visuals, native scroll containment and restoration, table scroll, save/reload, conversation, draft/persistent undo, discard, storage/AI failures, cancel, league isolation, focus');
             } catch (error) {
                 await page.screenshot({ path: path.join(output, size.label + '-failure.png'), fullPage: false }).catch(() => {});
                 fs.writeFileSync(path.join(output, size.label + '-failure.json'), JSON.stringify({ error: error.stack, browserErrors: errors, url: page.url(), text: await page.locator('body').innerText().catch(() => ''), requests }, null, 2));
                 throw error;
-            } finally { await context.close(); }
+            } finally { await inputSession?.detach().catch(() => {}); await context.close(); }
         }
         fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ evidence: 'Local browser emulation with provider and AI response fixtures; no live AI, physical device, or hosted deployment proof.', browser: browserName, results }, null, 2));
     } finally { await browser?.close(); serving.stop(); }

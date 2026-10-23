@@ -88,6 +88,9 @@
 
     function rerouteWheelToPage(event) {
         if (event.defaultPrevented || event.ctrlKey || event.metaKey) return;
+        // The builder owns its scrolling, including at a pane's boundary.
+        // Its portal still reaches this window capture/React wheel handler.
+        if (event.target?.closest?.('.alex-builder-overlay')) return;
         if (Math.abs(event.deltaY) < 1 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
         if (!wrCanPageScroll()) return;
 

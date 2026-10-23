@@ -192,7 +192,7 @@ async function run() {
                 assert(hit.receives && (!size.touch || (hit.width >= 44 && hit.height >= 44)), label + ' reachable 44px target: ' + JSON.stringify(hit));
             };
             const open = async () => {
-                await click(page.getByRole('button', { name: 'Build with Alex', exact: true }).first());
+                await click(page.getByRole('button', { name: 'Edit lens', exact: true }).first());
                 await dialog().waitFor();
                 const preview = dialog().getByRole('tab', { name: 'Preview', exact: true });
                 if (await preview.isVisible()) await click(preview);
@@ -221,7 +221,7 @@ async function run() {
             const row = title => panel().locator('.dashboard-reminders-list li').filter({ has: page.getByText(title, { exact: true }) });
             try {
                 await page.goto(url.href, { waitUntil: 'domcontentloaded' });
-                await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
+                await page.getByRole('button', { name: 'Edit lens', exact: true }).first().waitFor({ timeout: 60000 });
                 await open();
                 await textVisible('Send verification code');
                 assert.equal(state.actions.length, 0, 'Opening/checking never sends email or subscribes push');
@@ -289,7 +289,7 @@ async function run() {
                 state.fault = 'read-failure'; await check();
                 assert.equal(await panel().getByText('Scheduled', { exact: true }).count(), 0, 'Unavailable refresh cannot claim active delivery');
                 await page.reload({ waitUntil: 'domcontentloaded' });
-                await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
+                await page.getByRole('button', { name: 'Edit lens', exact: true }).first().waitFor({ timeout: 60000 });
                 await open();
                 await row('Morning roster email').waitFor(); await row('Morning roster push').waitFor();
                 assert.equal(await row('Morning roster push').getByText('Paused', { exact: true }).count(), 1, 'Paused delivery reconciles after reload');

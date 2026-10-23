@@ -187,7 +187,7 @@
             const was = form;
             setForm(null); setError('');
             if (externalChange) reload();
-            requestAnimationFrame(() => (was === 'create' ? newRef.current : optionsRef.current)?.focus({ preventScroll: true }));
+            requestAnimationFrame(() => (was === 'create' ? buildRef.current : optionsRef.current)?.focus({ preventScroll: true }));
         }
 
         function submitName(event) {
@@ -197,15 +197,15 @@
             if (!next) return;
             const created = form === 'create';
             setForm(null); setName(''); setExternalChange(false);
-            if (created) openBuilder(next);
+            if (created) openBuilder(next, true);
             else requestAnimationFrame(() => optionsRef.current?.focus({ preventScroll: true }));
         }
 
-        function openBuilder(document = documentRef.current) {
+        function openBuilder(document = documentRef.current, creating = false) {
             const lens = document?.lenses.find(item => item.id === document.activeId);
             if (!lens) return;
             setOptionsOpen(false); setRemoveOpen(false); setError('');
-            setEditing({ id: lens.id, expected: clone(document), layout: clone(lens.layout) });
+            setEditing({ id: lens.id, expected: clone(document), layout: clone(lens.layout), creating });
         }
 
         function saveLens(layout) {
@@ -219,9 +219,10 @@
         }
 
         function closeBuilder() {
+            const creating = editingRef.current?.creating;
             setEditing(null); editingRef.current = null;
             if (externalChange) reload();
-            requestAnimationFrame(() => buildRef.current?.focus({ preventScroll: true }));
+            requestAnimationFrame(() => (creating ? buildRef.current : newRef.current)?.focus({ preventScroll: true }));
         }
 
         function duplicate() {
@@ -246,12 +247,12 @@
             <header className="dashboard-lenses-header">
                 <div className="dashboard-lenses-heading">
                     <span className="dashboard-lenses-eyebrow">YOUR LENSES <span aria-hidden="true">/</span> {league?.name || 'YOUR LEAGUE'}</span>
-                    <h2>{active.name}</h2>
+                    <h2>{form === 'create' ? 'New lens' : active.name}</h2>
                     <p>Different questions. Your own ways to see the league.</p>
                 </div>
                 <div className="dashboard-lenses-header-actions">
-                    <button type="button" ref={newRef} className="dashboard-lenses-button dashboard-lenses-new" onClick={() => beginForm('create')} disabled={Boolean(form) || count >= store.MAX_LENSES}><span aria-hidden="true">＋</span> New lens</button>
-                    <button type="button" ref={buildRef} className="dashboard-lenses-button dashboard-lenses-primary dhq-builder-launch" onClick={() => openBuilder()} disabled={Boolean(form)}>Build with Alex <span aria-hidden="true">↗</span></button>
+                    <button type="button" ref={newRef} className="dashboard-lenses-button dashboard-lenses-new dhq-builder-launch" onClick={() => openBuilder()} disabled={Boolean(form)}>Edit lens</button>
+                    <button type="button" ref={buildRef} className="dashboard-lenses-button dashboard-lenses-primary" onClick={() => beginForm('create')} disabled={Boolean(form) || count >= store.MAX_LENSES}>Build with Alex <span aria-hidden="true">＋</span></button>
                     <button type="button" ref={optionsRef} className="dashboard-lenses-button dashboard-lenses-options-button" aria-expanded={optionsOpen} aria-controls={id + '-options'} onClick={() => { setOptionsOpen(value => !value); setRemoveOpen(false); }} disabled={Boolean(form)} aria-label="Lens options"><span aria-hidden="true">•••</span></button>
                 </div>
             </header>
@@ -277,7 +278,7 @@
             </div>}
 
             {form && <form className="dashboard-lenses-form" onSubmit={submitName} aria-labelledby={id + '-form-title'}>
-                <div><h3 id={id + '-form-title'}>{form === 'create' ? 'Create a lens' : 'Rename lens'}</h3><p>{form === 'create' ? 'Give it a name, then tell Alex what you want to see.' : 'Choose a name that tells you what this lens is for.'}</p></div>
+                <div><h3 id={id + '-form-title'}>{form === 'create' ? 'Create a lens' : 'Rename lens'}</h3><p>{form === 'create' ? 'Name your blank canvas, then tell Alex what you want to see.' : 'Choose a name that tells you what this lens is for.'}</p></div>
                 <label htmlFor={id + '-name'}>Lens name<input id={id + '-name'} ref={inputRef} value={name} onChange={event => setName(event.target.value)} maxLength={60} placeholder="e.g. Sunday decisions" autoComplete="off" required onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); cancelForm(); } }} /></label>
                 <div className="dashboard-lenses-form-actions"><button type="submit" className="dashboard-lenses-button dashboard-lenses-primary" disabled={!name.trim()}>{form === 'create' ? 'Create lens' : 'Save name'}</button><button type="button" className="dashboard-lenses-button" onClick={cancelForm}>Cancel</button></div>
             </form>}
@@ -293,17 +294,17 @@
             {error && <div className="dashboard-lenses-error" role="alert"><p>{error}</p>{!editing && <button type="button" className="dashboard-lenses-button" onClick={() => { if (reload()) { setForm(null); setNotice('Latest saved lenses loaded.'); } }}>Load saved lenses</button>}</div>}
             <p className="dashboard-lenses-status" role="status" aria-live="polite">{notice}</p>
 
-            <div className="dashboard-lenses-canvas" ref={canvasRef} id={id + '-canvas'} role="tabpanel" aria-labelledby={id + '-tab-' + active.id} tabIndex={0} onClickCapture={event => { if (Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
-                {active.layout.length ? <div key={active.id} className={'dashboard-lenses-page dashboard-lenses-page-' + motion}>{renderCanvas(active.layout)}</div> : <div className="dashboard-lenses-empty">
+            <div className="dashboard-lenses-canvas" ref={canvasRef} id={id + '-canvas'} role="tabpanel" aria-labelledby={id + '-tab-' + active.id} tabIndex={0} hidden={form === 'create'} onClickCapture={event => { if (Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
+                {form !== 'create' && (active.layout.length ? <div key={active.id} className={'dashboard-lenses-page dashboard-lenses-page-' + motion}>{renderCanvas(active.layout, active)}</div> : <div className="dashboard-lenses-empty">
                     <span className="dashboard-lenses-empty-mark" aria-hidden="true">◎</span>
                     <span className="dashboard-lenses-eyebrow">A NEW PERSPECTIVE</span>
                     <h3>What should {active.name} help you see?</h3>
                     <p>Ask for a comparison, a roster breakdown, or the numbers you check most. Alex will build a view you can make your own.</p>
-                    <button type="button" className="dashboard-lenses-button dashboard-lenses-primary" onClick={() => openBuilder()} disabled={Boolean(form)}>Start with Alex</button>
-                </div>}
+                    <button type="button" className="dashboard-lenses-button dashboard-lenses-primary" onClick={() => openBuilder(documentRef.current, true)} disabled={Boolean(form)}>Start with Alex</button>
+                </div>)}
             </div>
-            {count > 1 && <p className="dashboard-lenses-swipe-hint"><span aria-hidden="true">↔</span> Swipe the view to change lenses</p>}
-            {editing && <window.WR.DashboardBuilderPanel key={scope + ':' + editing.id} layout={editing.layout} catalog={catalog} league={league} scope={scope} lensId={editing.id} lensName={saved.lenses.find(lens => lens.id === editing.id)?.name || active.name} otherReminderViews={saved.lenses.filter(lens => lens.id !== editing.id).flatMap(customViews)} normalizeLayout={layout => store.prepareLayout(editing.expected, editing.id, layout, catalog)} onSave={saveLens} onClose={closeBuilder} renderPreview={renderPreview} />}
+            {count > 1 && form !== 'create' && <p className="dashboard-lenses-swipe-hint"><span aria-hidden="true">↔</span> Swipe the view to change lenses</p>}
+            {editing && <window.WR.DashboardBuilderPanel key={scope + ':' + editing.id} layout={editing.layout} catalog={catalog} league={league} scope={scope} lensId={editing.id} lensName={saved.lenses.find(lens => lens.id === editing.id)?.name || active.name} creating={editing.creating} otherReminderViews={saved.lenses.filter(lens => lens.id !== editing.id).flatMap(customViews)} normalizeLayout={layout => store.prepareLayout(editing.expected, editing.id, layout, catalog)} onSave={saveLens} onClose={closeBuilder} renderPreview={renderPreview} />}
         </section>;
     }
     window.WR.DashboardLenses = DashboardLenses;

@@ -369,7 +369,7 @@ function DashboardPanel(props) {
                 throw new Error('Your account changed. Reload your lenses before saving.');
             }
         }}
-        renderCanvas={layout => <DashboardCanvas {...props} selectedWidgets={layout} />}
+        renderCanvas={(layout, lens) => <DashboardCanvas {...props} selectedWidgets={layout} includeLegacyExtras={lens?.id === 'lens_home'} />}
         renderPreview={layout => <DashboardCanvas {...props} selectedWidgets={layout} readOnly={true} setActiveTab={() => {}} />} />;
 }
 
@@ -395,6 +395,7 @@ function DashboardCanvas(props) {
         timeRecomputeTs,
         viewPlayersData = playersData,
         readOnly = false,
+        includeLegacyExtras = false,
     } = props;
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
@@ -1166,7 +1167,7 @@ function DashboardCanvas(props) {
     // PINNED SECTION — starred items
     // ══════════════════════════════════════════════════════════════
     function PinnedSection() {
-        if (readOnly || starredWidgets.length === 0) return null;
+        if (readOnly || !includeLegacyExtras || starredWidgets.length === 0) return null;
         return (
             <div style={{ padding: '0 20px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', paddingTop: '16px', borderTop: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
@@ -1190,9 +1191,8 @@ function DashboardCanvas(props) {
         );
     }
 
-    // Survival remains available for elimination leagues, independent of a
-    // lens's editable sections. All formats use the same lens canvas.
-    const chopBlockEl = (resolvedLeagueSkin?.features?.showElimination && window.WrChopBlock)
+    // Preserve old Home extras without inserting them into a new lens or preview.
+    const chopBlockEl = (!readOnly && includeLegacyExtras && resolvedLeagueSkin?.features?.showElimination && window.WrChopBlock)
         ? <div style={{ padding: '14px 16px 0' }}><window.WrChopBlock active compact currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => navigateWidget('central')} /></div>
         : null;
 

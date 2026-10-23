@@ -7,7 +7,120 @@
     const queryFor = view => Object.fromEntries(['source', 'columns', 'filters', 'sort', 'limit', 'groupBy', 'aggregate'].filter(key => view[key] !== undefined).map(key => [key, view[key]]));
     let nextDialogId = 0;
 
-    function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, lensName, otherReminderViews = [], normalizeLayout, onSave, onClose, renderPreview }) {
+    function lockBackgroundScroll(dialog, overlay, opener) {
+        const pagePosition = { x: window.scrollX, y: window.scrollY };
+        const snapshots = new Map();
+        const scrollPositions = new Map();
+        const remember = element => {
+            if (!element || snapshots.has(element)) return;
+            snapshots.set(element, {
+                attribute: element.getAttribute('style'),
+                original: new Map(Array.from(element.style).map(property => [property, [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)]])),
+                changed: new Map(),
+            });
+            scrollPositions.set(element, { x: element.scrollLeft, y: element.scrollTop });
+        };
+        const setStyle = (element, property, value) => {
+            remember(element);
+            const saved = snapshots.get(element);
+            if (!saved.changed.has(property)) saved.changed.set(property, [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)]);
+            element.style.setProperty(property, value, 'important');
+        };
+        const root = document.documentElement;
+        const body = document.body;
+        remember(root); remember(body);
+        // The page normally scrolls on documentElement. Locking body overflow
+        // alone does not freeze it, especially with the app's page-wheel fallback.
+        const scrollbarGap = Math.max(0, window.innerWidth - root.clientWidth);
+        const bodyPadding = parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+        const candidates = new Set([document.scrollingElement, document.getElementById('root'), ...document.querySelectorAll('.wr-main-content,.wr-content-frame')]);
+        for (let element = opener; element && element !== body; element = element.parentElement) candidates.add(element);
+        for (const element of candidates) {
+            if (!element || element === root || element === body || element.contains(dialog) || overlay.contains(element)) continue;
+            const style = window.getComputedStyle(element);
+            if (!/(auto|scroll|overlay)/.test(style.overflowX + style.overflowY)) continue;
+            setStyle(element, 'overflow-x', 'hidden'); setStyle(element, 'overflow-y', 'hidden');
+            setStyle(element, 'overscroll-behavior', 'none'); setStyle(element, 'scroll-behavior', 'auto');
+        }
+        for (const element of [root, body]) {
+            setStyle(element, 'overflow-x', 'hidden'); setStyle(element, 'overflow-y', 'hidden');
+            setStyle(element, 'overscroll-behavior', 'none'); setStyle(element, 'scroll-behavior', 'auto');
+        }
+        // Fixed positioning also contains touch scrolling in Safari, while the
+        // negative offset keeps the background at exactly its opening position.
+        setStyle(body, 'position', 'fixed'); setStyle(body, 'top', -pagePosition.y + 'px');
+        setStyle(body, 'left', -pagePosition.x + 'px'); setStyle(body, 'width', '100%');
+        setStyle(body, 'box-sizing', 'border-box');
+        if (scrollbarGap) setStyle(body, 'padding-right', bodyPadding + scrollbarGap + 'px');
+
+        const canScrollInside = (target, dx, dy) => {
+            const horizontal = Math.abs(dx) > Math.abs(dy);
+            const delta = horizontal ? dx : dy;
+            if (!delta) return true;
+            let element = target?.nodeType === 1 ? target : target?.parentElement;
+            while (element && overlay.contains(element)) {
+                const style = window.getComputedStyle(element);
+                const overflow = horizontal ? style.overflowX : style.overflowY;
+                if (/(auto|scroll|overlay)/.test(overflow)) {
+                    const position = horizontal ? element.scrollLeft : element.scrollTop;
+                    const extent = horizontal ? element.scrollWidth - element.clientWidth : element.scrollHeight - element.clientHeight;
+                    if (extent > 1 && (delta < 0 ? position > 1 : position < extent - 1)) return true;
+                }
+                if (element === overlay) break;
+                element = element.parentElement;
+            }
+            return false;
+        };
+        const onWheel = event => {
+            if (event.ctrlKey || event.metaKey) return;
+            const dx = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
+            const dy = event.shiftKey && !event.deltaX ? 0 : event.deltaY;
+            if (!canScrollInside(event.target, dx, dy) && event.cancelable) event.preventDefault();
+        };
+        let touch = null;
+        const onTouchStart = event => { touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null; };
+        const onTouchMove = event => {
+            if (!touch || event.touches.length !== 1) { touch = null; return; }
+            const point = event.touches[0];
+            const dx = touch.x - point.clientX, dy = touch.y - point.clientY;
+            touch = { x: point.clientX, y: point.clientY };
+            if (!canScrollInside(event.target, dx, dy) && event.cancelable) event.preventDefault();
+        };
+        const onTouchEnd = () => { touch = null; };
+        overlay.addEventListener('wheel', onWheel, { passive: false, capture: true });
+        overlay.addEventListener('touchstart', onTouchStart, { passive: true });
+        overlay.addEventListener('touchmove', onTouchMove, { passive: false });
+        overlay.addEventListener('touchend', onTouchEnd, { passive: true });
+        overlay.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        return () => {
+            overlay.removeEventListener('wheel', onWheel, { capture: true });
+            overlay.removeEventListener('touchstart', onTouchStart); overlay.removeEventListener('touchmove', onTouchMove);
+            overlay.removeEventListener('touchend', onTouchEnd); overlay.removeEventListener('touchcancel', onTouchEnd);
+            const restore = (element, property, value) => value[0] ? element.style.setProperty(property, value[0], value[1]) : element.style.removeProperty(property);
+            for (const [element, saved] of snapshots) {
+                for (const [property, value] of saved.changed) if (property !== 'scroll-behavior') restore(element, property, value);
+            }
+            // Keep smooth scrolling disabled until all previous scroll offsets
+            // are back. Restore only our properties so theme updates survive.
+            for (const [element, position] of scrollPositions) {
+                if (element.isConnected && element !== root && element !== body) { element.scrollLeft = position.x; element.scrollTop = position.y; }
+            }
+            window.scrollTo(pagePosition.x, pagePosition.y);
+            for (const [element, saved] of snapshots) {
+                if (saved.changed.has('scroll-behavior')) restore(element, 'scroll-behavior', saved.changed.get('scroll-behavior'));
+                const unchanged = element.style.length === saved.original.size && Array.from(element.style).every(property => {
+                    const original = saved.original.get(property);
+                    return original && element.style.getPropertyValue(property) === original[0] && element.style.getPropertyPriority(property) === original[1];
+                });
+                if (unchanged) {
+                    if (saved.attribute === null) element.removeAttribute('style');
+                    else element.setAttribute('style', saved.attribute);
+                }
+            }
+        };
+    }
+
+    function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, lensName, creating = false, otherReminderViews = [], normalizeLayout, onSave, onClose, renderPreview }) {
         const [draft, setDraft] = React.useState(() => copy(layout || []));
         const [saved, setSaved] = React.useState(() => copy(layout || []));
         const [history, setHistory] = React.useState([]);
@@ -64,16 +177,15 @@
         }
         closeRef.current = close;
 
-        React.useEffect(() => {
+        React.useLayoutEffect(() => {
             mountedRef.current = true;
             const dialog = dialogRef.current;
             const opener = document.activeElement;
-            const overflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
+            const unlockBackground = lockBackgroundScroll(dialog, overlayRef.current, opener);
             const controls = () => Array.from(dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])'))
                 .filter(element => !element.disabled && element.tabIndex >= 0 && element.getAttribute('aria-disabled') !== 'true' && !element.closest('[inert]') && element.getClientRects().length);
             // Focusing the title/close control avoids opening the phone keyboard on entry.
-            (controls()[0] || dialog).focus();
+            (controls()[0] || dialog).focus({ preventScroll: true });
             const onKey = event => {
                 const childDialog = event.target.closest?.('[role="dialog"], dialog[open]');
                 if (childDialog && childDialog !== dialog) return;
@@ -111,7 +223,7 @@
                 window.visualViewport?.removeEventListener('scroll', updateViewport);
                 document.removeEventListener('keydown', onKey, true);
                 document.removeEventListener('focusin', onFocus);
-                document.body.style.overflow = overflow;
+                unlockBackground();
                 const restoreFocus = () => {
                     // Saving can replace the original section/launcher node.
                     // Wait until the portal has left the DOM before restoring.
@@ -373,9 +485,8 @@
                                     <p className="alex-builder-visual-hint alex-builder-field-wide">Changes update the preview. Ask Alex to change the data, filters, or totals.</p>
                                 </div>
                             </details>}
-                            {window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={[...customViews, ...otherReminderViews]} savedViews={[...saved.filter(item => item.key === 'custom-view' && item.view), ...otherReminderViews]} />}
-                            <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{renderPreview(draft)}</div>
-                            {!draft.length && <p className="alex-builder-empty">{lensName ? 'Start with a question. Alex will build a view for this lens.' : 'Your Home is clear. Ask Alex to add a section.'}</p>}
+                            {(!creating || customViews.length > 0) && window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={[...customViews, ...otherReminderViews]} savedViews={[...saved.filter(item => item.key === 'custom-view' && item.view), ...otherReminderViews]} />}
+                            <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{draft.length ? renderPreview(draft) : <div className="alex-builder-empty-canvas"><h3>Your blank canvas</h3><p>Describe what you want to see. Only the views you create will appear here.</p></div>}</div>
                         </div>
                     </div>
                     <footer className="alex-builder-footer">
