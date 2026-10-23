@@ -411,7 +411,15 @@ test('actual My Roster places review inside its player row and restores untouche
     assert(find(h.tree, node => node.type === 'details' && node.props.className === 'wr-lens-roster-settings'));
     h.props.rosterFilter = 'Starters'; h.render();
     assert(!find(h.tree, node => node.props['data-wr-roster-pid'] === 'bench'));
-    assert(find(h.tree, node => node.props['data-lens-preview'] === 'add-a'), 'A filtered anchor keeps the selected comparison accessible above the list');
+    assert.equal(h.lens.selected.id, 'add-a', 'Filtering retains the chosen move without promoting it');
+    assert(!find(h.tree, node => node.props['data-lens-preview'] === 'add-a'), 'A filtered owned source keeps its preview hidden');
+    assert(!text(h.tree).includes('Available Runner'));
+    h.props.rosterFilter = 'All'; h.render();
+    const restored = find(h.tree, node => node.props['data-wr-roster-pid'] === 'bench');
+    assert.equal(restored.props['data-wr-lens-state'], 'active');
+    assert(find(restored, node => node.props['data-lens-preview'] === 'add-a'), 'Restoring the source restores its preview in place');
+    assert(find(restored, node => node.props.className === 'wr-lens-review'), 'The existing review state survives a filter change');
+    h.props.rosterFilter = 'Starters'; h.render();
     h.click('Lens off'); await h.flush();
     assert.equal(h.props.rosterFilter, 'Starters'); assert.equal(JSON.stringify(h.props.rosterSort), beforeSort); assert.equal(JSON.stringify(h.props.visibleCols), beforeColumns);
     assert.equal(JSON.stringify(h.roster), beforeRoster); assert(!find(h.tree, node => node.props.className === 'wr-lens-roster-settings'));
@@ -452,20 +460,26 @@ test('the active source row and leading outgoing identity follow the selected wa
     assert.equal(JSON.stringify(h.roster), original); assert.equal(h.writes.length, 0);
 });
 
-test('hidden source, multi-player trade and open-slot previews state exactly what leaves the roster', async () => {
+test('filtered sources stay hidden while visible multi-player trade and open-slot previews state exactly what leaves the roster', async () => {
     const h = harness({ integrated: true }); await openWaivers(h);
     h.props.rosterFilter = 'Starters'; h.render();
     assert.equal(all(h.tree, node => !!node.props['data-wr-lens-source']).length, 0);
-    let preview = find(h.tree, node => node.props['data-lens-preview'] === 'add-a');
-    assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You dropBench Runner/, 'A standalone preview remains self-contained when its original row is hidden');
+    assert.equal(h.lens.selected.id, 'add-a'); assert.equal(previewNodes(h).length, 0);
+    assert(!text(h.tree).includes('Available Runner'), 'Filtering a known owned source does not create a standalone preview');
     const trade = harness({ integrated: true }), move = tradeCandidates()[0];
     move.outgoing.push({ pid: 'starter', name: 'Starter Receiver' });
     await openTrades(trade, [move]);
     assert.deepEqual(all(trade.tree, node => !!node.props['data-wr-lens-source']).map(node => node.props['data-wr-roster-pid']), ['bench'], 'Only the preview anchor receives the badge');
-    preview = find(trade.tree, node => node.props['data-lens-preview'] === 'trade-a');
+    let preview = find(trade.tree, node => node.props['data-lens-preview'] === 'trade-a');
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-source')), /You sendBench Runner \+ Starter Receiver/);
     assert.equal(text(preview).split('Bench Runner').length - 1, 1); assert.equal(text(preview).split('Starter Receiver').length - 1, 1);
     assert.match(text(find(preview, node => node.props.className === 'wr-lens-target-label')), /You get/);
+    trade.props.rosterFilter = 'Starters'; trade.render();
+    assert.equal(trade.lens.selected.id, move.id); assert.equal(previewNodes(trade).length, 0);
+    assert(!text(trade.tree).includes('Trade Target'), 'A visible secondary outgoing player does not promote the hidden source package');
+    trade.props.rosterFilter = 'All'; trade.render();
+    assert.equal(rosterPlayer(trade, 'bench').props['data-wr-lens-state'], 'active');
+    assert(find(rosterPlayer(trade, 'bench'), node => node.props['data-lens-preview'] === move.id));
     const open = harness({ integrated: true });
     await openWaivers(open, [candidate('open-add', 'Open Spot Add', 2, 5, { anchorPlayerId: null, dropPid: null, outgoing: [] })]);
     preview = find(open.tree, node => node.props['data-lens-preview'] === 'open-add');
@@ -559,17 +573,26 @@ const rosterTrigger = (h, pid) => find(rosterPlayer(h, pid), node => node.props.
 const previewNodes = h => all(h.tree, node => !!node.props['data-lens-preview']);
 const activeSources = h => all(h.tree, node => !!node.props['data-wr-lens-source']);
 
-for (const mode of ['waivers', 'trades']) test(mode + ' opening, alternatives, switching and closing keep controls and player order stable', async () => {
+for (const mode of ['waivers', 'trades']) test(mode + ' activation, opening, alternatives, switching and closing highlight players in their existing order and groups', async () => {
     const h = harness({ integrated: true, metrics: true });
-    const moves = [...(mode === 'waivers' ? waiverCandidates() : tradeCandidates()), secondSourceMove()];
-    await (mode === 'waivers' ? loadWaivers(h, moves) : loadTrades(h, moves));
+    h.props.rosterSort = { key: 'age', dir: 1 }; h.render();
     const controls = () => find(h.tree, node => node.props['aria-label'] === 'Roster acquisition lenses');
     const playerOrder = () => all(h.tree, node => !!node.props['data-wr-roster-pid']).map(node => node.props['data-wr-roster-pid']);
+    const groupHeadings = () => all(h.tree, node => node.props.className === 'wr-roster-mobile-group-heading').map(text);
+    const beforeOrder = playerOrder(), beforeGroups = groupHeadings(), beforeFilter = h.props.rosterFilter, beforeSort = JSON.stringify(h.props.rosterSort);
+    const assertRosterStable = () => {
+        assert.deepEqual(playerOrder(), beforeOrder, 'Activating or choosing a lens move never reorders the original roster rows');
+        assert.deepEqual(groupHeadings(), beforeGroups, 'Lens highlights stay in the original roster groups');
+        assert.equal(h.props.rosterFilter, beforeFilter); assert.equal(JSON.stringify(h.props.rosterSort), beforeSort);
+    };
+    const moves = [...(mode === 'waivers' ? waiverCandidates() : tradeCandidates()), secondSourceMove()];
+    await (mode === 'waivers' ? loadWaivers(h, moves) : loadTrades(h, moves));
+    assertRosterStable();
     const controlShape = () => all(controls(), node => node.type !== 'fragment').map(node => [node.type,
         node.props.className || '', node.props['aria-label'] || '', node.props.value ?? '', node.props['aria-pressed'] ?? '', node.props.role || '']);
-    const beforeOrder = playerOrder(), beforeShape = controlShape(), beforeText = text(controls());
+    const beforeShape = controlShape(), beforeText = text(controls());
     const assertStable = () => {
-        assert.deepEqual(playerOrder(), beforeOrder, 'Choosing a move never reorders the owned roster rows');
+        assertRosterStable();
         assert.deepEqual(controlShape(), beforeShape, 'Choosing a move inserts no new controls above the roster');
         assert.equal(text(controls()), beforeText, 'The top controls keep the same visible text');
         assert(!find(controls(), node => node.props.className === 'wr-lens-impact'));
@@ -589,30 +612,30 @@ for (const mode of ['waivers', 'trades']) test(mode + ' opening, alternatives, s
     h.click('Close'); assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assertStable();
     h.click('Preview move for Bench Runner'); h.click('Collapse move for Bench Runner');
     assert.equal(h.lens.selected, null); assertStable();
+    h.click('Lens off'); assertRosterStable();
     assert.equal(h.writes.length, 0); assert.equal(h.comparisons.length, 0); assert.equal(h.events.length, 0);
 });
 
-test('metric sorting labels follow gain-only suggestions and return above the ordinary roster when the lens closes', async () => {
+test('the metric sorting header stays above the original position groups as lenses highlight players in place', async () => {
     const h = harness({ integrated: true, metrics: true });
     const playerList = () => find(h.tree, node => node.props['aria-label'] === 'Roster players');
     const sortHeaders = () => all(playerList(), node => String(node.props.className || '').split(/\s+/).includes('wr-roster-sort-header'));
     const groups = () => all(playerList(), node => node.props.className === 'wr-roster-mobile-player-group');
-    const normalHeaderFirst = () => {
+    const headerFirst = () => {
         assert.equal(sortHeaders().length, 1);
-        assert(walk(playerList()).indexOf(sortHeaders()[0]) < walk(playerList()).indexOf(groups()[0]), 'Without suggestions the stat header labels the whole roster');
+        assert(walk(playerList()).indexOf(sortHeaders()[0]) < walk(playerList()).indexOf(groups()[0]), 'The stat header remains above the unchanged roster groups');
     };
-    normalHeaderFirst();
+    headerFirst();
     const originalLabels = all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text);
+    const originalGroups = groups().map(group => text(find(group, node => node.props.className === 'wr-roster-mobile-group-heading')));
     await loadWaivers(h, [...waiverCandidates(), secondSourceMove()]);
-    const suggestionGroup = groups().find(group => all(group, node => !!node.props['data-wr-lens-state']).length > 0);
-    const normalGroup = groups().find(group => !all(group, node => !!node.props['data-wr-lens-state']).length);
-    assert(suggestionGroup); assert(normalGroup); assert.equal(sortHeaders().length, 1);
-    const flat = walk(playerList());
-    assert(flat.indexOf(suggestionGroup) < flat.indexOf(sortHeaders()[0]), 'Gain-only suggestions have no misleading metric header above them');
-    assert(flat.indexOf(sortHeaders()[0]) < flat.indexOf(normalGroup), 'The stat header remains directly before players that show stats');
-    assert.deepEqual(all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text), originalLabels, 'Moving the header preserves the current league metric labels');
+    headerFirst();
+    assert.deepEqual(groups().map(group => text(find(group, node => node.props.className === 'wr-roster-mobile-group-heading'))), originalGroups, 'No synthetic Suggestions section replaces the position groups');
+    assert.deepEqual(all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text), originalLabels, 'Lens activation preserves the current league metric labels');
     assert.equal(all(sortHeaders()[0], node => node.type === 'button').length, 5, 'Player and all four stat sort actions remain available');
-    h.click('Lens off'); normalHeaderFirst();
+    h.click('Preview move for Bench Runner'); headerFirst();
+    h.click('Close'); headerFirst();
+    h.click('Lens off'); headerFirst();
 });
 
 test('yellow player bars replace stats with the gain while open and neutral players retain their four stat columns', async () => {
@@ -743,14 +766,40 @@ test('an open roster spot is an owned-context fallback and reveals its incoming 
     assert(find(h.tree, node => node.props['aria-label'] === 'Preview move for Open roster spot'));
 });
 
-test('filtered source fallbacks name the owned player and stay closed until clicked', async () => {
+test('an unresolved source retains its explicit fallback without inventing a visible owned row', async () => {
+    const h = harness({ integrated: true }), move = candidate('unresolved-add', 'Unresolved Source Target', 2, 5, {
+        anchorPlayerId: 'unresolved-source', dropPid: 'unresolved-source', outgoing: [{ pid: 'unresolved-source', name: 'Unresolved Source' }],
+    });
+    await loadWaivers(h, [move]);
+    assert.equal(h.lens.selected, null); assert.equal(previewNodes(h).length, 0); assert(!text(h.tree).includes('Unresolved Source Target'));
+    const fallback = find(h.tree, node => node.props['data-lens-peek'] === move.id);
+    assert.equal(fallback?.type, 'button'); assert.equal(fallback.props['aria-label'], 'Preview move for Unresolved Source');
+    h.click('Preview move for Unresolved Source');
+    assert.equal(h.lens.selected.id, move.id); assert.equal(previewNodes(h).length, 1);
+    assert.equal(activeSources(h).length, 0, 'An unresolved source does not mark an unrelated roster player');
+    assert.match(text(find(previewNodes(h)[0], node => node.props.className === 'wr-lens-source')), /You dropUnresolved Source/);
+    h.click('Close'); assert.equal(previewNodes(h).length, 0); assert(!text(h.tree).includes('Unresolved Source Target'));
+    assert.equal(h.writes.length, 0); assert.equal(h.events.length, 0);
+});
+
+test('owned-source recommendations obey roster filters and search without becoming top-of-list fallbacks', async () => {
     const h = harness({ integrated: true }); h.props.rosterFilter = 'Starters'; h.render(); await loadWaivers(h, [waiverCandidates()[0]]);
     assert(!rosterPlayer(h, 'bench')); assert.equal(h.lens.selected, null); assert(!text(h.tree).includes('Available Runner'));
-    const fallback = find(h.tree, node => node.props['data-lens-peek'] === 'add-a');
-    assert.equal(fallback.props['aria-label'], 'Preview move for Bench Runner'); assert.match(text(fallback), /Bench Runner/);
-    assert(!text(fallback).includes('Available Runner'));
+    assert(!find(h.tree, node => node.props['data-lens-peek'] === 'add-a'), 'A known owned source gets no fallback outside its filtered row');
+    assert(!find(h.tree, node => node.props['aria-label'] === 'Preview move for Bench Runner'));
+    assert.equal(previewNodes(h).length, 0);
+    h.props.rosterFilter = 'All'; h.render();
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'available');
+    assert.equal(h.lens.selected, null); assert(!text(h.tree).includes('Available Runner'), 'Restoring the row still requires an explicit open');
     h.click('Preview move for Bench Runner');
-    assert.match(text(find(previewNodes(h)[0], node => node.props.className === 'wr-lens-source')), /You dropBench Runner/);
+    assert(find(rosterPlayer(h, 'bench'), node => node.props['data-lens-preview'] === 'add-a'));
+    h.change('Search your roster', 'Starter Receiver');
+    assert(!rosterPlayer(h, 'bench')); assert.equal(h.lens.selected.id, 'add-a'); assert.equal(previewNodes(h).length, 0);
+    assert(!text(h.tree).includes('Available Runner')); assert(!find(h.tree, node => node.props['data-lens-peek'] === 'add-a'));
+    h.change('Search your roster', '');
+    assert.equal(rosterPlayer(h, 'bench').props['data-wr-lens-state'], 'active');
+    assert(find(rosterPlayer(h, 'bench'), node => node.props['data-lens-preview'] === 'add-a'));
+    assert.equal(h.writes.length, 0); assert.equal(h.events.length, 0);
 });
 
 test('point-basis reload and lens re-entry return suggestions to closed yellow rows without auto-selection', async () => {

@@ -1816,21 +1816,16 @@ function MyTeamTab({
   // The compact player button opens the existing dossier and roster actions.
   const _renderPhoneCards = () => {
     const groups = [];
-    // Lens ordering is temporary; saved roster filters and sorting stay intact.
-    const lensOrder = new Map();
-    if (rosterLens?.mode !== 'off' && !rosterLens?.loading) (rosterLens?.options || []).forEach(candidate => {
-      const pid = String(candidate.anchorPlayerId || candidate.dropPid || candidate.outgoing?.[0]?.pid || '');
-      if (pid && !lensOrder.has(pid)) lensOrder.set(pid, lensOrder.size);
-    });
-    const displayed = lensOrder.size ? filtered.slice().sort((a, b) => (lensOrder.get(String(a.pid)) ?? Infinity) - (lensOrder.get(String(b.pid)) ?? Infinity)) : filtered;
-    displayed.forEach(r => {
+    // Lenses decorate the user's roster order and groups in place.
+    const lensActive = !!rosterLens && rosterLens.mode !== 'off' && !rosterLens.loading;
+    filtered.forEach(r => {
       const query = phoneSearch.trim().toLowerCase();
       if (query && !`${getPlayerName(r.pid)} ${r.pos} ${r.p.team || 'FA'}`.toLowerCase().includes(query)) return;
-      const opportunity = lensOrder.has(String(r.pid));
-      const key = opportunity ? '__acquisition_lens' : getRowGroupKey(r);
+      const opportunity = lensActive && (rosterLens?.byAnchor.get(String(r.pid))?.length || 0) > 0;
+      const key = getRowGroupKey(r);
       let g = groups[groups.length - 1];
       if (!g || g.key !== key) {
-        g = { key, label: opportunity ? 'Suggestions' : rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
+        g = { key, label: rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
         groups.push(g);
       }
       const isExpanded = expandedPid === r.pid;
@@ -1890,15 +1885,12 @@ function MyTeamTab({
         sort={{ key: rosterSort.key, dir: _phoneSortDescending ? -1 : 1 }} onSort={sortByColumn}
         style={{ gridTemplateColumns: `minmax(95px,1fr) repeat(${metricPreference.selected.length},minmax(0,${1.35 / metricPreference.selected.length}fr))` }}
       />;
-    const normalGroup = groups.find(group => group.key !== '__acquisition_lens');
     return <div ref={phoneRosterListRef} className="wr-roster-mobile-player-list" aria-label="Roster players">
-      {!lensOrder.size && sortHeader}
-      {groups.map(g => <React.Fragment key={g.key}>
-        {lensOrder.size > 0 && g === normalGroup && sortHeader}
-        <div className="wr-roster-mobile-player-group">
+      {sortHeader}
+      {groups.map(g => <div key={g.key} className="wr-roster-mobile-player-group">
         {g.label && <div className="wr-roster-mobile-group-heading"><strong>{g.label}</strong><span>{g.rows.length}</span></div>}
         <div className="wr-roster-mobile-player-rows">{g.rows}</div>
-      </div></React.Fragment>)}
+      </div>)}
     </div>;
   };
 
@@ -2086,7 +2078,7 @@ function MyTeamTab({
         {_phoneSheetEl}
         {_reviewSheetEl}
       </React.Fragment>}
-      {rosterLens && <window.WR.RosterLens.Controls lens={rosterLens} compact={!_phone || phoneTableOpen} inlinePids={new Set(_phone && !phoneTableOpen ? filtered.filter(r => !phoneSearch.trim() || `${getPlayerName(r.pid)} ${r.pos} ${r.p.team || 'FA'}`.toLowerCase().includes(phoneSearch.trim().toLowerCase())).map(r => String(r.pid)) : [])} />}
+      {rosterLens && <window.WR.RosterLens.Controls lens={rosterLens} compact={!_phone || phoneTableOpen} inlinePids={new Set(_phone && !phoneTableOpen ? rows.map(r => String(r.pid)) : [])} />}
       {isChoppedRoster && <section className={_phone ? 'wr-roster-mobile-byes' : undefined} aria-label="Roster bye weeks" style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', color: 'var(--silver)' }}>
         <details>
         <summary style={{ cursor: 'pointer', minHeight: '44px', fontSize: '0.8rem', color: 'var(--gold)' }}>
