@@ -4,6 +4,7 @@
     window.WR = window.WR || {};
     const copy = value => JSON.parse(JSON.stringify(value));
     const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+    const queryFor = view => Object.fromEntries(['source', 'columns', 'filters', 'sort', 'limit', 'groupBy', 'aggregate'].filter(key => view[key] !== undefined).map(key => [key, view[key]]));
     let nextDialogId = 0;
 
     function DashboardBuilderPanel({ layout, catalog, league, scope, focusId, onSave, onClose, renderPreview }) {
@@ -19,6 +20,8 @@
         const [tab, setTab] = React.useState('edit');
         const [discardOpen, setDiscardOpen] = React.useState(false);
         const [lastAttempt, setLastAttempt] = React.useState(null);
+        const [selectedViewId, setSelectedViewId] = React.useState(focusId || '');
+        const [titleText, setTitleText] = React.useState('');
         const dialogRef = React.useRef(null);
         const overlayRef = React.useRef(null);
         const inputRef = React.useRef(null);
@@ -31,10 +34,18 @@
         const idRef = React.useRef(null);
         if (!idRef.current) idRef.current = 'alex-builder-' + (++nextDialogId);
         const id = idRef.current;
-        const dirty = !same(draft, saved);
+        const customViews = draft.filter(item => item.key === 'custom-view' && item.view);
+        const selectedView = customViews.find(item => item.id === selectedViewId) || customViews[0];
+        const fields = selectedView ? (window.WR.DashboardViewData?.fieldsFor?.(queryFor(selectedView.view)) || []) : [];
+        const numericFields = fields.filter(field => field.type === 'number');
+        const canUseMetric = numericFields.length > 0 && (selectedView?.view.aggregate ? !selectedView.view.groupBy : selectedView?.view.limit === 1);
+        const titleDirty = Boolean(selectedView && titleText !== selectedView.title);
+        const dirty = !same(draft, saved) || titleDirty;
         const focused = (layout || []).find(item => item.id === focusId);
-        const focusedLabel = focused && catalog.find(item => item.key === focused.key)?.label;
+        const focusedLabel = focused && (focused.title || catalog.find(item => item.key === focused.key)?.label);
         const leagueName = league?.name || 'Your league';
+
+        React.useEffect(() => { setTitleText(selectedView?.title || ''); }, [selectedView?.id, selectedView?.title]);
 
         function cancelRequest() {
             requestRef.current += 1;
@@ -59,7 +70,7 @@
             const opener = document.activeElement;
             const overflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
-            const controls = () => Array.from(dialog.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+            const controls = () => Array.from(dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])'))
                 .filter(element => !element.disabled && element.tabIndex >= 0 && element.getAttribute('aria-disabled') !== 'true' && !element.closest('[inert]') && element.getClientRects().length);
             // Focusing the title/close control avoids opening the phone keyboard on entry.
             (controls()[0] || dialog).focus();
@@ -126,6 +137,7 @@
             if (!preview) return undefined;
             const disableActions = () => {
                 preview.querySelectorAll('button, a[href], input, select, textarea, [tabindex]').forEach(element => {
+                    if (element.hasAttribute('data-alex-scroll')) return;
                     element.setAttribute('tabindex', '-1');
                     element.setAttribute('aria-disabled', 'true');
                 });
@@ -148,7 +160,7 @@
                 const result = await Promise.race([
                     window.WR.DashboardBuilder.request({
                         prompt: attempt.prompt, messages: attempt.messages,
-                        layout: attempt.layout, catalog, league, focusId,
+                        layout: attempt.layout, catalog, league, focusId: attempt.focusId,
                     }),
                     new Promise((_, reject) => {
                         timeoutRef.current = setTimeout(() => reject(new Error('Alex is taking longer than expected. Try your request again.')), 45000);
@@ -179,10 +191,50 @@
             event?.preventDefault();
             const prompt = input.trim();
             if (!prompt || busy || saving) return;
-            runRequest({ prompt, layout: copy(draft), messages: messages.slice(-12) });
+            runRequest({ prompt, layout: copy(draft), messages: messages.slice(-12), focusId: selectedViewId || focusId });
+        }
+
+        function replaceView(nextSlot, message) {
+            if (!selectedView || busy || saving) return false;
+            try {
+                const next = window.WR.DashboardBuilder.validateLayout(draft.map(item => item.id === selectedView.id ? nextSlot : item), catalog);
+                if (same(next, draft)) return true;
+                setHistory(previous => [...previous.slice(-19), copy(draft)]);
+                setDraft(next);
+                setError(''); setLastAttempt(null); setStatus(message || 'Visual updated. Save when you’re ready.');
+                return true;
+            } catch (failure) {
+                setError(failure?.message || 'That change could not be applied.');
+                setStatus('That change could not be applied. Your preview is unchanged.');
+                return false;
+            }
+        }
+
+        function updateView(patch) {
+            if (selectedView) replaceView({ ...selectedView, view: { ...selectedView.view, ...patch } });
+        }
+
+        function commitTitle() {
+            if (!selectedView || !titleDirty) return true;
+            const title = titleText.trim();
+            if (!title) { setTitleText(selectedView.title); return false; }
+            return replaceView({ ...selectedView, title }, 'View renamed. Save when you’re ready.');
+        }
+
+        function changeDisplay(display) {
+            const view = selectedView?.view;
+            if (!view) return;
+            const patch = { display };
+            if (display === 'bar') {
+                patch.x = fields.some(field => field.id === view.x) ? view.x : (fields.find(field => field.type !== 'number') || fields[0])?.id;
+                patch.y = numericFields.some(field => field.id === view.y) ? view.y : numericFields[0]?.id;
+            }
+            if (display === 'metric') patch.y = numericFields.some(field => field.id === view.y) ? view.y : numericFields[0]?.id;
+            updateView(patch);
         }
 
         function undo() {
+            if (titleDirty && !busy && !saving) { setTitleText(selectedView.title); setStatus('Title change undone.'); return; }
             if (!history.length || busy || saving) return;
             const previous = history[history.length - 1];
             setDraft(copy(previous));
@@ -195,9 +247,14 @@
             if (!dirty || busy || saving) return;
             setSaving(true); setError(''); setStatus('');
             try {
-                await onSave(copy(draft));
+                let next = draft;
+                if (titleDirty) {
+                    if (!titleText.trim()) throw new Error('Give this view a title before saving.');
+                    next = window.WR.DashboardBuilder.validateLayout(draft.map(item => item.id === selectedView.id ? { ...item, title: titleText.trim() } : item), catalog);
+                }
+                await onSave(copy(next));
                 if (!mountedRef.current) return;
-                setSaved(copy(draft)); setHistory([]); setDiscardOpen(false);
+                setDraft(copy(next)); setSaved(copy(next)); setHistory([]); setDiscardOpen(false);
                 setStatus('Saved on this device.');
             } catch (failure) {
                 if (mountedRef.current) {
@@ -209,7 +266,7 @@
 
         const suggestions = focusedLabel
             ? ['Move this section to the top', 'Show more detail in this section', 'Remove this section']
-            : ['Build my weekly dashboard', 'Focus on my roster and draft picks', 'Put my matchup first'];
+            : ['Compare my average player age by position', 'Chart points scored by each team', 'Summarize recent league activity'];
         const chooseSuggestion = prompt => { setInput(prompt); setTab('edit'); inputRef.current?.focus(); };
         const changeTab = next => { if (next === 'preview') inputRef.current?.blur(); setTab(next); setDiscardOpen(false); };
         const tabKeyDown = event => {
@@ -249,7 +306,7 @@
                                 {focusedLabel && <p className="alex-builder-focus">Editing: <strong>{focusedLabel}</strong></p>}
                                 {!messages.length && <div className="alex-builder-welcome">
                                     <h3>What should Home help you do?</h3>
-                                    <p>Choose a starting point or describe your own. You can keep refining the preview.</p>
+                                    <p>Tell Alex what you want to understand. It can choose the data and a useful way to show it, then you can refine the preview.</p>
                                     <div className="alex-builder-suggestions">
                                         {suggestions.map(prompt => <button type="button" key={prompt} className="alex-builder-button" onClick={() => chooseSuggestion(prompt)}>{prompt}</button>)}
                                     </div>
@@ -265,7 +322,7 @@
                             <form className="alex-builder-composer" onSubmit={submit}>
                                 {error && <div className="alex-builder-error" role="alert"><p>{error}</p>{lastAttempt && !busy && <button type="button" className="alex-builder-button" onClick={() => runRequest(lastAttempt, true)}>Retry request</button>}</div>}
                                 <label htmlFor={id + '-prompt'}>Describe your dashboard</label>
-                                <textarea ref={inputRef} id={id + '-prompt'} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} rows={2} placeholder={focusedLabel ? 'Make this section more detailed…' : 'Show my matchup, roster health, and upcoming league dates…'} disabled={busy || saving} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event); }} />
+                                <textarea ref={inputRef} id={id + '-prompt'} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} rows={2} placeholder={focusedLabel ? 'Show this as a chart, or change what it compares…' : 'Compare my roster’s age by position as a bar chart…'} disabled={busy || saving} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event); }} />
                                 {busy
                                     ? <button type="button" className="alex-builder-button" onClick={cancelRequest}>Cancel request</button>
                                     : <button type="submit" className="alex-builder-button alex-builder-primary" disabled={!input.trim() || saving}>Update preview</button>}
@@ -273,6 +330,48 @@
                         </div>
                         <div className="alex-builder-preview" id={id + '-preview'} role="tabpanel" aria-labelledby={id + '-preview-tab'}>
                             <div className="alex-builder-preview-heading"><h3>Home preview</h3><span>{draft.length} {draft.length === 1 ? 'section' : 'sections'} · {dirty ? 'Unsaved changes' : 'Saved layout'}</span></div>
+                            {selectedView && <details className="alex-builder-visual-options">
+                                <summary><span>Visual options<small>Choose a graphic, color, and spacing</small></span></summary>
+                                <div className="alex-builder-visual-fields">
+                                    <div className="alex-builder-field alex-builder-field-wide"><label htmlFor={id + '-view'}>View</label>
+                                        <select id={id + '-view'} value={selectedView.id} onChange={event => setSelectedViewId(event.target.value)} disabled={busy || saving}>
+                                            {customViews.map(item => <option value={item.id} key={item.id}>{item.title}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="alex-builder-field alex-builder-field-wide"><label htmlFor={id + '-view-title'}>Title</label>
+                                        <input id={id + '-view-title'} type="text" value={titleText} maxLength={100} onChange={event => setTitleText(event.target.value)} onBlur={commitTitle} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); } }} disabled={busy || saving} />
+                                    </div>
+                                    <div className="alex-builder-field"><label htmlFor={id + '-display'}>Show as</label>
+                                        <select id={id + '-display'} value={selectedView.view.display} onChange={event => changeDisplay(event.target.value)} disabled={busy || saving}>
+                                            <option value="table">Table</option>
+                                            <option value="bar" disabled={!numericFields.length}>Bar chart{!numericFields.length ? ' (needs a number)' : ''}</option>
+                                            <option value="cards">Cards</option>
+                                            <option value="metric" disabled={!canUseMetric}>Single value{!canUseMetric ? ' (ask Alex for a total)' : ''}</option>
+                                        </select>
+                                    </div>
+                                    <div className="alex-builder-field"><label htmlFor={id + '-density'}>Spacing</label>
+                                        <select id={id + '-density'} value={selectedView.view.appearance?.density || 'comfortable'} onChange={event => updateView({ appearance: { ...selectedView.view.appearance, density: event.target.value } })} disabled={busy || saving}>
+                                            <option value="comfortable">Comfortable</option><option value="compact">Compact</option>
+                                        </select>
+                                    </div>
+                                    {selectedView.view.display === 'bar' && <div className="alex-builder-field"><label htmlFor={id + '-category'}>Compare by</label>
+                                        <select id={id + '-category'} value={selectedView.view.x || ''} onChange={event => updateView({ x: event.target.value })} disabled={busy || saving}>
+                                            {fields.map(field => <option value={field.id} key={field.id}>{field.label}</option>)}
+                                        </select>
+                                    </div>}
+                                    {['bar', 'metric'].includes(selectedView.view.display) && <div className="alex-builder-field"><label htmlFor={id + '-value'}>Value</label>
+                                        <select id={id + '-value'} value={selectedView.view.y || numericFields[0]?.id || ''} onChange={event => updateView({ y: event.target.value })} disabled={busy || saving}>
+                                            {numericFields.map(field => <option value={field.id} key={field.id}>{field.label}</option>)}
+                                        </select>
+                                    </div>}
+                                    <fieldset className="alex-builder-colors alex-builder-field-wide" disabled={busy || saving}>
+                                        <legend>Accent color</legend>
+                                        <div>{['gold', 'teal', 'blue', 'rose'].map(accent => <button type="button" key={accent} className={'alex-builder-button alex-builder-color alex-builder-color-' + accent} aria-label={accent[0].toUpperCase() + accent.slice(1) + ' accent'} aria-pressed={(selectedView.view.appearance?.accent || 'gold') === accent} onClick={() => updateView({ appearance: { ...selectedView.view.appearance, accent } })}><span aria-hidden="true" />{accent[0].toUpperCase() + accent.slice(1)}</button>)}</div>
+                                    </fieldset>
+                                    <p className="alex-builder-visual-hint alex-builder-field-wide">Changes update the preview. Ask Alex to change the data, filters, or totals.</p>
+                                </div>
+                            </details>}
+                            {window.WR.DashboardReminderPanel && <window.WR.DashboardReminderPanel scope={scope} league={league} views={customViews} savedViews={saved.filter(item => item.key === 'custom-view' && item.view)} />}
                             <div className="alex-builder-preview-content" ref={previewRef} onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); } }}>{renderPreview(draft)}</div>
                             {!draft.length && <p className="alex-builder-empty">Your Home is clear. Ask Alex to add a section.</p>}
                         </div>
@@ -280,7 +379,7 @@
                     <footer className="alex-builder-footer">
                         <p role="status" className="alex-builder-status">{saving ? 'Saving your dashboard…' : busy ? 'Alex is updating your preview…' : status || (dirty ? 'Your Home stays unchanged until you save.' : 'Layouts are saved on this device.')}</p>
                         <div className="alex-builder-footer-actions">
-                            <button type="button" className="alex-builder-button" onClick={undo} disabled={!history.length || busy || saving}>Undo</button>
+                            <button type="button" className="alex-builder-button" onClick={undo} disabled={(!history.length && !titleDirty) || busy || saving}>Undo</button>
                             <button type="button" className="alex-builder-button alex-builder-primary" onClick={save} disabled={!dirty || busy || saving}>Save dashboard</button>
                         </div>
                     </footer>

@@ -134,13 +134,14 @@ async function main() {
         assert.equal(captured.context.callType, 'dashboard-builder');
         assert.equal(captured.context.leagueId, league.league_id);
         assert.equal(captured.context.useWebSearch, false);
-        assert.equal(captured.context.maxTokens, 3000);
+        assert.equal(captured.context.maxTokens, 6000);
         assert.equal(captured.context.decisionContext.leagueType, 'dynasty');
         assert.equal(captured.context.messages.length, 3);
         const envelope = JSON.parse(captured.context.messages.at(-1).content);
         assert.deepEqual(envelope.currentLayout, original);
         assert.equal(envelope.selectedSectionId, 'dw_roster');
-        assert(captured.context.system.includes('cannot create new tables, filters'));
+        assert(captured.context.system.includes('you are not limited to existing sections'));
+        assert.deepEqual(envelope.dataCatalog, []);
         assert(!JSON.stringify(captured).includes('signature'));
     });
     await checkAsync('full JSON fences work; mixed prose and invalid schemas are rejected', async () => {

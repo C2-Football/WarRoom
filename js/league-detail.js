@@ -2690,6 +2690,7 @@
                 currentLeague={currentLeague}
                 leagueSkin={leagueSkin}
                 playersData={playersData}
+                viewPlayersData={basePlayersData || playersData}
                 statsData={statsData}
                 prevStatsData={stats2025Data}
                 myRoster={myRoster}

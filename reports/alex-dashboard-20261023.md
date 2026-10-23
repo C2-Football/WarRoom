@@ -1,36 +1,44 @@
-# Build with Alex — first version
+# Build with Alex — flexible dashboard builder
 
-Implemented on `feat/alex-dashboard-20261023`, based on `origin/main` at `17f6892b7c83afcea233e4b4239e5401dbe1fb8d`.
+Implemented in `/Users/jacobc/Projects/warroom-alex-dashboard-20261023`, branch `feat/alex-dashboard-20261023`, based on `origin/main` at `17f6892b7c83afcea233e4b4239e5401dbe1fb8d`. The first layout editor is commit `d9cbf28`; this revision expands it to create new data views.
 
 ## Behavior
 
-- Replaces the widget picker with a visible **Build with Alex** entry on customizable Home dashboards. Existing redraft and Chopped curated layouts retain their rules.
-- Supports conversational addition, removal, ordering, size/detail changes, and supported primary metrics using the registered dashboard components.
-- Shows the actual dashboard components in a separate preview. The saved Home does not change until Save.
-- Provides draft Undo, discard confirmation, and persistent **Undo last save** on Home.
-- Stores the exact layout and bounded history per account and league on this browser/device. Removed sections stay removed after reload; existing layouts remain the starting point. No cross-device sync is claimed.
-- Keeps custom Home sections in the requested order and expanded on phones. The editor uses Edit/Preview tabs, 44px controls, a 16px input, safe-area spacing, and keyboard-aware height.
-- Uses the existing authenticated `OD.callAI` / `recon-chat` route. Validates the complete response against a bounded component schema. It does not execute generated code, generate fantasy statistics, or submit fantasy transactions.
-- Preserves the draft on errors; supports retry/cancel; rejects late account replies, stale-tab saves, invalid components, sizes, metrics, and identifiers.
-- Preview rendering cannot publish Intel/waiver recommendations, change global rankings preferences, or navigate away.
+- Replaces the widget picker with **Build with Alex** on customizable Home dashboards. Existing redraft and Chopped curated layouts retain their rules.
+- Alex can choose data, filters, grouping, aggregates, columns, ordering and a visual from a conversation. New views are not predefined widget recipes. Initial data sources are the owner's roster, all league rosters, league records, and the loaded activity sample.
+- New views render as tables, bar charts, cards, or a single aggregate/value. Visual options edit title, chart type, axes, accent color, and spacing directly, without another model request. Follow-up conversation targets the selected view.
+- The app resolves values from real loaded data; generated responses contain only a validated query/presentation specification. Unknown fields, formulas, executable code and unsupported sources are rejected. Missing data remains unavailable, projected ages do not masquerade as reported ages, and incomplete aggregates/activity disclose their coverage.
+- Shows the actual dashboard in a separate preview. Home changes only on Save. Draft Undo, discard, persistent **Undo last save**, and compatibility with existing saved layouts remain available.
+- Layout/history are scoped to account and league on this browser. Rich history is trimmed within the readable storage budget; oversized single layouts fail before writing. This is not cross-device dashboard sync.
+- Phone Home keeps sections in order and expanded. The builder uses Edit/Preview tabs, 44px targets, 16px inputs, safe-area spacing, and keyboard-aware height. Wide tables scroll within their card and remain keyboard accessible.
+- Uses the existing authenticated `OD.callAI` / `recon-chat` route with the semantic data catalog. Provider credentials remain in the existing adapter. Failed, canceled or late account replies do not change the saved dashboard.
+- Preview rendering cannot publish Intel/waiver recommendations, change global rankings preferences, or submit fantasy transactions.
+
+## Reminders and the delivery boundary
+
+Users can save daily/weekly reminder drafts with a time, IANA time zone, view, and email/push choice. These drafts save separately from the dashboard and remain clearly **Delivery not connected** until an authenticated delivery service proves readiness. They are scheduled reminders to review a view, not score/injury condition alerts.
+
+The client integration supports capability checks, explicit enable/update/pause, stale-session and revision checks, exact server acknowledgements, verified email gating, existing push-subscription binding, and reconciliation of remote records after local storage is cleared. Tests mock that service.
+
+**Actual email/push delivery is not implemented or deployed by this frontend change.** The repository has no reminder scheduler, push registration flow, or reminder email service. Existing Resend password reset is unrelated. The owner account backend needs the implementation described in [dashboard-reminder-service-contract.md](dashboard-reminder-service-contract.md), including authenticated storage, verified opt-in, scheduler, delivery ledger, push registration, and unsubscribe/pause handling. No notifications were sent. No backend migration or deployment was performed.
+
+Season fantasy-point fields also remain unavailable on this Home integration until the caller supplies a verified matching-season stats snapshot. Team record/points-for data and roster metadata are available independently; the builder never substitutes projections or the time-travel selector's unverified statistics.
 
 ## Verification
 
-Passed:
+Passed locally:
 
-- `npm run test:dashboard-builder`: 15 engine behavior groups and four read-only preview groups.
-- `npm run test:dashboard-league`: layout, league data, widgets, missing/zero/stale scores, and Cup behavior.
+- `npm run test:dashboard-builder`: 54 groups across builder state/storage, data queries, rendering, reminder contract, and preview side-effect isolation.
 - `npm run test:core`: 97 tests.
-- AI routing and format-context tests; first-class mode and intelligence-surface contracts; design-token contracts.
-- Waiver evidence and nine Analyst Mock tests.
-- `npm run test:dashboard-builder-browser`: the real app in Chromium at 320×700, 390×844, 667×375, and 1365×900, plus reduced 390×360 height. All four journeys passed with zero browser runtime errors.
-- Browser checks cover preview order, follow-up conversation, save/reload, both Undo paths, discard, quota failure/retry, invalid/503 AI replies, canceled late replies, league isolation, touch target reachability, no horizontal overflow, keyboard focus trap, and focus return.
-- Production compilation, focused lint (no errors; pre-existing unused-variable warnings remain), and `git diff --check`.
+- `npm run test:dashboard-league`: existing layout, league data, widget, missing/zero/stale score, and Cup behavior.
+- `npm run test:design-tokens`: four contracts.
+- Focused ESLint: zero errors. `league-detail.js` retains its pre-existing unused `avatarKey` warning.
+- `git diff --check`.
+- Production build: 165 JSX scripts / 311 total modules; new scripts are included and existing release packaging covers root CSS files.
+- Real-app Chromium acceptance at 320×700, 390×844, 667×375, 1365×900, and reduced 390×360 phone height. All four journeys passed with zero browser runtime errors.
 
-Browser evidence is under `output/playwright/dashboard-builder/`, including `results.json`, phone conversation/preview images, desktop images, and short-landscape images. Provider data and AI responses were controlled fixtures; external writes were blocked. This is local browser evidence, not live AI output quality, authenticated production, physical-device, or deployment verification. WebKit could not launch because its installed browser executable was missing; Safari is unverified.
+Browser checks cover conversational changes, new grouped data views, visual edits without extra AI calls, selected-view targeting, nested table scrolling, save/reload, draft/persistent undo, discard, quota failure/retry, invalid/503 replies, late cancellation, account/league boundaries, focus trapping/restoration, touch reachability, and no page overflow. Reminder checks include persistent timezone/channel drafts, inactive status, and no outgoing delivery mutation.
 
-## Scope and follow-up
+Evidence lives under `output/playwright/dashboard-builder/`: `results.json`, conversation/preview images, custom-view images, visual-options images, and reminder images. Provider data and AI responses are controlled fixtures; external writes are blocked. This is local browser emulation, not live-model quality, authenticated hosted service, physical-device, Safari, or production deployment proof. WebKit was unavailable in this environment.
 
-No backend migration or deployment was performed. This version composes existing supported sections; custom tables, arbitrary filters, named dashboards, and account sync are outside the first version. A real signed-in AI request and Safari/physical-device check remain appropriate before release.
-
-To run locally with the release's canonical shared dependency, sync from the dependency revision pinned in `.github/workflows/deploy.yml`, then use the existing `npm start` workflow. The browser acceptance runner supplies its own isolated local server and fixtures.
+To run locally, sync the shared dependency pinned in `.github/workflows/deploy.yml` before starting the app. The browser acceptance runner supplies its own isolated local server and fixtures.

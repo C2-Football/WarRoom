@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
-// js/tabs/dashboard.js — DashboardPanel: iPhone-style widget system
-// Modules (apps) × Sizes (S/M/L). Full-screen picker overlay.
+// js/tabs/dashboard.js — DashboardPanel: personalized Home
+// Build with Alex composes existing sections and flexible data views.
 // Star-to-dashboard from any card across the app.
 // ══════════════════════════════════════════════════════════════════
 
@@ -435,6 +435,7 @@ function DashboardPanel(props) {
         timeAgo,
         briefDraftInfo,
         timeRecomputeTs,
+        viewPlayersData = playersData,
         readOnly = false,
     } = props;
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
@@ -1135,7 +1136,7 @@ function DashboardPanel(props) {
                 onMouseLeave={() => setShowGear(false)}
                 style={{
                     gridColumn: sizeSpan[widget.size] || 'span 1',
-                    gridRow: rowSpan[widget.size] || 'span 1',
+                    gridRow: widget.key === 'custom-view' ? (widget.size === 'md' ? 'span 2' : 'span 3') : rowSpan[widget.size] || 'span 1',
                     position: 'relative',
                     opacity: dragIdx === idx ? 0.4 : 1,
                     transition: theme.effects?.transition || 'opacity 0.15s',
@@ -1300,6 +1301,9 @@ function DashboardPanel(props) {
     function renderWidget(widget, idx) {
         if (!widget?.key) return null;
         const { key, size, primaryMetric } = widget;
+        if (key === 'custom-view') return <WidgetShell key={widget.id} widget={widget} idx={idx}>
+            <window.WR.DashboardDataView widget={widget} context={{ currentLeague, myRoster, playersData: viewPlayersData, standings, rankedTeams, transactions, getPlayerName, getOwnerName }} />
+        </WidgetShell>;
 
         // Navigate on click for SM widgets
         // v2 click targets use the module's clickTarget map; fall back to legacy

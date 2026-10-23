@@ -32,6 +32,16 @@ const initialPlan = [
     { id: 'alex_calendar', key: 'league-calendar', size: 'md' },
 ];
 const revisedPlan = [initialPlan[2], { ...initialPlan[0], size: 'md' }, initialPlan[1]];
+const customPlan = [
+    { id: 'alex_age', key: 'custom-view', size: 'lg', title: 'Average age by position', view: {
+        source: 'roster', groupBy: 'position', aggregate: { op: 'avg', field: 'age' }, columns: ['position', 'value'],
+        sort: { field: 'value', direction: 'desc' }, limit: 20, display: 'bar', x: 'position', y: 'value', appearance: { accent: 'gold', density: 'comfortable' },
+    } },
+    { id: 'alex_roster_details', key: 'custom-view', size: 'xl', title: 'Detailed roster', view: {
+        source: 'roster', columns: ['name', 'position', 'nflTeam', 'age', 'slot', 'teamName', 'gamesPlayed', 'fantasyPoints', 'ppg'],
+        limit: 20, display: 'table', appearance: { accent: 'gold', density: 'comfortable' },
+    } },
+];
 const equalLayout = (actual, expected, label) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected, label);
 const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS' };
 
@@ -109,7 +119,9 @@ async function run() {
             }, { account, username });
             const page = await context.newPage();
             const errors = [];
+            const reminderWrites = [];
             page.on('pageerror', error => errors.push(error.message));
+            page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/fw-dashboard-reminders')) reminderWrites.push(request.url()); });
             const entry = id => {
                 const url = new URL(serving.url);
                 url.searchParams.set('dev', 'true'); url.searchParams.set('user', username);
@@ -262,10 +274,111 @@ async function run() {
                 await open();
                 equalLayout(await previewKeys(), startingLayout.map(item => item.key), 'Reload retains the undone dashboard');
                 await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
+
+                await open();
+                await submit('Replace Home with average roster age by position as a bar chart, plus a detailed roster table.', { layout: customPlan });
+                await ready();
+                const dataRequest = JSON.parse(requests.at(-1).context.messages.at(-1).content);
+                assert(dataRequest.dataCatalog.some(source => source.id === 'roster'), 'Alex receives an actual data catalog for new views');
+                equalLayout(await previewKeys(), ['custom-view', 'custom-view'], 'Custom data views render without existing widget recipes');
+                const ageView = () => dialog().locator('.alex-data-view').first();
+                await ageView().getByRole('listitem').first().waitFor();
+                assert.equal(await ageView().getByRole('listitem').count(), 9, 'Grouped view is calculated from all nine fixture positions');
+                assert.equal(await ageView().getByRole('listitem').first().locator('strong').innerText(), '25', 'Chart displays calculated fixture age');
+                await dialog().locator('.alex-builder-preview').evaluate(el => { el.scrollTop = 0; });
+                await page.screenshot({ path: path.join(output, size.label + '-custom-overview.png'), fullPage: false });
+                const directRequestCount = requests.length;
+                const visualSummary = dialog().locator('.alex-builder-visual-options summary');
+                await reachable(visualSummary, 'Visual options');
+                await click(visualSummary);
+                await dialog().locator('.alex-builder-preview').evaluate(el => { el.scrollTop = 0; });
+                await page.screenshot({ path: path.join(output, size.label + '-visual-options.png'), fullPage: false });
+                await reachable(dialog().getByRole('button', { name: 'Teal accent', exact: true }), 'Accent option');
+                await click(dialog().getByRole('button', { name: 'Teal accent', exact: true }));
+                assert(await ageView().evaluate(el => el.classList.contains('alex-data-teal')), 'Accent updates the real preview');
+                await click(dialog().getByRole('button', { name: 'Undo', exact: true }));
+                assert(await ageView().evaluate(el => el.classList.contains('alex-data-gold')), 'Undo restores the previous visual choice');
+                await click(dialog().getByRole('button', { name: 'Blue accent', exact: true }));
+                await dialog().getByLabel('Spacing', { exact: true }).selectOption('compact');
+                await dialog().getByLabel('Show as', { exact: true }).selectOption('cards');
+                assert.equal(await ageView().getAttribute('data-view-display'), 'cards', 'Cards can display the same computed dataset');
+                await dialog().getByLabel('Show as', { exact: true }).selectOption('table');
+                await dialog().getByLabel('Title', { exact: true }).fill('My position age comparison');
+                await dialog().getByLabel('Title', { exact: true }).press('Enter');
+                await ageView().getByRole('heading', { name: 'My position age comparison', exact: true }).waitFor();
+                assert(await ageView().evaluate(el => el.classList.contains('alex-data-compact')), 'Spacing updates the real preview');
+                assert.equal(await dialog().getByLabel('Show as', { exact: true }).locator('option[value="metric"]').isDisabled(), true, 'Grouped data cannot silently become a single value');
+                await fit('Expanded visual controls');
+                assert.equal(requests.length, directRequestCount, 'Visual controls and draft undo do not make model calls');
+                equalLayout((await saved()).layout, startingLayout, 'Visual changes remain private until Save');
+                const expectedCustom = JSON.parse(JSON.stringify(customPlan));
+                expectedCustom[0].title = 'My position age comparison';
+                expectedCustom[0].view.display = 'table';
+                expectedCustom[0].view.appearance = { accent: 'blue', density: 'compact' };
+                await dialog().locator('.alex-builder-visual-options').getByLabel('View', { exact: true }).selectOption('alex_roster_details');
+                await submit('Keep this view as a detailed roster table.', { layout: expectedCustom });
+                await ready();
+                assert.equal(JSON.parse(requests.at(-1).context.messages.at(-1).content).selectedSectionId, 'alex_roster_details', 'Conversation targets the explicitly selected custom view');
+                await tab('Preview');
+                const requestsBeforeCustomSave = requests.length;
+                await click(visualSummary);
+                const tableScroll = dialog().getByRole('region', { name: 'Detailed roster data table', exact: true });
+                await tableScroll.scrollIntoViewIfNeeded();
+                const tableState = await tableScroll.evaluate(el => ({ width: el.clientWidth, content: el.scrollWidth, tabIndex: el.tabIndex, disabled: el.getAttribute('aria-disabled'), pointerEvents: getComputedStyle(el).pointerEvents }));
+                assert(tableState.content > tableState.width && tableState.tabIndex === 0 && tableState.disabled !== 'true' && tableState.pointerEvents === 'auto', 'Wide table remains scrollable within preview: ' + JSON.stringify(tableState));
+                await tableScroll.focus();
+                await page.keyboard.press('ArrowRight');
+                await page.waitForFunction(() => [...document.querySelectorAll('.alex-builder-preview [data-alex-scroll]')].some(el => el.scrollLeft > 0));
+                await fit('Wide generated table');
+                await page.screenshot({ path: path.join(output, size.label + '-custom-views.png'), fullPage: false });
+                const reminderPanel = dialog().locator('.dashboard-reminders');
+                await click(reminderPanel.locator('.dashboard-reminders-toggle'));
+                await reminderPanel.getByText('Delivery not connected', { exact: true }).first().waitFor();
+                await click(reminderPanel.getByRole('button', { name: 'Add reminder draft', exact: true }));
+                await reminderPanel.getByLabel(/^Reminder title/).fill('Review my roster ages');
+                await reminderPanel.getByLabel(/^Delivery/).selectOption('push');
+                await reminderPanel.getByLabel(/^Repeat/).selectOption('daily');
+                await reachable(reminderPanel.locator('input[type="time"]'), 'Reminder time');
+                await reminderPanel.locator('input[type="time"]').fill('08:30');
+                await reminderPanel.getByLabel(/^Time zone/).fill('America/Chicago');
+                await fit('Reminder form');
+                await reachable(reminderPanel.getByRole('button', { name: 'Save reminder draft', exact: true }), 'Save reminder draft');
+                await click(reminderPanel.getByRole('button', { name: 'Save reminder draft', exact: true }));
+                await reminderPanel.getByText('Reminder draft saved on this device. Delivery has not been changed.', { exact: true }).waitFor();
+                const reminderState = await page.evaluate(({ leagueA, leagueB }) => {
+                    const builder = window.WR.DashboardBuilder, reminders = window.WR.DashboardReminders;
+                    return { current: reminders.read(builder.scopeFor(leagueA)), otherLeague: reminders.read(builder.scopeFor(leagueB)), otherAccount: reminders.read('another-account:' + leagueA) };
+                }, { leagueA, leagueB });
+                assert.equal(reminderState.current.reminders.length, 1, 'Reminder draft persists separately from dashboard save');
+                assert.equal(reminderState.current.reminders[0].channel, 'push', 'Chosen reminder delivery preference is retained');
+                equalLayout(reminderState.current.reminders[0].schedule, { frequency: 'daily', day: null, time: '08:30', timeZone: 'America/Chicago' }, 'Reminder time and zone persist');
+                assert.equal(reminderState.otherLeague.reminders.length + reminderState.otherAccount.reminders.length, 0, 'Reminder drafts stay scoped to account and league');
+                assert.equal(await reminderPanel.getByRole('button', { name: 'Enable reminder', exact: true }).count(), 0, 'Unavailable delivery never offers a false activation');
+                assert.equal(await reminderPanel.getByText('Scheduled', { exact: true }).count(), 0, 'Saving a draft never claims it is scheduled');
+                assert.equal(reminderWrites.length, 0, 'Saving a local reminder draft sends no delivery request');
+                await page.screenshot({ path: path.join(output, size.label + '-reminder-draft.png'), fullPage: false });
+                await click(dialog().getByRole('button', { name: 'Save dashboard', exact: true }));
+                await dialog().getByText('Saved on this device.', { exact: true }).waitFor();
+                const savedCustom = (await saved()).layout;
+                equalLayout(savedCustom, expectedCustom, 'Save retains custom query, title, display, and visual options');
+                await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
+                await page.reload({ waitUntil: 'domcontentloaded' });
+                await page.getByRole('button', { name: 'Build with Alex', exact: true }).first().waitFor({ timeout: 60000 });
+                equalLayout((await saved()).layout, expectedCustom, 'Custom view survives reload');
+                await page.locator('.alex-data-view').first().getByRole('heading', { name: 'My position age comparison', exact: true }).waitFor();
+                await open();
+                await tab('Preview');
+                await click(dialog().locator('.dashboard-reminders-toggle'));
+                await dialog().locator('.dashboard-reminders').getByText('Review my roster ages', { exact: true }).waitFor();
+                assert.equal(await dialog().locator('.dashboard-reminders').getByText('Scheduled', { exact: true }).count(), 0, 'Reload retains inactive reminder draft status');
+                await click(dialog().getByRole('button', { name: 'Close builder', exact: true }));
+                await click(page.getByRole('button', { name: 'Undo last save', exact: true }));
+                equalLayout((await saved()).layout, startingLayout, 'Persistent undo restores Home before custom views');
+                assert.equal(requests.length, requestsBeforeCustomSave, 'Reminders, saving, reloading and persistent undo need no model call');
                 assert.equal(errors.length, 0, 'No browser runtime errors: ' + errors.join(' | '));
                 assert.equal(plans.length, 0, 'All queued fixture responses were consumed');
                 results.push({ viewport: size.label, dimensions: `${size.width}x${size.height}`, touch: size.touch, passed: true, aiFixtureRequests: requests.length, blockedExternalWrites: blocked.length });
-                console.log('PASS dashboard builder ' + size.label + ': preview, save/reload, conversation, draft/persistent undo, discard, storage/AI failures, cancel, league isolation, focus');
+                console.log('PASS dashboard builder ' + size.label + ': preview, custom queries/visuals, table scroll, save/reload, conversation, draft/persistent undo, discard, storage/AI failures, cancel, league isolation, focus');
             } catch (error) {
                 await page.screenshot({ path: path.join(output, size.label + '-failure.png'), fullPage: false }).catch(() => {});
                 fs.writeFileSync(path.join(output, size.label + '-failure.json'), JSON.stringify({ error: error.stack, browserErrors: errors, url: page.url(), text: await page.locator('body').innerText().catch(() => ''), requests }, null, 2));
