@@ -73,7 +73,18 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         }); } catch (_) { /* Unavailable projections stay a dash. */ }
     }
     const projectedFinish = row => leagueScoreboardProjectedFinish(row, playersData, nflGames, currentLeague, week, projections, service);
-    const projectionLine = row => canOpenGameDay && <span className="mc-score-projection" title="Projected finish: earned points from completed games plus full-game estimates for unfinished starters. Live estimates are at least points already earned; a dash means required data is unavailable.">Proj. finish <strong>{points(projectedFinish(row))}</strong></span>;
+    const compareScores = (value, opponent) => {
+        const known = number => number != null && String(number).trim() !== '' && Number.isFinite(Number(number));
+        if (!known(value) || !known(opponent)) return { state: 'unavailable', delta: null };
+        const delta = Number(value) - Number(opponent);
+        return { state: delta > 0 ? 'leading' : delta < 0 ? 'trailing' : 'tied', delta };
+    };
+    const projectionLine = (row, opponent) => {
+        if (!canOpenGameDay) return null;
+        const finish = projectedFinish(row), comparison = compareScores(finish, opponent ? projectedFinish(opponent) : null);
+        const cue = comparison.state === 'leading' ? 'projected ahead' : comparison.state === 'trailing' ? 'projected behind' : comparison.state === 'tied' ? 'projected even' : '';
+        return <span className="mc-score-projection" data-projection-state={comparison.state} aria-label={`Projected finish ${points(finish)}${cue ? '; ' + cue + (comparison.delta ? ' by ' + points(Math.abs(comparison.delta)) : '') : ''}`} title="Projected finish: earned points from completed games plus full-game estimates for unfinished starters. Live estimates are at least points already earned; a dash means required data is unavailable.">Proj. finish <strong>{points(finish)}{cue && <span className="mc-score-projection-cue" aria-hidden="true">{comparison.state === 'leading' ? '↑' : comparison.state === 'trailing' ? '↓' : '='}</span>}</strong></span>;
+    };
     const groups = (board.groups || []).slice().sort((a, b) => Number(b.teams.some(own)) - Number(a.teams.some(own)));
     const ladder = (board.rows || []).filter(row => {
         const roster = rosterFor(row);
@@ -128,17 +139,26 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
     const matchupTeams = rows => rows.slice().sort((a, b) => Number(own(b)) - Number(own(a)));
     const matchupHeader = rows => {
         const [left, right] = matchupTeams(rows);
+        const normTeam = team => ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR', AZ: 'ARI', OAK: 'LV', SD: 'LAC' })[String(team || '').toUpperCase()] || String(team || '').toUpperCase();
+        const starterTeams = new Set(rows.flatMap(row => (row.starters || []).map(pid => normTeam(playersData?.[pid]?.team))).filter(Boolean));
+        const started = canOpenGameDay && nflGames.some(game => ['live', 'final'].includes(window.App?.NflContext?.gameStatus?.(game)) && (starterTeams.has(normTeam(game.home)) || starterTeams.has(normTeam(game.away))));
         return <div className="lls-versus">
-            {[left, right].map((row, index) => <React.Fragment key={row.roster_id}>
+            {[left, right].map((row, index) => {
+                const opponent = index ? left : right;
+                const comparison = compareScores(teamPoints(row), teamPoints(opponent));
+                const state = comparison.state === 'tied' && Number(teamPoints(row)) === 0 && !started ? 'pending' : comparison.state;
+                const label = state === 'leading' ? 'Leading' : state === 'trailing' ? 'Behind' : state === 'tied' ? 'Tied' : null;
+                return <React.Fragment key={row.roster_id}>
                 {index === 1 && <span className="lls-vs" aria-hidden="true">VS</span>}
-                <div className={`lls-side${index ? ' lls-side-right' : ''}${own(row) ? ' lls-own' : ''}`}>
-                    <span className="lls-owner" title={ownerName(row)}>{ownerName(row)}</span>
+                <div className={`lls-side${index ? ' lls-side-right' : ''}${own(row) ? ' lls-own' : ''}`} data-score-state={state}>
+                    <span className="lls-owner-line"><span className="lls-owner" title={ownerName(row)}>{ownerName(row)}</span>{fullBoard && own(row) && <small className="lls-you">You</small>}</span>
                     {!fullBoard && <span className="lls-side-label">{own(row) ? 'Your team' : 'Points'}</span>}
-                    <strong className="lls-score">{points(teamPoints(row))}</strong>
-                    {projectionLine(row)}
+                    <span className="lls-score-line"><strong className="lls-score">{points(teamPoints(row))}</strong>{fullBoard && label && <small className="lls-score-cue">{label}</small>}</span>
+                    {projectionLine(row, opponent)}
                     {fullBoard && canOpenGameDay && <span className="mc-score-progress" title="NFL game progress for reported starters. Left includes live and scheduled games; scores may still be corrected.">{leagueScoreboardStarterProgress(row, playersData, nflGames, currentLeague, week).text}</span>}
                 </div>
-            </React.Fragment>)}
+            </React.Fragment>;
+            })}
         </div>;
     };
     const matchupStarters = rows => {

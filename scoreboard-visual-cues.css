@@ -1,0 +1,86 @@
+/* Matchup cues compare the reported scores and projected finishes separately. */
+.lls .lls-owner-line { min-width: 0; }
+.lls .lls-owner-line > .lls-owner { display: block; min-width: 0; }
+
+.mc-scoreboard.lls {
+  --lls-lead: #74e2aa;
+  --lls-trail: #ff9a9f;
+  --lls-even: var(--cx-accent, #b7ceff);
+}
+
+.mc-scoreboard.lls .lls-pair .lls-side {
+  border-top: 2px solid transparent;
+  border-radius: var(--card-radius-xs, 5px);
+  padding: 5px 0 3px;
+}
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="leading"] {
+  border-top-color: var(--lls-lead);
+  background: linear-gradient(180deg, rgba(116, 226, 170, .12), rgba(116, 226, 170, .02));
+}
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="trailing"] {
+  border-top-color: var(--lls-trail);
+  background: linear-gradient(180deg, rgba(255, 154, 159, .1), rgba(255, 154, 159, .015));
+}
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="tied"] {
+  border-top-color: var(--lls-even);
+  background: linear-gradient(180deg, rgba(183, 206, 255, .1), rgba(183, 206, 255, .015));
+}
+
+.mc-scoreboard.lls .lls-owner-line {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.mc-scoreboard.lls .lls-owner-line .lls-owner { min-width: 0; }
+.mc-scoreboard.lls .lls-side-right .lls-owner-line { justify-content: flex-end; }
+.mc-scoreboard.lls .lls-you {
+  flex-shrink: 0;
+  padding: 1px 4px;
+  border: 1px solid rgba(183, 206, 255, .45);
+  border-radius: var(--card-radius-xs, 5px);
+  background: rgba(183, 206, 255, .16);
+  color: var(--lls-even);
+  font: 650 10px/1.2 var(--font-body, system-ui, sans-serif);
+}
+.mc-scoreboard.lls .lls-pair.lls-card-own {
+  border-color: rgba(183, 206, 255, .75);
+  box-shadow: inset 3px 0 var(--lls-even);
+  background: linear-gradient(120deg, rgba(183, 206, 255, .14), rgba(123, 159, 213, .04)) !important;
+}
+
+.mc-scoreboard.lls .lls-score-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 5px;
+  min-width: 0;
+}
+.mc-scoreboard.lls .lls-side-right .lls-score-line { flex-direction: row-reverse; }
+.mc-scoreboard.lls .lls-score-line .lls-score { margin-top: 0 !important; line-height: 1.15; }
+.mc-scoreboard.lls .lls-score-cue {
+  font: 650 10px/1.25 var(--font-body, system-ui, sans-serif);
+  white-space: nowrap;
+}
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="leading"] :is(.lls-score, .lls-score-cue) { color: var(--lls-lead) !important; }
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="trailing"] :is(.lls-score, .lls-score-cue) { color: var(--lls-trail) !important; }
+.mc-scoreboard.lls .lls-pair .lls-side[data-score-state="tied"] :is(.lls-score, .lls-score-cue) { color: var(--lls-even) !important; }
+
+.mc-scoreboard.lls .lls-pair .mc-score-projection {
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.mc-scoreboard.lls .mc-score-projection-cue {
+  display: inline-block;
+  margin-left: 3px;
+  font: 700 12px/1 var(--font-mono, monospace);
+}
+.mc-scoreboard.lls .mc-score-projection[data-projection-state="leading"] :is(strong, .mc-score-projection-cue) { color: var(--lls-lead) !important; }
+.mc-scoreboard.lls .mc-score-projection[data-projection-state="trailing"] :is(strong, .mc-score-projection-cue) { color: var(--lls-trail) !important; }
+.mc-scoreboard.lls .mc-score-projection[data-projection-state="tied"] :is(strong, .mc-score-projection-cue) { color: var(--lls-even) !important; }
+
+@media (max-width: 370px) {
+  .mc-scoreboard.lls .lls-score-line { column-gap: 4px; }
+  .mc-scoreboard.lls .lls-owner-line { gap: 4px; }
+  .mc-scoreboard.lls .lls-you { padding-inline: 3px; }
+}

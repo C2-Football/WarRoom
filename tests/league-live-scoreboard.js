@@ -138,10 +138,89 @@ for (const median of [{},{gp:1},{season:2026,week:2}]) assert.equal(finish({poin
 for (const row of [{points:null,starters:['done']},{points:40,starters:['postponed']},{points:40,starters:['missing']},{points:40,starters:['live']},{points:40,starters:['later']}]) assert.equal(finish(row,progressPlayers,progressGames,props.currentLeague,2,{},service),null,'Required missing data stays unavailable');
 App.WeeklyProj={projectRoster:()=>({p2:estimates.live})};
 progressTree=render({fullBoard:true,selectedWeek:2,playersData:{p1:progressPlayers.done,p2:progressPlayers.live}});
-assert(nodes(progressTree).some(n=>n.props?.className==='mc-score-projection'&&text(n)==='Proj. finish 10.00'),'Projected finish renders alongside actual score');
+assert(nodes(progressTree).some(n=>n.props?.className==='mc-score-projection'&&/Proj\. finish.*10\.00/.test(text(n))),'Projected finish renders alongside actual score');
 const pastProgress = render({ fullBoard: true, selectedWeek: 1, playersData: { p1: progressPlayers.done, p2: progressPlayers.live } });
 assert(!nodes(pastProgress).some(n => n.props?.className === 'mc-score-progress'), 'Current player team metadata cannot invent historical progress');
 assert(!nodes(pastProgress).some(n=>n.props?.className==='mc-score-projection'),'Current projections cannot invent historical finishes');
+// Actual score and projected finish are separate comparisons, including when
+// they point in opposite directions. NFL state only resolves a zero-zero start.
+{
+    const savedBoard = board, savedHooks = hooks, savedProjections = App.WeeklyProj;
+    const pairPlayers = { p1: { team: 'BUF' }, p2: { team: 'GB' } };
+    const pairGames = (left = 'in', right = 'in') => [
+        { home: 'BUF', away: 'MIA', state: left, completed: left === 'post', kickoff: '2099-10-07T20:00:00Z' },
+        { home: 'GB', away: 'MIN', state: right, completed: right === 'post', kickoff: '2099-10-07T20:00:00Z' },
+    ];
+    const renderPair = ({ scores = [0, 28], estimates = [130, 120], games = pairGames(), status = 'ready', selectedWeek = 2, fullBoard = true } = {}) => {
+        const pairRows = scores.map((points, i) => ({ roster_id: i + 1, matchup_id: 1, points, starters: ['p' + (i + 1)], players_points: { ['p' + (i + 1)]: points } }));
+        board = { status, supported: true, rows: pairRows, groups: [{ matchupId: 1, teams: pairRows.slice().reverse() }], updatedAt: Date.now(), error: status === 'stale' ? new Error('offline') : null };
+        App.WeeklyProj = { projectRoster: () => Object.fromEntries(estimates.flatMap((estimate, i) => estimate == null ? [] : [['p' + (i + 1), { statLine: { median: { pass_yd: estimate * 25 } }, points: { median: estimate } }]])) };
+        const extra = { fullBoard, selectedWeek, currentLeague: { ...props.currentLeague, rosters: pairRows }, myRoster: pairRows[0], playersData: pairPlayers };
+        hooks = []; render(extra);
+        hooks[hooks.findIndex(value => value && Array.isArray(value.games))] = { key: '2026|' + selectedWeek, games };
+        return render(extra);
+    };
+    const sides = view => nodes(view).filter(n => n.props?.['data-score-state']);
+    const projection = side => nodes(side).find(n => n.props?.className === 'mc-score-projection');
+    const actual = side => text(nodes(side).find(n => n.props?.className === 'lls-score'));
+    const ariaHidden = node => node.props?.['aria-hidden'] === true || node.props?.['aria-hidden'] === 'true';
+    const assertStates = (view, scoreStates, projectionStates) => {
+        assert.deepEqual(sides(view).map(side => side.props['data-score-state']), scoreStates);
+        assert.deepEqual(sides(view).map(side => projection(side)?.props['data-projection-state']), projectionStates);
+        assert(!nodes(view).some(n => typeof n === 'object' && n.type !== 'style' && /^(Live|Won|Lost|Final)$/.test(text(n))), 'Relative score cues never declare a live state or final result');
+    };
+    let pair = renderPair();
+    assertStates(pair, ['trailing', 'leading'], ['leading', 'trailing']);
+    assert(text(nodes(sides(pair)[0]).find(n => n.props?.className === 'lls-owner')).includes('Owner 1'), 'Own identity sorts left even when provider pair order is reversed');
+    assert(sides(pair)[0].props.className.includes('lls-own'));
+    assert.deepEqual(sides(pair).map(actual), ['0.00', '28.00'], 'Lead cues do not substitute projections for actual totals');
+    assert(text(sides(pair)[0]).includes('Behind') && text(sides(pair)[1]).includes('Leading'));
+    assert(/projected finish.*130\.00.*ahead/i.test(projection(sides(pair)[0]).props['aria-label']));
+    assert(/projected finish.*120\.00.*behind/i.test(projection(sides(pair)[1]).props['aria-label']));
+    for (const [side, glyph] of [[sides(pair)[0], '↑'], [sides(pair)[1], '↓']]) {
+        assert(nodes(projection(side)).some(n => ariaHidden(n) && text(n) === glyph), 'A nonverbal glyph reinforces the accessible projection comparison');
+    }
+    assert(nodes(sides(pair)[0]).some(n => typeof n === 'object' && text(n) === 'You'), 'Full-board own-team cue is explicit');
+    pair = renderPair({ scores: [28, 0], estimates: [100, 120] });
+    assertStates(pair, ['leading', 'trailing'], ['trailing', 'leading']);
+    assert(text(sides(pair)[0]).includes('Leading') && text(sides(pair)[1]).includes('Behind'));
+    pair = renderPair({ estimates: [120, 120] });
+    assertStates(pair, ['trailing', 'leading'], ['tied', 'tied']);
+    assert(sides(pair).every(side => /projected even/i.test(projection(side).props['aria-label'])));
+    assert(sides(pair).every(side => nodes(projection(side)).some(n => ariaHidden(n) && text(n) === '=')));
+    pair = renderPair({ scores: [0, 0], games: pairGames('pre', 'pre') });
+    assertStates(pair, ['pending', 'pending'], ['leading', 'trailing']);
+    assert(!sides(pair).some(side => nodes(side).some(n => typeof n === 'object' && text(n) === 'Tied')), 'Pregame zeroes do not imply an active tie');
+    pair = renderPair({ scores: [0, 0], games: [...pairGames('pre', 'pre'), { home: 'KC', away: 'DEN', state: 'in', completed: false }] });
+    assertStates(pair, ['pending', 'pending'], ['leading', 'trailing']);
+    pair = renderPair({ scores: [0, 0], games: pairGames('in', 'pre') });
+    assertStates(pair, ['tied', 'tied'], ['leading', 'trailing']);
+    assert(sides(pair).every(side => nodes(side).some(n => typeof n === 'object' && text(n) === 'Tied')), 'A confirmed reported starter start permits a genuine zero-score tie');
+    pair = renderPair({ scores: [0, 0], games: [] });
+    assertStates(pair, ['pending', 'pending'], ['unavailable', 'unavailable']);
+    pair = renderPair({ scores: [-2, 0], games: [] });
+    assertStates(pair, ['trailing', 'leading'], ['unavailable', 'unavailable']);
+    assert.deepEqual(sides(pair).map(actual), ['-2.00', '0.00'], 'Unequal known signed totals compare without inventing NFL progress');
+    pair = renderPair({ scores: [null, 28] });
+    assertStates(pair, ['unavailable', 'unavailable'], ['unavailable', 'unavailable']);
+    assert.deepEqual(sides(pair).map(actual), ['—', '28.00'], 'An absent actual remains unknown instead of becoming zero');
+    pair = renderPair({ estimates: [null, 120] });
+    assertStates(pair, ['trailing', 'leading'], ['unavailable', 'unavailable']);
+    assert(text(projection(sides(pair)[0])).includes('—') && text(projection(sides(pair)[1])).includes('120.00'), 'One missing estimate does not remove the other reported finish');
+    assert(sides(pair).every(side => !nodes(projection(side)).some(n => ariaHidden(n) && /[↑↓=]/.test(text(n)))), 'An incomplete projected pair cannot declare a relative lead');
+    pair = renderPair({ status: 'stale' });
+    assertStates(pair, ['trailing', 'leading'], ['leading', 'trailing']);
+    assert(text(pair).includes('last successful update'), 'Retained relative scores keep their stale-update disclosure');
+    pair = renderPair({ scores: [28, 0], games: pairGames('post', 'post') });
+    assertStates(pair, ['leading', 'trailing'], ['leading', 'trailing']);
+    assert(sides(pair).every(side => text(side).includes('1 final · 0 left')), 'Confirmed starter progress stays visible without a new winner claim');
+    pair = renderPair({ scores: [0, 0], selectedWeek: 1 });
+    assert.deepEqual(sides(pair).map(side => side.props['data-score-state']), ['pending', 'pending'], 'Historical zeroes never borrow the current player directory to confirm a tie');
+    assert(sides(pair).every(side => !projection(side)));
+    pair = renderPair({ fullBoard: false });
+    assert(!sides(pair).some(side => nodes(side).some(n => typeof n === 'object' && /^(You|Leading|Behind|Tied)$/.test(text(n)))), 'The compact board does not add full-board focus labels');
+    board = savedBoard; hooks = savedHooks; App.WeeklyProj = savedProjections;
+}
 // Chopped's phone overview is one survival race, using the selected week's
 // actual field and provider totals rather than per-team starter cards.
 vm.runInContext(fs.readFileSync(require('path').join(__dirname, '../js/shared/chopped.js'), 'utf8'), scope);
