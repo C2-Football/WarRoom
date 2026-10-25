@@ -298,9 +298,9 @@ function MyTeamTab({
     else if (rosterFilter === 'IDP') filtered = rows.filter(r => idpPos.has(r.pos));
     else if (rosterFilter === 'Rookies') filtered = rows.filter(r => isRookieRow(r));
 
-    const posOrder = {QB:0,RB:1,WR:2,TE:3,K:4,DEF:5,DL:6,LB:7,DB:8};
     return [...filtered].sort((a, b) => {
       const {key, dir} = rosterSort;
+      if (key === 'sleeper') return compareSleeperOrder(a, b) * dir;
       if (rosterGroupMode !== 'none') {
         const gd = (getRowGroupRank(a) - getRowGroupRank(b)) || String(getRowGroupKey(a)).localeCompare(String(getRowGroupKey(b)));
         if (gd !== 0) return gd;
@@ -362,7 +362,7 @@ function MyTeamTab({
       if (key === 'gp') return ((b.curGP||0) - (a.curGP||0)) * dir;
       if (key === 'durability') return ((b.durabilityGP||0) - (a.durabilityGP||0)) * dir;
       if (key === 'name') { const na = getPlayerName(a.pid).toLowerCase(), nb = getPlayerName(b.pid).toLowerCase(); return (na < nb ? -1 : na > nb ? 1 : 0) * dir; }
-      if (key === 'pos') { const d = ((posOrder[a.pos] ?? 99) - (posOrder[b.pos] ?? 99)); return d !== 0 ? d * dir : (b.dhq - a.dhq); }
+      if (key === 'pos') return (positionRank(a.pos) - positionRank(b.pos)) * dir || sourceIndex(a) - sourceIndex(b);
       if (key === 'peak') return ((b.peakYrsLeft||0) - (a.peakYrsLeft||0)) * dir;
       if (key === 'action') {
         // rec holds mixed-case labels ('Sell High', 'Build Around', 'Hold Core'…) — sort by family, not exact key.
@@ -378,7 +378,7 @@ function MyTeamTab({
       if (key === 'height') return ((b.p.height||0) - (a.p.height||0)) * dir;
       if (key === 'weight') return ((b.p.weight||0) - (a.p.weight||0)) * dir;
       if (key === 'depthChart') return ((a.p.depth_chart_order||99) - (b.p.depth_chart_order||99)) * dir;
-      if (key === 'slot') { const ord = {starter:0,taxi:1,bench:2,ir:3}; return ((ord[a.section]||9) - (ord[b.section]||9)) * dir; }
+      if (key === 'slot') return ((slotOrder[a.section] ?? 9) - (slotOrder[b.section] ?? 9)) * dir;
       if (key === 'acquired') { const aa = getAcquisitionInfo(a.pid, myRoster?.roster_id), ab = getAcquisitionInfo(b.pid, myRoster?.roster_id); return (aa.method < ab.method ? -1 : aa.method > ab.method ? 1 : 0) * dir; }
       if (key === 'acquiredDate') { const aa = getAcquisitionInfo(a.pid, myRoster?.roster_id), ab = getAcquisitionInfo(b.pid, myRoster?.roster_id); return (aa.date < ab.date ? -1 : aa.date > ab.date ? 1 : 0) * dir; }
       if (key === 'sos') {
@@ -504,9 +504,26 @@ function MyTeamTab({
   }, [rosterFilter, rosterFilterKey]);
 
   const allPlayers = myRoster.players || [];
-  const starters = new Set(myRoster.starters || []);
-  const reserve = new Set(myRoster.reserve || []);
-  const taxi = new Set(myRoster.taxi || []);
+  const starters = new Set((myRoster.starters || []).map(String));
+  const reserve = new Set((myRoster.reserve || []).map(String));
+  const taxi = new Set((myRoster.taxi || []).map(String));
+  const sourceOrder = new Map(allPlayers.map((pid, index) => [String(pid), index]));
+  const starterOrder = new Map();
+  (myRoster.starters || []).forEach((pid, index) => {
+    if (pid != null && String(pid) !== '0' && !starterOrder.has(String(pid))) starterOrder.set(String(pid), index);
+  });
+  const sourceIndex = row => sourceOrder.get(String(row.pid)) ?? Number.MAX_SAFE_INTEGER;
+  const positionRank = position => ({ QB:0, RB:1, WR:2, TE:3, K:4, PK:4, DEF:5, DST:5, 'D/ST':5,
+    DL:6, DE:6, DT:6, NT:6, EDGE:6, LB:7, ILB:7, OLB:7, MLB:7, DB:8, CB:8, S:8, FS:8, SS:8 })[String(position || '').toUpperCase()] ?? 99;
+  const sleeperSection = row => starterOrder.has(String(row.pid)) ? 0 : row.isIR ? 2 : row.isTaxi ? 3 : 1;
+  const compareSleeperOrder = (a, b) => {
+    const section = sleeperSection(a) - sleeperSection(b);
+    if (section) return section;
+    // Sleeper's starter array already follows configured lineup slots, including
+    // FLEX and IDP. Keep its indices intact when a starting slot is empty.
+    if (sleeperSection(a) === 0) return starterOrder.get(String(a.pid)) - starterOrder.get(String(b.pid));
+    return positionRank(a.pos) - positionRank(b.pos) || sourceIndex(a) - sourceIndex(b);
+  };
 
   const normPos = window.App.normPos;
 
@@ -542,9 +559,9 @@ function MyTeamTab({
     const trend = meta?.trend || (prevPPG && curPPG ? Math.round((curPPG - prevPPG) / prevPPG * 100) : 0);
 
     const age = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
-    const isStarter = starters.has(pid);
-    const isIR = reserve.has(pid);
-    const isTaxi = taxi.has(pid);
+    const isStarter = starters.has(String(pid));
+    const isIR = reserve.has(String(pid));
+    const isTaxi = taxi.has(String(pid));
     const section = isStarter ? 'starter' : isIR ? 'ir' : isTaxi ? 'taxi' : 'bench';
 
     const curve = typeof window.App?.getAgeCurve === 'function'
@@ -777,12 +794,13 @@ function MyTeamTab({
   React.useEffect(() => {
     try { localStorage.setItem('wr_roster_density', rowDensity); } catch {}
   }, [rowDensity]);
-  const [rosterGroupMode, setRosterGroupMode] = React.useState(() => {
+  const [savedRosterGroupMode, setRosterGroupMode] = React.useState(() => {
     try { return localStorage.getItem('wr_roster_group_mode') || 'position'; } catch { return 'position'; }
   });
+  const rosterGroupMode = rosterSort.key === 'sleeper' ? 'slot' : savedRosterGroupMode;
   React.useEffect(() => {
-    try { localStorage.setItem('wr_roster_group_mode', rosterGroupMode); } catch {}
-  }, [rosterGroupMode]);
+    try { localStorage.setItem('wr_roster_group_mode', savedRosterGroupMode); } catch {}
+  }, [savedRosterGroupMode]);
   // Free: the Action grouping lens organizes the board by verdict → Pro.
   // Clamp a persisted pick back to position (the option is also filtered out
   // of GROUP_MODES below). Safe pre-clamp render: free rows carry rec=null,
@@ -928,7 +946,11 @@ function MyTeamTab({
     { key: 'none', label: 'None' },
   ].filter(g => isPro || g.key !== 'action'); // Action lens = verdict grouping → Pro
   const activeGroupModeLabel = GROUP_MODES.find(g => g.key === rosterGroupMode)?.label || 'Position';
-  const slotOrder = { starter: 0, bench: 1, taxi: 2, ir: 3 };
+  const slotOrder = { starter: 0, bench: 1, ir: 2, taxi: 3 };
+  const changeRosterGroup = value => {
+    setRosterGroupMode(value);
+    if (rosterSort.key === 'sleeper') setRosterSort({ key: 'pos', dir: 1 });
+  };
   const recGroup = (rec) => /sell/i.test(rec || '') ? 'Sell'
     : /buy|build|core/i.test(rec || '') ? 'Build'
     : /stash/i.test(rec || '') ? 'Stash'
@@ -950,7 +972,6 @@ function MyTeamTab({
     return r.pos || '?';
   };
   const getRowGroupRank = (r) => {
-    const posRank = {QB:0,RB:1,WR:2,TE:3,K:4,DL:5,LB:6,DB:7};
     const actionRank = { build: 0, hold: 1, stash: 2, sell: 3 };
     const ageRank = { youth: 0, prime: 1, veteran: 2, post: 3, unknown: 4 };
     const peakRank = { pre: 0, prime: 1, vet: 2, post: 3, unknown: 4 };
@@ -959,7 +980,7 @@ function MyTeamTab({
     if (rosterGroupMode === 'age') return ageRank[getRowGroupKey(r)] ?? 9;
     if (rosterGroupMode === 'peak') return peakRank[getRowGroupKey(r)] ?? 9;
     if (rosterGroupMode === 'none') return 0;
-    return posRank[r.pos] ?? 99;
+    return positionRank(r.pos);
   };
   // Group dividers use the single gold accent for structure — no per-group rainbow.
   const getRowGroupColor = () => 'var(--gold)';
@@ -1555,9 +1576,10 @@ function MyTeamTab({
   const _phoneMetricSortKeys = { proj: 'listproj', ppg: 'l5ppg', dhq: 'dhq', age: 'age', season: 'seasonppg', bye: 'bye', matchup: 'listmatchup' };
   const _usesMetricSorts = !!metricPreference && !phoneTableOpen;
   const _phoneSortOptions = [
+    { key: 'sleeper', label: 'Sleeper order' },
     { key: 'name', label: 'Player' },
+    { key: 'pos', label: 'Position' },
     ...(_usesMetricSorts ? [
-      { key: 'pos', label: 'Position' },
       ...metricPreference.selected.map(metric => _phoneMetricSortKeys[metric]).filter(Boolean)
         .map(key => ({ key, label: _phoneMetricSortLabels[key] })),
     ] : visibleCols.filter(key => ROSTER_COLUMNS[key])
@@ -1650,7 +1672,7 @@ function MyTeamTab({
       ...dropAlerts, ...taxiAlerts, ...plannedDrops,
       ...rows.filter(_isActiveSell),
     ].map(r => r.pid)).size;
-    const activeCount = allPlayers.filter(pid => !reserve.has(pid) && !taxi.has(pid)).length;
+    const activeCount = allPlayers.filter(pid => !reserve.has(String(pid)) && !taxi.has(String(pid))).length;
     const activeCapacity = (currentLeague?.roster_positions || []).filter(slot => !['IR', 'RES', 'TAXI'].includes(slot)).length;
     const openSpots = activeCapacity > 0 ? activeCapacity - activeCount : null;
     const record = myRoster.settings || {};
@@ -1681,7 +1703,7 @@ function MyTeamTab({
     const phoneSortLabel = _phoneSortOptions.find(option => option.key === rosterSort.key)?.label || 'Player';
     const phoneViewSummary = [phoneTableOpen ? 'Table' : null, !phoneScopes.includes(rosterFilter) ? rosterFilter : null,
       rosterGroupMode !== 'none' ? activeGroupModeLabel : null,
-      phoneSortLabel + (['name', 'pos'].includes(rosterSort.key) ? _phoneSortDescending ? ' Z–A' : ' A–Z' : _phoneSortDescending ? ' ↓' : ' ↑')].filter(Boolean).join(' · ');
+      phoneSortLabel + (rosterSort.key === 'name' ? _phoneSortDescending ? ' Z–A' : ' A–Z' : ['pos', 'sleeper'].includes(rosterSort.key) ? _phoneSortDescending ? ' ↓' : '' : _phoneSortDescending ? ' ↓' : ' ↑')].filter(Boolean).join(' · ');
     _phonePillsEl = (
       <div className="wr-roster-mobile-controls">
         {!phoneTableOpen && <div className="wr-roster-mobile-search">
@@ -1715,14 +1737,14 @@ function MyTeamTab({
             {sheetField('Show', <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={sheetSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
               {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
             </select>)}
-            {sheetField('Group by', <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+            {sheetField('Group by', <select value={rosterGroupMode} onChange={e => changeRosterGroup(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
               {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
             {sheetField('Sort by', <select value={rosterSort.key} onChange={e => { const key = e.target.value; setRosterGroupMode('none'); setRosterSort(previous => previous.key === key ? previous : { key, dir: 1 }); }} style={sheetSelectStyle(rosterSort.key !== 'name')} title="Sort the roster">
               {_phoneSortOptions.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>)}
             {sheetField('Order', <button type="button" onClick={() => setRosterSort(prev => ({ ...prev, dir: prev.dir * -1 }))} className="wr-roster-sort-direction" title="Reverse the sort">
-              <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {['name', 'pos'].includes(rosterSort.key) ? _phoneSortDescending ? 'Z to A' : 'A to Z' : _phoneSortDescending ? 'High to low' : 'Low to high'}
+              <span aria-hidden="true">{_phoneSortDescending ? '↓' : '↑'}</span> {rosterSort.key === 'name' ? _phoneSortDescending ? 'Z to A' : 'A to Z' : ['pos', 'sleeper'].includes(rosterSort.key) ? _phoneSortDescending ? 'Reverse order' : 'Sleeper order' : _phoneSortDescending ? 'High to low' : 'Low to high'}
             </button>)}
           </div>
         ) },
@@ -1760,7 +1782,7 @@ function MyTeamTab({
       ],
       footer: (
         <React.Fragment>
-          <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); setExpandedPid(null); setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 }); if (phoneTableOpen) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); } }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1, textTransform: 'none', fontSize: '14px' }}>Reset</button>
+          <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); setExpandedPid(null); setRosterGroupMode('slot'); setRosterSort({ key: 'sleeper', dir: 1 }); if (phoneTableOpen) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); } }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1, textTransform: 'none', fontSize: '14px' }}>Reset</button>
           <button type="button" onClick={() => setFiltersOpen(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 2, textTransform: 'none', fontSize: '14px' }}>Done</button>
         </React.Fragment>
       ),
@@ -1879,8 +1901,11 @@ function MyTeamTab({
         <button type="button" onClick={() => { setPhoneSearch(''); setRosterFilter('All'); }} style={{ ...controlBtn(false), display: 'block', minHeight: '44px', marginTop: '8px' }}>Show all players</button>
       </div>;
     }
+    const orderPicker = <select className="wr-roster-order-picker" aria-label="Roster order" title="Roster order" value={rosterSort.key} onChange={event => { const key = event.target.value; setRosterGroupMode('none'); setRosterSort(previous => previous.key === key ? previous : { key, dir: 1 }); }}>
+      {_phoneSortOptions.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
+    </select>;
     const sortHeader = metricPreference && window.WR?.PlayerMetrics?.SortHeader && <window.WR.PlayerMetrics.SortHeader groupMetrics
-        className="wr-roster-sort-header"
+        className="wr-roster-sort-header" nameControl={orderPicker}
         columns={window.WR.PlayerMetrics.slots(metricPreference.selected, {}).map(slot => ({ key: _phoneMetricSortKeys[slot.key], label: slot.key === 'dhq' && showRosterRosPoints ? 'ROS PTS' : slot.label, title: _phoneMetricSortLabels[_phoneMetricSortKeys[slot.key]] }))}
         sort={{ key: rosterSort.key, dir: _phoneSortDescending ? -1 : 1 }} onSort={sortByColumn}
         style={{ gridTemplateColumns: `minmax(95px,1fr) repeat(${metricPreference.selected.length},minmax(0,${1.35 / metricPreference.selected.length}fr))` }}
@@ -1905,7 +1930,7 @@ function MyTeamTab({
             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: isDeepData ? 'var(--gold)' : 'var(--silver)', opacity: isDeepData ? 0.86 : 0.58 }}>{activePresetMeta.label} · {visibleCols.length} fields</div>
             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rosterGroupMode === 'none' ? 'var(--silver)' : 'var(--gold)', opacity: 0.62 }}>Grouped by {activeGroupModeLabel}</div>
             <div style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.52, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Sort: {ROSTER_COLUMNS[rosterSort.key]?.shortLabel || (rosterSort.key === 'name' ? 'Player' : rosterSort.key)}
+              Sort: {rosterSort.key === 'sleeper' ? 'Sleeper order' : ROSTER_COLUMNS[rosterSort.key]?.shortLabel || (rosterSort.key === 'name' ? 'Player' : rosterSort.key)}
             </div>
           </div>
         </div>
@@ -2146,8 +2171,13 @@ function MyTeamTab({
           <option value="compact">Compact</option>
         </select>
 
+        <span className="wr-module-toolbar-label">Order</span>
+        <select value={rosterSort.key} onChange={event => { const key = event.target.value; setRosterGroupMode('none'); setRosterSort(previous => previous.key === key ? previous : { key, dir: 1 }); }} style={rosterSelectStyle(rosterSort.key !== 'sleeper')} title="Sort the roster">
+          {_phoneSortOptions.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
+        </select>
+
         <span className="wr-module-toolbar-label">Group</span>
-        <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={rosterSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+        <select value={rosterGroupMode} onChange={e => changeRosterGroup(e.target.value)} style={rosterSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
           {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
         </select>
 
@@ -2213,7 +2243,7 @@ function MyTeamTab({
                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '7px' }}>Group Rows By</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {GROUP_MODES.map(opt => (
-                    <button key={opt.key} onClick={() => setRosterGroupMode(opt.key)} style={controlBtn(rosterGroupMode === opt.key)}>{opt.label}</button>
+                    <button key={opt.key} onClick={() => changeRosterGroup(opt.key)} style={controlBtn(rosterGroupMode === opt.key)}>{opt.label}</button>
                   ))}
                 </div>
               </div>

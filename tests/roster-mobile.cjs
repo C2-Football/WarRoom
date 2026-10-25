@@ -132,7 +132,8 @@ find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your ros
 click('Reset'); assert.deepEqual(props.visibleCols, listColumns, 'Resetting list settings preserves hidden full-table columns');
 assert.equal(rowPids().length, 4); assert.equal(props.expandedPid, null);
 assert.equal(find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.value, '', 'Reset clears the visible player search as well as scopes');
-assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('A to Z'), 'Alphabetical order has an alphabetical label');
+assert.equal(props.rosterSort.key, 'sleeper', 'Reset restores the Sleeper roster order');
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('Sleeper order'), 'The default order is identified as Sleeper order rather than alphabetic');
 click('Full table');
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Column preset'), 'Full table retains all column presets');
 assert(find(tree, n => n.type === 'select' && n.props.title === 'Row density'));
@@ -250,6 +251,7 @@ const sortOptions = () => all(sortSelect(), n => n.type === 'option').map(n => (
 const chooseSort = key => { sortSelect().props.onChange({ target: { value: key } }); render(); };
 const metricText = (pid, metric) => text(find(find(tree, n => n.props['data-wr-roster-pid'] === pid), n => n.props.className === 'mc-roster-metrics').children[0].find(n => n.props.key === metric));
 assert.deepEqual(sortOptions(), [
+  { key: 'sleeper', label: 'Sleeper order' },
   { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' },
   { key: 'listproj', label: 'Projection' }, { key: 'l5ppg', label: 'Last 5 PPG' },
   { key: 'dhq', label: 'ROS points' }, { key: 'age', label: 'Age' },
@@ -258,7 +260,7 @@ props.rosterSort = { key: 'action', dir: 1 }; render();
 assert.deepEqual(sortOptions().at(-1), { key: 'action', label: 'Move (saved sort)' }, 'An off-list persisted sort remains visible and clearly identified');
 props.rosterSort = { key: 'name', dir: 1 }; render();
 click('Full table');
-assert.deepEqual(sortOptions().map(option => option.key), ['name', 'pos', 'peak', 'action'], 'Full table retains its own column sort options');
+assert.deepEqual(sortOptions().map(option => option.key), ['sleeper', 'name', 'pos', 'peak', 'action'], 'Full table retains its own column sorts and both roster-order choices');
 find(tree, n => n.type === 'select' && n.props.title === 'Points-per-game window').props.onChange({ target: { value: 'l3' } }); render();
 click('Player list');
 chooseSort('listproj');
@@ -282,6 +284,7 @@ props.rosterSort = { key: 'ppg', dir: 1 }; render();
 assert.deepEqual(sortOptions().at(-1), { key: 'ppg', label: 'Table PPG (saved sort)' }, 'A saved table PPG sort is not silently relabeled or migrated to L5');
 metricSelection = ['season', 'bye', 'matchup']; props.rosterSort = { key: 'name', dir: 1 }; render();
 assert.deepEqual(sortOptions(), [
+  { key: 'sleeper', label: 'Sleeper order' },
   { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' },
   { key: 'seasonppg', label: 'Season PPG' }, { key: 'bye', label: 'Bye week' }, { key:'listmatchup', label:'Matchup grade' },
 ], 'Selection changes refresh the menu and include every displayed metric');
@@ -355,6 +358,66 @@ assert.deepEqual(defensiveBadges.map(text),['EDGE','MLB','SS'],'Mobile roster pr
 assert.deepEqual(defensiveBadges.map(n=>n.props.style['--wr-position-color']),['DL','LB','DB'].map(pos=>root.App.POS_COLORS[pos]));
 assert.equal(root.App.normPos('EDGE'),'DL','Color labels do not change the existing roster eligibility normalizer');
 console.log('PASS IDP roster icons: imported palettes, defensive family aliases, distinct groups, raw position labels and unchanged eligibility');
+
+// The platform's submitted slot order is a different view from sorting every
+// rostered player by their native position. A WR in FLEX must stay after TE.
+slots = []; width = 390;
+const orderedPlayers = {
+  benchWrFirst: { full_name: 'Zulu Bench Receiver', position: 'WR', team: 'MIN' },
+  flex: { full_name: 'Flex Receiver', position: 'WR', team: 'CHI' },
+  benchRb: { full_name: 'Bench Runner', position: 'RB', team: 'BAL' },
+  dbStarter: { full_name: 'Starting Safety', position: 'S', team: 'SEA' },
+  benchWrSecond: { full_name: 'Alpha Bench Receiver', position: 'WR', team: 'SF' },
+  reserveWr: { full_name: 'Reserve Receiver', position: 'WR', team: 'NYJ' },
+  qbStarter: { full_name: 'Starting Quarterback', position: 'QB', team: 'KC' },
+  teStarter: { full_name: 'Starting Tight End', position: 'TE', team: 'IND' },
+  taxiRb: { full_name: 'Taxi Runner', position: 'RB', team: 'ATL' },
+  lbStarter: { full_name: 'Starting Linebacker', position: 'ILB', team: 'PIT' },
+  benchDe: { full_name: 'Bench End', position: 'DE', team: 'DAL' },
+  benchDt: { full_name: 'Bench Tackle', position: 'DT', team: 'BUF' },
+  benchOlb: { full_name: 'Bench Linebacker', position: 'OLB', team: 'PHI' },
+  benchCb: { full_name: 'Bench Corner', position: 'CB', team: 'CLE' },
+  benchQb: { full_name: 'Bench Quarterback', position: 'QB', team: 'LAR' },
+  benchK: { full_name: 'Bench Kicker', position: 'K', team: 'MIA' },
+  benchDef: { full_name: 'Bench Defense', position: 'DEF', team: 'TEN' },
+  unknown: { full_name: 'Unknown Position', position: 'UNKNOWN', team: 'FA' },
+};
+props.playersData = orderedPlayers; props.statsData = {}; props.stats2025Data = {};
+props.myRoster = { roster_id: 1, players: Object.keys(orderedPlayers), starters: ['qbStarter', '0', 'teStarter', 'flex', 'lbStarter', 'dbStarter'], reserve: ['reserveWr'], taxi: ['taxiRb'], settings: {} };
+props.currentLeague = { league_id: 'ordered-league', season: 2026, roster_positions: ['QB', 'UNRECOGNIZED_SLOT', 'TE', 'FLEX', 'LB', 'DB', 'BN', 'IR', 'TAXI'], scoring_settings: {}, settings: { type: 2 }, rosters: [props.myRoster] };
+props.leagueSkin = { type: 'dynasty', features: { showWeeklyVerdict: false, showFuturePicks: true, showTaxi: true } };
+props.rosterFilter = 'All'; props.rosterSort = { key: 'sleeper', dir: 1 }; props.expandedPid = null;
+props.visibleCols = ['age'];
+// A later WR is worth far more: position ties still preserve the source order.
+root.App.LI.playerScores.benchWrFirst = 1; root.App.LI.playerScores.benchWrSecond = 99999;
+render();
+const sleeperIds = ['qbStarter', 'teStarter', 'flex', 'lbStarter', 'dbStarter', 'benchQb', 'benchRb', 'benchWrFirst', 'benchWrSecond', 'benchK', 'benchDef', 'benchDe', 'benchDt', 'benchOlb', 'benchCb', 'unknown', 'reserveWr', 'taxiRb'];
+assert.deepEqual(rowPids(), sleeperIds, 'Sleeper order retains submitted starter slots including FLEX and an empty unknown slot, then bench, IR and Taxi');
+assert.deepEqual(all(tree, n => n.props.className === 'wr-roster-mobile-group-heading').map(text), ['Starters5', 'Bench11', 'IR1', 'Taxi1'], 'Sleeper order displays matching roster sections rather than splitting starters into native-position groups');
+const orderPicker = () => rosterSortHeader().props.nameControl;
+assert.equal(orderPicker().props['aria-label'], 'Roster order', 'The player header exposes an immediate order picker');
+assert.equal(orderPicker().props.value, 'sleeper', 'The inline order picker reflects the actual default');
+assert.deepEqual(all(orderPicker(), n => n.type === 'option').slice(0, 3).map(n => n.props.value), ['sleeper', 'name', 'pos'], 'The inline picker exposes Sleeper, Player and Position before metrics');
+assert(!button('Roster view and sort').props.title.includes('A–Z'), 'Slot order never claims to be alphabetical');
+click('Roster view and sort');
+assert.equal(find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.value, 'slot', 'The group control reflects the displayed Sleeper sections');
+assert.deepEqual(sortOptions().slice(0, 3), [{ key: 'sleeper', label: 'Sleeper order' }, { key: 'name', label: 'Player' }, { key: 'pos', label: 'Position' }], 'Position remains available when the full-table Pos column is hidden');
+orderPicker().props.onChange({ target: { value: 'pos' } }); render();
+assert.deepEqual(rowPids(), ['qbStarter', 'benchQb', 'benchRb', 'taxiRb', 'benchWrFirst', 'flex', 'benchWrSecond', 'reserveWr', 'teStarter', 'benchK', 'benchDef', 'benchDe', 'benchDt', 'lbStarter', 'benchOlb', 'dbStarter', 'benchCb', 'unknown'], 'Position sort follows canonical offense and defensive families, with stable source ties instead of value ordering');
+assert.equal(find(tree, n => n.type === 'select' && n.props.title === 'Group rows by').props.value, 'none', 'Explicit position sort orders the entire roster');
+assert(!text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('A to Z'), 'Position order is not mislabeled alphabetic');
+find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort').props.onClick(); render();
+assert(text(find(tree, n => n.type === 'button' && n.props.title === 'Reverse the sort')).includes('Reverse order'));
+chooseSort('sleeper');
+assert.deepEqual(rowPids(), sleeperIds, 'Choosing Sleeper restores the submitted lineup without changing player membership');
+find(tree, n => n.type === 'input' && n.props['aria-label'] === 'Search your roster').props.onChange({ target: { value: 'Receiver' } }); render();
+assert.deepEqual(rowPids(), ['flex', 'benchWrFirst', 'benchWrSecond', 'reserveWr'], 'Search preserves Sleeper section and slot ordering');
+click('Reset');
+assert.deepEqual(rowPids(), sleeperIds, 'Reset clears search and returns to Sleeper order');
+click('Full table');
+assert(sortOptions().some(option => option.key === 'pos'), 'Full-table Position sorting is available even without a visible position column');
+console.log('PASS roster order: Sleeper slots and FLEX, empty slots, stable bench/IR/Taxi, full IDP position families, hidden-column sorting and reset');
+
 context.document.getElementById=()=>({});
 vm.runInContext(Babel.transform(fs.readFileSync('js/components/wr-primitives.js','utf8'),{presets:['react']}).code,context);
 const linebackerBadge=root.WR.Badge({label:'OLB',kind:'OLB'});

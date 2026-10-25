@@ -105,11 +105,11 @@
             h('span', { className: 'mc-sort-label' }, label),
             h('span', { className: 'mc-sort-arrow', 'aria-hidden': 'true' }, active ? sort.dir === 1 ? '↑' : '↓' : '↕'));
     }
-    function SortHeader({ columns = [], sort, onSort, className = '', style, nameKey = 'name', nameLabel = 'Player', groupMetrics = false }) {
+    function SortHeader({ columns = [], sort, onSort, className = '', style, nameKey = 'name', nameLabel = 'Player', nameControl, groupMetrics = false }) {
         const h = root.React.createElement;
         const metrics = columns.map(column => h(SortButton, { key: column.key, columnKey: column.key, label: column.label, title: column.title, sort, onSort, disabled: column.sortable === false }));
         return h('div', { className: 'mc-player-sort-header' + (className ? ' ' + className : ''), style: { '--mc-sort-columns': columns.length, ...style } },
-            h(SortButton, { columnKey: nameKey, label: nameLabel, title: nameLabel, sort, onSort, className: 'mc-sort-player' }),
+            nameControl || h(SortButton, { columnKey: nameKey, label: nameLabel, title: nameLabel, sort, onSort, className: 'mc-sort-player' }),
             groupMetrics ? h('div', { className: 'mc-sort-metrics' }, metrics) : metrics);
     }
     function move(selected, key, to) {

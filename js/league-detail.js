@@ -1103,7 +1103,7 @@
         const [analyticsData, setAnalyticsData] = useState(null);
         const [analyticsTab, setAnalyticsTab] = useState('roster');
         const [rosterFilter, setRosterFilter] = useState('All');
-        const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: 1 });
+        const [rosterSort, setRosterSort] = useState({ key: 'sleeper', dir: 1 });
         const defaultRosterCols = ['pos','age','dhq','posRankLg','ppg','durability','peak','action','sos'];
         const [visibleCols, setVisibleCols] = useState(() => {
             const stored = LeagueStorage.get(LEAGUE_WR_KEYS.ROSTER_COLS);

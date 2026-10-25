@@ -60,3 +60,5 @@
  .mc-metric-footer{padding:10px 12px}
 }
 @media(prefers-reduced-motion:reduce){.mc-metric-row{transition:none}}
+
+.wr-roster-sort-header .wr-roster-order-picker{width:100%;min-width:0;min-height:44px;padding:3px 1px;border:0;border-bottom:2px solid var(--cx-accent,var(--gold,#b7ceff));border-radius:0;background:transparent;color:var(--cx-accent,var(--gold,#b7ceff));font:600 16px/1.25 var(--font-body,sans-serif);text-transform:none;letter-spacing:0;cursor:pointer}

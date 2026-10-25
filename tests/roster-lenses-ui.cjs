@@ -632,7 +632,10 @@ test('the metric sorting header stays above the original position groups as lens
     headerFirst();
     assert.deepEqual(groups().map(group => text(find(group, node => node.props.className === 'wr-roster-mobile-group-heading'))), originalGroups, 'No synthetic Suggestions section replaces the position groups');
     assert.deepEqual(all(sortHeaders()[0], node => node.props.className === 'mc-sort-label').map(text), originalLabels, 'Lens activation preserves the current league metric labels');
-    assert.equal(all(sortHeaders()[0], node => node.type === 'button').length, 5, 'Player and all four stat sort actions remain available');
+    assert.equal(all(sortHeaders()[0], node => node.type === 'button').length, 4, 'All four stat sort actions remain available');
+    const orderPicker = find(sortHeaders()[0], node => node.type === 'select' && node.props['aria-label'] === 'Roster order');
+    assert(orderPicker, 'The original player-header space exposes roster ordering without adding a row');
+    assert.deepEqual(all(orderPicker, node => node.type === 'option').slice(0, 3).map(node => node.props.value), ['sleeper', 'name', 'pos'], 'Sleeper, Player and Position sorting stay reachable while a lens is active');
     h.click('Preview move for Bench Runner'); headerFirst();
     h.click('Close'); headerFirst();
     h.click('Lens off'); headerFirst();

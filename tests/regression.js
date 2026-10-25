@@ -729,8 +729,9 @@ test('the phone roster can sort, and its presets are column-guarded', () => {
   eq(sort.dir, -1, 'reselecting a field preserves its direction');
   sourceHas(myTeamSrc, 'View &amp; sort', 'the phone player list needs a visible sort entry point');
   sourceHas(myTeamSrc, 'select value={rosterSort.key}', 'the sort selector must reflect the active choice');
-  // Reset has to clear the sort too, or "Reset" leaves the board reordered.
-  sourceHas(myTeamSrc, "setRosterGroupMode('position'); setRosterSort({ key: 'name', dir: 1 });", 'reset must clear the sort');
+  // Reset returns to the submitted Sleeper lineup rather than a value/name order.
+  sourceHas(myTeamSrc, "setRosterSort({ key: 'sleeper', dir: 1 });", 'reset must restore Sleeper roster order');
+  sourceMatches(fs.readFileSync(path.join(ROOT, 'js/league-detail.js'), 'utf8'), /\[rosterSort, setRosterSort\] = useState\(\{ key: 'sleeper', dir: 1 \}\)/, 'new roster visits default to Sleeper order');
   // Same ROSTER_COLUMNS guard the desktop presets carry (a retired column
   // otherwise renders its raw key as the card slot's label).
   sourceHas(myTeamSrc, 'PHONE_SLOT_PRESETS = Object.fromEntries(Object.entries({', 'phone presets must be column-guarded');
