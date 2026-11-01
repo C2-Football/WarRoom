@@ -2097,6 +2097,7 @@
                 if (window.S.weeklyPlayerPointsScope !== pointsScope) {
                     window.S.weeklyPlayerPoints = {};
                     window.S.weeklyPlayerPlayed = {};
+                    window.S.weeklyPlayerPointsComplete = false;
                     window.S.weeklyPlayerPointsLeagueId = null;
                     window.S.weeklyPlayerPointsScope = pointsScope;
                     window.S.weeklyPlayerPointsSeason = activeYear;
@@ -2124,6 +2125,7 @@
                     && Date.now() - wppFetchedAtRef.current.ts < 15 * 60 * 1000;
                 if (provider.id === 'sleeper' && pointsLeagueId && !(background && !weekRolled && pointsFresh)) {
                     const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
+                    window.S.weeklyPlayerPointsComplete = false;
                     window.App.WeeklyProj.loadWeeklyPoints({
                         leagueId: pointsLeagueId, season: activeYear, throughWeek, scoring: currentLeague.scoring_settings,
                         previousPoints: window.S.weeklyPlayerPoints, previousPlayed: window.S.weeklyPlayerPlayed,
@@ -2132,6 +2134,7 @@
                         window.S.weeklyPlayerPoints = history.points;
                         window.S.weeklyPlayerPlayed = history.played;
                         window.S.weeklyPlayerPointsLeagueId = pointsLeagueId;
+                        window.S.weeklyPlayerPointsComplete = history.complete === true;
                         if (history.complete) wppFetchedAtRef.current = { ts: Date.now(), scope: pointsScope, throughWeek };
                         window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: pointsLeagueId, season: activeYear } }));
                     }).catch(e => window.wrLog?.('weekly-points.load', e));
