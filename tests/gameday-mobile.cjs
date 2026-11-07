@@ -388,6 +388,7 @@ const matchupPanel = node => String(node?.props?.className || '').split(/\s+/).i
         button(basis.out, 'Projection').props.onClick(); await basis.render();
         const picker = select(basis.out, node => node.props['aria-label'] === 'Matchup point comparison basis');
         assert(picker, noProjection ? 'Read-only actual review receives benchmark context without the optimizer' : 'Normal Game Day matchup receives benchmark context');
+        assert.deepEqual(all(picker).filter(n => n.type === 'option').map(n => n.props.value), ['projected', 'average'], 'Non-IDP matchups omit IDP average');
         picker.props.onChange({ target: { value: 'average' } }); await basis.render();
         const panel = select(basis.out, matchupPanel);
         assert.equal(panel.props['data-score-view'], 'average');

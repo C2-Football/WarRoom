@@ -79,12 +79,14 @@ function MatchupBreakdown({ matchup, comparison, week, pro, pmeta, upgrade, comp
     const mode = display.scope === scope ? display.mode : 'auto';
     const actualMode = reviewing && mode !== 'projection';
     const Basis = window.App?.RosterLensBasis;
-    const selectedBasis = benchmarkChoice.scope === scope ? benchmarkChoice.basis : 'projected';
+    const hasIdp = Basis?.hasIdp?.(benchmarkLeague) === true;
+    const requestedBasis = benchmarkChoice.scope === scope ? benchmarkChoice.basis : 'projected';
+    const selectedBasis = requestedBasis === 'idp-average' && !hasIdp ? 'projected' : requestedBasis;
     const basis = pro && !actualMode && benchmarkContext && Basis?.comparison && ['average', 'idp-average'].includes(selectedBasis) ? selectedBasis : 'projected';
     const empirical = basis !== 'projected';
     const basisLabel = basis === 'average' ? String(benchmarkLeague.season || '') + ' average points' : 'IDP averages + projections';
     const nativeAverages = !!benchmarkLeague._mfl || benchmarkLeague._platform === 'mfl' || benchmarkLeagueId.startsWith('mfl_');
-    const benchmarkKey = JSON.stringify([scope, basis, benchmarkContext?.revision || 0, benchmarkContext?.statsSeason, benchmarkLeague.scoring_settings]);
+    const benchmarkKey = JSON.stringify([scope, basis, benchmarkContext?.revision || 0, benchmarkContext?.statsSeason, benchmarkLeague.scoring_settings, benchmarkLeague.roster_positions]);
     benchmarkLive.current = benchmarkKey;
     const benchmarkOptions = { ...benchmarkContext, league: benchmarkLeague, week, basis, players: benchmarkContext?.players || {} };
     const prepared = !nativeAverages ? benchmarkOptions : benchmarkLoad.key === benchmarkKey
@@ -157,7 +159,7 @@ function MatchupBreakdown({ matchup, comparison, week, pro, pmeta, upgrade, comp
     return <section className={'gd-matchup' + (compact ? ' gd-matchup-compact' : '') + (reviewing ? ' gd-matchup-review' : '')} data-score-view={actualMode ? 'actual' : empirical ? basis : reviewing ? 'projection' : 'outlook'} aria-label="Weekly matchup breakdown">
         {reviewControls}
         {reviewing && <div className="gd-review-switch" aria-label="Matchup score view"><button type="button" aria-pressed={!actualMode && !empirical} onClick={() => { setBenchmarkChoice({ scope, basis: 'projected' }); setDisplay({ scope, mode: 'projection' }); }}>Projection</button><button type="button" aria-pressed={actualMode} onClick={() => setDisplay({ scope, mode: 'actual' })}>Actual vs proj</button></div>}
-        {pro && !actualMode && benchmarkContext && Basis?.comparison && <div className="gd-matchup-benchmark-tools"><select aria-label="Matchup point comparison basis" value={basis} onChange={event => setBenchmarkChoice({ scope, basis: ['average', 'idp-average'].includes(event.target.value) ? event.target.value : 'projected' })}><option value="projected">Projected</option><option value="average">Avg points</option><option value="idp-average">IDP avg</option></select>{empirical && nativeAverages && !prepared && <span role="status">Loading averages…</span>}</div>}
+        {pro && !actualMode && benchmarkContext && Basis?.comparison && <div className="gd-matchup-benchmark-tools"><select aria-label="Matchup point comparison basis" value={basis} onChange={event => setBenchmarkChoice({ scope, basis: ['average', 'idp-average'].includes(event.target.value) ? event.target.value : 'projected' })}><option value="projected">Projected</option><option value="average">Avg points</option>{hasIdp && <option value="idp-average">IDP avg</option>}</select>{empirical && nativeAverages && !prepared && <span role="status">Loading averages…</span>}</div>}
         <div className="gd-matchup-heading">
             <div><div className="gd-matchup-eyebrow">Week {week} · {actualMode ? comparison.headerLabel : empirical ? basisLabel : reviewing ? 'Submitted lineup projections' : 'Matchup outlook'}</div><h2>vs {oppName}</h2>
                 {!compact && !empirical && <p>{reviewing ? 'Submitted starters · actual points against their saved projections' : 'Projected points · your lineup plan vs their ' + (pro ? 'optimal' : 'current') + ' lineup'}</p>}
