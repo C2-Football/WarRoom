@@ -72,7 +72,7 @@
     // (owner ask 2026-07-12: "projected should look at the upcoming week").
     // Lazily fetched once per (season, week), cached in-module; consumers
     // hear 'wr:projections-loaded' and recompute.
-    const _prov = { key: null, byPid: null, fetching: null };
+    const _prov = { key: null, byPid: null, fetching: null, retryAt: 0, fetchedAt: 0 };
     function providerSeason() {
         const s = root.S || {};
         const lg = (s.leagues || []).find(l => l.league_id === s.currentLeagueId) || s.league;
@@ -82,19 +82,22 @@
         const w = Number(week) || currentWeek();
         const season = providerSeason();
         const key = season + '|' + w;
-        if (_prov.key === key && (_prov.byPid || _prov.fetching)) return _prov.fetching || Promise.resolve(_prov.byPid);
+        if (_prov.key === key && _prov.fetching) return _prov.fetching;
+        if (_prov.key === key && _prov.byPid && Date.now()-_prov.fetchedAt < 900000) return Promise.resolve(_prov.byPid);
+        if (_prov.key === key && _prov.retryAt > Date.now()) return Promise.resolve(null);
         if (typeof fetch !== 'function') return Promise.resolve(null);
-        _prov.key = key; _prov.byPid = null;
+        if (_prov.key !== key) { _prov.key = key; _prov.byPid = null; }
         _prov.fetching = fetch('https://api.sleeper.app/v1/projections/nfl/regular/' + season + '/' + w)
             .then(r => (r && r.ok ? r.json() : null))
             .then(map => {
                 if (_prov.key !== key) return null;
-                _prov.byPid = map || {};
+                if (!map || Array.isArray(map) || typeof map !== 'object' || !Object.keys(map).length) throw Error('Projections not published');
+                _prov.byPid = map; _prov.fetchedAt = Date.now(); _prov.retryAt = 0;
                 _prov.fetching = null;
                 try { root.dispatchEvent(new CustomEvent('wr:projections-loaded', { detail: { season, week: w } })); } catch (e) { /* headless */ }
                 return _prov.byPid;
             })
-            .catch(() => { if (_prov.key === key) { _prov.byPid = {}; _prov.fetching = null; } return null; });
+            .catch(() => { if (_prov.key === key) { _prov.retryAt = Date.now()+30000; _prov.fetching = null; } return null; });
         return _prov.fetching;
     }
     // Published provider line for a pid, or null. Pre-season most rows are
